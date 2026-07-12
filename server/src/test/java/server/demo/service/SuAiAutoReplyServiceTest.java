@@ -113,11 +113,13 @@ class SuAiAutoReplyServiceTest {
         SuMessage saved = msgCaptor.getValue();
         assertEquals(SuMessagingSenderType.STAFF, saved.getSenderType());
         assertEquals("���ã����� 3 ���ɰ�����ס��", saved.getContent());
+        assertEquals("SENT", saved.getDeliveryStatus());
 
         verify(threadRepository).save(any(SuMessageThread.class));
         verify(sendLogRepository, atLeast(2)).save(any(AutoMessageSendLog.class));
         verify(realtimeGateway).broadcastMessageCreated(eq(10L), eq(5L), any());
-        verify(realtimeGateway).broadcastMessageUpdated(eq(10L), eq(5L), any());
+        verify(realtimeGateway).broadcastWorkbenchInvalidated(10L, "message");
+        verify(realtimeGateway, never()).broadcastMessageUpdated(any(), any(), any());
 
         ArgumentCaptor<SuMessage> dirtyCaptor = ArgumentCaptor.forClass(SuMessage.class);
         verify(dirtyMarker).markDirty(dirtyCaptor.capture());

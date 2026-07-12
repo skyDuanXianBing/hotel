@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.home.HomeWorkbenchResponse;
+import server.demo.exception.StoreAccessDeniedException;
 import server.demo.service.HomeWorkbenchService;
 
 import java.time.LocalDate;
@@ -32,6 +33,8 @@ public class HomeWorkbenchController {
         try {
             HomeWorkbenchResponse response = homeWorkbenchService.getWorkbench(date, limit, type);
             return ResponseEntity.ok(ApiResponse.success("获取首页工作台成功", response));
+        } catch (StoreAccessDeniedException e) {
+            return ResponseEntity.status(403).body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(ApiResponse.error("获取首页工作台失败: " + e.getMessage()));
         }

@@ -8,11 +8,19 @@ export interface SuMessagingRealtimeEventMessage {
   timestamp: string
 }
 
-export interface SuMessagingRealtimeEvent {
-  eventType: 'MESSAGE_CREATED' | 'MESSAGE_UPDATED'
-  threadId: number
-  message: SuMessagingRealtimeEventMessage
-}
+export type SuMessagingRealtimeEvent =
+  | {
+      eventType: 'MESSAGE_CREATED' | 'MESSAGE_UPDATED'
+      threadId: number
+      message: SuMessagingRealtimeEventMessage
+      resourceType?: never
+    }
+  | {
+      eventType: 'WORKBENCH_INVALIDATED'
+      resourceType: string
+      threadId?: never
+      message?: never
+    }
 
 const resolveWebSocketUrl = (token: string, storeId: number) => {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1'

@@ -16,6 +16,8 @@ import server.demo.repository.StoreUserRepository;
 import server.demo.repository.UserRepository;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -76,6 +78,9 @@ public class CleanerIdentityService {
             Long invitedByUserId
     ) {
         User existingUser = userRepository.findByEmail(email).orElse(null);
+        if (existingUser != null && !Boolean.TRUE.equals(existingUser.getIsActive())) {
+            throw new RuntimeException("该邮箱对应的系统账号已停用，请先由管理员恢复账号");
+        }
         return saveCleanerUserAccount(
                 existingUser,
                 email,
@@ -89,6 +94,10 @@ public class CleanerIdentityService {
 
     @Transactional
     public Cleaner ensureCleanerIdentity(Cleaner cleaner) {
+        return ensureCleanerIdentity(cleaner, false);
+    }
+
+    private Cleaner ensureCleanerIdentity(Cleaner cleaner, boolean allowMembershipActivation) {
         if (cleaner == null) {
             throw new RuntimeException("保洁员信息不存在");
         }
@@ -103,7 +112,7 @@ public class CleanerIdentityService {
             cleaner = cleanerRepository.save(cleaner);
         }
 
-        ensureStoreMembership(store, savedUser, store.getUserId(), Boolean.TRUE.equals(cleaner.getIsActive()));
+        ensureStoreMembership(store, savedUser, store.getUserId(), Boolean.TRUE.equals(cleaner.getIsActive()), allowMembershipActivation);
         return cleaner;
     }
 
@@ -126,12 +135,51 @@ public class CleanerIdentityService {
     public Cleaner ensureCleanerIdentityByEmail(String email) {
         Cleaner cleaner = cleanerRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("该邮箱未注册保洁员账号"));
-        return ensureCleanerIdentity(cleaner);
+        return ensureCleanerIdentity(cleaner, false);
     }
 
     public Cleaner getRequiredCleanerByUserIdAndStoreId(Long userId, Long storeId) {
         return findCleanerByUserIdAndStoreId(userId, storeId)
                 .orElseThrow(() -> new RuntimeException("当前账号未绑定保洁员身份"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> auditActiveIdentities(Long storeId) {
+        List<String> issues = new ArrayList<>();
+        HashSet<Long> seenUserIds = new HashSet<>();
+        for (Cleaner cleaner : cleanerRepository.findByStoreIdAndIsActiveTrue(storeId)) {
+            if (cleaner.getUserId() == null) {
+                issues.add("cleanerId=" + cleaner.getId() + " 未绑定系统用户");
+                continue;
+            }
+            if (!seenUserIds.add(cleaner.getUserId())) {
+                issues.add("userId=" + cleaner.getUserId() + " 在当前门店存在重复保洁身份");
+            }
+            User user = userRepository.findById(cleaner.getUserId()).orElse(null);
+            if (user == null) {
+                issues.add("cleanerId=" + cleaner.getId() + " 绑定的系统用户不存在");
+                continue;
+            }
+            if (!emailEquals(user.getEmail(), cleaner.getEmail())) {
+                issues.add("cleanerId=" + cleaner.getId() + " 与系统用户邮箱不一致");
+            }
+            if (!Boolean.TRUE.equals(user.getIsActive())) {
+                issues.add("cleanerId=" + cleaner.getId() + " 绑定的系统用户已停用");
+            }
+            StoreUser membership = storeUserRepository.findByStoreIdAndUserId(storeId, cleaner.getUserId()).orElse(null);
+            if (membership == null || !Boolean.TRUE.equals(membership.getIsActive())) {
+                issues.add("cleanerId=" + cleaner.getId() + " 缺少有效门店成员关系");
+            }
+        }
+        return issues;
+    }
+
+    @Transactional
+    public Cleaner reconcileIdentity(Long storeId, Long cleanerId) {
+        Cleaner cleaner = cleanerRepository.findById(cleanerId)
+                .filter(item -> Objects.equals(storeId, item.getStoreId()))
+                .orElseThrow(() -> new RuntimeException("保洁员不存在"));
+        return ensureCleanerIdentity(cleaner, true);
     }
 
     private User saveCleanerUserAccount(
@@ -157,7 +205,7 @@ public class CleanerIdentityService {
         targetUser.setIsActive(active);
 
         User savedUser = userRepository.save(targetUser);
-        ensureStoreMembership(store, savedUser, invitedByUserId, active);
+        ensureStoreMembership(store, savedUser, invitedByUserId, active, true);
         return savedUser;
     }
 
@@ -185,14 +233,26 @@ public class CleanerIdentityService {
     }
 
     private void syncUserProfile(User user, Cleaner cleaner) {
+        if (user.getId() != null && !Boolean.TRUE.equals(user.getIsActive())) {
+            throw new RuntimeException("保洁员绑定的系统账号已停用，请先由管理员恢复账号");
+        }
         user.setEmail(cleaner.getEmail());
         user.setName(cleaner.getName());
         user.setNickname(cleaner.getName());
-        user.setIsActive(cleaner.getIsActive());
+        if (user.getId() == null) {
+            user.setIsActive(cleaner.getIsActive());
+        }
     }
 
-    private StoreUser ensureStoreMembership(Store store, User user, Long invitedByUserId, boolean active) {
-        StoreUser storeUser = storeUserRepository.findByStoreIdAndUserId(store.getId(), user.getId())
+    private StoreUser ensureStoreMembership(
+            Store store,
+            User user,
+            Long invitedByUserId,
+            boolean active,
+            boolean allowMembershipActivation
+    ) {
+        Optional<StoreUser> existingMembership = storeUserRepository.findByStoreIdAndUserId(store.getId(), user.getId());
+        StoreUser storeUser = existingMembership
                 .orElseGet(() -> {
                     StoreUser created = new StoreUser(store, user, CLEANER_STORE_ROLE);
                     created.setInvitedBy(invitedByUserId);
@@ -201,8 +261,12 @@ public class CleanerIdentityService {
 
         storeUser.setStore(store);
         storeUser.setUser(user);
-        storeUser.setRole(CLEANER_STORE_ROLE);
-        storeUser.setIsActive(active);
+        if (existingMembership.isEmpty()) {
+            storeUser.setRole(CLEANER_STORE_ROLE);
+        }
+        if (existingMembership.isEmpty() || allowMembershipActivation) {
+            storeUser.setIsActive(active);
+        }
         if (storeUser.getInvitedBy() == null) {
             storeUser.setInvitedBy(invitedByUserId);
         }

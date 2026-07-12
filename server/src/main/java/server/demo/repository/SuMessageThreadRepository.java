@@ -30,6 +30,75 @@ public interface SuMessageThreadRepository extends JpaRepository<SuMessageThread
 
     List<SuMessageThread> findByStoreIdOrderByLastActivityDesc(Long storeId);
 
+    @Query(
+            value = """
+                    SELECT t.*
+                    FROM su_message_threads t
+                    JOIN su_messages guest_message
+                      ON guest_message.store_id = t.store_id
+                     AND guest_message.thread_id = t.id
+                     AND guest_message.sender_type = 'GUEST'
+                    WHERE t.store_id = :storeId
+                      AND t.closed = false
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM su_messages later_message
+                          WHERE later_message.store_id = t.store_id
+                            AND later_message.thread_id = t.id
+                            AND (
+                                later_message.sender_type = 'GUEST'
+                                OR (
+                                    later_message.sender_type = 'STAFF'
+                                    AND later_message.delivery_status = 'SENT'
+                                )
+                            )
+                            AND (
+                                later_message.sent_at > guest_message.sent_at
+                                OR (
+                                    later_message.sent_at = guest_message.sent_at
+                                    AND later_message.id > guest_message.id
+                                )
+                            )
+                      )
+                    ORDER BY guest_message.sent_at DESC, guest_message.id DESC
+                    """,
+            countQuery = """
+                    SELECT COUNT(*)
+                    FROM su_message_threads t
+                    JOIN su_messages guest_message
+                      ON guest_message.store_id = t.store_id
+                     AND guest_message.thread_id = t.id
+                     AND guest_message.sender_type = 'GUEST'
+                    WHERE t.store_id = :storeId
+                      AND t.closed = false
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM su_messages later_message
+                          WHERE later_message.store_id = t.store_id
+                            AND later_message.thread_id = t.id
+                            AND (
+                                later_message.sender_type = 'GUEST'
+                                OR (
+                                    later_message.sender_type = 'STAFF'
+                                    AND later_message.delivery_status = 'SENT'
+                                )
+                            )
+                            AND (
+                                later_message.sent_at > guest_message.sent_at
+                                OR (
+                                    later_message.sent_at = guest_message.sent_at
+                                    AND later_message.id > guest_message.id
+                                )
+                            )
+                      )
+                    """,
+            nativeQuery = true
+    )
+    Page<SuMessageThread> findAwaitingReplyPageByStoreId(
+            @Param("storeId") Long storeId,
+            Pageable pageable
+    );
+
     @Query("""
             SELECT t
             FROM SuMessageThread t

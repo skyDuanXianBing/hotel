@@ -1,5 +1,7 @@
 import axios from 'axios'
 
+import { redactForOutput, redactSensitiveText } from './outputRedaction'
+
 interface StepResult {
   name: string
   ok: boolean
@@ -232,7 +234,7 @@ async function runStep(name: string, fn: () => Promise<unknown>): Promise<StepRe
     console.log(`PASS ${name}`)
     return result
   } catch (err) {
-    const error = err instanceof Error ? err.message : String(err)
+    const error = redactSensitiveText(err instanceof Error ? err.message : String(err))
     // eslint-disable-next-line no-console
     console.error(`FAIL ${name}: ${error}`)
     return { name, ok: false, error }
@@ -324,6 +326,9 @@ async function main(): Promise<void> {
     assertCondition(data?.token, 'setup-local did not return token')
     assertCondition(data?.storeId, 'setup-local did not return storeId')
     assertCondition(data?.suHotelId, 'setup-local did not return suHotelId')
+    assertCondition(data?.cleanerSession?.cleanerToken, 'setup-local did not return cleaner test token')
+    assertCondition(data?.cleanerSession?.storeId === data?.storeId, 'cleaner test session store does not match setup store')
+    assertCondition(data?.cleanerSession?.cleanerId, 'setup-local did not return cleaner id')
     assertCondition(data?.readiness?.storeTimezone === 'Asia/Tokyo', `setup-local timezone is not Asia/Tokyo: ${data?.readiness?.storeTimezone}`)
     const autoMessages = data?.readiness?.autoMessages
     assertCondition(Array.isArray(autoMessages) && autoMessages.length > 0, 'setup-local readiness did not return autoMessages')
@@ -338,6 +343,8 @@ async function main(): Promise<void> {
       storeTimezone: data?.readiness?.storeTimezone,
       autoMessages: Array.isArray(autoMessages) ? autoMessages.length : 0,
       autoMessageTemplate,
+      cleanerReady: true,
+      cleanerDisplayName: data.cleanerSession.displayName,
       token: data.token,
     }
   })
@@ -461,7 +468,7 @@ async function main(): Promise<void> {
 
   const failed = steps.filter((step) => !step.ok)
   // eslint-disable-next-line no-console
-  console.log(JSON.stringify({
+  console.log(JSON.stringify(redactForOutput({
     ok: failed.length === 0,
     pmsBaseUrl,
     simulatorBaseUrl,
@@ -470,7 +477,7 @@ async function main(): Promise<void> {
       fixedNow: simulatorFixedNow,
     },
     steps,
-  }, null, 2))
+  }), null, 2))
   if (failed.length > 0) {
     process.exitCode = 1
   }
@@ -478,6 +485,6 @@ async function main(): Promise<void> {
 
 main().catch((err) => {
   // eslint-disable-next-line no-console
-  console.error(err instanceof Error ? err.stack || err.message : String(err))
+  console.error(redactSensitiveText(err instanceof Error ? err.stack || err.message : String(err)))
   process.exitCode = 1
 })

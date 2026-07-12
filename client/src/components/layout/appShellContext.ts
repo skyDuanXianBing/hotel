@@ -23,6 +23,7 @@ export interface AppTopNavProps {
   formattedInboxUnreadCount: string
   hasSystemUnread: boolean
   hasOrderUnread: boolean
+  canSwitchWorkspace: boolean
 }
 
 export interface AppTopNavBindings {
@@ -36,6 +37,7 @@ export interface AppTopNavBindings {
   onSystemNotification: () => void
   onOrderNotification: () => void
   onProfileClick: () => void
+  onWorkspaceSwitch: () => void
   onLogout: () => Promise<void> | void
 }
 

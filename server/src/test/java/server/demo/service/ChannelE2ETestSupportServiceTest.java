@@ -7,16 +7,23 @@ import server.demo.constants.ChannelPriceOtaSyncState;
 import server.demo.entity.AutoMessage;
 import server.demo.entity.Channel;
 import server.demo.entity.ChannelPrice;
+import server.demo.entity.Cleaner;
 import server.demo.entity.OtaIntegration;
 import server.demo.entity.PricePlan;
 import server.demo.entity.RoomType;
 import server.demo.entity.RoomTypePricePlan;
 import server.demo.entity.Store;
+import server.demo.entity.StoreUser;
 import server.demo.entity.User;
 import server.demo.repository.ChannelPriceRepository;
+import server.demo.repository.CleanerRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.StoreRepository;
+import server.demo.repository.StoreUserRepository;
+import server.demo.repository.UserRepository;
 import server.demo.service.ChannelE2ETestSupportService.TestSupportAccessException;
+import server.demo.service.ChannelE2ETestSupportService.LocalCleanerFixture;
+import server.demo.util.JwtUtil;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -32,7 +39,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class ChannelE2ETestSupportServiceTest {
@@ -313,6 +322,72 @@ class ChannelE2ETestSupportServiceTest {
         assertTrue(reused.isEmpty());
     }
 
+    @Test
+    void ensureLocalSetupCleanerFixture_reusesOnlySafeReservedIdentityIdempotently() {
+        UserRepository userRepository = mock(UserRepository.class);
+        StoreUserRepository storeUserRepository = mock(StoreUserRepository.class);
+        CleanerRepository cleanerRepository = mock(CleanerRepository.class);
+        CleanerIdentityService identityService = mock(CleanerIdentityService.class);
+        JwtUtil jwtUtil = mock(JwtUtil.class);
+        ChannelE2ETestSupportService service = newCleanerFixtureService(
+                userRepository, storeUserRepository, cleanerRepository, identityService, jwtUtil);
+
+        Store store = new Store(); store.setId(41L);
+        User user = new User(); user.setId(21L); user.setEmail("local-e2e-cleaner@thehosthub.test");
+        user.setUsername("local_e2e_cleaner"); user.setIsActive(true);
+        StoreUser membership = new StoreUser(store, user, "member"); membership.setId(31L); membership.setIsActive(true);
+        Cleaner cleaner = new Cleaner(); cleaner.setId(51L); cleaner.setStoreId(41L); cleaner.setUserId(21L);
+        cleaner.setEmail("local-e2e-cleaner@thehosthub.test"); cleaner.setName("Local E2E Cleaner");
+        cleaner.setPassword("encoded"); cleaner.setIsActive(true);
+
+        when(userRepository.findByEmail("local-e2e-cleaner@thehosthub.test")).thenReturn(Optional.of(user));
+        when(storeUserRepository.findByUserId(21L)).thenReturn(List.of(membership));
+        when(storeUserRepository.findByStoreIdAndUserId(41L, 21L)).thenReturn(Optional.of(membership));
+        when(cleanerRepository.findByStoreIdAndEmailIgnoreCase(41L, "local-e2e-cleaner@thehosthub.test"))
+                .thenReturn(List.of(cleaner));
+        when(cleanerRepository.findByUserIdAndStoreId(21L, 41L)).thenReturn(List.of(cleaner));
+        when(cleanerRepository.findByEmail("local-e2e-cleaner@thehosthub.test")).thenReturn(Optional.of(cleaner));
+        when(identityService.ensureCleanerIdentity(cleaner)).thenReturn(cleaner);
+        when(jwtUtil.generateToken(21L, "local-e2e-cleaner@thehosthub.test")).thenReturn("cleaner-token");
+
+        List<String> created = new ArrayList<>(); List<String> reused = new ArrayList<>();
+        LocalCleanerFixture first = ReflectionTestUtils.invokeMethod(
+                service, "ensureLocalSetupCleanerFixture", store, created, reused);
+        LocalCleanerFixture second = ReflectionTestUtils.invokeMethod(
+                service, "ensureLocalSetupCleanerFixture", store, created, reused);
+
+        assertEquals(51L, first.cleanerId());
+        assertEquals(first, second);
+        assertTrue(created.isEmpty());
+        verify(userRepository, never()).save(any(User.class));
+        verify(storeUserRepository, never()).save(any(StoreUser.class));
+        verify(cleanerRepository, never()).save(any(Cleaner.class));
+    }
+
+    @Test
+    void ensureLocalSetupCleanerFixture_rejectsDisabledReservedUserWithoutReviving() {
+        UserRepository userRepository = mock(UserRepository.class);
+        StoreUserRepository storeUserRepository = mock(StoreUserRepository.class);
+        CleanerRepository cleanerRepository = mock(CleanerRepository.class);
+        CleanerIdentityService identityService = mock(CleanerIdentityService.class);
+        JwtUtil jwtUtil = mock(JwtUtil.class);
+        ChannelE2ETestSupportService service = newCleanerFixtureService(
+                userRepository, storeUserRepository, cleanerRepository, identityService, jwtUtil);
+        Store store = new Store(); store.setId(41L);
+        User user = new User(); user.setId(21L); user.setEmail("local-e2e-cleaner@thehosthub.test");
+        user.setUsername("local_e2e_cleaner"); user.setIsActive(false);
+        when(userRepository.findByEmail("local-e2e-cleaner@thehosthub.test")).thenReturn(Optional.of(user));
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+                ReflectionTestUtils.invokeMethod(
+                        service, "ensureLocalSetupCleanerFixture", store, new ArrayList<>(), new ArrayList<>()));
+
+        assertTrue(exception.getMessage().contains("拒绝自动复活"));
+        assertFalse(Boolean.TRUE.equals(user.getIsActive()));
+        verify(userRepository, never()).save(any(User.class));
+        verifyNoInteractions(identityService, jwtUtil);
+    }
+
     private ChannelE2ETestSupportService newService(boolean localE2EEnabled, String testSupportKey) {
         return newService(localE2EEnabled, testSupportKey, null, null, null);
     }
@@ -340,6 +415,8 @@ class ChannelE2ETestSupportServiceTest {
                 null,
                 null,
                 null,
+                null,
+                null,
                 roomTypePricePlanRepository,
                 channelPriceRepository,
                 null,
@@ -357,6 +434,39 @@ class ChannelE2ETestSupportServiceTest {
         ReflectionTestUtils.setField(service, "localE2EEnabled", localE2EEnabled);
         ReflectionTestUtils.setField(service, "testSupportKey", testSupportKey);
         return service;
+    }
+
+    private ChannelE2ETestSupportService newCleanerFixtureService(
+            UserRepository userRepository,
+            StoreUserRepository storeUserRepository,
+            CleanerRepository cleanerRepository,
+            CleanerIdentityService identityService,
+            JwtUtil jwtUtil
+    ) {
+        return new ChannelE2ETestSupportService(
+                userRepository,
+                null,
+                storeUserRepository,
+                cleanerRepository,
+                identityService,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                jwtUtil
+        );
     }
 
     private RoomType buildRoomType(Long storeId, Long id, String name, String code) {

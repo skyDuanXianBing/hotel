@@ -1,4 +1,10 @@
-import type { JsonObject, PmsAutoMessageSummary, PmsClientResult, PmsReadinessData } from '../pms-client'
+import type {
+  JsonObject,
+  PmsAutoMessageSummary,
+  PmsClientResult,
+  PmsReadinessData,
+  PmsSetupLocalCleanerSession,
+} from '../pms-client'
 
 export type E2ERunMode = 'PUSH' | 'PULL'
 export type E2EChannelCode = 'BOOKING' | 'AIRBNB'
@@ -104,5 +110,6 @@ export interface E2EBootstrapResponse {
   suHotelId: string
   roomTypeId: number
   roomId: number
+  cleanerSession: PmsSetupLocalCleanerSession
   readiness: E2EReadinessResponse
 }

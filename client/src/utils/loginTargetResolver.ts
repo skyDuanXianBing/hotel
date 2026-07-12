@@ -1,5 +1,5 @@
 import type { Router } from 'vue-router'
-import type { CleanerDTO, LoginResponse, UserDTO } from '@/api/auth'
+import type { CleanerContextDTO, CleanerDTO, LoginResponse, UserDTO } from '@/api/auth'
 import type { StoreDTO } from '@/api/store'
 import { usePermissionStore } from '@/stores/permission'
 import { useStoreStore } from '@/stores/store'
@@ -10,6 +10,8 @@ import {
   clearCleanerSession,
   clearPmsSessionStorage,
   saveCleanerSession,
+  saveAvailableLoginTargets,
+  type CleanerSessionContext,
   type CleanerSessionStore,
   type CleanerSessionUser,
 } from '@/utils/cleanerSession'
@@ -21,6 +23,11 @@ const CLEANER_DASHBOARD_PATH = '/cleaner/dashboard'
 const INCOMPLETE_LOGIN_RESPONSE_MESSAGE = '登录响应不完整，请重新登录'
 const INVALID_LOGIN_TARGET_MESSAGE = '登录响应缺少有效的登录目标，请联系管理员'
 const INCOMPLETE_CLEANER_RESPONSE_MESSAGE = '保洁账号信息不完整，请联系管理员检查账号配置'
+
+export const normalizePreferredLoginTarget = (value: unknown): 'PMS' | 'CLEANER' | undefined => {
+  const normalized = String(value || '').toUpperCase()
+  return normalized === 'PMS' || normalized === 'CLEANER' ? normalized : undefined
+}
 
 const isNumber = (value: unknown): value is number => {
   return typeof value === 'number' && Number.isFinite(value)
@@ -88,6 +95,27 @@ const resolveCleanerStore = (loginData: LoginResponse, cleaner: CleanerDTO): Cle
   throw new Error(INCOMPLETE_CLEANER_RESPONSE_MESSAGE)
 }
 
+const resolveCleanerContexts = (loginData: LoginResponse): CleanerSessionContext[] => {
+  const contexts = Array.isArray(loginData.cleanerContexts) ? loginData.cleanerContexts : []
+  return contexts
+    .filter((context: CleanerContextDTO) => {
+      return (
+        isNumber(context.cleanerId) &&
+        isNumber(context.storeId) &&
+        context.cleaner?.id === context.cleanerId &&
+        context.cleaner?.storeId === context.storeId &&
+        context.cleaner?.isActive === true &&
+        context.store?.id === context.storeId
+      )
+    })
+    .map((context) => ({
+      cleanerId: context.cleanerId,
+      storeId: context.storeId,
+      cleaner: { ...context.cleaner },
+      store: toCleanerSessionStore(context.store),
+    }))
+}
+
 const clearPiniaSessionState = () => {
   const userStore = useUserStore()
   const storeStore = useStoreStore()
@@ -114,6 +142,7 @@ const resolvePmsLogin = async (loginData: LoginResponse, router: Router) => {
   localStorage.setItem(PMS_TOKEN_KEY, loginData.token)
   userStore.setUser(loginData.user)
   storeStore.setStores(stores)
+  saveAvailableLoginTargets(loginData.availableLoginTargets || ['PMS'])
 
   await router.push(STORE_SELECTION_PATH)
 }
@@ -129,8 +158,18 @@ const resolveCleanerLogin = async (loginData: LoginResponse, router: Router) => 
   const cleaner = loginData.cleaner
   const cleanerUser = buildCleanerSessionUser(cleaner)
   const cleanerStore = resolveCleanerStore(loginData, cleaner as CleanerDTO)
+  const cleanerContexts = resolveCleanerContexts(loginData)
+  const normalizedContexts = cleanerContexts.length
+    ? cleanerContexts
+    : [{
+        cleanerId: (cleaner as CleanerDTO).id,
+        storeId: cleanerStore.id,
+        cleaner: { ...(cleaner as CleanerDTO) },
+        store: cleanerStore,
+      }]
 
-  saveCleanerSession(loginData.token, cleanerUser, cleanerStore)
+  saveCleanerSession(loginData.token, cleanerUser, cleanerStore, normalizedContexts)
+  saveAvailableLoginTargets(loginData.availableLoginTargets || ['CLEANER'])
   await router.push(CLEANER_DASHBOARD_PATH)
 }
 

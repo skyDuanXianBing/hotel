@@ -15,6 +15,7 @@ import type {
   PmsReservationLookupData,
   PmsReservationLookupQuery,
   PmsSetupLocalData,
+  PmsSetupLocalCleanerSession,
   PmsWebhookEventLookupData,
   PmsWebhookEventLookupQuery,
 } from './types'
@@ -40,6 +41,7 @@ export type {
   PmsRoomSummary,
   PmsRoomTypeSummary,
   PmsSetupLocalData,
+  PmsSetupLocalCleanerSession,
   PmsSetupLocalRoomSummary,
   PmsMessagingMessageSummary,
   PmsMessagingThreadSummary,

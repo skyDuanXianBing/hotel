@@ -34,6 +34,13 @@ export interface CleanerDTO {
   updatedAt: string
 }
 
+export interface CleanerContextDTO {
+  cleanerId: number
+  storeId: number
+  cleaner: CleanerDTO
+  store: StoreDTO
+}
+
 // 更新个人资料请求
 export interface UpdateProfileRequest {
   nickname?: string
@@ -53,6 +60,7 @@ export interface LoginByPasswordRequest {
   email: string
   password: string
   rememberMe?: boolean
+  preferredLoginTarget?: LoginTarget
 }
 
 // 登录请求（验证码登录）
@@ -60,6 +68,7 @@ export interface LoginByCodeRequest {
   email: string
   verificationCode: string
   rememberMe?: boolean
+  preferredLoginTarget?: LoginTarget
 }
 
 // 登录响应
@@ -71,6 +80,8 @@ export interface LoginResponse {
   cleaner?: CleanerDTO | null
   currentStore?: StoreDTO | null
   targetStoreId?: number | null
+  cleanerContexts?: CleanerContextDTO[]
+  availableLoginTargets?: LoginTarget[]
 }
 
 // 注册请求
@@ -96,8 +107,10 @@ export interface SendVerificationCodeRequest {
 /**
  * 密码登录
  */
-export const loginByPassword = (data: LoginByPasswordRequest) => {
-  return request<ApiResponse<LoginResponse>>({
+export const loginByPassword = async (
+  data: LoginByPasswordRequest,
+): Promise<ApiResponse<LoginResponse>> => {
+  return await request({
     url: '/auth/login/password',
     method: 'POST',
     data,
@@ -107,8 +120,10 @@ export const loginByPassword = (data: LoginByPasswordRequest) => {
 /**
  * 验证码登录
  */
-export const loginByCode = (data: LoginByCodeRequest) => {
-  return request<ApiResponse<LoginResponse>>({
+export const loginByCode = async (
+  data: LoginByCodeRequest,
+): Promise<ApiResponse<LoginResponse>> => {
+  return await request({
     url: '/auth/login/code',
     method: 'POST',
     data,

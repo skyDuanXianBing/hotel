@@ -19,6 +19,7 @@ public class SuMessagingRealtimeGateway {
     private static final Logger logger = LoggerFactory.getLogger(SuMessagingRealtimeGateway.class);
     private static final String EVENT_MESSAGE_CREATED = "MESSAGE_CREATED";
     private static final String EVENT_MESSAGE_UPDATED = "MESSAGE_UPDATED";
+    private static final String EVENT_WORKBENCH_INVALIDATED = "WORKBENCH_INVALIDATED";
 
     private final ObjectMapper objectMapper;
     private final Map<Long, Set<WebSocketSession>> storeSessions = new ConcurrentHashMap<>();
@@ -61,6 +62,13 @@ public class SuMessagingRealtimeGateway {
 
         SuMessagingRealtimeEvent event = new SuMessagingRealtimeEvent(EVENT_MESSAGE_UPDATED, threadId, message);
         broadcast(storeId, event);
+    }
+
+    public void broadcastWorkbenchInvalidated(Long storeId, String resourceType) {
+        if (storeId == null || resourceType == null || resourceType.isBlank()) {
+            return;
+        }
+        broadcast(storeId, new SuMessagingRealtimeEvent(EVENT_WORKBENCH_INVALIDATED, resourceType));
     }
 
     private void broadcast(Long storeId, SuMessagingRealtimeEvent event) {

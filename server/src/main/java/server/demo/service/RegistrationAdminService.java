@@ -45,6 +45,9 @@ public class RegistrationAdminService {
     @Autowired
     private RegistrationMessageService registrationMessageService;
 
+    @Autowired(required = false)
+    private SuMessagingRealtimeGateway realtimeGateway;
+
     @Transactional(readOnly = true)
     public List<AdminRegistrationListItemDTO> list(
             RegistrationFormStatus status,
@@ -100,26 +103,38 @@ public class RegistrationAdminService {
                 effectiveCheckOutEndDate
         );
 
-        List<AdminRegistrationListItemDTO> out = new ArrayList<>();
-        for (RegistrationForm form : forms) {
-            Reservation reservation = form.getReservation();
-            AdminRegistrationListItemDTO dto = new AdminRegistrationListItemDTO();
-            dto.setFormId(form.getId());
-            dto.setOrderNumber(form.getOrderNumber());
-            dto.setStatus(form.getStatus());
-            dto.setSubmittedAt(form.getSubmittedAt());
-            dto.setUpdatedAt(form.getUpdatedAt());
-            if (reservation != null) {
-                dto.setGuestName(reservation.getGuestName());
-                dto.setCheckInDate(reservation.getCheckInDate());
-                dto.setCheckOutDate(reservation.getCheckOutDate());
-                dto.setReservationStatus(reservation.getStatus());
-                dto.setChannelOrderNumber(reservation.getChannelOrderNumber());
-                dto.setChannelName(reservation.getChannel() != null ? reservation.getChannel().getName() : null);
-            }
-            out.add(dto);
+        return forms.stream().map(this::toListItem).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminRegistrationListItemDTO> listRecentApprovedForHome(LocalDateTime approvedSince) {
+        if (approvedSince == null) {
+            throw new IllegalArgumentException("approvedSince 不能为空");
         }
-        return out;
+        Long storeId = StoreContextUtils.requireStoreId();
+        return registrationFormRepository.findRecentApprovedForHome(storeId, approvedSince).stream()
+                .map(this::toListItem)
+                .toList();
+    }
+
+    private AdminRegistrationListItemDTO toListItem(RegistrationForm form) {
+        Reservation reservation = form.getReservation();
+        AdminRegistrationListItemDTO dto = new AdminRegistrationListItemDTO();
+        dto.setFormId(form.getId());
+        dto.setOrderNumber(form.getOrderNumber());
+        dto.setStatus(form.getStatus());
+        dto.setSubmittedAt(form.getSubmittedAt());
+        dto.setApprovedAt(form.getApprovedAt());
+        dto.setUpdatedAt(form.getUpdatedAt());
+        if (reservation != null) {
+            dto.setGuestName(reservation.getGuestName());
+            dto.setCheckInDate(reservation.getCheckInDate());
+            dto.setCheckOutDate(reservation.getCheckOutDate());
+            dto.setReservationStatus(reservation.getStatus());
+            dto.setChannelOrderNumber(reservation.getChannelOrderNumber());
+            dto.setChannelName(reservation.getChannel() != null ? reservation.getChannel().getName() : null);
+        }
+        return dto;
     }
 
     @Transactional(readOnly = true)
@@ -319,6 +334,8 @@ public class RegistrationAdminService {
         log.setNote(note);
         registrationReviewLogRepository.save(log);
 
+        publishWorkbenchInvalidationAfterCommit(storeId);
+
         return sendReviewMessageIfPresent(
                 storeId,
                 userId,
@@ -354,6 +371,8 @@ public class RegistrationAdminService {
         log.setOperatorUserId(userId);
         log.setNote(note);
         registrationReviewLogRepository.save(log);
+
+        publishWorkbenchInvalidationAfterCommit(storeId);
 
         return sendReviewMessageIfPresent(
                 storeId,
@@ -396,6 +415,15 @@ public class RegistrationAdminService {
             response.setMessageError(message);
         }
         return response;
+    }
+
+    private void publishWorkbenchInvalidationAfterCommit(Long storeId) {
+        if (realtimeGateway == null) {
+            return;
+        }
+        TransactionAfterCommitExecutor.execute(
+                () -> realtimeGateway.broadcastWorkbenchInvalidated(storeId, "registration_review")
+        );
     }
 
     private Reservation requireReservation(RegistrationForm form) {

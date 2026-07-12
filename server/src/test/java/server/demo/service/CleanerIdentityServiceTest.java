@@ -22,6 +22,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -89,7 +90,7 @@ class CleanerIdentityServiceTest {
     }
 
     @Test
-    void createOrReuseCleanerUserAccount_shouldReuseExistingUserAndReactivateStoreMembership() {
+    void createOrReuseCleanerUserAccount_shouldNotReactivateDisabledUser() {
         CleanerRepository cleanerRepository = Mockito.mock(CleanerRepository.class);
         UserRepository userRepository = Mockito.mock(UserRepository.class);
         StoreRepository storeRepository = Mockito.mock(StoreRepository.class);
@@ -128,19 +129,17 @@ class CleanerIdentityServiceTest {
         when(storeUserRepository.save(any(StoreUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(storeUserPermissionRepository.findByStoreUser_Id(108L)).thenReturn(List.of());
 
-        User reusedUser = service.createOrReuseCleanerUserAccount(
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> service.createOrReuseCleanerUserAccount(
                 "cleaner@example.com",
                 "Cleaner Reused",
                 "new-password",
                 26L,
                 7L
-        );
+        ));
 
-        assertEquals(88L, reusedUser.getId());
-        assertEquals("Cleaner Reused", reusedUser.getName());
-        assertEquals("new-password", reusedUser.getPassword());
-        assertTrue(Boolean.TRUE.equals(reusedUser.getIsActive()));
-        assertTrue(Boolean.TRUE.equals(existingStoreUser.getIsActive()));
+        assertEquals("该邮箱对应的系统账号已停用，请先由管理员恢复账号", exception.getMessage());
+        assertTrue(Boolean.FALSE.equals(existingUser.getIsActive()));
+        assertTrue(Boolean.FALSE.equals(existingStoreUser.getIsActive()));
     }
 
     @Test
@@ -204,5 +203,34 @@ class CleanerIdentityServiceTest {
         ArgumentCaptor<Cleaner> cleanerCaptor = ArgumentCaptor.forClass(Cleaner.class);
         verify(cleanerRepository).save(cleanerCaptor.capture());
         assertEquals(88L, cleanerCaptor.getValue().getUserId());
+    }
+
+    @Test
+    void ensureCleanerIdentity_shouldPreserveExistingOwnerRole() {
+        CleanerRepository cleanerRepository = Mockito.mock(CleanerRepository.class);
+        UserRepository userRepository = Mockito.mock(UserRepository.class);
+        StoreRepository storeRepository = Mockito.mock(StoreRepository.class);
+        StoreUserRepository storeUserRepository = Mockito.mock(StoreUserRepository.class);
+        StoreUserPermissionRepository permissionRepository = Mockito.mock(StoreUserPermissionRepository.class);
+        CleanerIdentityService service = new CleanerIdentityService(
+                cleanerRepository, userRepository, storeRepository, storeUserRepository, permissionRepository);
+
+        Cleaner cleaner = new Cleaner(); cleaner.setId(3L); cleaner.setUserId(88L); cleaner.setStoreId(26L);
+        cleaner.setName("Owner Cleaner"); cleaner.setEmail("owner@example.com"); cleaner.setIsActive(true);
+        User user = new User(); user.setId(88L); user.setEmail("owner@example.com"); user.setIsActive(true);
+        Store store = new Store(); store.setId(26L); store.setUserId(88L);
+        StoreUser membership = new StoreUser(store, user, "owner"); membership.setId(108L); membership.setIsActive(true);
+
+        when(storeRepository.findById(26L)).thenReturn(Optional.of(store));
+        when(userRepository.findById(88L)).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(storeUserRepository.findByStoreIdAndUserId(26L, 88L)).thenReturn(Optional.of(membership));
+        when(storeUserRepository.save(any(StoreUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(permissionRepository.findByStoreUser_Id(108L)).thenReturn(List.of());
+
+        service.ensureCleanerIdentity(cleaner);
+
+        assertEquals("owner", membership.getRole());
+        verify(storeUserRepository).save(membership);
     }
 }

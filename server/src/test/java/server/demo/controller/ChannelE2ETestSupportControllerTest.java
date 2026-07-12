@@ -140,6 +140,18 @@ class ChannelE2ETestSupportControllerTest {
         verify(testSupportService).dispatchAutoMessages(STORE_ID);
     }
 
+    @Test
+    void setupLocal_reservedCleanerIdentityConflictReturnsConflictEnvelope() {
+        when(testSupportService.setupLocal(VALID_KEY))
+                .thenThrow(new IllegalStateException("本地 E2E 保洁测试身份冲突：保留测试用户已停用"));
+
+        ResponseEntity<? extends ApiResponse<?>> response = controller.setupLocal(VALID_KEY);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertFalse(response.getBody().isSuccess());
+        assertTrue(response.getBody().getMessage().contains("保洁测试身份冲突"));
+    }
+
     private void whenMissingKeyIsRejected() {
         TestSupportAccessException exception = new TestSupportAccessException(400, "缺少 X-Test-Support-Key");
         org.mockito.Mockito.doThrow(exception).when(testSupportService).validateTestSupportAccess(null);

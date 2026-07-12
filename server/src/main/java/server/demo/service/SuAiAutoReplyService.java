@@ -149,7 +149,7 @@ public class SuAiAutoReplyService {
             String aiReplyContent = aiReply.trim();
             String resolvedSenderName = resolveAiSenderName(senderName);
 
-            // 先入库“发送中”并推送，前端显示转圈
+            // 发送状态在同一事务内收敛；未提交的 SENDING 不对外广播。
             SuMessage aiMessage = new SuMessage();
             aiMessage.setStoreId(storeId);
             aiMessage.setThread(thread);
@@ -166,8 +166,6 @@ public class SuAiAutoReplyService {
             thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
             threadRepository.save(thread);
             markKnowledgeThreadDirty(aiMessage);
-
-            realtimeGateway.broadcastMessageCreated(storeId, threadId, toMessageDTO(aiMessage));
 
             Map<String, Object> payload = null;
             String suDeliverError = null;
@@ -193,8 +191,13 @@ public class SuAiAutoReplyService {
             aiMessage.setRawJson(payload != null ? writeJsonSafely(payload) : null);
             aiMessage = messageRepository.save(aiMessage);
 
-            // 再推送一次更新事件，前端把转圈改为成功/失败
-            realtimeGateway.broadcastMessageUpdated(storeId, threadId, toMessageDTO(aiMessage));
+            SuMessagingMessageDTO committedMessage = toMessageDTO(aiMessage);
+            TransactionAfterCommitExecutor.execute(() -> {
+                realtimeGateway.broadcastMessageCreated(storeId, threadId, committedMessage);
+                if (DELIVERY_SENT.equals(committedMessage.getDeliveryStatus())) {
+                    realtimeGateway.broadcastWorkbenchInvalidated(storeId, "message");
+                }
+            });
 
             if (suDeliverError == null || suDeliverError.isBlank()) {
                 log.setSuccess(true);

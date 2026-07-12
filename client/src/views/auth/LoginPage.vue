@@ -27,6 +27,13 @@
                   : t('auth.login.subtitle.code')
               }}
             </p>
+            <p v-if="routePreferredTarget" class="workspace-intent">
+              {{
+                routePreferredTarget === 'CLEANER'
+                  ? t('auth.login.workspace.intentCleaner')
+                  : t('auth.login.workspace.intentPms')
+              }}
+            </p>
 
             <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" class="login-form">
               <div class="form-item">
@@ -160,12 +167,41 @@
         </div>
       </div>
     </div>
+
+    <el-dialog
+      v-model="workspaceDialogVisible"
+      :title="t('auth.login.workspace.title')"
+      width="min(520px, 92vw)"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :show-close="false"
+    >
+      <p class="workspace-dialog-description">{{ t('auth.login.workspace.description') }}</p>
+      <div class="workspace-options">
+        <button
+          v-for="target in pendingLoginTargets"
+          :key="target"
+          type="button"
+          class="workspace-option"
+          :disabled="loading"
+          @click="selectWorkspace(target)"
+        >
+          <strong>{{ workspaceLabel(target) }}</strong>
+          <span>{{ workspaceDescription(target) }}</span>
+        </button>
+      </div>
+      <template #footer>
+        <el-button :disabled="loading" @click="workspaceDialogVisible = false">
+          {{ t('auth.login.workspace.back') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Message, Lock, Key } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -175,16 +211,23 @@ import {
   loginByPassword as loginByPasswordAPI,
   loginByCode as loginByCodeAPI,
   sendVerificationCode as sendVerificationCodeAPI,
+  type ApiResponse,
+  type LoginResponse,
+  type LoginTarget,
 } from '@/api/auth'
-import { resolveLoginTarget } from '@/utils/loginTargetResolver'
+import { normalizePreferredLoginTarget, resolveLoginTarget } from '@/utils/loginTargetResolver'
 
 const router = useRouter()
+const route = useRoute()
 const { t } = useI18n()
 
 const loginMode = ref<'password' | 'code'>('password')
 const countdown = ref(0)
 const loading = ref(false)
 const loginFormRef = ref<FormInstance>()
+const workspaceDialogVisible = ref(false)
+const pendingLoginTargets = ref<LoginTarget[]>([])
+const pendingLoginResponse = ref<ApiResponse<LoginResponse> | null>(null)
 
 const loginForm = reactive({
   email: '',
@@ -208,6 +251,107 @@ const loginRules = computed<FormRules>(() => ({
     { len: 6, message: t('auth.login.validation.codeLength'), trigger: 'blur' },
   ],
 }))
+
+const routePreferredTarget = computed<LoginTarget | undefined>(() => {
+  return normalizePreferredLoginTarget(route.query.workspace)
+})
+
+const normalizeLoginTargets = (response: LoginResponse): LoginTarget[] => {
+  const targets = Array.isArray(response.availableLoginTargets)
+    ? response.availableLoginTargets.filter(
+        (target): target is LoginTarget => target === 'PMS' || target === 'CLEANER',
+      )
+    : []
+  return targets.length ? Array.from(new Set(targets)) : [response.loginTarget]
+}
+
+const authenticate = async (preferredLoginTarget?: LoginTarget): Promise<ApiResponse<LoginResponse>> => {
+  if (loginMode.value === 'password') {
+    return await loginByPasswordAPI({
+      email: loginForm.email,
+      password: loginForm.password,
+      rememberMe: loginForm.rememberMe,
+      preferredLoginTarget,
+    })
+  }
+  return await loginByCodeAPI({
+    email: loginForm.email,
+    verificationCode: loginForm.verificationCode,
+    rememberMe: loginForm.rememberMe,
+    preferredLoginTarget,
+  })
+}
+
+const finishLogin = async (response: ApiResponse<LoginResponse>) => {
+  if (!response.success || !response.data) {
+    throw new Error(response.message || t('auth.login.failed'))
+  }
+  await resolveLoginTarget(response.data, router)
+  ElMessage.success(t('auth.login.success'))
+}
+
+const workspaceLabel = (target: LoginTarget) =>
+  target === 'CLEANER'
+    ? t('auth.login.workspace.cleanerTitle')
+    : t('auth.login.workspace.pmsTitle')
+
+const workspaceDescription = (target: LoginTarget) =>
+  target === 'CLEANER'
+    ? t('auth.login.workspace.cleanerDescription')
+    : t('auth.login.workspace.pmsDescription')
+
+const selectTargetFromAuthorizedResponse = (
+  response: ApiResponse<LoginResponse>,
+  target: LoginTarget,
+): ApiResponse<LoginResponse> => {
+  const availableTargets = normalizeLoginTargets(response.data)
+  if (!availableTargets.includes(target)) {
+    throw new Error(t('auth.login.failed'))
+  }
+  if (target === 'PMS') {
+    return {
+      ...response,
+      data: {
+        ...response.data,
+        loginTarget: 'PMS',
+        cleaner: null,
+        currentStore: null,
+        targetStoreId: null,
+      },
+    }
+  }
+  const context = response.data.cleanerContexts?.[0]
+  if (!context?.cleaner || !context.store) {
+    throw new Error(t('auth.login.failed'))
+  }
+  return {
+    ...response,
+    data: {
+      ...response.data,
+      loginTarget: 'CLEANER',
+      cleaner: context.cleaner,
+      currentStore: context.store,
+      targetStoreId: context.storeId,
+    },
+  }
+}
+
+const selectWorkspace = async (target: LoginTarget) => {
+  loading.value = true
+  try {
+    const response =
+      loginMode.value === 'code' && pendingLoginResponse.value
+        ? selectTargetFromAuthorizedResponse(pendingLoginResponse.value, target)
+        : await authenticate(target)
+    workspaceDialogVisible.value = false
+    pendingLoginResponse.value = null
+    await finishLogin(response)
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.message || error.message || t('auth.login.failed'))
+  } finally {
+    loading.value = false
+  }
+}
 
 const switchLoginMode = () => {
   loginMode.value = loginMode.value === 'password' ? 'code' : 'password'
@@ -253,28 +397,23 @@ const handleLogin = async () => {
 
     loading.value = true
 
-    let response: any
-    if (loginMode.value === 'password') {
-      response = await loginByPasswordAPI({
-        email: loginForm.email,
-        password: loginForm.password,
-        rememberMe: loginForm.rememberMe,
-      })
-    } else {
-      response = await loginByCodeAPI({
-        email: loginForm.email,
-        verificationCode: loginForm.verificationCode,
-        rememberMe: loginForm.rememberMe,
-      })
-    }
+    const preferredTarget = routePreferredTarget.value
+    const response = await authenticate(preferredTarget)
 
     if (!response.success || !response.data) {
       ElMessage.error(response.message || t('auth.login.failed'))
       return
     }
 
-    await resolveLoginTarget(response.data, router)
-    ElMessage.success(t('auth.login.success'))
+    const availableTargets = normalizeLoginTargets(response.data)
+    if (!preferredTarget && availableTargets.length > 1) {
+      pendingLoginTargets.value = availableTargets
+      pendingLoginResponse.value = response
+      workspaceDialogVisible.value = true
+      return
+    }
+
+    await finishLogin(response)
   } catch (error: any) {
     const message = error.response?.data?.message || error.message || t('auth.login.failed')
     ElMessage.error(message)
@@ -311,6 +450,14 @@ const goToTechnicalSupport = () => {
   display: flex;
   background: #fff;
 }
+
+.workspace-dialog-description { margin: 0 0 18px; color: #606266; }
+.workspace-options { display: grid; gap: 12px; }
+.workspace-option { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 16px; border: 1px solid #dcdfe6; border-radius: 10px; background: #fff; text-align: left; cursor: pointer; }
+.workspace-option:hover, .workspace-option:focus-visible { border-color: #597ef7; background: #f5f7ff; outline: none; }
+.workspace-option strong { color: #303133; font-size: 15px; }
+.workspace-option span { color: #909399; font-size: 13px; line-height: 1.5; }
+.workspace-intent { margin: 10px 0 0; padding: 9px 12px; border-radius: 8px; background: #f3f6ff; color: #4c6fff; font-size: 13px; }
 
 .login-layout {
   width: 100%;

@@ -560,7 +560,7 @@ const router = createRouter({
       path: CLEANER_LOGIN_PATH,
       redirect: (to) => ({
         path: LOGIN_PATH,
-        query: to.query,
+        query: { ...to.query, workspace: 'CLEANER' },
       }),
     },
     {

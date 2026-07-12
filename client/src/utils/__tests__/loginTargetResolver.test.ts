@@ -97,7 +97,7 @@ mock.module('@/utils/cleanerSession', () => {
   return cleanerSession
 })
 
-const { resolveLoginTarget } = await import('../loginTargetResolver')
+const { normalizePreferredLoginTarget, resolveLoginTarget } = await import('../loginTargetResolver')
 
 const createRouterStub = (): { router: Router; pushedPaths: string[] } => {
   const pushedPaths: string[] = []
@@ -157,6 +157,16 @@ beforeEach(() => {
 })
 
 describe('resolveCachedLoginSessionTarget', () => {
+  test('clears workspace availability with all local session state', () => {
+    cleanerSession.saveAvailableLoginTargets(['PMS', 'CLEANER'])
+    localStorage.setItem(cleanerSession.PMS_TOKEN_KEY, 'token')
+
+    cleanerSession.clearAllLocalSessions()
+
+    expect(cleanerSession.readAvailableLoginTargets()).toEqual([])
+    expect(localStorage.getItem(cleanerSession.PMS_TOKEN_KEY)).toBeNull()
+  })
+
   test('prefers complete cleaner session over stale PMS token', () => {
     const store = createStore()
 
@@ -200,6 +210,11 @@ describe('resolveCachedLoginSessionTarget', () => {
 })
 
 describe('resolveLoginTarget', () => {
+  test('normalizes workspace intent from unified login routes', () => {
+    expect(normalizePreferredLoginTarget('cleaner')).toBe('CLEANER')
+    expect(normalizePreferredLoginTarget('PMS')).toBe('PMS')
+    expect(normalizePreferredLoginTarget('unknown')).toBeUndefined()
+  })
   test('PMS target clears cleaner session and routes to store selection', async () => {
     const { router, pushedPaths } = createRouterStub()
     const store = createStore()
@@ -224,6 +239,7 @@ describe('resolveLoginTarget', () => {
         user,
         stores: [store],
         loginTarget: 'PMS',
+        availableLoginTargets: ['PMS', 'CLEANER'],
       } as LoginResponse,
       router
     )
@@ -234,6 +250,7 @@ describe('resolveLoginTarget', () => {
     expect(localStorage.getItem(cleanerSession.CLEANER_TOKEN_KEY)).toBeNull()
     expect(localStorage.getItem(cleanerSession.CLEANER_USER_KEY)).toBeNull()
     expect(localStorage.getItem(cleanerSession.CLEANER_STORE_KEY)).toBeNull()
+    expect(cleanerSession.readAvailableLoginTargets()).toEqual(['PMS', 'CLEANER'])
     expect(pushedPaths).toEqual(['/store/selection'])
   })
 
@@ -275,10 +292,43 @@ describe('resolveLoginTarget', () => {
     expect(cleanerUser.userId).toBe(7)
     expect(cleanerUser.isCleaner).toBe(true)
     expect(cleanerStore).toEqual(createStore())
+    expect(cleanerSession.readCleanerContexts()).toHaveLength(1)
+    expect(cleanerSession.readAvailableLoginTargets()).toEqual(['CLEANER'])
     expect(localStorage.getItem(cleanerSession.PMS_TOKEN_KEY)).toBeNull()
     expect(localStorage.getItem(cleanerSession.PMS_USER_KEY)).toBeNull()
     expect(localStorage.getItem(cleanerSession.PMS_STORES_KEY)).toBeNull()
     expect(localStorage.getItem(cleanerSession.PMS_CURRENT_STORE_KEY)).toBeNull()
     expect(pushedPaths).toEqual(['/cleaner/dashboard'])
+  })
+
+  test('CLEANER target keeps all contexts and supports switching stores', async () => {
+    const { router } = createRouterStub()
+    const response = createCleanerLoginResponse()
+    const secondStore = { ...createStore(), id: 9, name: 'Second Hotel' }
+    const secondCleaner = { ...response.cleaner!, id: 19, storeId: secondStore.id }
+    response.cleanerContexts = [
+      {
+        cleanerId: response.cleaner!.id,
+        storeId: response.currentStore!.id,
+        cleaner: response.cleaner!,
+        store: response.currentStore!,
+      },
+      {
+        cleanerId: secondCleaner.id,
+        storeId: secondStore.id,
+        cleaner: secondCleaner,
+        store: secondStore,
+      },
+    ]
+    response.availableLoginTargets = ['PMS', 'CLEANER']
+
+    await resolveLoginTarget(response, router)
+
+    const contexts = cleanerSession.readCleanerContexts()
+    expect(contexts).toHaveLength(2)
+    const switchedUser = cleanerSession.switchCleanerContext(contexts[1])
+    expect(switchedUser.cleanerId).toBe(19)
+    expect(cleanerSession.readCleanerStoreId()).toBe(9)
+    expect(cleanerSession.readAvailableLoginTargets()).toEqual(['PMS', 'CLEANER'])
   })
 })

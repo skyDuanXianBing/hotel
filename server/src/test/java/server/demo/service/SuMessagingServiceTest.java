@@ -1361,6 +1361,7 @@ class SuMessagingServiceTest {
         assertNotNull(savedMsg.getThread());
 
         verify(realtimeGateway).broadcastMessageCreated(eq(10L), eq(99L), any());
+        verify(realtimeGateway).broadcastWorkbenchInvalidated(10L, "message");
     }
 
     @Test
@@ -1508,6 +1509,7 @@ class SuMessagingServiceTest {
 
         verify(dirtyMarker).markDirty(saved);
         verify(realtimeGateway).broadcastMessageCreated(eq(10L), eq(5L), any());
+        verify(realtimeGateway).broadcastWorkbenchInvalidated(10L, "message");
     }
 
     private static SuMessagingService newService(

@@ -11,6 +11,7 @@ import server.demo.entity.AutoMessage;
 import server.demo.entity.AutoMessageSendLog;
 import server.demo.entity.Channel;
 import server.demo.entity.ChannelPrice;
+import server.demo.entity.Cleaner;
 import server.demo.entity.OtaIntegration;
 import server.demo.entity.PricePlan;
 import server.demo.entity.Reservation;
@@ -31,6 +32,7 @@ import server.demo.repository.AutoMessageRepository;
 import server.demo.repository.AutoMessageSendLogRepository;
 import server.demo.repository.ChannelPriceRepository;
 import server.demo.repository.ChannelRepository;
+import server.demo.repository.CleanerRepository;
 import server.demo.repository.OtaIntegrationRepository;
 import server.demo.repository.PricePlanRepository;
 import server.demo.repository.ReservationRepository;
@@ -53,6 +55,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class ChannelE2ETestSupportService {
@@ -82,6 +85,9 @@ public class ChannelE2ETestSupportService {
     private static final String LOCAL_SETUP_EMAIL = "channel-e2e-local@thehosthub.test";
     private static final String LOCAL_SETUP_USERNAME = "local_channel_e2e";
     private static final String LOCAL_SETUP_PASSWORD = "local-channel-e2e-password";
+    private static final String LOCAL_SETUP_CLEANER_EMAIL = "local-e2e-cleaner@thehosthub.test";
+    private static final String LOCAL_SETUP_CLEANER_USERNAME = "local_e2e_cleaner";
+    private static final String LOCAL_SETUP_CLEANER_NAME = "Local E2E Cleaner";
     private static final String LOCAL_SETUP_STORE_NAME = "Local Channel E2E Hotel";
     private static final String LOCAL_SETUP_SU_HOTEL_ID = "LOCALE2EHOTEL";
     private static final String LOCAL_SETUP_TIME_ZONE = "Asia/Tokyo";
@@ -109,6 +115,8 @@ public class ChannelE2ETestSupportService {
     private final UserRepository userRepository;
     private final StoreRepository storeRepository;
     private final StoreUserRepository storeUserRepository;
+    private final CleanerRepository cleanerRepository;
+    private final CleanerIdentityService cleanerIdentityService;
     private final ChannelRepository channelRepository;
     private final RoomTypeRepository roomTypeRepository;
     private final RoomRepository roomRepository;
@@ -138,6 +146,8 @@ public class ChannelE2ETestSupportService {
             UserRepository userRepository,
             StoreRepository storeRepository,
             StoreUserRepository storeUserRepository,
+            CleanerRepository cleanerRepository,
+            CleanerIdentityService cleanerIdentityService,
             ChannelRepository channelRepository,
             RoomTypeRepository roomTypeRepository,
             RoomRepository roomRepository,
@@ -159,6 +169,8 @@ public class ChannelE2ETestSupportService {
         this.userRepository = userRepository;
         this.storeRepository = storeRepository;
         this.storeUserRepository = storeUserRepository;
+        this.cleanerRepository = cleanerRepository;
+        this.cleanerIdentityService = cleanerIdentityService;
         this.channelRepository = channelRepository;
         this.roomTypeRepository = roomTypeRepository;
         this.roomRepository = roomRepository;
@@ -188,6 +200,7 @@ public class ChannelE2ETestSupportService {
         User user = ensureLocalSetupUser(created, reused);
         Store store = ensureLocalSetupStore(user, created, reused);
         ensureLocalSetupStoreUser(store, user, created, reused);
+        LocalCleanerFixture cleanerFixture = ensureLocalSetupCleanerFixture(store, created, reused);
         ensureLocalSetupChannels(store.getId(), created, reused);
         Channel bookingChannel = requireLocalSetupBookingChannel(store.getId());
         Channel airbnbChannel = requireLocalSetupChannel(store.getId(), CHANNEL_CODE_AIRBNB);
@@ -221,6 +234,7 @@ public class ChannelE2ETestSupportService {
                 user.getId(),
                 roomType.getId(),
                 primaryRoom.getId(),
+                cleanerFixture,
                 responseMapper.toRoomSummaries(rooms),
                 summary,
                 readiness
@@ -558,6 +572,113 @@ public class ChannelE2ETestSupportService {
         storeUser.setIsActive(true);
         StoreUser savedStoreUser = storeUserRepository.save(storeUser);
         created.add("storeUser:" + savedStoreUser.getId());
+    }
+
+    private LocalCleanerFixture ensureLocalSetupCleanerFixture(
+            Store store,
+            List<String> created,
+            List<String> reused
+    ) {
+        User cleanerUser = userRepository.findByEmail(LOCAL_SETUP_CLEANER_EMAIL).orElse(null);
+        if (cleanerUser == null) {
+            if (userRepository.existsByUsername(LOCAL_SETUP_CLEANER_USERNAME)) {
+                throw localCleanerConflict("保留用户名已被未知账号占用");
+            }
+            cleanerUser = new User();
+            cleanerUser.setEmail(LOCAL_SETUP_CLEANER_EMAIL);
+            cleanerUser.setUsername(LOCAL_SETUP_CLEANER_USERNAME);
+            cleanerUser.setName(LOCAL_SETUP_CLEANER_NAME);
+            cleanerUser.setNickname(LOCAL_SETUP_CLEANER_NAME);
+            cleanerUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+            cleanerUser.setIsActive(true);
+            cleanerUser = userRepository.save(cleanerUser);
+            created.add("cleanerUser:" + cleanerUser.getId());
+        } else {
+            requireSafeLocalCleanerUser(cleanerUser, store.getId());
+            reused.add("cleanerUser:" + cleanerUser.getId());
+        }
+
+        StoreUser membership = storeUserRepository.findByStoreIdAndUserId(store.getId(), cleanerUser.getId())
+                .orElse(null);
+        if (membership == null) {
+            membership = new StoreUser(store, cleanerUser, "member");
+            membership.setIsActive(true);
+            membership = storeUserRepository.save(membership);
+            created.add("cleanerStoreUser:" + membership.getId());
+        } else {
+            if (!"member".equalsIgnoreCase(membership.getRole()) || !Boolean.TRUE.equals(membership.getIsActive())) {
+                throw localCleanerConflict("保留账号的门店成员关系不是 active member");
+            }
+            reused.add("cleanerStoreUser:" + membership.getId());
+        }
+
+        List<Cleaner> storeCleaners = cleanerRepository.findByStoreIdAndEmailIgnoreCase(
+                store.getId(), LOCAL_SETUP_CLEANER_EMAIL);
+        if (storeCleaners.size() > 1) {
+            throw localCleanerConflict("当前门店存在重复保洁身份");
+        }
+        Cleaner cleaner = storeCleaners.isEmpty() ? null : storeCleaners.get(0);
+        List<Cleaner> identityCleaners = cleanerRepository.findByUserIdAndStoreId(cleanerUser.getId(), store.getId());
+        if (identityCleaners.size() > 1
+                || (!identityCleaners.isEmpty()
+                && (cleaner == null || !identityCleaners.get(0).getId().equals(cleaner.getId())))) {
+            throw localCleanerConflict("保留用户已绑定其他或重复保洁身份");
+        }
+        Cleaner globalCleaner = cleanerRepository.findByEmail(LOCAL_SETUP_CLEANER_EMAIL).orElse(null);
+        if (globalCleaner != null && (cleaner == null || !globalCleaner.getId().equals(cleaner.getId()))) {
+            throw localCleanerConflict("保留邮箱已绑定其他门店或未知保洁身份");
+        }
+        if (cleaner == null) {
+            cleaner = new Cleaner();
+            cleaner.setUserId(cleanerUser.getId());
+            cleaner.setStoreId(store.getId());
+            cleaner.setName(LOCAL_SETUP_CLEANER_NAME);
+            cleaner.setEmail(LOCAL_SETUP_CLEANER_EMAIL);
+            cleaner.setPassword(cleanerUser.getPassword());
+            cleaner.setIsActive(true);
+            cleaner = cleanerRepository.save(cleaner);
+            created.add("cleaner:" + cleaner.getId());
+        } else {
+            requireSafeLocalCleaner(cleaner, cleanerUser, store.getId());
+            reused.add("cleaner:" + cleaner.getId());
+        }
+
+        cleaner = cleanerIdentityService.ensureCleanerIdentity(cleaner);
+        String cleanerToken = jwtUtil.generateToken(cleanerUser.getId(), cleanerUser.getEmail());
+        return new LocalCleanerFixture(
+                cleanerToken,
+                store.getId(),
+                cleaner.getId(),
+                LOCAL_SETUP_CLEANER_NAME
+        );
+    }
+
+    private void requireSafeLocalCleanerUser(User user, Long storeId) {
+        if (!LOCAL_SETUP_CLEANER_USERNAME.equals(user.getUsername())) {
+            throw localCleanerConflict("保留邮箱对应的用户名不匹配");
+        }
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw localCleanerConflict("保留测试用户已停用，拒绝自动复活");
+        }
+        for (StoreUser membership : storeUserRepository.findByUserId(user.getId())) {
+            if (membership.getStore() == null || !storeId.equals(membership.getStore().getId())) {
+                throw localCleanerConflict("保留测试用户已关联其他门店");
+            }
+        }
+    }
+
+    private void requireSafeLocalCleaner(Cleaner cleaner, User user, Long storeId) {
+        if (!storeId.equals(cleaner.getStoreId())
+                || !user.getId().equals(cleaner.getUserId())
+                || !LOCAL_SETUP_CLEANER_EMAIL.equalsIgnoreCase(cleaner.getEmail())
+                || !LOCAL_SETUP_CLEANER_NAME.equals(cleaner.getName())
+                || !Boolean.TRUE.equals(cleaner.getIsActive())) {
+            throw localCleanerConflict("保留保洁身份与本地测试契约不一致");
+        }
+    }
+
+    private IllegalStateException localCleanerConflict(String reason) {
+        return new IllegalStateException("本地 E2E 保洁测试身份冲突：" + reason);
     }
 
     private void ensureLocalSetupChannels(Long storeId, List<String> created, List<String> reused) {
@@ -1704,9 +1825,18 @@ public class ChannelE2ETestSupportService {
             Long userId,
             Long roomTypeId,
             Long roomId,
+            LocalCleanerFixture cleanerSession,
             List<RoomSummary> rooms,
             SetupLocalSummary summary,
             ChannelE2EReadinessResponse readiness
+    ) {
+    }
+
+    public record LocalCleanerFixture(
+            String cleanerToken,
+            Long storeId,
+            Long cleanerId,
+            String displayName
     ) {
     }
 

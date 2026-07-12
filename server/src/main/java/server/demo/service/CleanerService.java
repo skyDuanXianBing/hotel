@@ -31,6 +31,9 @@ public class CleanerService {
     @Autowired
     private StoreUserPermissionRepository storeUserPermissionRepository;
 
+    @Autowired
+    private CleanerIdentityService cleanerIdentityService;
+
     public List<Cleaner> getCleanersByUserIdAndStoreId(Long userId, Long storeId) {
         return cleanerRepository.findByUserIdAndStoreId(userId, storeId);
     }
@@ -43,8 +46,8 @@ public class CleanerService {
         return cleanerRepository.findByStoreIdAndIsActiveTrue(storeId);
     }
 
-    public Optional<Cleaner> getCleanerById(Long id) {
-        return cleanerRepository.findById(id);
+    public Optional<Cleaner> getCleanerById(Long storeId, Long id) {
+        return cleanerRepository.findById(id).filter(cleaner -> storeId.equals(cleaner.getStoreId()));
     }
 
     @Transactional
@@ -53,25 +56,24 @@ public class CleanerService {
             throw new RuntimeException("保洁员密码不能为空，请通过邀请邮件完成注册");
         }
 
-        if (cleaner.getIsActive() == null) {
-            cleaner.setIsActive(true);
-        }
-
-        return cleanerRepository.save(cleaner);
+        throw new RuntimeException("请通过保洁员邀请流程创建账号，禁止直接创建不完整身份");
     }
 
     @Transactional
-    public Cleaner updateCleaner(Long id, Cleaner cleaner) {
-        Optional<Cleaner> existingCleaner = cleanerRepository.findById(id);
+    public Cleaner updateCleaner(Long storeId, Long id, Cleaner cleaner) {
+        Optional<Cleaner> existingCleaner = cleanerRepository.findById(id)
+                .filter(existing -> storeId.equals(existing.getStoreId()));
         if (existingCleaner.isEmpty()) {
             throw new RuntimeException("保洁员不存在");
         }
 
         Cleaner currentCleaner = existingCleaner.get();
+        if (cleaner.getEmail() != null && !cleaner.getEmail().trim().equalsIgnoreCase(currentCleaner.getEmail())) {
+            throw new RuntimeException("保洁员邮箱不可直接修改，请重新邀请并完成身份核验");
+        }
         currentCleaner.setName(cleaner.getName());
-        currentCleaner.setEmail(cleaner.getEmail());
-
-        return cleanerRepository.save(currentCleaner);
+        Cleaner saved = cleanerRepository.save(currentCleaner);
+        return cleanerIdentityService.ensureCleanerIdentity(saved);
     }
 
     @Transactional

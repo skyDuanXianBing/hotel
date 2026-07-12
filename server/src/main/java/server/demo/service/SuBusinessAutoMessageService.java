@@ -1305,7 +1305,6 @@ public class SuBusinessAutoMessageService {
         threadRepository.save(thread);
         markKnowledgeThreadDirty(message);
 
-        realtimeGateway.broadcastMessageCreated(storeId, thread.getId(), toMessageDTO(message));
         return message;
     }
 
@@ -1316,7 +1315,11 @@ public class SuBusinessAutoMessageService {
         message.setDeliveryStatus(DELIVERY_SENT);
         message.setRawJson(payload != null ? writeJsonSafely(payload) : null);
         SuMessage saved = messageRepository.save(message);
-        realtimeGateway.broadcastMessageUpdated(storeId, threadId, toMessageDTO(saved));
+        SuMessagingMessageDTO committedMessage = toMessageDTO(saved);
+        TransactionAfterCommitExecutor.execute(() -> {
+            realtimeGateway.broadcastMessageCreated(storeId, threadId, committedMessage);
+            realtimeGateway.broadcastWorkbenchInvalidated(storeId, "message");
+        });
     }
 
     private void markLocalMessageFailed(Long storeId, Long threadId, SuMessage message, String err) {
@@ -1334,7 +1337,10 @@ public class SuBusinessAutoMessageService {
         }
         message.setRawJson(payload != null ? writeJsonSafely(payload) : details);
         SuMessage saved = messageRepository.save(message);
-        realtimeGateway.broadcastMessageUpdated(storeId, threadId, toMessageDTO(saved));
+        SuMessagingMessageDTO committedMessage = toMessageDTO(saved);
+        TransactionAfterCommitExecutor.execute(
+                () -> realtimeGateway.broadcastMessageCreated(storeId, threadId, committedMessage)
+        );
     }
 
     private static String formatMessageForChannel(Integer channelId, String message) {

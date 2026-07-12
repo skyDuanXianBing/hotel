@@ -64,7 +64,15 @@ export interface BootstrapData {
   suHotelId: string
   roomTypeId: number
   roomId: number
+  cleanerSession: CleanerTestSession
   readiness: unknown
+}
+
+export interface CleanerTestSession {
+  cleanerToken: string
+  storeId: number
+  cleanerId: number
+  displayName: string
 }
 
 export interface RunForm {

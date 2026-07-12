@@ -4,6 +4,7 @@ import { useDashboardState } from '../state'
 const {
   config,
   credentials,
+  cleanerDisplayName,
   loading,
   readinessParts,
   statusText,
@@ -13,6 +14,7 @@ const {
   hasAvailableTestSupportKey,
   hasManagedTestSupportKey,
   hasSessionCredentials,
+  hasCleanerTestSession,
   loadConfig,
   loadReadiness,
 } = useDashboardState()
@@ -68,6 +70,14 @@ const {
         <div class="metric">
           <span>PMS Token</span>
           <strong>{{ credentials.token ? '已生成，仅当前页面内存' : '-' }}</strong>
+        </div>
+        <div class="metric">
+          <span>保洁测试账号</span>
+          <strong>{{ hasCleanerTestSession ? '已就绪' : '未就绪' }}</strong>
+        </div>
+        <div class="metric">
+          <span>保洁测试账号名称</span>
+          <strong>{{ cleanerDisplayName || '-' }}</strong>
         </div>
         <div class="metric">
           <span>Su 酒店 ID</span>

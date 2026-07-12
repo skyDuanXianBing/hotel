@@ -23,26 +23,39 @@
     </div>
 
     <div class="type-strip" role="tablist" :aria-label="t('pages.home.workbench.typeFilter')">
-      <button
+      <div
         v-for="summary in taskTypeSummaries"
         :key="summary.type"
-        class="type-chip"
-        :class="{ active: activeType === summary.type }"
-        type="button"
-        role="tab"
-        :aria-selected="activeType === summary.type"
-        @click="handleTypeChange(summary.type)"
+        class="type-chip-shell"
       >
-        <span class="chip-icon">
-          <img :src="getTypeIcon(summary.type)" :alt="summary.label" />
-        </span>
-        <span class="chip-copy">
-          <span class="chip-label">{{ summary.label }}</span>
-          <span class="chip-count">
-            {{ summary.connected ? summary.count : t('pages.home.workbench.notConnectedShort') }}
+        <button
+          class="type-chip"
+          :class="{ active: activeType === summary.type }"
+          type="button"
+          role="tab"
+          :aria-selected="activeType === summary.type"
+          @click="handleTypeChange(summary.type)"
+        >
+          <span class="chip-icon">
+            <img :src="getTypeIcon(summary.type)" :alt="summary.label" />
           </span>
-        </span>
-      </button>
+          <span class="chip-copy">
+            <span class="chip-label">{{ summary.label }}</span>
+            <span class="chip-count">
+              {{ summary.connected ? summary.count : t('pages.home.workbench.notConnectedShort') }}
+            </span>
+          </span>
+        </button>
+        <button
+          v-if="summary.type === 'other' && canManageInternalTasks"
+          type="button"
+          class="other-add-button"
+          :aria-label="t('pages.home.workbench.internalTasks.createTitle')"
+          @click.stop="openCreateTask"
+        >
+          <el-icon><Plus /></el-icon>
+        </button>
+      </div>
     </div>
 
     <div
@@ -67,14 +80,22 @@
     </div>
 
     <div v-loading="loading" class="task-list-shell">
+      <el-alert
+        v-if="loadError"
+        :type="hasWorkbenchData ? 'warning' : 'error'"
+        :title="loadError"
+        :closable="false"
+        show-icon
+        class="workbench-load-alert"
+      />
       <el-empty
-        v-if="!selectedTypeIsConnected"
+        v-if="!loadError && !selectedTypeIsConnected"
         :description="
           t('pages.home.workbench.futureSourceEmpty', { source: selectedTypeSummary.label })
         "
       />
       <el-empty
-        v-else-if="!loading && filteredTasks.length === 0"
+        v-else-if="!loadError && !loading && filteredTasks.length === 0"
         :description="t('pages.home.workbench.emptyToday')"
       />
 
@@ -138,20 +159,28 @@
         </div>
       </div>
     </div>
+
+    <InternalTaskCenter
+      ref="internalTaskCenterRef"
+      :can-manage="canManageInternalTasks"
+      @updated="reloadWorkbenchData"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowRight, Refresh } from '@element-plus/icons-vue'
+import { ArrowRight, Plus, Refresh } from '@element-plus/icons-vue'
 import workbenchAllIcon from '@/assets/home/workbench-all.svg'
 import workbenchCleanIcon from '@/assets/home/workbench-clean.svg'
 import workbenchMessageIcon from '@/assets/home/workbench-message.svg'
 import workbenchOrderIcon from '@/assets/home/workbench-order.svg'
 import workbenchOtherIcon from '@/assets/home/workbench-other.svg'
 import workbenchReviewIcon from '@/assets/home/workbench-review.svg'
+import { useStoreStore } from '@/stores/store'
+import InternalTaskCenter from '@/views/home/components/InternalTaskCenter.vue'
 import {
   useHomeTaskWorkbench,
   type WorkbenchTask,
@@ -171,8 +200,10 @@ const {
   cleanerList,
   cleanersLoading,
   filteredTasks,
+  hasWorkbenchData,
   loadWorkbench,
   loading,
+  loadError,
   selectedTypeIsConnected,
   selectedTypeSummary,
   statusSummaries,
@@ -180,7 +211,15 @@ const {
   todayYmd,
   assignTask,
   changeWorkbenchType,
+  clearWorkbench,
+  reloadWorkbenchData,
 } = useHomeTaskWorkbench()
+
+const storeStore = useStoreStore()
+const canManageInternalTasks = computed(() => storeStore.hasAdminPermission)
+const internalTaskCenterRef = ref<InstanceType<typeof InternalTaskCenter> | null>(null)
+let refreshTimer: number | null = null
+let lastVisibilityRefreshAt = 0
 
 const typeIconMap: Record<WorkbenchTaskTypeFilter, string> = {
   all: workbenchAllIcon,
@@ -197,6 +236,8 @@ const getTaskIcon = (type: WorkbenchTaskType) => typeIconMap[type]
 
 const getStatusLabel = (status: string) => {
   const statusMap: Record<string, string> = {
+    awaiting_review: t('pages.home.workbench.statuses.awaitingReview'),
+    awaiting_reply: t('pages.home.workbench.statuses.awaitingReply'),
     expired: t('pages.home.workbench.statuses.expired'),
     pending: t('pages.home.workbench.statuses.pending'),
     unassigned: t('pages.home.workbench.statuses.unassigned'),
@@ -386,7 +427,8 @@ const resolveTaskRoute = (task: WorkbenchTask): RouteLocationRaw | null => {
   return null
 }
 
-const canNavigateTask = (task: WorkbenchTask) => Boolean(resolveTaskRoute(task))
+const canNavigateTask = (task: WorkbenchTask) =>
+  task.type === 'other' || Boolean(resolveTaskRoute(task))
 
 const getStatusClass = (status: string) => {
   return `status-${status.replace(/[^a-zA-Z0-9_-]/g, '_')}`
@@ -403,6 +445,10 @@ const navigateToRoute = (route: RouteLocationRaw) => {
 }
 
 const goToTask = (task: WorkbenchTask) => {
+  if (task.type === 'other') {
+    internalTaskCenterRef.value?.openDrawer()
+    return
+  }
   const route = resolveTaskRoute(task)
   if (!route) {
     return
@@ -411,6 +457,10 @@ const goToTask = (task: WorkbenchTask) => {
 }
 
 const goToTaskList = () => {
+  if (activeType.value === 'other') {
+    internalTaskCenterRef.value?.openDrawer()
+    return
+  }
   if (activeType.value === 'review') {
     navigateToRoute({ name: 'DataCenterRegistrations' })
     return
@@ -426,8 +476,41 @@ const goToTaskList = () => {
   navigateToRoute({ name: 'CleaningTaskList' })
 }
 
+const openCreateTask = () => internalTaskCenterRef.value?.openCreate()
+
+const refreshWhenActive = () => {
+  if (document.visibilityState !== 'visible') return
+  const now = Date.now()
+  if (now - lastVisibilityRefreshAt < 1000) return
+  lastVisibilityRefreshAt = now
+  void reloadWorkbenchData()
+}
+
+const handleWorkbenchInvalidated = () => void reloadWorkbenchData()
+
 onMounted(() => {
   loadWorkbench()
+  window.addEventListener('focus', refreshWhenActive)
+  window.addEventListener('workbench-invalidated', handleWorkbenchInvalidated)
+  document.addEventListener('visibilitychange', refreshWhenActive)
+  refreshTimer = window.setInterval(refreshWhenActive, 30_000)
+})
+
+watch(
+  () => storeStore.currentStore?.id,
+  (nextStoreId, previousStoreId) => {
+    if (nextStoreId === previousStoreId) return
+    clearWorkbench()
+    internalTaskCenterRef.value?.reset()
+    if (nextStoreId) void loadWorkbench()
+  },
+)
+
+onBeforeUnmount(() => {
+  if (refreshTimer) window.clearInterval(refreshTimer)
+  window.removeEventListener('focus', refreshWhenActive)
+  window.removeEventListener('workbench-invalidated', handleWorkbenchInvalidated)
+  document.removeEventListener('visibilitychange', refreshWhenActive)
 })
 </script>
 
@@ -515,6 +598,11 @@ onMounted(() => {
   margin-top: 16px;
 }
 
+.type-chip-shell {
+  position: relative;
+  min-width: 0;
+}
+
 .type-chip {
   display: flex;
   align-items: center;
@@ -531,6 +619,31 @@ onMounted(() => {
     border-color 0.2s ease,
     background-color 0.2s ease,
     box-shadow 0.2s ease;
+  width: 100%;
+}
+
+.other-add-button {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgba(76, 111, 255, 0.3);
+  border-radius: 50%;
+  background: #fff;
+  color: #4c6fff;
+  cursor: pointer;
+}
+
+.other-add-button:hover,
+.other-add-button:focus-visible {
+  background: #4c6fff;
+  color: #fff;
 }
 
 .type-chip:hover {
@@ -657,6 +770,10 @@ onMounted(() => {
   padding: 44px 0;
 }
 
+.workbench-load-alert {
+  margin-bottom: 12px;
+}
+
 .task-list-shell :deep(.el-empty__description p) {
   color: rgba(0, 0, 0, 0.38);
 }
@@ -774,6 +891,12 @@ onMounted(() => {
 .task-status.status-pending {
   color: #f80e0e;
   background: rgba(248, 14, 14, 0.05);
+}
+
+.task-status.status-awaiting_review,
+.task-status.status-awaiting_reply {
+  color: #c26a00;
+  background: rgba(255, 167, 38, 0.12);
 }
 
 .task-status.status-unassigned {

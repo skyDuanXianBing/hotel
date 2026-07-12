@@ -13,13 +13,20 @@ import server.demo.dto.home.HomeWorkbenchResponse;
 import server.demo.dto.home.HomeWorkbenchStatusSummaryDTO;
 import server.demo.dto.home.HomeWorkbenchTargetDTO;
 import server.demo.dto.home.HomeWorkbenchTypeSummaryDTO;
+import server.demo.dto.internaltask.InternalTaskDTO;
+import server.demo.dto.internaltask.InternalTaskPageDTO;
 import server.demo.dto.registration.AdminRegistrationListItemDTO;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.Store;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
+import server.demo.enums.InternalTaskStatus;
 import server.demo.enums.RegistrationFormStatus;
+import server.demo.exception.StoreAccessDeniedException;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.StoreRepository;
+import server.demo.repository.StoreUserRepository;
 import server.demo.util.StoreContextUtils;
 import server.demo.util.StoreTimeZoneUtil;
 
@@ -47,8 +54,14 @@ public class HomeWorkbenchService {
     private static final String TYPE_OTHER = "other";
 
     private static final String STATUS_PENDING = "pending";
+    private static final String STATUS_AWAITING_REVIEW = "awaiting_review";
+    private static final String STATUS_AWAITING_REPLY = "awaiting_reply";
+    private static final String STATUS_UNASSIGNED = "unassigned";
+    private static final String STATUS_ASSIGNED = "assigned";
     private static final String STATUS_IN_PROGRESS = "in_progress";
     private static final String STATUS_OVERDUE = "overdue";
+    private static final String STATUS_COMPLETED = "completed";
+    private static final int COMPLETED_REVIEW_RETENTION_DAYS = 7;
 
     private static final String PRIORITY_HIGH = "high";
     private static final String PRIORITY_MEDIUM = "medium";
@@ -59,6 +72,9 @@ public class HomeWorkbenchService {
     private final ReservationRepository reservationRepository;
     private final SuMessagingService suMessagingService;
     private final StoreRepository storeRepository;
+    private final StoreUserRepository storeUserRepository;
+    private final PermissionService permissionService;
+    private final InternalTaskService internalTaskService;
     private final Clock clock;
 
     public HomeWorkbenchService(
@@ -67,6 +83,9 @@ public class HomeWorkbenchService {
             ReservationRepository reservationRepository,
             SuMessagingService suMessagingService,
             StoreRepository storeRepository,
+            StoreUserRepository storeUserRepository,
+            PermissionService permissionService,
+            InternalTaskService internalTaskService,
             Clock clock
     ) {
         this.cleaningTaskService = cleaningTaskService;
@@ -74,6 +93,9 @@ public class HomeWorkbenchService {
         this.reservationRepository = reservationRepository;
         this.suMessagingService = suMessagingService;
         this.storeRepository = storeRepository;
+        this.storeUserRepository = storeUserRepository;
+        this.permissionService = permissionService;
+        this.internalTaskService = internalTaskService;
         this.clock = clock;
     }
 
@@ -88,39 +110,51 @@ public class HomeWorkbenchService {
     ) {
         Long storeId = StoreContextUtils.requireStoreId();
         Long userId = StoreContextUtils.requireUserId();
+        if (!storeUserRepository.existsByStoreIdAndUserIdAndIsActiveTrue(storeId, userId)) {
+            throw new StoreAccessDeniedException("当前账号未激活或无权访问该门店");
+        }
         LocalDate businessDate = resolveBusinessDate(storeId, requestedDate);
         int limit = normalizeLimit(requestedLimit);
         String selectedType = normalizeTypeFilter(requestedType);
 
         List<HomeWorkbenchItemDTO> allItems = new ArrayList<>();
         Map<String, Long> typeCounts = new LinkedHashMap<>();
+        Map<String, Boolean> typeAvailability = new LinkedHashMap<>();
 
-        List<HomeWorkbenchItemDTO> cleaningItems = buildCleaningItems(userId, businessDate);
+        boolean canViewCleaning = hasPermission(
+                storeId, userId, PermissionModule.ACCOMMODATION, PermissionAction.TASK_LIST);
+        typeAvailability.put(TYPE_CLEANING, canViewCleaning);
+        List<HomeWorkbenchItemDTO> cleaningItems = canViewCleaning
+                ? buildCleaningItems(userId, businessDate) : List.of();
         appendItems(TYPE_CLEANING, cleaningItems, typeCounts, allItems);
 
-        List<HomeWorkbenchItemDTO> reviewItems = buildReviewItems();
-        appendItems(TYPE_REVIEW, reviewItems, typeCounts, allItems);
+        boolean canViewReview = hasPermission(
+                storeId, userId, PermissionModule.STATISTICS, PermissionAction.VIEW_STATS);
+        typeAvailability.put(TYPE_REVIEW, canViewReview);
+        ReviewItems reviewResult = canViewReview
+                ? buildReviewItems() : new ReviewItems(List.of(), 0L);
+        List<HomeWorkbenchItemDTO> reviewItems = reviewResult.items();
+        typeCounts.put(TYPE_REVIEW, reviewResult.awaitingCount());
+        allItems.addAll(reviewItems);
 
-        List<HomeWorkbenchItemDTO> orderItems = buildOrderItems(storeId, businessDate);
+        boolean canViewOrder = hasPermission(
+                storeId, userId, PermissionModule.ORDER, PermissionAction.VIEW_ORDERS);
+        typeAvailability.put(TYPE_ORDER, canViewOrder);
+        List<HomeWorkbenchItemDTO> orderItems = canViewOrder
+                ? buildOrderItems(storeId, businessDate) : List.of();
         appendItems(TYPE_ORDER, orderItems, typeCounts, allItems);
 
-        SuMessagingThreadPageResponse messagePage = suMessagingService.listThreadPage(
-                storeId,
-                0,
-                limit,
-                null,
-                null,
-                null,
-                null,
-                true,
-                null,
-                null
-        );
+        SuMessagingThreadPageResponse messagePage = suMessagingService.listAwaitingReplyThreadPage(storeId, 0, limit);
         List<HomeWorkbenchItemDTO> messageItems = buildMessageItems(messagePage);
         typeCounts.put(TYPE_MESSAGE, messagePage.getTotalElements());
+        typeAvailability.put(TYPE_MESSAGE, true);
         allItems.addAll(messageItems);
 
-        typeCounts.put(TYPE_OTHER, 0L);
+        OtherItems otherResult = buildOtherItems(isManagerContext(), limit);
+        List<HomeWorkbenchItemDTO> otherItems = otherResult.items();
+        typeCounts.put(TYPE_OTHER, otherResult.pendingCount());
+        typeAvailability.put(TYPE_OTHER, true);
+        allItems.addAll(otherItems);
 
         List<HomeWorkbenchItemDTO> selectedItems = selectItems(
                 selectedType,
@@ -129,13 +163,14 @@ public class HomeWorkbenchService {
                 cleaningItems,
                 reviewItems,
                 orderItems,
-                messageItems
+                messageItems,
+                otherItems
         );
 
         HomeWorkbenchResponse response = new HomeWorkbenchResponse();
         response.setBusinessDate(businessDate);
         response.setGeneratedAt(LocalDateTime.now(effectiveClock()));
-        response.setTypeSummaries(buildTypeSummaries(typeCounts));
+        response.setTypeSummaries(buildTypeSummaries(typeCounts, typeAvailability));
         response.setStatusSummaries(buildStatusSummaries(countStatuses(selectedItems)));
         response.setItems(selectedItems);
         return response;
@@ -191,8 +226,8 @@ public class HomeWorkbenchService {
         return items;
     }
 
-    private List<HomeWorkbenchItemDTO> buildReviewItems() {
-        List<AdminRegistrationListItemDTO> forms = registrationAdminService.list(
+    private ReviewItems buildReviewItems() {
+        List<AdminRegistrationListItemDTO> submittedForms = registrationAdminService.list(
                 RegistrationFormStatus.SUBMITTED,
                 null,
                 null,
@@ -205,36 +240,48 @@ public class HomeWorkbenchService {
                 null,
                 null
         );
+        LocalDateTime completedSince = LocalDateTime.now(effectiveClock()).minusDays(COMPLETED_REVIEW_RETENTION_DAYS);
+        List<AdminRegistrationListItemDTO> completedForms =
+                registrationAdminService.listRecentApprovedForHome(completedSince);
 
         List<HomeWorkbenchItemDTO> items = new ArrayList<>();
-        for (AdminRegistrationListItemDTO form : forms) {
-            HomeWorkbenchItemDTO item = new HomeWorkbenchItemDTO();
-            item.setId(TYPE_REVIEW + "-" + form.getFormId());
-            item.setType(TYPE_REVIEW);
-            item.setSourceType("registration_form");
-            item.setSourceId(asString(form.getFormId()));
-            item.setSourceStatus(form.getStatus() == null ? null : form.getStatus().name());
-            item.setStatusGroup(STATUS_PENDING);
-            item.setPriority(PRIORITY_HIGH);
-            item.setDueAt(firstNonNull(form.getSubmittedAt(), form.getUpdatedAt()));
-            item.setTitle(fallback(form.getGuestName(), "住客") + " 的登记审核");
-            item.setSubtitle(joinNonBlank(form.getOrderNumber(), form.getChannelName()));
-            addMeta(item, "订单", form.getOrderNumber());
-            addMeta(item, "渠道", form.getChannelName());
-            addMeta(item, "入住", formatDateRange(form.getCheckInDate(), form.getCheckOutDate()));
-            item.setTarget(target(
-                    "registration_form",
-                    "/registrations",
-                    Map.of("formId", asString(form.getFormId()))
-            ));
-            item.setActions(List.of(
-                    new HomeWorkbenchActionDTO("view", "查看登记", "default"),
-                    new HomeWorkbenchActionDTO("approve", "通过", "primary"),
-                    new HomeWorkbenchActionDTO("reject", "驳回", "danger")
-            ));
-            items.add(item);
+        for (AdminRegistrationListItemDTO form : submittedForms) {
+            items.add(buildReviewItem(form, false));
         }
-        return items;
+        for (AdminRegistrationListItemDTO form : completedForms) {
+            items.add(buildReviewItem(form, true));
+        }
+        return new ReviewItems(items, submittedForms.size());
+    }
+
+    private HomeWorkbenchItemDTO buildReviewItem(AdminRegistrationListItemDTO form, boolean completed) {
+        HomeWorkbenchItemDTO item = new HomeWorkbenchItemDTO();
+        item.setId(TYPE_REVIEW + "-" + form.getFormId());
+        item.setType(TYPE_REVIEW);
+        item.setSourceType("registration_form");
+        item.setSourceId(asString(form.getFormId()));
+        item.setSourceStatus(form.getStatus() == null ? null : form.getStatus().name());
+        item.setStatusGroup(completed ? STATUS_COMPLETED : STATUS_AWAITING_REVIEW);
+        item.setPriority(completed ? PRIORITY_LOW : PRIORITY_HIGH);
+        item.setDueAt(completed
+                ? firstNonNull(form.getApprovedAt(), form.getUpdatedAt())
+                : firstNonNull(form.getSubmittedAt(), form.getUpdatedAt()));
+        item.setTitle(fallback(form.getGuestName(), "住客") + " 的登记审核");
+        item.setSubtitle(joinNonBlank(form.getOrderNumber(), form.getChannelName()));
+        addMeta(item, "订单", form.getOrderNumber());
+        addMeta(item, "渠道", form.getChannelName());
+        addMeta(item, "入住", formatDateRange(form.getCheckInDate(), form.getCheckOutDate()));
+        addMeta(item, "状态", completed ? "已完成" : "待审核");
+        if (completed && form.getApprovedAt() != null) {
+            addMeta(item, "完成时间", form.getApprovedAt().toString());
+        }
+        item.setTarget(target(
+                "registration_form",
+                "/registrations",
+                Map.of("formId", asString(form.getFormId()))
+        ));
+        item.setActions(List.of(new HomeWorkbenchActionDTO("view", "查看登记", "default")));
+        return item;
     }
 
     private List<HomeWorkbenchItemDTO> buildOrderItems(Long storeId, LocalDate businessDate) {
@@ -300,16 +347,19 @@ public class HomeWorkbenchService {
             item.setType(TYPE_MESSAGE);
             item.setSourceType("su_message_thread");
             item.setSourceId(asString(thread.getId()));
-            item.setSourceStatus("UNREAD");
-            item.setStatusGroup(STATUS_PENDING);
+            item.setSourceStatus("AWAITING_REPLY");
+            item.setStatusGroup(STATUS_AWAITING_REPLY);
             item.setPriority(PRIORITY_MEDIUM);
             item.setDueAt(thread.getLastActivity() == null ? null : thread.getLastActivity().toLocalDateTime());
-            item.setTitle(fallback(thread.getGuestName(), "客人") + " 的未读消息");
+            item.setTitle(fallback(thread.getGuestName(), "客人") + " 的待回复消息");
             item.setSubtitle(thread.getLastMessage());
             item.setUnreadCount(thread.getUnreadCount());
             addMeta(item, "渠道", thread.getChannelName());
             addMeta(item, "订单", thread.getBookingId());
-            addMeta(item, "未读", String.valueOf(thread.getUnreadCount()));
+            addMeta(item, "状态", "待回复");
+            if (thread.getUnreadCount() > 0) {
+                addMeta(item, "未读", String.valueOf(thread.getUnreadCount()));
+            }
 
             Map<String, String> query = new LinkedHashMap<>();
             query.put("suThreadId", asString(thread.getId()));
@@ -319,12 +369,61 @@ public class HomeWorkbenchService {
             item.setTarget(target("su_message_thread", "/messages", query));
             item.setActions(List.of(
                     new HomeWorkbenchActionDTO("view", "查看消息", "default"),
-                    new HomeWorkbenchActionDTO("reply", "回复", "primary"),
-                    new HomeWorkbenchActionDTO("mark_read", "标记已读", "default")
+                    new HomeWorkbenchActionDTO("reply", "回复", "primary")
             ));
             items.add(item);
         }
         return items;
+    }
+
+    private OtherItems buildOtherItems(boolean manager, int limit) {
+        List<InternalTaskDTO> tasks = new ArrayList<>();
+        long pendingCount;
+        if (manager) {
+            InternalTaskPageDTO unassigned = internalTaskService.getManaged(InternalTaskStatus.UNASSIGNED, 0, limit);
+            InternalTaskPageDTO assigned = internalTaskService.getManaged(InternalTaskStatus.ASSIGNED, 0, limit);
+            tasks.addAll(unassigned.getItems());
+            tasks.addAll(assigned.getItems());
+            pendingCount = unassigned.getTotalElements() + assigned.getTotalElements();
+        } else {
+            InternalTaskPageDTO mine = internalTaskService.getMine(InternalTaskStatus.ASSIGNED, 0, limit);
+            tasks.addAll(mine.getItems());
+            pendingCount = mine.getTotalElements();
+        }
+
+        return new OtherItems(tasks.stream().map(this::buildOtherItem).toList(), pendingCount);
+    }
+
+    private HomeWorkbenchItemDTO buildOtherItem(InternalTaskDTO task) {
+        String statusGroup = task.getStatus().name().toLowerCase(Locale.ROOT);
+        HomeWorkbenchItemDTO item = new HomeWorkbenchItemDTO();
+        item.setId(TYPE_OTHER + "-" + task.getId());
+        item.setType(TYPE_OTHER);
+        item.setSourceType("internal_task");
+        item.setSourceId(asString(task.getId()));
+        item.setSourceStatus(task.getStatus().name());
+        item.setStatusGroup(statusGroup);
+        item.setPriority(task.getStatus() == InternalTaskStatus.UNASSIGNED ? PRIORITY_HIGH : PRIORITY_MEDIUM);
+        item.setDueAt(firstNonNull(task.getUpdatedAt(), task.getCreatedAt()));
+        item.setTitle(task.getTitle());
+        item.setSubtitle(task.getDescription());
+        item.setAssigneeId(task.getAssigneeUserId());
+        item.setAssigneeName(task.getAssigneeName());
+        addMeta(item, "创建人", task.getCreatedByName());
+        addMeta(item, "执行人", task.getAssigneeName());
+        addMeta(item, "状态", task.getStatus() == InternalTaskStatus.UNASSIGNED ? "待分配" : "待完成");
+        item.setTarget(target(
+                "internal_task",
+                "/internal-tasks",
+                Map.of("taskId", asString(task.getId()))
+        ));
+        List<HomeWorkbenchActionDTO> actions = new ArrayList<>();
+        actions.add(new HomeWorkbenchActionDTO("view", "查看任务", "default"));
+        if (task.isCanComplete()) {
+            actions.add(new HomeWorkbenchActionDTO("complete", "完成", "primary"));
+        }
+        item.setActions(actions);
+        return item;
     }
 
     private void appendItems(
@@ -344,7 +443,8 @@ public class HomeWorkbenchService {
             List<HomeWorkbenchItemDTO> cleaningItems,
             List<HomeWorkbenchItemDTO> reviewItems,
             List<HomeWorkbenchItemDTO> orderItems,
-            List<HomeWorkbenchItemDTO> messageItems
+            List<HomeWorkbenchItemDTO> messageItems,
+            List<HomeWorkbenchItemDTO> otherItems
     ) {
         if (TYPE_CLEANING.equals(selectedType)) {
             return sortAndLimit(cleaningItems, limit);
@@ -356,10 +456,10 @@ public class HomeWorkbenchService {
             return sortAndLimit(orderItems, limit);
         }
         if (TYPE_MESSAGE.equals(selectedType)) {
-            return sortAndLimit(messageItems, limit);
+            return messageItems.stream().limit(limit).toList();
         }
         if (TYPE_OTHER.equals(selectedType)) {
-            return List.of();
+            return sortAndLimit(otherItems, limit);
         }
         return sortAndLimit(allItems, limit);
     }
@@ -378,13 +478,21 @@ public class HomeWorkbenchService {
         return statusCounts;
     }
 
-    private List<HomeWorkbenchTypeSummaryDTO> buildTypeSummaries(Map<String, Long> typeCounts) {
+    private List<HomeWorkbenchTypeSummaryDTO> buildTypeSummaries(
+            Map<String, Long> typeCounts,
+            Map<String, Boolean> typeAvailability
+    ) {
         return List.of(
-                new HomeWorkbenchTypeSummaryDTO(TYPE_CLEANING, typeCounts.getOrDefault(TYPE_CLEANING, 0L), true),
-                new HomeWorkbenchTypeSummaryDTO(TYPE_REVIEW, typeCounts.getOrDefault(TYPE_REVIEW, 0L), true),
-                new HomeWorkbenchTypeSummaryDTO(TYPE_ORDER, typeCounts.getOrDefault(TYPE_ORDER, 0L), true),
-                new HomeWorkbenchTypeSummaryDTO(TYPE_MESSAGE, typeCounts.getOrDefault(TYPE_MESSAGE, 0L), true),
-                new HomeWorkbenchTypeSummaryDTO(TYPE_OTHER, typeCounts.getOrDefault(TYPE_OTHER, 0L), false)
+                new HomeWorkbenchTypeSummaryDTO(TYPE_CLEANING, typeCounts.getOrDefault(TYPE_CLEANING, 0L),
+                        typeAvailability.getOrDefault(TYPE_CLEANING, false)),
+                new HomeWorkbenchTypeSummaryDTO(TYPE_REVIEW, typeCounts.getOrDefault(TYPE_REVIEW, 0L),
+                        typeAvailability.getOrDefault(TYPE_REVIEW, false)),
+                new HomeWorkbenchTypeSummaryDTO(TYPE_ORDER, typeCounts.getOrDefault(TYPE_ORDER, 0L),
+                        typeAvailability.getOrDefault(TYPE_ORDER, false)),
+                new HomeWorkbenchTypeSummaryDTO(TYPE_MESSAGE, typeCounts.getOrDefault(TYPE_MESSAGE, 0L),
+                        typeAvailability.getOrDefault(TYPE_MESSAGE, false)),
+                new HomeWorkbenchTypeSummaryDTO(TYPE_OTHER, typeCounts.getOrDefault(TYPE_OTHER, 0L),
+                        typeAvailability.getOrDefault(TYPE_OTHER, false))
         );
     }
 
@@ -392,8 +500,27 @@ public class HomeWorkbenchService {
         List<HomeWorkbenchStatusSummaryDTO> summaries = new ArrayList<>();
         addStatusSummary(summaries, statusCounts, STATUS_OVERDUE);
         addStatusSummary(summaries, statusCounts, STATUS_PENDING);
+        addStatusSummary(summaries, statusCounts, STATUS_AWAITING_REVIEW);
+        addStatusSummary(summaries, statusCounts, STATUS_AWAITING_REPLY);
+        addStatusSummary(summaries, statusCounts, STATUS_UNASSIGNED);
+        addStatusSummary(summaries, statusCounts, STATUS_ASSIGNED);
         addStatusSummary(summaries, statusCounts, STATUS_IN_PROGRESS);
+        addStatusSummary(summaries, statusCounts, STATUS_COMPLETED);
         return summaries;
+    }
+
+    private boolean hasPermission(
+            Long storeId,
+            Long userId,
+            PermissionModule module,
+            PermissionAction action
+    ) {
+        return permissionService.hasPermission(storeId, userId, module, action);
+    }
+
+    private static boolean isManagerContext() {
+        String role = StoreContextUtils.requireContext().getRole();
+        return "owner".equalsIgnoreCase(role) || "admin".equalsIgnoreCase(role);
     }
 
     private void addStatusSummary(
@@ -674,5 +801,11 @@ public class HomeWorkbenchService {
     }
 
     private record OrderCandidate(Reservation reservation, String sourceStatus) {
+    }
+
+    private record ReviewItems(List<HomeWorkbenchItemDTO> items, long awaitingCount) {
+    }
+
+    private record OtherItems(List<HomeWorkbenchItemDTO> items, long pendingCount) {
     }
 }

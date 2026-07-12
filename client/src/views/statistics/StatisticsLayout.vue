@@ -18,6 +18,7 @@
           @system-notification="topNavBindings.onSystemNotification"
           @order-notification="topNavBindings.onOrderNotification"
           @profile-click="topNavBindings.onProfileClick"
+          @workspace-switch="topNavBindings.onWorkspaceSwitch"
           @logout="topNavBindings.onLogout"
         />
       </header>

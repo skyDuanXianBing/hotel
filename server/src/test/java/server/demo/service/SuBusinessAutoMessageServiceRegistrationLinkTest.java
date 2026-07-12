@@ -204,5 +204,6 @@ class SuBusinessAutoMessageServiceRegistrationLinkTest {
         assertEquals(77L, dirtyMessage.getThread().getId());
         assertEquals(SuMessagingSenderType.STAFF, dirtyMessage.getSenderType());
         assertEquals("Welcome Alice", dirtyMessage.getContent());
+        verify(realtimeGateway).broadcastWorkbenchInvalidated(26L, "message");
     }
 }

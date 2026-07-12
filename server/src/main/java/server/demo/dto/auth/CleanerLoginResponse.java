@@ -1,5 +1,7 @@
 package server.demo.dto.auth;
 
+import java.util.List;
+
 /**
  * 保洁员登录响应
  */
@@ -8,6 +10,7 @@ public class CleanerLoginResponse {
     private String token;
 
     private CleanerDTO cleaner;
+    private List<CleanerContextDTO> cleanerContexts;
 
     public CleanerLoginResponse() {}
 
@@ -33,4 +36,7 @@ public class CleanerLoginResponse {
     public void setCleaner(CleanerDTO cleaner) {
         this.cleaner = cleaner;
     }
+
+    public List<CleanerContextDTO> getCleanerContexts() { return cleanerContexts; }
+    public void setCleanerContexts(List<CleanerContextDTO> cleanerContexts) { this.cleanerContexts = cleanerContexts; }
 }

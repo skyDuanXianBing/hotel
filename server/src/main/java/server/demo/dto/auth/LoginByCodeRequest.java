@@ -18,6 +18,7 @@ public class LoginByCodeRequest {
     private String verificationCode;
 
     private Boolean rememberMe;
+    private LoginTarget preferredLoginTarget;
 
     public LoginByCodeRequest() {
     }
@@ -45,4 +46,7 @@ public class LoginByCodeRequest {
     public void setRememberMe(Boolean rememberMe) {
         this.rememberMe = rememberMe;
     }
+
+    public LoginTarget getPreferredLoginTarget() { return preferredLoginTarget; }
+    public void setPreferredLoginTarget(LoginTarget preferredLoginTarget) { this.preferredLoginTarget = preferredLoginTarget; }
 }

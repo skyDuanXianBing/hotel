@@ -16,6 +16,8 @@ public class LoginResponse {
     private CleanerDTO cleaner;
     private StoreDTO currentStore;
     private Long targetStoreId;
+    private List<CleanerContextDTO> cleanerContexts;
+    private List<LoginTarget> availableLoginTargets;
 
     public LoginResponse() {
     }
@@ -86,4 +88,10 @@ public class LoginResponse {
     public void setTargetStoreId(Long targetStoreId) {
         this.targetStoreId = targetStoreId;
     }
+
+    public List<CleanerContextDTO> getCleanerContexts() { return cleanerContexts; }
+    public void setCleanerContexts(List<CleanerContextDTO> cleanerContexts) { this.cleanerContexts = cleanerContexts; }
+
+    public List<LoginTarget> getAvailableLoginTargets() { return availableLoginTargets; }
+    public void setAvailableLoginTargets(List<LoginTarget> availableLoginTargets) { this.availableLoginTargets = availableLoginTargets; }
 }

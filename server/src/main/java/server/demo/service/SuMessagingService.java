@@ -30,6 +30,7 @@ import server.demo.repository.StoreRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 import server.demo.util.StoreTimeZoneUtil;
+import server.demo.util.StoreContextUtils;
 import server.demo.util.SuReservationParser;
 import server.demo.util.UtcTimeUtil;
 
@@ -210,11 +211,13 @@ public class SuMessagingService {
                     @Override
                     public void afterCommit() {
                         suMessagingRealtimeGateway.broadcastMessageCreated(storeId, savedThreadId, savedMessageDto);
+                        suMessagingRealtimeGateway.broadcastWorkbenchInvalidated(storeId, "message");
                         triggerAutoReplyAfterCommit(storeId, savedThreadId, savedMessageId);
                     }
                 });
             } else {
                 suMessagingRealtimeGateway.broadcastMessageCreated(storeId, savedThreadId, savedMessageDto);
+                suMessagingRealtimeGateway.broadcastWorkbenchInvalidated(storeId, "message");
                 triggerAutoReplyAfterCommit(storeId, savedThreadId, savedMessageId);
             }
         }
@@ -320,6 +323,37 @@ public class SuMessagingService {
                 totalElements,
                 totalPages,
                 fromIndex + pageSize < totalElements
+        );
+    }
+
+    /**
+     * Returns the shared-inbox conversations whose latest effective message still comes from a guest.
+     * A staff message is effective only after it has committed with delivery_status=SENT.
+     */
+    public SuMessagingThreadPageResponse listAwaitingReplyThreadPage(Long storeId, Integer page, Integer size) {
+        Long contextStoreId = StoreContextUtils.requireStoreId();
+        if (storeId == null || !storeId.equals(contextStoreId)) {
+            throw new IllegalArgumentException("门店上下文不一致");
+        }
+
+        int currentPage = normalizePage(page);
+        int pageSize = normalizeThreadPageSize(size);
+        LocalDate today = currentStoreDate(storeId);
+        Page<SuMessageThread> threadPage = threadRepository.findAwaitingReplyPageByStoreId(
+                storeId,
+                PageRequest.of(currentPage, pageSize)
+        );
+        List<SuMessagingThreadDTO> items = threadPage.getContent().stream()
+                .map(thread -> toThreadDTO(storeId, thread, today))
+                .toList();
+        fillAirbnbInquiryRoomTypeNames(storeId, items);
+        return new SuMessagingThreadPageResponse(
+                items,
+                currentPage,
+                pageSize,
+                threadPage.getTotalElements(),
+                threadPage.getTotalPages(),
+                threadPage.hasNext()
         );
     }
 
@@ -831,10 +865,12 @@ public class SuMessagingService {
                 @Override
                 public void afterCommit() {
                     suMessagingRealtimeGateway.broadcastMessageCreated(storeId, threadId, dto);
+                    suMessagingRealtimeGateway.broadcastWorkbenchInvalidated(storeId, "message");
                 }
             });
         } else {
             suMessagingRealtimeGateway.broadcastMessageCreated(storeId, threadId, dto);
+            suMessagingRealtimeGateway.broadcastWorkbenchInvalidated(storeId, "message");
         }
 
         return dto;

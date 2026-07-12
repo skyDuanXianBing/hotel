@@ -9,6 +9,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import server.demo.dto.SuMessagingMessageDTO;
 import server.demo.entity.AutoMessage;
 import server.demo.entity.AutoMessageSendLog;
 import server.demo.entity.Channel;
@@ -26,6 +27,7 @@ import server.demo.util.AutoMessageTemplateRenderer;
 import server.demo.util.UtcTimeUtil;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +52,7 @@ public class SuAutoReplyService {
     private final StoreRepository storeRepository;
     private final SuApiClient suApiClient;
     private final SuAccessTokenService suAccessTokenService;
+    private final SuMessagingRealtimeGateway realtimeGateway;
     private final ObjectMapper objectMapper;
     private MessageKnowledgeThreadDirtyMarker knowledgeThreadDirtyMarker;
 
@@ -62,6 +65,7 @@ public class SuAutoReplyService {
             StoreRepository storeRepository,
             SuApiClient suApiClient,
             SuAccessTokenService suAccessTokenService,
+            SuMessagingRealtimeGateway realtimeGateway,
             ObjectMapper objectMapper
     ) {
         this.threadRepository = threadRepository;
@@ -72,6 +76,7 @@ public class SuAutoReplyService {
         this.storeRepository = storeRepository;
         this.suApiClient = suApiClient;
         this.suAccessTokenService = suAccessTokenService;
+        this.realtimeGateway = realtimeGateway;
         this.objectMapper = objectMapper;
     }
 
@@ -159,6 +164,7 @@ public class SuAutoReplyService {
             msg.setContent(rendered.trim());
             msg.setSentAt(UtcTimeUtil.nowLocalDateTime());
             msg.setIsRead(true);
+            msg.setDeliveryStatus("SENT");
             msg.setRawJson(writeJsonSafely(payload));
             msg = messageRepository.save(msg);
 
@@ -170,6 +176,12 @@ public class SuAutoReplyService {
             log.setSuccess(true);
             log.setErrorMessage(null);
             sendLogRepository.save(log);
+
+            SuMessagingMessageDTO committedMessage = toMessageDTO(msg);
+            TransactionAfterCommitExecutor.execute(() -> {
+                realtimeGateway.broadcastMessageCreated(storeId, threadId, committedMessage);
+                realtimeGateway.broadcastWorkbenchInvalidated(storeId, "message");
+            });
         } catch (Exception ex) {
             logger.error("[SuAutoReply] failed. storeId={}, threadId={}, err={}", storeId, threadId, ex.getMessage(), ex);
             log.setSuccess(false);
@@ -309,5 +321,21 @@ public class SuAutoReplyService {
             return;
         }
         knowledgeThreadDirtyMarker.markDirty(message);
+    }
+
+    private static SuMessagingMessageDTO toMessageDTO(SuMessage message) {
+        SuMessagingMessageDTO dto = new SuMessagingMessageDTO();
+        dto.setId(message.getId());
+        dto.setThreadId(message.getThread().getId());
+        dto.setSenderType(message.getSenderType());
+        dto.setSenderName(message.getSenderName());
+        dto.setContent(message.getContent());
+        dto.setDeliveryStatus(message.getDeliveryStatus());
+        dto.setTimestamp(toUtcOffset(message.getSentAt()));
+        return dto;
+    }
+
+    private static OffsetDateTime toUtcOffset(LocalDateTime localDateTime) {
+        return localDateTime == null ? null : UtcTimeUtil.toUtcOffset(localDateTime);
     }
 }

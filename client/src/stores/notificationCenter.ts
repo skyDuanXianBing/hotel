@@ -197,17 +197,19 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
   }
 
   const emitChatNotification = (event: SuMessagingRealtimeEvent) => {
-    const content = normalizeMessageText(event.message?.content)
+    const message = event.message
+    if (!message) return
+    const content = normalizeMessageText(message.content)
     if (settings.value.chatPopup) {
       showPopup({
-        id: `chat-${event.threadId}-${event.message.id}`,
+        id: `chat-${event.threadId}-${message.id}`,
         type: 'message',
         title: translate('stage6.common.messages.newChatMessage'),
         content: content || translate('stage6.common.messages.newChatMessageContent'),
         channel: translate('stage6.common.messages.chatMessageChannel'),
-        guestName: event.message.senderName || translate('stage6.common.messages.guestFallback'),
+        guestName: message.senderName || translate('stage6.common.messages.guestFallback'),
         orderNumber: event.threadId ? String(event.threadId) : '-',
-        time: toDate(event.message.timestamp),
+        time: toDate(message.timestamp),
         onClick: onChatClick,
       })
     }
@@ -342,6 +344,12 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
   }
 
   const handleChatRealtimeEvent = (event: SuMessagingRealtimeEvent) => {
+    if (event.eventType === 'WORKBENCH_INVALIDATED') {
+      window.dispatchEvent(
+        new CustomEvent('workbench-invalidated', { detail: { resourceType: event.resourceType } }),
+      )
+      return
+    }
     if (event.eventType !== 'MESSAGE_CREATED' && event.eventType !== 'MESSAGE_UPDATED') {
       return
     }

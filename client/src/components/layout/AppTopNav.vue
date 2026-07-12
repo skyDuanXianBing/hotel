@@ -33,6 +33,7 @@ const props = defineProps<{
   formattedInboxUnreadCount: string
   hasSystemUnread: boolean
   hasOrderUnread: boolean
+  canSwitchWorkspace: boolean
 }>()
 
 const emit = defineEmits<{
@@ -45,6 +46,7 @@ const emit = defineEmits<{
   (e: 'system-notification'): void
   (e: 'order-notification'): void
   (e: 'profile-click'): void
+  (e: 'workspace-switch'): void
   (e: 'logout'): void
 }>()
 
@@ -217,6 +219,9 @@ const getStoreRoleBadge = (role?: string) => {
           <el-dropdown-menu class="profile-menu">
             <el-dropdown-item @click="emit('profile-click')">
               {{ t('layout.profile') }}
+            </el-dropdown-item>
+            <el-dropdown-item v-if="canSwitchWorkspace" @click="emit('workspace-switch')">
+              {{ t('layout.switchToCleanerWorkspace') }}
             </el-dropdown-item>
             <el-dropdown-item divided @click="emit('logout')">
               {{ t('layout.logout') }}

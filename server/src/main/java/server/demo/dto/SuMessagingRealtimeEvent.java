@@ -5,6 +5,7 @@ public class SuMessagingRealtimeEvent {
     private String eventType;
     private Long threadId;
     private SuMessagingMessageDTO message;
+    private String resourceType;
 
     public SuMessagingRealtimeEvent() {
     }
@@ -13,6 +14,11 @@ public class SuMessagingRealtimeEvent {
         this.eventType = eventType;
         this.threadId = threadId;
         this.message = message;
+    }
+
+    public SuMessagingRealtimeEvent(String eventType, String resourceType) {
+        this.eventType = eventType;
+        this.resourceType = resourceType;
     }
 
     public String getEventType() {
@@ -37,5 +43,13 @@ public class SuMessagingRealtimeEvent {
 
     public void setMessage(SuMessagingMessageDTO message) {
         this.message = message;
+    }
+
+    public String getResourceType() {
+        return resourceType;
+    }
+
+    public void setResourceType(String resourceType) {
+        this.resourceType = resourceType;
     }
 }

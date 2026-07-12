@@ -74,6 +74,9 @@ class RegistrationAdminServiceTest {
     @Mock
     private RegistrationMessageService registrationMessageService;
 
+    @Mock
+    private SuMessagingRealtimeGateway realtimeGateway;
+
     @Test
     void list_shouldForwardReservationAndRoomFiltersAndMapReservationStatus() {
         RegistrationAdminService service = createService();
@@ -491,6 +494,7 @@ class RegistrationAdminServiceTest {
         assertEquals(RegistrationReviewAction.APPROVE, logCaptor.getValue().getAction());
         assertEquals(7L, logCaptor.getValue().getOperatorUserId());
         assertEquals("approved", logCaptor.getValue().getNote());
+        verify(realtimeGateway).broadcastWorkbenchInvalidated(26L, "registration_review");
     }
 
     @Test
@@ -592,6 +596,7 @@ class RegistrationAdminServiceTest {
         ReflectionTestUtils.setField(service, "registrationAttachmentRepository", registrationAttachmentRepository);
         ReflectionTestUtils.setField(service, "reservationRepository", reservationRepository);
         ReflectionTestUtils.setField(service, "registrationMessageService", registrationMessageService);
+        ReflectionTestUtils.setField(service, "realtimeGateway", realtimeGateway);
         return service;
     }
 

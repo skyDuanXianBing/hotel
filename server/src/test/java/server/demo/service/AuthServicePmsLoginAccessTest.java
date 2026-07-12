@@ -29,6 +29,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 class AuthServicePmsLoginAccessTest {
@@ -56,12 +57,133 @@ class AuthServicePmsLoginAccessTest {
         assertEquals(LoginTarget.CLEANER, response.getLoginTarget());
         assertEquals("token-123", response.getToken());
         assertEquals(7L, response.getTargetStoreId());
+        assertEquals(List.of(LoginTarget.CLEANER), response.getAvailableLoginTargets());
+        assertEquals(1, response.getCleanerContexts().size());
+        assertEquals(7L, response.getCleanerContexts().get(0).getStoreId());
         assertEquals(storeDTO, response.getCurrentStore());
         assertNotNull(response.getCleaner());
         assertEquals(3L, response.getCleaner().getId());
         assertEquals(6L, response.getCleaner().getUserId());
         assertEquals(7L, response.getCleaner().getStoreId());
         Mockito.verifyNoInteractions(fixture.storeUserPermissionRepository, fixture.rolePermissionRepository);
+    }
+
+    @Test
+    void loginByPassword_shouldReturnAllActiveCleanerContexts() {
+        ServiceFixture fixture = buildServiceFixture();
+        User user = buildUser(6L, "multi.cleaner@example.com", "secret");
+        Store firstStore = buildStore(7L); Store secondStore = buildStore(9L);
+        StoreUser firstMembership = buildStoreUser(17L, firstStore, "member");
+        StoreUser secondMembership = buildStoreUser(19L, secondStore, "member");
+        Cleaner firstCleaner = buildCleaner(3L, 6L, 7L, true);
+        Cleaner secondCleaner = buildCleaner(5L, 6L, 9L, true);
+
+        when(fixture.userRepository.findByEmail("multi.cleaner@example.com")).thenReturn(Optional.of(user));
+        when(fixture.jwtUtil.generateToken(6L, "multi.cleaner@example.com")).thenReturn("token-multi");
+        when(fixture.storeService.getUserStores(6L)).thenReturn(List.of(
+                buildStoreDTO(7L, "First Store"), buildStoreDTO(9L, "Second Store")));
+        when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(6L))
+                .thenReturn(List.of(secondMembership, firstMembership));
+        when(fixture.cleanerIdentityService.findCleanerByUserIdAndStoreId(6L, 7L)).thenReturn(Optional.of(firstCleaner));
+        when(fixture.cleanerIdentityService.findCleanerByUserIdAndStoreId(6L, 9L)).thenReturn(Optional.of(secondCleaner));
+
+        LoginResponse response = fixture.service.loginByPassword(
+                buildPasswordRequest("multi.cleaner@example.com", "secret"));
+
+        assertEquals(2, response.getCleanerContexts().size());
+        assertEquals(7L, response.getCleanerContexts().get(0).getStoreId());
+        assertEquals(9L, response.getCleanerContexts().get(1).getStoreId());
+        assertEquals(7L, response.getTargetStoreId());
+    }
+
+    @Test
+    void loginByPassword_shouldDefaultOwnerCleanerToPmsAndAllowCleanerSelection() {
+        ServiceFixture fixture = buildServiceFixture();
+        User user = buildUser(50L, "owner.cleaner@example.com", "secret");
+        Store store = buildStore(60L);
+        StoreUser membership = buildStoreUser(70L, store, "owner");
+        Cleaner cleaner = buildCleaner(80L, 50L, 60L, true);
+        StoreDTO storeDTO = buildStoreDTO(60L, "Owner Store");
+        when(fixture.userRepository.findByEmail("owner.cleaner@example.com")).thenReturn(Optional.of(user));
+        when(fixture.jwtUtil.generateToken(50L, "owner.cleaner@example.com")).thenReturn("token-owner-cleaner");
+        when(fixture.storeService.getUserStores(50L)).thenReturn(List.of(storeDTO));
+        when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(50L)).thenReturn(List.of(membership));
+        when(fixture.cleanerIdentityService.findCleanerByUserIdAndStoreId(50L, 60L))
+                .thenReturn(Optional.of(cleaner));
+
+        LoginByPasswordRequest defaultRequest = buildPasswordRequest("owner.cleaner@example.com", "secret");
+        LoginResponse pmsResponse = fixture.service.loginByPassword(defaultRequest);
+        assertEquals(LoginTarget.PMS, pmsResponse.getLoginTarget());
+        assertEquals(List.of(LoginTarget.PMS, LoginTarget.CLEANER), pmsResponse.getAvailableLoginTargets());
+        assertEquals(1, pmsResponse.getCleanerContexts().size());
+        assertNull(pmsResponse.getCleaner());
+
+        LoginByPasswordRequest cleanerRequest = buildPasswordRequest("owner.cleaner@example.com", "secret");
+        cleanerRequest.setPreferredLoginTarget(LoginTarget.CLEANER);
+        LoginResponse cleanerResponse = fixture.service.loginByPassword(cleanerRequest);
+        assertEquals(LoginTarget.CLEANER, cleanerResponse.getLoginTarget());
+        assertNotNull(cleanerResponse.getCleaner());
+        assertEquals(60L, cleanerResponse.getTargetStoreId());
+    }
+
+    @Test
+    void loginByPassword_shouldKeepPmsReachableForCleanerWithAnotherStaffStore() {
+        ServiceFixture fixture = buildServiceFixture();
+        User user = buildUser(51L, "mixed@example.com", "secret");
+        Store cleanerStore = buildStore(61L); Store staffStore = buildStore(62L);
+        StoreUser cleanerMembership = buildStoreUser(71L, cleanerStore, "member");
+        StoreUser staffMembership = buildStoreUser(72L, staffStore, "member");
+        Cleaner cleaner = buildCleaner(81L, 51L, 61L, true);
+        when(fixture.userRepository.findByEmail("mixed@example.com")).thenReturn(Optional.of(user));
+        when(fixture.jwtUtil.generateToken(51L, "mixed@example.com")).thenReturn("token-mixed");
+        when(fixture.storeService.getUserStores(51L)).thenReturn(List.of(
+                buildStoreDTO(61L, "Cleaner Store"), buildStoreDTO(62L, "Staff Store")));
+        when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(51L))
+                .thenReturn(List.of(cleanerMembership, staffMembership));
+        when(fixture.cleanerIdentityService.findCleanerByUserIdAndStoreId(51L, 61L))
+                .thenReturn(Optional.of(cleaner));
+        when(fixture.cleanerIdentityService.findCleanerByUserIdAndStoreId(51L, 62L))
+                .thenReturn(Optional.empty());
+
+        LoginResponse response = fixture.service.loginByPassword(
+                buildPasswordRequest("mixed@example.com", "secret"));
+
+        assertEquals(LoginTarget.PMS, response.getLoginTarget());
+        assertEquals(List.of(LoginTarget.PMS, LoginTarget.CLEANER), response.getAvailableLoginTargets());
+        assertEquals(1, response.getCleanerContexts().size());
+    }
+
+    @Test
+    void loginByPassword_shouldRejectDisabledUserBeforeResolvingWorkspaces() {
+        ServiceFixture fixture = buildServiceFixture();
+        User user = buildUser(52L, "disabled@example.com", "secret"); user.setIsActive(false);
+        when(fixture.userRepository.findByEmail("disabled@example.com")).thenReturn(Optional.of(user));
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> fixture.service.loginByPassword(
+                buildPasswordRequest("disabled@example.com", "secret")));
+
+        assertEquals("用户账号已停用，无法登录", exception.getMessage());
+        Mockito.verifyNoInteractions(fixture.storeUserRepository, fixture.cleanerIdentityService);
+    }
+
+    @Test
+    void loginByPassword_shouldIgnoreInactiveCleanerMembership() {
+        ServiceFixture fixture = buildServiceFixture();
+        User user = buildUser(53L, "inactive.membership@example.com", "secret");
+        Store store = buildStore(63L); StoreUser membership = buildStoreUser(73L, store, "member");
+        membership.setIsActive(false);
+        when(fixture.userRepository.findByEmail("inactive.membership@example.com")).thenReturn(Optional.of(user));
+        when(fixture.jwtUtil.generateToken(53L, "inactive.membership@example.com")).thenReturn("token-inactive");
+        when(fixture.storeService.getUserStores(53L)).thenReturn(List.of());
+        when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(53L)).thenReturn(List.of(membership));
+
+        LoginResponse response = fixture.service.loginByPassword(
+                buildPasswordRequest("inactive.membership@example.com", "secret"));
+
+        assertEquals(LoginTarget.PMS, response.getLoginTarget());
+        assertEquals(List.of(LoginTarget.PMS), response.getAvailableLoginTargets());
+        assertEquals(List.of(), response.getCleanerContexts());
+        Mockito.verifyNoInteractions(fixture.cleanerIdentityService);
     }
 
     @Test

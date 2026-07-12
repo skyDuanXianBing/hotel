@@ -3,6 +3,20 @@
     <!-- 顶部导航栏 -->
     <div class="top-bar">
       <div class="logo">{{ t('stage5.cleaner.common.appName') }}</div>
+      <el-select
+        v-if="cleanerContexts.length > 1"
+        v-model="selectedContextStoreId"
+        class="store-switcher"
+        size="small"
+        @change="handleContextChange"
+      >
+        <el-option
+          v-for="context in cleanerContexts"
+          :key="context.storeId"
+          :label="context.store.name || `#${context.storeId}`"
+          :value="context.storeId"
+        />
+      </el-select>
       <div class="user-info">
         <span class="username">{{ cleanerUser?.nickname || cleanerUser?.email || t('stage5.cleaner.common.cleaner') }}</span>
         <el-dropdown @command="handleCommand">
@@ -11,12 +25,17 @@
           </span>
           <template #dropdown>
             <el-dropdown-menu>
+              <el-dropdown-item v-if="canSwitchToPms" command="switch-pms">
+                {{ t('layout.switchToPmsWorkspace') }}
+              </el-dropdown-item>
               <el-dropdown-item command="logout">{{ t('stage5.cleaner.common.logout') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
       </div>
     </div>
+
+    <CleanerInternalTaskPanel ref="internalTaskPanelRef" />
 
     <!-- 月份选择器 -->
     <div class="month-selector">
@@ -223,11 +242,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Document, Setting } from '@element-plus/icons-vue'
+import CleanerInternalTaskPanel from '@/views/cleaner/components/CleanerInternalTaskPanel.vue'
+import { logout as logoutApi } from '@/api/auth'
 import {
   getCalendarViewData,
   acceptCleaningTask,
@@ -238,13 +259,24 @@ import {
 import {
   clearAllLocalSessions,
   hasCompleteCleanerSession,
+  readCleanerContexts,
+  readAvailableLoginTargets,
+  readCleanerStoreId,
   readCleanerUser,
+  switchCleanerContext,
+  type CleanerSessionContext,
   type CleanerSessionUser,
 } from '@/utils/cleanerSession'
 
 const router = useRouter()
 const { t, tm } = useI18n()
 const cleanerUser = ref<CleanerSessionUser | null>(null)
+const cleanerContexts = ref<CleanerSessionContext[]>([])
+const selectedContextStoreId = ref<number | null>(null)
+const internalTaskPanelRef = ref<InstanceType<typeof CleanerInternalTaskPanel> | null>(null)
+const canSwitchToPms = readAvailableLoginTargets().includes('PMS')
+let calendarRequestSeq = 0
+let visibilityRefreshAt = 0
 
 const loading = ref(false)
 const selectedMonth = ref(new Date())
@@ -377,6 +409,7 @@ const generateCalendar = (year: number, month: number) => {
 
 // 加载日历任务数据
 const loadCalendarData = async () => {
+  const requestSeq = ++calendarRequestSeq
   const year = selectedMonth.value.getFullYear()
   const month = selectedMonth.value.getMonth()
 
@@ -393,6 +426,7 @@ const loadCalendarData = async () => {
       endDate,
     })
 
+    if (requestSeq !== calendarRequestSeq) return
     if (response.success && response.data) {
       const { tasks, totalCount, statusCount: counts } = response.data
 
@@ -418,11 +452,49 @@ const loadCalendarData = async () => {
       })
     }
   } catch (error) {
+    if (requestSeq !== calendarRequestSeq) return
     console.error('Failed to load cleaner calendar data:', error)
     ElMessage.error(t('stage5.cleaner.dashboard.loadTasksFailed'))
   } finally {
-    loading.value = false
+    if (requestSeq === calendarRequestSeq) loading.value = false
   }
+}
+
+const resetCalendarData = () => {
+  calendarRequestSeq += 1
+  loading.value = false
+  totalTasks.value = 0
+  selectedDate.value = ''
+  dayDrawerVisible.value = false
+  taskDetailVisible.value = false
+  selectedTask.value = null
+  Object.assign(statusCount, { pending: 0, assigned: 0, in_progress: 0, completed: 0 })
+  const year = selectedMonth.value.getFullYear()
+  const month = selectedMonth.value.getMonth()
+  generateCalendar(year, month)
+}
+
+const handleContextChange = async (storeId: number) => {
+  const context = cleanerContexts.value.find((item) => item.storeId === storeId)
+  if (!context) return
+  try {
+    cleanerUser.value = switchCleanerContext(context)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '门店切换失败，请重新登录')
+    selectedContextStoreId.value = readCleanerStoreId()
+    return
+  }
+  resetCalendarData()
+  internalTaskPanelRef.value?.reset()
+  await Promise.allSettled([loadCalendarData(), internalTaskPanelRef.value?.loadTasks()])
+}
+
+const refreshWhenVisible = () => {
+  if (document.visibilityState !== 'visible') return
+  const now = Date.now()
+  if (now - visibilityRefreshAt < 30_000) return
+  visibilityRefreshAt = now
+  void internalTaskPanelRef.value?.loadTasks()
 }
 
 const handleMonthChange = () => {
@@ -574,7 +646,18 @@ const handleComplete = async () => {
   }
 }
 
-const handleCommand = (command: string) => {
+const handleCommand = async (command: string) => {
+  if (command === 'switch-pms') {
+    try {
+      await logoutApi()
+    } catch {
+      // 本地会话仍需清理，避免旧工作区上下文残留。
+    } finally {
+      clearAllLocalSessions()
+      router.replace({ path: '/login', query: { workspace: 'PMS', switch: '1' } })
+    }
+    return
+  }
   if (command === 'logout') {
     clearAllLocalSessions()
     router.push('/login')
@@ -589,10 +672,19 @@ onMounted(() => {
     return
   }
   cleanerUser.value = readCleanerUser()
+  cleanerContexts.value = readCleanerContexts()
+  selectedContextStoreId.value = readCleanerStoreId()
   const year = selectedMonth.value.getFullYear()
   const month = selectedMonth.value.getMonth()
   generateCalendar(year, month)
-  loadCalendarData()
+  void Promise.allSettled([loadCalendarData(), internalTaskPanelRef.value?.loadTasks()])
+  window.addEventListener('focus', refreshWhenVisible)
+  document.addEventListener('visibilitychange', refreshWhenVisible)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('focus', refreshWhenVisible)
+  document.removeEventListener('visibilitychange', refreshWhenVisible)
 })
 </script>
 
@@ -617,6 +709,11 @@ onMounted(() => {
   font-size: 18px;
   font-weight: 600;
   color: #303133;
+}
+
+.store-switcher {
+  width: min(220px, 38vw);
+  margin: 0 auto;
 }
 
 .user-info {

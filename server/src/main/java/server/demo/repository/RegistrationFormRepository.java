@@ -30,6 +30,22 @@ public interface RegistrationFormRepository extends JpaRepository<RegistrationFo
             JOIN FETCH r.channel c
             LEFT JOIN FETCH r.room room
             WHERE f.storeId = :storeId
+              AND f.status = server.demo.enums.RegistrationFormStatus.APPROVED
+              AND f.approvedAt >= :approvedSince
+              AND (r.status IS NULL OR r.status <> server.demo.enums.ReservationStatus.CANCELLED)
+            ORDER BY f.approvedAt DESC, f.id DESC
+            """)
+    List<RegistrationForm> findRecentApprovedForHome(
+            @Param("storeId") Long storeId,
+            @Param("approvedSince") LocalDateTime approvedSince
+    );
+
+    @Query("""
+            SELECT f FROM RegistrationForm f
+            JOIN FETCH f.reservation r
+            JOIN FETCH r.channel c
+            LEFT JOIN FETCH r.room room
+            WHERE f.storeId = :storeId
               AND (:status IS NULL OR f.status = :status)
               AND (:channelId IS NULL OR c.id = :channelId)
               AND (:reservationStatus IS NULL OR r.status = :reservationStatus)

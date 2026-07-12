@@ -49,6 +49,19 @@ class CleanerServiceTest {
     }
 
     @Test
+    void createCleaner_shouldRequireInvitationEvenWhenPasswordProvided() {
+        CleanerRepository cleanerRepository = Mockito.mock(CleanerRepository.class);
+        CleanerService service = new CleanerService();
+        ReflectionTestUtils.setField(service, "cleanerRepository", cleanerRepository);
+        Cleaner cleaner = new Cleaner(); cleaner.setPassword("encoded-password");
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> service.createCleaner(cleaner));
+
+        assertEquals("请通过保洁员邀请流程创建账号，禁止直接创建不完整身份", exception.getMessage());
+        verify(cleanerRepository, never()).save(any(Cleaner.class));
+    }
+
+    @Test
     void deleteCleaner_shouldRejectWhenCleanerStillHasTasks() {
         CleanerRepository cleanerRepository = Mockito.mock(CleanerRepository.class);
         CleaningTaskRepository cleaningTaskRepository = Mockito.mock(CleaningTaskRepository.class);

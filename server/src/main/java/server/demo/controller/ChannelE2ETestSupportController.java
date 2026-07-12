@@ -43,6 +43,8 @@ public class ChannelE2ETestSupportController extends BaseStoreController {
             return ResponseEntity.ok(ApiResponse.success("本地渠道E2E基础数据已就绪", response));
         } catch (TestSupportAccessException e) {
             return accessDenied(e);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(e.getMessage()));
         }
     }
 

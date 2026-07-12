@@ -476,6 +476,7 @@ async function bootstrapHandler(req: Request, res: Response): Promise<void> {
     suHotelId: setupData.suHotelId,
     roomTypeId: setupData.roomTypeId,
     roomId: setupData.roomId,
+    cleanerSession: setupData.cleanerSession,
     readiness,
   }
 

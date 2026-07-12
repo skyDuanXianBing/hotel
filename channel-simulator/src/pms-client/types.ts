@@ -206,9 +206,17 @@ export interface PmsSetupLocalData {
   userId: number
   roomTypeId: number
   roomId: number
+  cleanerSession: PmsSetupLocalCleanerSession
   rooms: PmsSetupLocalRoomSummary[]
   summary: JsonObject
   readiness: PmsReadinessData
+}
+
+export interface PmsSetupLocalCleanerSession {
+  cleanerToken: string
+  storeId: number
+  cleanerId: number
+  displayName: string
 }
 
 export interface PmsMessagingLookupQuery {

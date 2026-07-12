@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import NotificationPopup from '@/components/NotificationPopup.vue'
 import CustomerService from '@/components/CustomerService.vue'
+import { clearAllLocalSessions, readAvailableLoginTargets } from '@/utils/cleanerSession'
 import AppTopNav from '@/components/layout/AppTopNav.vue'
 import { appTopNavBindingsKey, type AppTopNavProps } from '@/components/layout/appShellContext'
 import { PermissionAction, PermissionModule } from '@/api/role'
@@ -174,6 +175,9 @@ const inboxUnreadCount = computed(() => {
 
 const hasSystemUnread = computed(() => notificationCenterStore.systemUnreadCount > 0)
 const hasOrderUnread = computed(() => notificationCenterStore.orderUnreadCount > 0)
+const canSwitchWorkspace = computed(() =>
+  readAvailableLoginTargets().includes('CLEANER'),
+)
 
 const formattedChatUnreadCount = computed(() => formatUnreadBadge(chatUnreadCount.value))
 const formattedInboxUnreadCount = computed(() => formatUnreadBadge(inboxUnreadCount.value))
@@ -206,6 +210,19 @@ const handleProfileClick = () => {
   router.push('/profile')
 }
 
+const handleWorkspaceSwitch = async () => {
+  notificationCenterStore.stop()
+  try {
+    await userStore.logout()
+  } finally {
+    clearAllLocalSessions()
+    userStore.setUser(null)
+    storeStore.clearStoreData()
+    permissionStore.clearPermissions()
+    router.replace({ path: '/login', query: { workspace: 'CLEANER', switch: '1' } })
+  }
+}
+
 const handleLogout = async () => {
   try {
     await userStore.logout()
@@ -236,6 +253,7 @@ const topNavProps = computed<AppTopNavProps>(() => ({
   formattedInboxUnreadCount: formattedInboxUnreadCount.value,
   hasSystemUnread: hasSystemUnread.value,
   hasOrderUnread: hasOrderUnread.value,
+  canSwitchWorkspace: canSwitchWorkspace.value,
 }))
 
 provide(appTopNavBindingsKey, {
@@ -249,6 +267,7 @@ provide(appTopNavBindingsKey, {
   onSystemNotification: handleSystemNotification,
   onOrderNotification: handleOrderNotification,
   onProfileClick: handleProfileClick,
+  onWorkspaceSwitch: handleWorkspaceSwitch,
   onLogout: handleLogout,
 })
 
@@ -335,6 +354,7 @@ onUnmounted(() => {
           @system-notification="handleSystemNotification"
           @order-notification="handleOrderNotification"
           @profile-click="handleProfileClick"
+          @workspace-switch="handleWorkspaceSwitch"
           @logout="handleLogout"
         />
       </header>

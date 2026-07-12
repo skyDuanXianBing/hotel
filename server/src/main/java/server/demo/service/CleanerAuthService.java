@@ -67,6 +67,8 @@ public class CleanerAuthService {
         }
 
         // 保持旧客户端兼容响应结构
-        return new CleanerLoginResponse(token, unifiedResponse.getCleaner());
+        CleanerLoginResponse response = new CleanerLoginResponse(token, unifiedResponse.getCleaner());
+        response.setCleanerContexts(unifiedResponse.getCleanerContexts());
+        return response;
     }
 }

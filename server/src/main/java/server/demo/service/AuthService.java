@@ -143,6 +143,7 @@ public class AuthService {
         // 查询用户 - 仅查询User表中的管理员
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("邮箱或密码错误"));
+        requireActiveUser(user);
 
         // 验证密码
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
@@ -159,7 +160,7 @@ public class AuthService {
         // 获取用户的门店列表
         List<StoreDTO> stores = storeService.getUserStores(user.getId());
 
-        return buildLoginResponse(token, userDTO, stores);
+        return buildLoginResponse(token, userDTO, stores, request.getPreferredLoginTarget());
     }
 
     /**
@@ -177,6 +178,7 @@ public class AuthService {
         // 查询用户 - 仅查询User表中的管理员
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("该邮箱未注册"));
+        requireActiveUser(user);
 
         // 生成token
         String token = jwtUtil.generateToken(user.getId(), user.getEmail());
@@ -188,7 +190,7 @@ public class AuthService {
         // 获取用户的门店列表
         List<StoreDTO> stores = storeService.getUserStores(user.getId());
 
-        return buildLoginResponse(token, userDTO, stores);
+        return buildLoginResponse(token, userDTO, stores, request.getPreferredLoginTarget());
     }
 
     /**
@@ -200,11 +202,12 @@ public class AuthService {
         }
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
+        requireActiveUser(user);
 
         UserDTO userDTO = new UserDTO(user);
         userDTO.setIsCleaner(false);
         List<StoreDTO> stores = storeService.getUserStores(user.getId());
-        return buildLoginResponse(token, userDTO, stores);
+        return buildLoginResponse(token, userDTO, stores, LoginTarget.CLEANER);
     }
 
     /**
@@ -337,28 +340,53 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    private LoginResponse buildLoginResponse(String token, UserDTO userDTO, List<StoreDTO> stores) {
+    private LoginResponse buildLoginResponse(
+            String token,
+            UserDTO userDTO,
+            List<StoreDTO> stores,
+            LoginTarget preferredLoginTarget
+    ) {
         LoginResponse response = new LoginResponse(token, userDTO, stores);
-        applyLoginTarget(response, stores);
+        applyLoginTarget(response, stores, preferredLoginTarget);
         return response;
     }
 
-    private void applyLoginTarget(LoginResponse response, List<StoreDTO> stores) {
+    private void applyLoginTarget(
+            LoginResponse response,
+            List<StoreDTO> stores,
+            LoginTarget preferredLoginTarget
+    ) {
         response.setLoginTarget(LoginTarget.PMS);
         response.setCleaner(null);
         response.setCurrentStore(null);
         response.setTargetStoreId(null);
+        response.setCleanerContexts(List.of());
+        response.setAvailableLoginTargets(List.of(LoginTarget.PMS));
 
         if (response.getUser() == null || response.getUser().getId() == null) {
             return;
         }
 
-        List<CleanerTargetCandidate> candidates = resolveCleanerTargetCandidates(response.getUser().getId());
+        List<StoreUser> storeUsers = storeUserRepository.findByUserIdWithStoreAndRoles(response.getUser().getId());
+        List<CleanerTargetCandidate> candidates = resolveCleanerTargetCandidates(response.getUser().getId(), storeUsers);
         if (candidates.isEmpty()) {
             return;
         }
 
         sortCleanerCandidates(candidates);
+        List<CleanerContextDTO> contexts = new ArrayList<>();
+        for (CleanerTargetCandidate candidate : candidates) {
+            contexts.add(new CleanerContextDTO(new CleanerDTO(candidate.cleaner), findStoreDto(stores, candidate.storeId)));
+        }
+        response.setCleanerContexts(contexts);
+        boolean hasPmsWorkspace = hasPmsWorkspace(storeUsers, candidates);
+        response.setAvailableLoginTargets(hasPmsWorkspace
+                ? List.of(LoginTarget.PMS, LoginTarget.CLEANER)
+                : List.of(LoginTarget.CLEANER));
+        boolean selectCleaner = !hasPmsWorkspace || preferredLoginTarget == LoginTarget.CLEANER;
+        if (!selectCleaner) {
+            return;
+        }
         CleanerTargetCandidate target = candidates.get(0);
         response.setLoginTarget(LoginTarget.CLEANER);
         response.setCleaner(new CleanerDTO(target.cleaner));
@@ -366,9 +394,8 @@ public class AuthService {
         response.setCurrentStore(findStoreDto(stores, target.storeId));
     }
 
-    private List<CleanerTargetCandidate> resolveCleanerTargetCandidates(Long userId) {
+    private List<CleanerTargetCandidate> resolveCleanerTargetCandidates(Long userId, List<StoreUser> storeUsers) {
         List<CleanerTargetCandidate> candidates = new ArrayList<>();
-        List<StoreUser> storeUsers = storeUserRepository.findByUserIdWithStoreAndRoles(userId);
         if (storeUsers == null || storeUsers.isEmpty()) {
             return candidates;
         }
@@ -389,6 +416,34 @@ public class AuthService {
         }
 
         return candidates;
+    }
+
+    private boolean hasPmsWorkspace(
+            List<StoreUser> storeUsers,
+            List<CleanerTargetCandidate> cleanerCandidates
+    ) {
+        if (storeUsers == null || storeUsers.isEmpty()) {
+            return false;
+        }
+        Set<Long> cleanerStoreIds = cleanerCandidates.stream()
+                .map(candidate -> candidate.storeId)
+                .collect(java.util.stream.Collectors.toSet());
+        for (StoreUser storeUser : storeUsers) {
+            if (!isUsableActiveStoreUser(storeUser)) {
+                continue;
+            }
+            String role = storeUser.getRole();
+            if ("owner".equalsIgnoreCase(role) || "admin".equalsIgnoreCase(role)) {
+                return true;
+            }
+            if (storeUser.getRoles() != null && !storeUser.getRoles().isEmpty()) {
+                return true;
+            }
+            if (!cleanerStoreIds.contains(storeUser.getStore().getId())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isUsableActiveStoreUser(StoreUser storeUser) {
@@ -433,6 +488,12 @@ public class AuthService {
             return -1;
         }
         return left.compareTo(right);
+    }
+
+    private void requireActiveUser(User user) {
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new RuntimeException("用户账号已停用，无法登录");
+        }
     }
 
     private static class CleanerTargetCandidate {

@@ -1,10 +1,12 @@
 import { computed, ref } from 'vue'
 
 import { apiRequest } from './api'
+import { normalizeCleanerTestSession } from './cleanerTestSession'
 import { buildMessagingBody, buildRunBody, buildScenarioExample } from './payloads'
 import type {
   ApiEnvelope,
   BootstrapData,
+  CleanerTestSession,
   ConfigSummary,
   Credentials,
   JsonObject,
@@ -48,6 +50,7 @@ const viewItems: ViewItem[] = [
 
 const activeView = ref<ViewId>('readiness')
 const credentials = ref<Credentials>(loadCredentials())
+const cleanerTestSession = ref<CleanerTestSession | null>(null)
 const config = ref<ConfigSummary | null>(null)
 const logs = ref<LogEntry[]>([])
 const scenarios = ref<ScenarioSummary[]>([])
@@ -119,6 +122,11 @@ const selectedRooms = computed(() => readinessParts.value.rooms)
 const hasSessionCredentials = computed(() => {
   return Boolean(credentials.value.token.trim() && credentials.value.storeId.trim())
 })
+const hasCleanerTestSession = computed(() => {
+  const session = cleanerTestSession.value
+  return Boolean(session?.cleanerToken && session.cleanerId && session.storeId)
+})
+const cleanerDisplayName = computed(() => cleanerTestSession.value?.displayName || '')
 const hasManagedTestSupportKey = computed(() => {
   return config.value?.testSupportAuth?.hasKey === true
 })
@@ -158,6 +166,8 @@ export function useDashboardState() {
     activeView,
     config,
     credentials,
+    cleanerDisplayName,
+    cleanerTestSession,
     customPayloadText,
     hotelId,
     lifecycleData,
@@ -194,6 +204,7 @@ export function useDashboardState() {
     hasAvailableTestSupportKey,
     hasManagedTestSupportKey,
     hasSessionCredentials,
+    hasCleanerTestSession,
     isObject,
     labelForEntity,
     loadConfig,
@@ -234,12 +245,14 @@ function applyBootstrapData(data: BootstrapData): void {
   runForm.value.roomTypeId = data.roomTypeId ? String(data.roomTypeId) : runForm.value.roomTypeId
   runForm.value.roomId = data.roomId ? String(data.roomId) : runForm.value.roomId
   readiness.value = data.readiness || null
+  cleanerTestSession.value = normalizeCleanerTestSession(data.cleanerSession)
 }
 
 function clearCredentials(): void {
   credentials.value = createEmptyCredentials()
   window.localStorage.removeItem(LEGACY_LOCAL_STORAGE_KEY)
   readiness.value = null
+  cleanerTestSession.value = null
   runForm.value.roomTypeId = ''
   runForm.value.roomId = ''
   statusText.value.credentials = '当前页面会话凭据已清除。'

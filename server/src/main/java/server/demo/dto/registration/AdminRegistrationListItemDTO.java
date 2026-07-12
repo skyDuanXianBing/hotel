@@ -17,6 +17,7 @@ public class AdminRegistrationListItemDTO {
     private ReservationStatus reservationStatus;
     private RegistrationFormStatus status;
     private LocalDateTime submittedAt;
+    private LocalDateTime approvedAt;
     private LocalDateTime updatedAt;
 
     public Long getFormId() {
@@ -97,6 +98,14 @@ public class AdminRegistrationListItemDTO {
 
     public void setSubmittedAt(LocalDateTime submittedAt) {
         this.submittedAt = submittedAt;
+    }
+
+    public LocalDateTime getApprovedAt() {
+        return approvedAt;
+    }
+
+    public void setApprovedAt(LocalDateTime approvedAt) {
+        this.approvedAt = approvedAt;
     }
 
     public LocalDateTime getUpdatedAt() {

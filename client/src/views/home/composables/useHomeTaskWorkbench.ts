@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { assignCleaningTask, getCleaners, type CleanerDTO } from '@/api/cleaning'
 import {
-  getHomeWorkbench,
+  type ApiResponse,
   type HomeWorkbenchActionDTO,
   type HomeWorkbenchDTO,
   type HomeWorkbenchItemDTO,
@@ -12,6 +12,7 @@ import {
   type HomeWorkbenchTargetDTO,
   type HomeWorkbenchTaskType,
 } from '@/api/homeWorkbench'
+import { request } from '@/utils/request'
 import { getStoreTodayYmd } from '@/utils/storeDateTime'
 
 const WORKBENCH_LIMIT = 50
@@ -20,6 +21,8 @@ const DEFAULT_STATUS_GROUP = 'pending'
 const WORKBENCH_TYPES: WorkbenchTaskType[] = ['cleaning', 'review', 'order', 'message', 'other']
 
 const statusSortOrder: Record<string, number> = {
+  awaiting_review: 0,
+  awaiting_reply: 0,
   pending: 0,
   unassigned: 1,
   assigned: 2,
@@ -181,6 +184,7 @@ const formatMetaItem = (item: string | HomeWorkbenchMetaItemDTO) => {
 export const useHomeTaskWorkbench = () => {
   const { t } = useI18n()
   const loading = ref(false)
+  const loadError = ref('')
   const cleanersLoading = ref(false)
   const assigningTaskId = ref<number | null>(null)
   const activeType = ref<WorkbenchTaskTypeFilter>('all')
@@ -217,6 +221,12 @@ export const useHomeTaskWorkbench = () => {
     }
     if (status === 'pending') {
       return t('pages.home.workbench.statuses.pending')
+    }
+    if (status === 'awaiting_review') {
+      return t('pages.home.workbench.statuses.awaitingReview')
+    }
+    if (status === 'awaiting_reply') {
+      return t('pages.home.workbench.statuses.awaitingReply')
     }
     if (status === 'unassigned') {
       return t('pages.home.workbench.statuses.unassigned')
@@ -299,6 +309,8 @@ export const useHomeTaskWorkbench = () => {
     }
     return mappedItems
   })
+
+  const hasWorkbenchData = computed(() => workbenchData.value !== null)
 
   const taskTypeSummaries = computed<WorkbenchTaskTypeSummary[]>(() => {
     const backendSummaries = new Map<WorkbenchTaskType, { count: number; connected: boolean }>()
@@ -389,6 +401,8 @@ export const useHomeTaskWorkbench = () => {
     }
 
     const statuses = new Set<string>([
+      'awaiting_review',
+      'awaiting_reply',
       'pending',
       'unassigned',
       'assigned',
@@ -482,7 +496,7 @@ export const useHomeTaskWorkbench = () => {
     }
   }
 
-  const loadWorkbenchData = async () => {
+  const loadWorkbenchData = async (): Promise<boolean> => {
     const requestSeq = workbenchRequestSeq + 1
     workbenchRequestSeq = requestSeq
     const requestDate = getStoreTodayYmd()
@@ -498,27 +512,30 @@ export const useHomeTaskWorkbench = () => {
     }
 
     try {
-      const response = await getHomeWorkbench(requestParams)
+      const response = await request.get<never, ApiResponse<HomeWorkbenchDTO>>('/home/workbench', {
+        params: requestParams,
+        suppressErrorToast: true,
+      })
       if (requestSeq !== workbenchRequestSeq) {
-        return
+        return false
       }
 
       if (response.success && response.data) {
         workbenchData.value = response.data
+        loadError.value = ''
         syncAssignSelections()
+        return true
       } else {
-        workbenchData.value = null
-        assignSelections.value = {}
-        ElMessage.error(response.message || t('pages.home.workbench.loadTasksFailed'))
+        loadError.value = response.message || t('pages.home.workbench.loadTasksFailed')
+        return false
       }
     } catch (error) {
       if (requestSeq !== workbenchRequestSeq) {
-        return
+        return false
       }
       console.error('Failed to load home workbench tasks:', error)
-      workbenchData.value = null
-      assignSelections.value = {}
-      ElMessage.error(t('pages.home.workbench.loadTasksFailed'))
+      loadError.value = t('pages.home.workbench.loadTasksFailed')
+      return false
     }
   }
 
@@ -533,6 +550,16 @@ export const useHomeTaskWorkbench = () => {
         loading.value = false
       }
     }
+  }
+
+  const clearWorkbench = () => {
+    workbenchRequestSeq += 1
+    loadingSeq += 1
+    loading.value = false
+    workbenchData.value = null
+    loadError.value = ''
+    cleanerList.value = []
+    assignSelections.value = {}
   }
 
   const loadWorkbench = async () => {
@@ -591,8 +618,10 @@ export const useHomeTaskWorkbench = () => {
     cleanerList,
     cleanersLoading,
     filteredTasks,
+    hasWorkbenchData,
     loadWorkbench,
     loading,
+    loadError,
     selectedTypeIsConnected,
     selectedTypeSummary,
     statusSummaries,
@@ -600,5 +629,7 @@ export const useHomeTaskWorkbench = () => {
     todayYmd,
     assignTask,
     changeWorkbenchType,
+    clearWorkbench,
+    reloadWorkbenchData,
   }
 }

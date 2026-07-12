@@ -43,6 +43,7 @@ class SuAutoReplyServiceTest {
         StoreRepository storeRepository = Mockito.mock(StoreRepository.class);
         SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
         SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
+        SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
         MessageKnowledgeThreadDirtyMarker dirtyMarker = Mockito.mock(MessageKnowledgeThreadDirtyMarker.class);
         ObjectMapper objectMapper = new ObjectMapper();
 
@@ -55,6 +56,7 @@ class SuAutoReplyServiceTest {
                 storeRepository,
                 suApiClient,
                 suAccessTokenService,
+                realtimeGateway,
                 objectMapper
         );
         service.setKnowledgeThreadDirtyMarker(dirtyMarker);
@@ -123,6 +125,9 @@ class SuAutoReplyServiceTest {
         assertEquals(10L, dirtyMessage.getStoreId());
         assertEquals(5L, dirtyMessage.getThread().getId());
         assertEquals(SuMessagingSenderType.STAFF, dirtyMessage.getSenderType());
+        assertEquals("SENT", dirtyMessage.getDeliveryStatus());
         assertEquals("Welcome Alice", dirtyMessage.getContent());
+        verify(realtimeGateway).broadcastMessageCreated(eq(10L), eq(5L), any());
+        verify(realtimeGateway).broadcastWorkbenchInvalidated(10L, "message");
     }
 }
