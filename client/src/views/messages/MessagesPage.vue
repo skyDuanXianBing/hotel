@@ -5,6 +5,18 @@
         <div class="panel-header">
           <h2>{{ t('stage6.components.messagesPage.inbox') }}</h2>
           <div class="panel-header-actions">
+            <el-tooltip :content="t('stage6.common.actions.refresh')" placement="bottom">
+              <el-button
+                text
+                circle
+                size="small"
+                :icon="Refresh"
+                :loading="isLoadingMessages"
+                :disabled="!activeThreadId || isLoadingMessages || isLoadingOlderMessages"
+                :aria-label="t('stage6.common.actions.refresh')"
+                @click="refreshCurrentConversationMessages"
+              />
+            </el-tooltip>
             <el-button text size="small" @click="translationDialogVisible = true">
               {{ t('stage6.components.messagesPage.translate') }}
             </el-button>
@@ -639,6 +651,7 @@ import {
   Loading,
   MagicStick,
   Picture,
+  Refresh,
   Search,
   User,
   WarningFilled,
@@ -2304,6 +2317,14 @@ const loadOlderMessages = async () => {
     return
   }
   await loadThreadMessages(activeThreadId.value, nextBeforeMessageId.value)
+}
+
+const refreshCurrentConversationMessages = async () => {
+  const threadId = activeThreadId.value
+  if (!threadId || isLoadingMessages.value || isLoadingOlderMessages.value) {
+    return
+  }
+  await loadThreadMessages(threadId)
 }
 
 const selectConversation = async (threadId: number) => {
