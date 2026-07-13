@@ -291,7 +291,7 @@
                         :src="getAttachmentObjectUrl(attachment)"
                         :preview-src-list="[getAttachmentObjectUrl(attachment)]"
                         :alt="attachment.fileName || uiText('image')"
-                        fit="cover"
+                        fit="contain"
                         preview-teleported
                       />
                       <div v-else class="message-image-loading">
@@ -3971,7 +3971,20 @@ onUnmounted(() => {
 }
 
 .message-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: fit-content;
   max-width: min(75%, 560px);
+  min-width: 0;
+}
+
+.message-sent .message-content {
+  align-items: flex-end;
+}
+
+.message-received .message-content {
+  align-items: flex-start;
 }
 
 .message-text {
@@ -3983,16 +3996,26 @@ onUnmounted(() => {
 }
 
 .message-images {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 180px));
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  max-width: 100%;
   margin-bottom: 6px;
+}
+
+.message-sent .message-images {
+  justify-content: flex-end;
+}
+
+.message-received .message-images {
+  justify-content: flex-start;
 }
 
 .message-image,
 .message-image-loading {
-  width: 180px;
-  height: 140px;
+  flex: 0 1 240px;
+  width: min(240px, 100%);
+  height: 180px;
   border-radius: 10px;
   overflow: hidden;
   background: #eef1f5;
@@ -4001,6 +4024,11 @@ onUnmounted(() => {
 
 .message-image {
   cursor: zoom-in;
+}
+
+.message-content > .message-time {
+  margin-top: 2px;
+  padding: 0 2px;
 }
 
 .message-image-loading {
