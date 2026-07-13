@@ -1203,4 +1203,26 @@ public class SuApiClient {
             throw new RuntimeException("Error calling Su messagingAB: " + e.getMessage(), e);
         }
     }
+
+    /** Booking.com Messaging API v1.2 attachment upload. */
+    public JsonNode sendMessageAttachment(String accessToken, Object payload) {
+        String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/message/sendAttachment";
+        try {
+            return postSuJsonWithAuthRetry(url, accessToken, payload, "message/sendAttachment");
+        } catch (Exception e) {
+            logger.error("Error calling Su message/sendAttachment", e);
+            throw new RuntimeException("Error calling Su message/sendAttachment: " + e.getMessage(), e);
+        }
+    }
+
+    /** Booking.com Messaging API v1.2 attachment download. */
+    public JsonNode downloadMessageAttachment(String accessToken, Object payload) {
+        String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/message/downloadAttachment";
+        try {
+            return postSuJsonWithAuthRetry(url, accessToken, payload, "message/downloadAttachment");
+        } catch (Exception e) {
+            logger.error("Error calling Su message/downloadAttachment", e);
+            throw new RuntimeException("Error calling Su message/downloadAttachment: " + e.getMessage(), e);
+        }
+    }
 }

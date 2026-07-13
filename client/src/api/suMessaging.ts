@@ -89,6 +89,13 @@ export interface SuMessagingMessageDTO {
   content: string
   deliveryStatus?: 'SENDING' | 'SENT' | 'FAILED'
   timestamp: string
+  attachments?: SuMessagingAttachmentDTO[]
+}
+
+export interface SuMessagingAttachmentDTO {
+  id: number
+  mimeType?: string
+  fileName?: string
 }
 
 export interface SuMessagingMessagePageRequest {
@@ -251,6 +258,35 @@ export const sendSuThreadMessage = (threadId: number, data: SuMessagingSendReque
     method: 'post',
     data,
     timeout: SU_MESSAGING_TIMEOUT_MS,
+  })
+}
+
+export const sendSuThreadAttachment = (threadId: number, file: File, senderName?: string) => {
+  const data = new FormData()
+  data.append('file', file)
+  if (senderName?.trim()) {
+    data.append('senderName', senderName.trim())
+  }
+  return request<SuMessagingMessageDTO>({
+    url: `/su-messaging/threads/${threadId}/attachments`,
+    method: 'post',
+    data,
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: SU_MESSAGING_TIMEOUT_MS,
+  })
+}
+
+export const getSuMessageAttachment = (
+  threadId: number,
+  messageId: number,
+  attachmentId: number,
+) => {
+  return request<Blob>({
+    url: `/su-messaging/threads/${threadId}/messages/${messageId}/attachments/${attachmentId}`,
+    method: 'get',
+    responseType: 'blob',
+    timeout: SU_MESSAGING_TIMEOUT_MS,
+    suppressErrorToast: true,
   })
 }
 

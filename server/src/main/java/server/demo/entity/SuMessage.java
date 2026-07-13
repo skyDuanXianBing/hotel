@@ -5,6 +5,8 @@ import server.demo.enums.SuMessagingSenderType;
 import server.demo.util.UtcTimeUtil;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Su Messaging 单条消息。
@@ -69,6 +71,10 @@ public class SuMessage {
 
     @Column(name = "raw_json", columnDefinition = "MEDIUMTEXT")
     private String rawJson;
+
+    @OneToMany(mappedBy = "message", fetch = FetchType.LAZY)
+    @OrderBy("id ASC")
+    private List<SuMessageAttachment> attachments = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {
@@ -166,5 +172,13 @@ public class SuMessage {
 
     public void setDeliveryStatus(String deliveryStatus) {
         this.deliveryStatus = deliveryStatus;
+    }
+
+    public List<SuMessageAttachment> getAttachments() {
+        return attachments;
+    }
+
+    public void setAttachments(List<SuMessageAttachment> attachments) {
+        this.attachments = attachments != null ? attachments : new ArrayList<>();
     }
 }

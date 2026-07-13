@@ -18,6 +18,12 @@ public interface ChannelMappingPriceSettingRepository extends JpaRepository<Chan
             String suPropertyId
     );
 
+    List<ChannelMappingPriceSetting> findByStoreIdAndSuPropertyIdAndSuChannelId(
+            Long storeId,
+            String suPropertyId,
+            String suChannelId
+    );
+
     Optional<ChannelMappingPriceSetting> findByStoreIdAndChannelIdAndMappingKey(
             Long storeId,
             Long channelId,

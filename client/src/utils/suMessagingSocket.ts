@@ -6,6 +6,7 @@ export interface SuMessagingRealtimeEventMessage {
   content: string
   deliveryStatus?: 'SENDING' | 'SENT' | 'FAILED'
   timestamp: string
+  attachments?: Array<{ id: number; mimeType?: string; fileName?: string }>
 }
 
 export type SuMessagingRealtimeEvent =

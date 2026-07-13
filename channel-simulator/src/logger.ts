@@ -3,6 +3,13 @@ import chalk from 'chalk'
 
 const MAX_LOGS = 500
 const REDACTED_VALUE = '[redacted]'
+const BINARY_CONTENT_KEY_NAMES = new Set([
+  'attachment',
+  'attachmentcontent',
+  'base64',
+  'filecontent',
+  'imagebase64',
+])
 const SENSITIVE_KEY_PARTS = [
   'authorization',
   'password',
@@ -58,6 +65,20 @@ function isSensitiveKey(key: string): boolean {
   return false
 }
 
+function redactBinaryContent(key: string, value: unknown): unknown {
+  const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (!BINARY_CONTENT_KEY_NAMES.has(normalizedKey)) {
+    return undefined
+  }
+  if (normalizedKey === 'attachment' && typeof value !== 'string') {
+    return undefined
+  }
+  if (typeof value === 'string') {
+    return `[redacted binary:${value.length} chars]`
+  }
+  return REDACTED_VALUE
+}
+
 function redactSensitiveFields(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map((item) => redactSensitiveFields(item))
@@ -69,7 +90,13 @@ function redactSensitiveFields(value: unknown): unknown {
 
   const redacted: Record<string, unknown> = {}
   for (const [key, fieldValue] of Object.entries(value)) {
-    redacted[key] = isSensitiveKey(key) ? REDACTED_VALUE : redactSensitiveFields(fieldValue)
+    const redactedBinary = redactBinaryContent(key, fieldValue)
+    redacted[key] =
+      redactedBinary !== undefined
+        ? redactedBinary
+        : isSensitiveKey(key)
+          ? REDACTED_VALUE
+          : redactSensitiveFields(fieldValue)
   }
 
   return redacted
@@ -81,7 +108,18 @@ function redactSensitiveFields(value: unknown): unknown {
 function safeClone(value: unknown): unknown {
   if (value === undefined || value === null) return value
   try {
-    const safeValue = redactSensitiveFields(value)
+    let normalizedValue = value
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+          normalizedValue = JSON.parse(trimmed)
+        } catch (_err) {
+          normalizedValue = value
+        }
+      }
+    }
+    const safeValue = redactSensitiveFields(normalizedValue)
     const text = typeof safeValue === 'string' ? safeValue : JSON.stringify(safeValue)
     if (text && text.length > 20000) {
       return typeof safeValue === 'string'
@@ -153,7 +191,9 @@ export const requestLogger: RequestHandler = (req: Request, res: Response, next:
   let capturedBody: unknown
 
   res.send = ((body?: unknown) => {
-    capturedBody = body
+    if (capturedBody === undefined) {
+      capturedBody = body
+    }
     return originalSend(body as never)
   }) as typeof res.send
   res.json = ((body?: unknown) => {

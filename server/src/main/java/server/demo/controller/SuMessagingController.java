@@ -2,7 +2,10 @@ package server.demo.controller;
 
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import server.demo.annotation.RequirePermission;
 import server.demo.annotation.StoreScoped;
 import server.demo.context.StoreContextHolder;
@@ -172,6 +175,50 @@ public class SuMessagingController {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(ApiResponse.error("发送消息失败: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping(value = "/threads/{threadId}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @StoreScoped
+    public ResponseEntity<ApiResponse<SuMessagingMessageDTO>> sendAttachment(
+            @PathVariable Long threadId,
+            @RequestPart("file") MultipartFile file,
+            @RequestParam(required = false) String senderName
+    ) {
+        try {
+            Long storeId = StoreContextHolder.getContext().getStoreId();
+            SuMessagingMessageDTO dto = suMessagingService.sendAttachment(storeId, threadId, file, senderName);
+            return ResponseEntity.ok(ApiResponse.success(dto));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.error("发送图片失败: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/threads/{threadId}/messages/{messageId}/attachments/{attachmentId}")
+    @StoreScoped
+    public ResponseEntity<byte[]> downloadAttachment(
+            @PathVariable Long threadId,
+            @PathVariable Long messageId,
+            @PathVariable Long attachmentId
+    ) {
+        try {
+            Long storeId = StoreContextHolder.getContext().getStoreId();
+            SuMessagingService.AttachmentContent content = suMessagingService.downloadAttachment(
+                    storeId,
+                    threadId,
+                    messageId,
+                    attachmentId
+            );
+            return ResponseEntity.ok()
+                    .cacheControl(CacheControl.noStore())
+                    .contentType(MediaType.parseMediaType(content.mimeType()))
+                    .body(content.bytes());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(502).build();
         }
     }
 

@@ -7,6 +7,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.springframework.mock.web.MockMultipartFile;
 import server.demo.context.StoreContext;
 import server.demo.context.StoreContextHolder;
 import server.demo.dto.SuMessagingMessagePageResponse;
@@ -18,13 +19,17 @@ import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.RoomType;
 import server.demo.entity.Store;
+import server.demo.entity.ChannelMappingPriceSetting;
 import server.demo.entity.SuMessage;
+import server.demo.entity.SuMessageAttachment;
 import server.demo.entity.SuMessageThread;
 import server.demo.enums.ReservationStatus;
 import server.demo.enums.SuMessagingSenderType;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
+import server.demo.repository.ChannelMappingPriceSettingRepository;
+import server.demo.repository.SuMessageAttachmentRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 
@@ -35,6 +40,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -1564,6 +1570,403 @@ class SuMessagingServiceTest {
         verify(dirtyMarker).markDirty(saved);
         verify(realtimeGateway).broadcastMessageCreated(eq(10L), eq(5L), any());
         verify(realtimeGateway).broadcastWorkbenchInvalidated(10L, "message");
+    }
+
+    @Test
+    void sendAttachment_shouldUseBookingV12PayloadAndPersistMetadata() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        SuMessageAttachmentRepository attachmentRepository = Mockito.mock(SuMessageAttachmentRepository.class);
+        ChannelMappingPriceSettingRepository mappingRepository = Mockito.mock(ChannelMappingPriceSettingRepository.class);
+        SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
+        SuAccessTokenService tokenService = Mockito.mock(SuAccessTokenService.class);
+        SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
+        SuMessagingService service = newAttachmentService(
+                threadRepository,
+                messageRepository,
+                attachmentRepository,
+                mappingRepository,
+                suApiClient,
+                tokenService,
+                realtimeGateway
+        );
+
+        SuMessageThread thread = newThread(5L, SuMessagingService.CHANNEL_BOOKING, "THREAD-5", "B5", "B");
+        thread.setStoreId(10L);
+        thread.setSuHotelId("STORE10");
+        ChannelMappingPriceSetting mapping = new ChannelMappingPriceSetting();
+        mapping.setChannelHotelId("BOOKING-HOTEL-7");
+        when(threadRepository.findByStoreIdAndId(10L, 5L)).thenReturn(Optional.of(thread));
+        when(mappingRepository.findByStoreIdAndSuPropertyIdAndSuChannelId(10L, "STORE10", "19"))
+                .thenReturn(List.of(mapping));
+        JsonNode ok = new ObjectMapper().readTree("""
+                {"Status":"Success","Data":{"message_id":"MSG-7","attachment_id":"ATT-7"}}
+                """);
+        when(suApiClient.sendMessageAttachment(anyString(), any())).thenReturn(ok);
+        when(suApiClient.isSuSuccess(ok)).thenReturn(true);
+        stubTokenExecution(tokenService);
+        when(messageRepository.save(any())).thenAnswer(inv -> {
+            SuMessage message = inv.getArgument(0);
+            message.setId(301L);
+            return message;
+        });
+        when(attachmentRepository.save(any())).thenAnswer(inv -> {
+            SuMessageAttachment attachment = inv.getArgument(0);
+            attachment.setId(401L);
+            return attachment;
+        });
+        when(threadRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        byte[] jpeg = new byte[]{(byte) 0xff, (byte) 0xd8, (byte) 0xff, 0x01};
+
+        var result = service.sendAttachment(
+                10L,
+                5L,
+                new MockMultipartFile("file", "photo.jpg", "image/jpeg", jpeg),
+                "Front Desk"
+        );
+
+        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(suApiClient).sendMessageAttachment(eq("token"), payloadCaptor.capture());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> payload = (Map<String, Object>) payloadCaptor.getValue();
+        assertEquals("STORE10", payload.get("hotel_id"));
+        assertEquals(19, payload.get("channel_id"));
+        assertEquals("BOOKING-HOTEL-7", payload.get("channel_hotel_id"));
+        assertEquals("THREAD-5", payload.get("thread_id"));
+        assertEquals(Base64.getEncoder().encodeToString(jpeg), payload.get("file_content"));
+        assertEquals(1, result.getAttachments().size());
+        assertEquals(401L, result.getAttachments().get(0).getId());
+        ArgumentCaptor<SuMessage> messageCaptor = ArgumentCaptor.forClass(SuMessage.class);
+        verify(messageRepository).save(messageCaptor.capture());
+        assertEquals("MSG-7", messageCaptor.getValue().getExternalMessageId());
+    }
+
+    @Test
+    void sendAttachment_shouldRejectAirbnbWithoutCallingSu() {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
+        SuMessagingService service = newAttachmentService(
+                threadRepository,
+                Mockito.mock(SuMessageRepository.class),
+                Mockito.mock(SuMessageAttachmentRepository.class),
+                Mockito.mock(ChannelMappingPriceSettingRepository.class),
+                suApiClient,
+                Mockito.mock(SuAccessTokenService.class),
+                Mockito.mock(SuMessagingRealtimeGateway.class)
+        );
+        SuMessageThread thread = newThread(5L, SuMessagingService.CHANNEL_AIRBNB, "THREAD-5", "B5", "B");
+        thread.setStoreId(10L);
+        when(threadRepository.findByStoreIdAndId(10L, 5L)).thenReturn(Optional.of(thread));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> service.sendAttachment(
+                        10L,
+                        5L,
+                        new MockMultipartFile(
+                                "file",
+                                "photo.jpg",
+                                "image/jpeg",
+                                new byte[]{(byte) 0xff, (byte) 0xd8, (byte) 0xff}
+                        ),
+                        null
+                )
+        );
+
+        Mockito.verifyNoInteractions(suApiClient);
+    }
+
+    @Test
+    void handleInboundMessage_shouldPersistBookingImageOnlyWebhook() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        SuMessageAttachmentRepository attachmentRepository = Mockito.mock(SuMessageAttachmentRepository.class);
+        SuMessagingService service = newAttachmentService(
+                threadRepository,
+                messageRepository,
+                attachmentRepository,
+                Mockito.mock(ChannelMappingPriceSettingRepository.class),
+                Mockito.mock(SuApiClient.class),
+                Mockito.mock(SuAccessTokenService.class),
+                Mockito.mock(SuMessagingRealtimeGateway.class)
+        );
+        String raw = """
+                {
+                  "bookingid":"B9",
+                  "threadid":"THREAD-9",
+                  "listingid":"LISTING-9",
+                  "messageid":"M9",
+                  "channel_id":"19",
+                  "attachment":[{"attachment_id":"ATT-9","mime_type":"image/png"}]
+                }
+                """;
+        JsonNode root = new ObjectMapper().readTree(raw);
+        when(messageRepository.findByStoreIdAndExternalMessageId(10L, "M9")).thenReturn(Optional.empty());
+        when(threadRepository.findByStoreIdAndChannelIdAndThreadKey(10L, 19, "B9")).thenReturn(Optional.empty());
+        when(threadRepository.save(any())).thenAnswer(inv -> {
+            SuMessageThread value = inv.getArgument(0);
+            value.setId(91L);
+            return value;
+        });
+        when(messageRepository.save(any())).thenAnswer(inv -> {
+            SuMessage value = inv.getArgument(0);
+            value.setId(92L);
+            return value;
+        });
+        when(attachmentRepository.save(any())).thenAnswer(inv -> {
+            SuMessageAttachment value = inv.getArgument(0);
+            value.setId(93L);
+            return value;
+        });
+
+        service.handleInboundMessage(10L, "STORE10", root, raw);
+
+        ArgumentCaptor<SuMessage> messageCaptor = ArgumentCaptor.forClass(SuMessage.class);
+        verify(messageRepository).save(messageCaptor.capture());
+        assertEquals("", messageCaptor.getValue().getContent());
+        ArgumentCaptor<SuMessageThread> threadCaptor = ArgumentCaptor.forClass(SuMessageThread.class);
+        verify(threadRepository).save(threadCaptor.capture());
+        assertEquals("[图片]", threadCaptor.getValue().getLastMessage());
+        ArgumentCaptor<SuMessageAttachment> attachmentCaptor = ArgumentCaptor.forClass(SuMessageAttachment.class);
+        verify(attachmentRepository).save(attachmentCaptor.capture());
+        assertEquals("ATT-9", attachmentCaptor.getValue().getExternalAttachmentId());
+    }
+
+    @Test
+    void handleInboundMessage_shouldTreatPropertyEchoAsReadStaffAndDeduplicateByMessageId() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        SuMessageAttachmentRepository attachmentRepository = Mockito.mock(SuMessageAttachmentRepository.class);
+        SuMessagingService service = Mockito.spy(newAttachmentService(
+                threadRepository,
+                messageRepository,
+                attachmentRepository,
+                Mockito.mock(ChannelMappingPriceSettingRepository.class),
+                Mockito.mock(SuApiClient.class),
+                Mockito.mock(SuAccessTokenService.class),
+                Mockito.mock(SuMessagingRealtimeGateway.class)
+        ));
+        String raw = """
+                {
+                  "bookingid":"B10",
+                  "threadid":"THREAD-10",
+                  "messageid":"MSG-10",
+                  "message_type":"property",
+                  "channel_id":"19",
+                  "attachment":[{"attachment_id":"ATT-10"}]
+                }
+                """;
+        JsonNode root = new ObjectMapper().readTree(raw);
+        when(messageRepository.findByStoreIdAndExternalMessageId(10L, "MSG-10"))
+                .thenReturn(Optional.empty());
+        when(threadRepository.findByStoreIdAndChannelIdAndThreadKey(10L, 19, "B10"))
+                .thenReturn(Optional.empty());
+        when(threadRepository.save(any())).thenAnswer(inv -> {
+            SuMessageThread value = inv.getArgument(0);
+            value.setId(101L);
+            return value;
+        });
+        when(messageRepository.save(any())).thenAnswer(inv -> {
+            SuMessage value = inv.getArgument(0);
+            value.setId(102L);
+            return value;
+        });
+        when(attachmentRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.handleInboundMessage(10L, "STORE10", root, raw);
+
+        ArgumentCaptor<SuMessage> messageCaptor = ArgumentCaptor.forClass(SuMessage.class);
+        verify(messageRepository).save(messageCaptor.capture());
+        SuMessage saved = messageCaptor.getValue();
+        assertEquals(SuMessagingSenderType.STAFF, saved.getSenderType());
+        assertTrue(saved.getIsRead());
+        when(messageRepository.findByStoreIdAndExternalMessageId(10L, "MSG-10"))
+                .thenReturn(Optional.of(saved));
+
+        service.handleInboundMessage(10L, "STORE10", root, raw);
+
+        verify(messageRepository, Mockito.times(1)).save(any());
+        verify(attachmentRepository, Mockito.times(1)).save(any());
+        verify(service, Mockito.never()).triggerAutoReplyAfterCommit(any(), any(), any());
+    }
+
+    @Test
+    void sendAttachment_shouldRejectSpoofedMimeAndConflictingChannelHotelMappings() {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        ChannelMappingPriceSettingRepository mappingRepository = Mockito.mock(ChannelMappingPriceSettingRepository.class);
+        SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
+        SuMessagingService service = newAttachmentService(
+                threadRepository,
+                Mockito.mock(SuMessageRepository.class),
+                Mockito.mock(SuMessageAttachmentRepository.class),
+                mappingRepository,
+                suApiClient,
+                Mockito.mock(SuAccessTokenService.class),
+                Mockito.mock(SuMessagingRealtimeGateway.class)
+        );
+        SuMessageThread thread = newThread(5L, SuMessagingService.CHANNEL_BOOKING, "THREAD-5", "B5", "B");
+        thread.setStoreId(10L);
+        thread.setSuHotelId("STORE10");
+        when(threadRepository.findByStoreIdAndId(10L, 5L)).thenReturn(Optional.of(thread));
+        byte[] png = new byte[]{(byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a};
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> service.sendAttachment(
+                        10L,
+                        5L,
+                        new MockMultipartFile("file", "fake.jpg", "image/jpeg", png),
+                        null
+                )
+        );
+        byte[] oversizedJpeg = new byte[10 * 1024 * 1024 + 1];
+        oversizedJpeg[0] = (byte) 0xff;
+        oversizedJpeg[1] = (byte) 0xd8;
+        oversizedJpeg[2] = (byte) 0xff;
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> service.sendAttachment(
+                        10L,
+                        5L,
+                        new MockMultipartFile("file", "large.jpg", "image/jpeg", oversizedJpeg),
+                        null
+                )
+        );
+
+        ChannelMappingPriceSetting first = new ChannelMappingPriceSetting();
+        first.setChannelHotelId("H1");
+        ChannelMappingPriceSetting second = new ChannelMappingPriceSetting();
+        second.setChannelHotelId("H2");
+        when(mappingRepository.findByStoreIdAndSuPropertyIdAndSuChannelId(10L, "STORE10", "19"))
+                .thenReturn(List.of(first, second));
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class,
+                () -> service.sendAttachment(
+                        10L,
+                        5L,
+                        new MockMultipartFile(
+                                "file",
+                                "photo.jpg",
+                                "image/jpeg",
+                                new byte[]{(byte) 0xff, (byte) 0xd8, (byte) 0xff}
+                        ),
+                        null
+                )
+        );
+        Mockito.verifyNoInteractions(suApiClient);
+    }
+
+    @Test
+    void downloadAttachment_shouldRejectCrossStoreLookup() {
+        SuMessageAttachmentRepository attachmentRepository = Mockito.mock(SuMessageAttachmentRepository.class);
+        SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
+        SuMessagingService service = newAttachmentService(
+                Mockito.mock(SuMessageThreadRepository.class),
+                Mockito.mock(SuMessageRepository.class),
+                attachmentRepository,
+                Mockito.mock(ChannelMappingPriceSettingRepository.class),
+                suApiClient,
+                Mockito.mock(SuAccessTokenService.class),
+                Mockito.mock(SuMessagingRealtimeGateway.class)
+        );
+        when(attachmentRepository.findByStoreIdAndThread_IdAndMessage_IdAndId(99L, 5L, 301L, 401L))
+                .thenReturn(Optional.empty());
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> service.downloadAttachment(99L, 5L, 301L, 401L)
+        );
+        Mockito.verifyNoInteractions(suApiClient);
+    }
+
+    @Test
+    void downloadAttachment_shouldUseOfficialAttachmentsRequestAndAttachmentResponseField() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageAttachmentRepository attachmentRepository = Mockito.mock(SuMessageAttachmentRepository.class);
+        ChannelMappingPriceSettingRepository mappingRepository = Mockito.mock(ChannelMappingPriceSettingRepository.class);
+        SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
+        SuAccessTokenService tokenService = Mockito.mock(SuAccessTokenService.class);
+        SuMessagingService service = newAttachmentService(
+                threadRepository,
+                Mockito.mock(SuMessageRepository.class),
+                attachmentRepository,
+                mappingRepository,
+                suApiClient,
+                tokenService,
+                Mockito.mock(SuMessagingRealtimeGateway.class)
+        );
+        SuMessageThread thread = newThread(5L, SuMessagingService.CHANNEL_BOOKING, "THREAD-5", "B5", "B");
+        thread.setStoreId(10L);
+        thread.setSuHotelId("STORE10");
+        SuMessage message = newMessage(301L, thread, "");
+        SuMessageAttachment attachment = new SuMessageAttachment();
+        attachment.setId(401L);
+        attachment.setStoreId(10L);
+        attachment.setThread(thread);
+        attachment.setMessage(message);
+        attachment.setExternalAttachmentId("ATT-7");
+        ChannelMappingPriceSetting mapping = new ChannelMappingPriceSetting();
+        mapping.setChannelHotelId("BOOKING-HOTEL-7");
+        when(attachmentRepository.findByStoreIdAndThread_IdAndMessage_IdAndId(10L, 5L, 301L, 401L))
+                .thenReturn(Optional.of(attachment));
+        when(mappingRepository.findByStoreIdAndSuPropertyIdAndSuChannelId(10L, "STORE10", "19"))
+                .thenReturn(List.of(mapping));
+        byte[] png = new byte[]{(byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a};
+        String encoded = Base64.getEncoder().encodeToString(png);
+        JsonNode ok = new ObjectMapper().readTree("""
+                {"Status":"Success","Data":{"attachment_url_path":[
+                  {"attachment_id":"ATT-7","attachment":"%s"}
+                ]}}
+                """.formatted(encoded));
+        when(suApiClient.downloadMessageAttachment(anyString(), any())).thenReturn(ok);
+        when(suApiClient.isSuSuccess(ok)).thenReturn(true);
+        stubTokenExecution(tokenService);
+
+        SuMessagingService.AttachmentContent content = service.downloadAttachment(10L, 5L, 301L, 401L);
+
+        assertEquals("image/png", content.mimeType());
+        assertTrue(java.util.Arrays.equals(png, content.bytes()));
+        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(suApiClient).downloadMessageAttachment(eq("token"), payloadCaptor.capture());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> payload = (Map<String, Object>) payloadCaptor.getValue();
+        assertEquals(List.of(Map.of("attachment_id", "ATT-7")), payload.get("attachments"));
+        assertFalse(payload.containsKey("attachment_id"));
+    }
+
+    private static SuMessagingService newAttachmentService(
+            SuMessageThreadRepository threadRepository,
+            SuMessageRepository messageRepository,
+            SuMessageAttachmentRepository attachmentRepository,
+            ChannelMappingPriceSettingRepository mappingRepository,
+            SuApiClient suApiClient,
+            SuAccessTokenService tokenService,
+            SuMessagingRealtimeGateway realtimeGateway
+    ) {
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        return new SuMessagingService(
+                threadRepository,
+                messageRepository,
+                attachmentRepository,
+                mappingRepository,
+                reservationRepository,
+                new ReservationBookingKeyResolver(reservationRepository),
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
+                suApiClient,
+                tokenService,
+                new ObjectMapper(),
+                realtimeGateway,
+                Mockito.mock(OtaIntegrationService.class),
+                Mockito.mock(RoomTypeRepository.class)
+        );
+    }
+
+    private static void stubTokenExecution(SuAccessTokenService tokenService) {
+        when(tokenService.executeWithTokenRetry(any(), anyString())).thenAnswer(inv -> {
+            @SuppressWarnings("unchecked")
+            Function<String, Object> fn = (Function<String, Object>) inv.getArgument(0);
+            return fn.apply("token");
+        });
     }
 
     private static SuMessagingService newService(

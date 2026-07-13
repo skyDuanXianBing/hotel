@@ -271,7 +271,23 @@
                 </span>
 
                 <div class="message-content">
-                  <div class="message-text">
+                  <div v-if="message.attachments.length" class="message-images">
+                    <template v-for="attachment in message.attachments" :key="attachment.id">
+                      <el-image
+                        v-if="getAttachmentObjectUrl(attachment)"
+                        class="message-image"
+                        :src="getAttachmentObjectUrl(attachment)"
+                        :preview-src-list="[getAttachmentObjectUrl(attachment)]"
+                        :alt="attachment.fileName || uiText('image')"
+                        fit="cover"
+                        preview-teleported
+                      />
+                      <div v-else class="message-image-loading">
+                        <el-icon class="spin"><Loading /></el-icon>
+                      </div>
+                    </template>
+                  </div>
+                  <div v-if="message.content" class="message-text">
                     <template
                       v-for="(segment, index) in splitMessageContent(message.content)"
                       :key="`${message.id}-${index}`"
@@ -306,6 +322,14 @@
           </div>
 
           <div class="message-input-area">
+            <div v-if="selectedImagePreviewUrl" class="selected-image-preview">
+              <img :src="selectedImagePreviewUrl" :alt="selectedImageFile?.name || uiText('image')" />
+              <div class="selected-image-meta">
+                <span>{{ selectedImageFile?.name }}</span>
+                <span>{{ formatImageSize(selectedImageFile?.size || 0) }}</span>
+              </div>
+              <el-button link :icon="Close" :disabled="isSending" @click="clearSelectedImage" />
+            </div>
             <el-input
               v-model="newMessage"
               type="textarea"
@@ -316,6 +340,22 @@
             />
             <div class="input-actions">
               <div class="input-actions-left">
+                <input
+                  ref="imageInputRef"
+                  class="image-file-input"
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  @change="handleImageSelected"
+                />
+                <el-button
+                  v-if="canSendImage"
+                  type="default"
+                  :icon="Picture"
+                  :disabled="isSending || activeConversation.closed"
+                  @click="openImagePicker"
+                >
+                  {{ uiText('image') }}
+                </el-button>
                 <el-button
                   type="default"
                   :icon="ChatLineSquare"
@@ -337,7 +377,11 @@
               <el-button
                 type="primary"
                 @click="sendMessage"
-                :disabled="!newMessage.trim() || isSending || activeConversation.closed"
+                :disabled="
+                  (!newMessage.trim() && !selectedImageFile) ||
+                  isSending ||
+                  activeConversation.closed
+                "
                 :loading="isSending"
               >
                 {{ t('stage6.common.actions.send') }}
@@ -591,8 +635,10 @@ import { useRoute } from 'vue-router'
 import {
   ChatDotRound,
   ChatLineSquare,
+  Close,
   Loading,
   MagicStick,
+  Picture,
   Search,
   User,
   WarningFilled,
@@ -600,14 +646,17 @@ import {
 import { ElMessage } from 'element-plus'
 import {
   generateSuMessagingAiReplyDraft,
+  getSuMessageAttachment,
   getSuThreadMessagesPage,
   getSuThreadsPage,
+  sendSuThreadAttachment,
   sendSuThreadMessage,
   SuMessagingSenderType,
   translateSuThreadMessage,
   type SuMessagingAiReplyDraftRecentMessage,
   type SuMessagingAiReplyDraftResponse,
   type SuMessagingMessageOrderStatus,
+  type SuMessagingAttachmentDTO,
   type SuMessagingMessageDTO,
   type SuMessagingMessagePageDTO,
   type SuMessagingOrderKind,
@@ -656,6 +705,11 @@ interface MessageItem {
   timestamp: Date
   senderName?: string
   deliveryStatus?: 'SENDING' | 'SENT' | 'FAILED'
+  attachments: MessageAttachmentItem[]
+}
+
+interface MessageAttachmentItem extends SuMessagingAttachmentDTO {
+  objectUrl?: string
 }
 
 interface RealtimeMessageItem {
@@ -666,6 +720,7 @@ interface RealtimeMessageItem {
   timestamp: string
   senderName?: string
   deliveryStatus?: 'SENDING' | 'SENT' | 'FAILED'
+  attachments?: SuMessagingAttachmentDTO[]
 }
 
 interface GroupedMessages {
@@ -726,6 +781,7 @@ const CHANNEL_AIRBNB_ID = 244
 const CHANNEL_BOOKING_ID = 19
 const THREAD_SEARCH_DEBOUNCE_MS = 350
 const THREAD_SCROLL_BOTTOM_THRESHOLD = 80
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 type TranslationLanguageValue = (typeof TRANSLATION_LANGUAGE_VALUES)[number]
 interface TranslationRunResult {
   attempted: number
@@ -787,6 +843,10 @@ const filterOrderStatuses = ref<ThreadOrderStatusFilter[]>([])
 const filterUnreadOnly = ref(true)
 const activeThreadId = ref<number | null>(null)
 const newMessage = ref('')
+const imageInputRef = ref<HTMLInputElement | null>(null)
+const selectedImageFile = ref<File | null>(null)
+const selectedImagePreviewUrl = ref('')
+const attachmentObjectUrls = ref<Record<number, string>>({})
 const conversationsListRef = ref<HTMLElement | null>(null)
 const messagesListRef = ref<HTMLElement | null>(null)
 const conversations = ref<SuMessagingThreadDTO[]>([])
@@ -846,10 +906,12 @@ let threadRequestId = 0
 let shouldSkipNextSearchQueryWatch = false
 let shouldSkipNextThreadFilterWatch = false
 let aiDraftSystemLanguageRequestId = 0
+let attachmentLoadGeneration = 0
 let hasShownPersistentTranslationFallbackNotice = false
 let hasShownBackgroundTranslationFailureNotice = false
 const reservationIdCache = new Map<string, number | null>()
 const translationPendingKeys = new Set<string>()
+const attachmentLoadPendingIds = new Set<string>()
 
 const DEFAULT_STORE_LANGUAGE = 'zh'
 const DEFAULT_STORE_TIME_ZONE = 'Asia/Shanghai'
@@ -913,6 +975,10 @@ const UI_TEXT: Record<UiTextLocale, Record<string, string>> = {
     allChannels: 'All channels',
     routeTargetNotFound: 'No conversation matched this order. Try adjusting the filters.',
     listingLine: 'Listing: {listingName}',
+    image: 'Image',
+    imageTypeInvalid: 'Only JPEG and PNG images are supported',
+    imageTooLarge: 'Image must not exceed 10 MB',
+    imageSendFailed: 'Failed to send image',
   },
   zh: {
     searchPlaceholder: '搜索住客、订单、房源或消息',
@@ -941,6 +1007,10 @@ const UI_TEXT: Record<UiTextLocale, Record<string, string>> = {
     allChannels: '全部渠道',
     routeTargetNotFound: '没有匹配到该订单的会话，可调整筛选条件后重试。',
     listingLine: '房源：{listingName}',
+    image: '图片',
+    imageTypeInvalid: '仅支持 JPEG 和 PNG 图片',
+    imageTooLarge: '图片不能超过 10 MB',
+    imageSendFailed: '图片发送失败',
   },
   ja: {
     searchPlaceholder: 'ゲスト、予約、リスティング、メッセージを検索',
@@ -969,6 +1039,10 @@ const UI_TEXT: Record<UiTextLocale, Record<string, string>> = {
     allChannels: 'すべてのチャネル',
     routeTargetNotFound: 'この予約に一致する会話が見つかりませんでした。',
     listingLine: 'リスティング：{listingName}',
+    image: '画像',
+    imageTypeInvalid: 'JPEG と PNG の画像のみ対応しています',
+    imageTooLarge: '画像は 10 MB 以下にしてください',
+    imageSendFailed: '画像の送信に失敗しました',
   },
 }
 
@@ -1117,6 +1191,55 @@ const activeConversation = computed(() => {
   )
 })
 
+const canSendImage = computed(() => {
+  return Boolean(
+    activeConversation.value?.channelId === CHANNEL_BOOKING_ID &&
+      !activeConversation.value.closed,
+  )
+})
+
+const openImagePicker = () => {
+  imageInputRef.value?.click()
+}
+
+const clearSelectedImage = () => {
+  if (selectedImagePreviewUrl.value) {
+    URL.revokeObjectURL(selectedImagePreviewUrl.value)
+  }
+  selectedImageFile.value = null
+  selectedImagePreviewUrl.value = ''
+  if (imageInputRef.value) {
+    imageInputRef.value.value = ''
+  }
+}
+
+const handleImageSelected = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) {
+    return
+  }
+  if (file.type !== 'image/jpeg' && file.type !== 'image/png') {
+    ElMessage.error(uiText('imageTypeInvalid'))
+    return
+  }
+  if (file.size <= 0 || file.size > MAX_IMAGE_BYTES) {
+    ElMessage.error(uiText('imageTooLarge'))
+    return
+  }
+  clearSelectedImage()
+  selectedImageFile.value = file
+  selectedImagePreviewUrl.value = URL.createObjectURL(file)
+}
+
+const formatImageSize = (size: number) => {
+  if (size < 1024 * 1024) {
+    return `${Math.max(1, Math.round(size / 1024))} KB`
+  }
+  return `${(size / 1024 / 1024).toFixed(1)} MB`
+}
+
 const hasActiveThreadFilters = computed(() => {
   return Boolean(
     searchQuery.value.trim() ||
@@ -1179,6 +1302,8 @@ const clearMessageTranslationCache = () => {
 }
 
 const clearActiveConversationDetails = () => {
+  releaseAttachmentObjectUrls()
+  clearSelectedImage()
   activeThreadId.value = null
   messages.value = []
   selectedReservationId.value = null
@@ -1733,6 +1858,7 @@ const mapMessage = (message: SuMessagingMessageDTO): MessageItem => ({
   timestamp: parseUtcDateTime(message.timestamp),
   senderName: normalizeSenderName(message.senderName),
   deliveryStatus: message.deliveryStatus,
+  attachments: message.attachments || [],
 })
 
 const mapRealtimeMessage = (message: RealtimeMessageItem): MessageItem => ({
@@ -1743,7 +1869,69 @@ const mapRealtimeMessage = (message: RealtimeMessageItem): MessageItem => ({
   timestamp: parseUtcDateTime(message.timestamp),
   senderName: normalizeSenderName(message.senderName),
   deliveryStatus: message.deliveryStatus,
+  attachments: message.attachments || [],
 })
+
+const getAttachmentObjectUrl = (attachment: MessageAttachmentItem) => {
+  return attachment.objectUrl || attachmentObjectUrls.value[attachment.id] || ''
+}
+
+const releaseAttachmentObjectUrls = () => {
+  attachmentLoadGeneration += 1
+  for (const objectUrl of Object.values(attachmentObjectUrls.value)) {
+    URL.revokeObjectURL(objectUrl)
+  }
+  attachmentObjectUrls.value = {}
+  attachmentLoadPendingIds.clear()
+}
+
+const loadMessageAttachment = async (message: MessageItem, attachment: MessageAttachmentItem) => {
+  const threadId = message.threadId || activeThreadId.value
+  const generation = attachmentLoadGeneration
+  const pendingKey = `${generation}:${attachment.id}`
+  if (
+    !threadId ||
+    message.id <= 0 ||
+    attachment.id <= 0 ||
+    attachment.objectUrl ||
+    attachmentObjectUrls.value[attachment.id] ||
+    attachmentLoadPendingIds.has(pendingKey)
+  ) {
+    return
+  }
+
+  attachmentLoadPendingIds.add(pendingKey)
+  try {
+    const blob = (await getSuMessageAttachment(threadId, message.id, attachment.id)) as unknown
+    if (!(blob instanceof Blob) || blob.size === 0) {
+      throw new Error('Empty image response')
+    }
+    if (
+      isDestroyed ||
+      generation !== attachmentLoadGeneration ||
+      activeThreadId.value !== threadId
+    ) {
+      return
+    }
+    const objectUrl = URL.createObjectURL(blob)
+    attachmentObjectUrls.value = {
+      ...attachmentObjectUrls.value,
+      [attachment.id]: objectUrl,
+    }
+  } catch (error) {
+    console.error('Failed to load message image:', error)
+  } finally {
+    attachmentLoadPendingIds.delete(pendingKey)
+  }
+}
+
+const loadMessageAttachments = (items: MessageItem[]) => {
+  for (const message of items) {
+    for (const attachment of message.attachments) {
+      void loadMessageAttachment(message, attachment)
+    }
+  }
+}
 
 const URL_REGEX = /https?:\/\/[^\s]+/gi
 
@@ -2056,6 +2244,8 @@ const loadThreadMessages = async (threadId: number, beforeMessageId?: number) =>
       isLoadingOlderMessages.value = true
     } else {
       isLoadingMessages.value = true
+      releaseAttachmentObjectUrls()
+      clearSelectedImage()
       messages.value = []
       hasMoreMessagesBefore.value = false
       nextBeforeMessageId.value = null
@@ -2081,6 +2271,7 @@ const loadThreadMessages = async (threadId: number, beforeMessageId?: number) =>
     }
     const incoming = (pageData.items || []).map(mapMessage)
     messages.value = mergeMessagesById(isOlderPage ? [...incoming, ...messages.value] : incoming)
+    loadMessageAttachments(incoming)
     hasMoreMessagesBefore.value = Boolean(pageData.hasMoreBefore)
     nextBeforeMessageId.value = pageData.nextBeforeMessageId || null
     if (!isOlderPage) {
@@ -2369,6 +2560,24 @@ const createOptimisticMessage = (content: string): MessageItem => ({
   content,
   timestamp: new Date(),
   deliveryStatus: 'SENDING',
+  attachments: [],
+})
+
+const createOptimisticImageMessage = (file: File): MessageItem => ({
+  id: localMessageSeed--,
+  threadId: activeThreadId.value || undefined,
+  senderType: SuMessagingSenderType.STAFF,
+  content: '',
+  timestamp: new Date(),
+  deliveryStatus: 'SENDING',
+  attachments: [
+    {
+      id: localMessageSeed--,
+      mimeType: file.type,
+      fileName: file.name,
+      objectUrl: selectedImagePreviewUrl.value,
+    },
+  ],
 })
 
 const replaceMessageById = (id: number, incoming: MessageItem) => {
@@ -2451,13 +2660,72 @@ const sendMessageContent = async (content: string) => {
   }
 }
 
+const sendImageContent = async (file: File) => {
+  if (
+    !activeThreadId.value ||
+    !canSendImage.value ||
+    isSending.value ||
+    activeConversation.value?.closed
+  ) {
+    return false
+  }
+
+  isSending.value = true
+  const currentThreadId = activeThreadId.value
+  const optimistic = createOptimisticImageMessage(file)
+  messages.value = mergeMessagesById([...messages.value, optimistic])
+  await scrollToBottom()
+
+  try {
+    const response = (await sendSuThreadAttachment(currentThreadId, file)) as ApiResponse<SuMessagingMessageDTO>
+    if (response.success === false || !response.data) {
+      throw new Error(sanitizeUserFacingMessage(response.message) || uiText('imageSendFailed'))
+    }
+
+    const sentMessage = mapMessage(response.data)
+    replaceMessageById(optimistic.id, sentMessage)
+    loadMessageAttachments([sentMessage])
+    updateThreadSummary(currentThreadId, {
+      lastMessage: uiText('image'),
+      lastActivity: response.data.timestamp,
+      unreadCount: 0,
+    })
+    await scrollToBottom()
+    await notificationCenterStore.refreshChatUnreadCount()
+    return true
+  } catch (error) {
+    const index = messages.value.findIndex((message) => message.id === optimistic.id)
+    if (index >= 0) {
+      messages.value[index] = { ...messages.value[index], deliveryStatus: 'FAILED' }
+    }
+    const errorMessage =
+      sanitizeUserFacingMessage(error instanceof Error ? error.message : '') ||
+      uiText('imageSendFailed')
+    console.error('Failed to send image:', errorMessage)
+    ElMessage.error(errorMessage)
+    return false
+  } finally {
+    isSending.value = false
+  }
+}
+
 const sendMessage = async () => {
   const content = newMessage.value.trim()
-  if (!content) {
+  const imageFile = selectedImageFile.value
+  if (!content && !imageFile) {
     return
   }
-  newMessage.value = ''
-  await sendMessageContent(content)
+  if (imageFile) {
+    const imageSent = await sendImageContent(imageFile)
+    if (!imageSent) {
+      return
+    }
+    clearSelectedImage()
+  }
+  if (content) {
+    newMessage.value = ''
+    await sendMessageContent(content)
+  }
 }
 
 const sendAiDraftReply = async () => {
@@ -2481,6 +2749,7 @@ const upsertMessage = (incoming: MessageItem) => {
     ...messages.value.filter((item) => item.id !== incoming.id),
     merged,
   ])
+  loadMessageAttachments([incoming])
   if (translationEnabled.value) {
     void ensureMessageTranslation(incoming)
   }
@@ -3201,6 +3470,8 @@ onUnmounted(() => {
   closeRealtimeSocket()
   clearMessageScrollTranslateTimer()
   clearThreadSearchTimer()
+  releaseAttachmentObjectUrls()
+  clearSelectedImage()
 })
 </script>
 
@@ -3690,6 +3961,34 @@ onUnmounted(() => {
   overflow-wrap: anywhere;
 }
 
+.message-images {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 180px));
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.message-image,
+.message-image-loading {
+  width: 180px;
+  height: 140px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #eef1f5;
+  border: 1px solid #e2e5e9;
+}
+
+.message-image {
+  cursor: zoom-in;
+}
+
+.message-image-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8b918d;
+}
+
 .message-translation {
   margin-top: 10px;
   padding-top: 10px;
@@ -3772,6 +4071,44 @@ onUnmounted(() => {
   font-size: 13px;
   line-height: 1.6;
   box-shadow: 0 0 0 1px #dddddd inset;
+}
+
+.image-file-input {
+  display: none;
+}
+
+.selected-image-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 8px;
+  border: 1px solid #e2e5e9;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.selected-image-preview img {
+  width: 64px;
+  height: 64px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.selected-image-meta {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #606266;
+  font-size: 12px;
+}
+
+.selected-image-meta span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .message-input-area :deep(.el-textarea__inner:hover),

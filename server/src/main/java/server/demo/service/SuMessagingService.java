@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+import server.demo.dto.SuMessagingAttachmentDTO;
 import server.demo.dto.SuMessagingMessagePageResponse;
 import server.demo.dto.SuMessagingMessageDTO;
 import server.demo.dto.SuMessagingSendRequest;
@@ -20,13 +22,17 @@ import server.demo.dto.SuMessagingUnreadSummaryDTO;
 import server.demo.entity.Reservation;
 import server.demo.entity.RoomType;
 import server.demo.entity.Store;
+import server.demo.entity.ChannelMappingPriceSetting;
 import server.demo.entity.SuMessage;
+import server.demo.entity.SuMessageAttachment;
 import server.demo.entity.SuMessageThread;
 import server.demo.enums.ReservationStatus;
 import server.demo.enums.SuMessagingSenderType;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
+import server.demo.repository.ChannelMappingPriceSettingRepository;
+import server.demo.repository.SuMessageAttachmentRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 import server.demo.util.StoreTimeZoneUtil;
@@ -42,6 +48,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.HashMap;
@@ -50,6 +57,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.LinkedHashSet;
 
 @Service
 public class SuMessagingService {
@@ -74,9 +82,13 @@ public class SuMessagingService {
     private static final String STATUS_CHECKED_IN = "CHECKED_IN";
     private static final String STATUS_CHECKED_OUT = "CHECKED_OUT";
     private static final String STATUS_CANCELLED = "CANCELLED";
+    private static final long MAX_IMAGE_BYTES = 10L * 1024L * 1024L;
+    private static final String IMAGE_SUMMARY = "[图片]";
 
     private final SuMessageThreadRepository threadRepository;
     private final SuMessageRepository messageRepository;
+    private final SuMessageAttachmentRepository attachmentRepository;
+    private final ChannelMappingPriceSettingRepository channelMappingPriceSettingRepository;
     private final ReservationRepository reservationRepository;
     private final StoreRepository storeRepository;
     private final RoomTypeRepository roomTypeRepository;
@@ -103,8 +115,45 @@ public class SuMessagingService {
             OtaIntegrationService otaIntegrationService,
             RoomTypeRepository roomTypeRepository
     ) {
+        this(
+                threadRepository,
+                messageRepository,
+                null,
+                null,
+                reservationRepository,
+                reservationBookingKeyResolver,
+                storeRepository,
+                clock,
+                suApiClient,
+                suAccessTokenService,
+                objectMapper,
+                suMessagingRealtimeGateway,
+                otaIntegrationService,
+                roomTypeRepository
+        );
+    }
+
+    @Autowired
+    public SuMessagingService(
+            SuMessageThreadRepository threadRepository,
+            SuMessageRepository messageRepository,
+            SuMessageAttachmentRepository attachmentRepository,
+            ChannelMappingPriceSettingRepository channelMappingPriceSettingRepository,
+            ReservationRepository reservationRepository,
+            ReservationBookingKeyResolver reservationBookingKeyResolver,
+            StoreRepository storeRepository,
+            Clock clock,
+            SuApiClient suApiClient,
+            SuAccessTokenService suAccessTokenService,
+            ObjectMapper objectMapper,
+            SuMessagingRealtimeGateway suMessagingRealtimeGateway,
+            OtaIntegrationService otaIntegrationService,
+            RoomTypeRepository roomTypeRepository
+    ) {
         this.threadRepository = threadRepository;
         this.messageRepository = messageRepository;
+        this.attachmentRepository = attachmentRepository;
+        this.channelMappingPriceSettingRepository = channelMappingPriceSettingRepository;
         this.reservationRepository = reservationRepository;
         this.storeRepository = storeRepository;
         this.reservationBookingKeyResolver = reservationBookingKeyResolver;
@@ -149,6 +198,10 @@ public class SuMessagingService {
         String listingId = readText(root, "listingid");
         String bookingFlag = readText(root, "bookingflag");
         String content = readText(root, "message");
+        boolean propertyMessage = "property".equalsIgnoreCase(readText(root, "message_type"));
+        List<InboundAttachment> inboundAttachments = channelId == CHANNEL_BOOKING
+                ? readInboundAttachments(root)
+                : List.of();
 
         String threadKey = buildThreadKey(channelId, threadId, bookingId);
         if (threadKey == null) {
@@ -156,7 +209,7 @@ public class SuMessagingService {
                     storeId, channelId, threadId, bookingId);
             return;
         }
-        if (content == null) {
+        if (content == null && inboundAttachments.isEmpty()) {
             logger.warn("[SuMessaging] inbound missing message content. storeId={}, channelId={}, threadKey={}", storeId, channelId, threadKey);
             return;
         }
@@ -183,7 +236,7 @@ public class SuMessagingService {
         if (thread.getGuestName() == null || thread.getGuestName().isBlank()) {
             thread.setGuestName(readAirbnbGuestFirstName(root));
         }
-        thread.setLastMessage(trimToMax(content, 500));
+        thread.setLastMessage(content != null ? trimToMax(content, 500) : IMAGE_SUMMARY);
         thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
 
         thread = threadRepository.save(thread);
@@ -192,14 +245,28 @@ public class SuMessagingService {
         msg.setStoreId(storeId);
         msg.setThread(thread);
         msg.setExternalMessageId(messageId);
-        msg.setSenderType(SuMessagingSenderType.GUEST);
-        msg.setSenderName(thread.getGuestName());
-        msg.setContent(content);
+        msg.setSenderType(propertyMessage ? SuMessagingSenderType.STAFF : SuMessagingSenderType.GUEST);
+        msg.setSenderName(propertyMessage ? null : thread.getGuestName());
+        msg.setContent(content != null ? content : "");
         msg.setSentAt(UtcTimeUtil.nowLocalDateTime());
-        msg.setIsRead(false);
+        msg.setIsRead(propertyMessage);
         msg.setDeliveryStatus("SENT");
         msg.setRawJson(rawJson);
         msg = messageRepository.save(msg);
+        if (!inboundAttachments.isEmpty()) {
+            List<SuMessageAttachment> savedAttachments = new ArrayList<>();
+            for (InboundAttachment inbound : inboundAttachments) {
+                SuMessageAttachment attachment = new SuMessageAttachment();
+                attachment.setStoreId(storeId);
+                attachment.setThread(thread);
+                attachment.setMessage(msg);
+                attachment.setExternalAttachmentId(inbound.externalId());
+                attachment.setMimeType(inbound.mimeType());
+                attachment.setFileName(inbound.fileName());
+                savedAttachments.add(attachmentRepository.save(attachment));
+            }
+            msg.setAttachments(savedAttachments);
+        }
         markKnowledgeThreadDirty(msg);
 
         Long savedThreadId = thread.getId();
@@ -212,18 +279,22 @@ public class SuMessagingService {
                     public void afterCommit() {
                         suMessagingRealtimeGateway.broadcastMessageCreated(storeId, savedThreadId, savedMessageDto);
                         suMessagingRealtimeGateway.broadcastWorkbenchInvalidated(storeId, "message");
-                        triggerAutoReplyAfterCommit(storeId, savedThreadId, savedMessageId);
+                        if (!propertyMessage) {
+                            triggerAutoReplyAfterCommit(storeId, savedThreadId, savedMessageId);
+                        }
                     }
                 });
             } else {
                 suMessagingRealtimeGateway.broadcastMessageCreated(storeId, savedThreadId, savedMessageDto);
                 suMessagingRealtimeGateway.broadcastWorkbenchInvalidated(storeId, "message");
-                triggerAutoReplyAfterCommit(storeId, savedThreadId, savedMessageId);
+                if (!propertyMessage) {
+                    triggerAutoReplyAfterCommit(storeId, savedThreadId, savedMessageId);
+                }
             }
         }
     }
 
-    private void triggerAutoReplyAfterCommit(Long storeId, Long threadId, Long triggerMessageId) {
+    void triggerAutoReplyAfterCommit(Long storeId, Long threadId, Long triggerMessageId) {
         logger.info("[SuMessaging] AI auto reply disabled. skip trigger. storeId={}, threadId={}, triggerMessageId={}",
                 storeId, threadId, triggerMessageId);
     }
@@ -970,6 +1041,170 @@ public class SuMessagingService {
         return dto;
     }
 
+    @Transactional
+    public SuMessagingMessageDTO sendAttachment(
+            Long storeId,
+            Long threadId,
+            MultipartFile file,
+            String senderName
+    ) {
+        SuMessageThread thread = threadRepository.findByStoreIdAndId(storeId, threadId)
+                .orElseThrow(() -> new IllegalArgumentException("Thread not found or no permission"));
+        if (Boolean.TRUE.equals(thread.getClosed())) {
+            throw new IllegalStateException("Thread is closed, cannot send attachment");
+        }
+        if (thread.getChannelId() == null || thread.getChannelId() != CHANNEL_BOOKING) {
+            throw new IllegalArgumentException("Image attachments are only supported for Booking.com");
+        }
+
+        byte[] bytes = readAndValidateImage(file);
+        String mimeType = detectImageMimeType(bytes);
+        String hotelId = requireThreadValue(thread.getSuHotelId(), "Missing hotel_id, cannot send attachment");
+        String externalThreadId = requireThreadValue(thread.getThreadId(), "Missing thread_id, cannot send attachment");
+        String channelHotelId = resolveBookingChannelHotelId(storeId, hotelId);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("hotel_id", hotelId);
+        payload.put("channel_id", CHANNEL_BOOKING);
+        payload.put("channel_hotel_id", channelHotelId);
+        payload.put("thread_id", externalThreadId);
+        payload.put("file_content", Base64.getEncoder().encodeToString(bytes));
+
+        JsonNode response = suAccessTokenService.executeWithTokenRetry(
+                token -> suApiClient.sendMessageAttachment(token, payload),
+                "message/sendAttachment"
+        );
+        if (!suApiClient.isSuSuccess(response)) {
+            String err = suApiClient.extractSuErrorMessage(response);
+            throw new RuntimeException(err != null ? err : "Su attachment send failed");
+        }
+
+        String externalAttachmentId = findAttachmentId(response);
+        if (externalAttachmentId == null) {
+            throw new RuntimeException("Su attachment response did not include attachment_id");
+        }
+        String externalMessageId = findSentMessageId(response);
+        if (externalMessageId == null) {
+            throw new RuntimeException("Su attachment response did not include message_id");
+        }
+
+        SuMessage msg = new SuMessage();
+        msg.setStoreId(storeId);
+        msg.setThread(thread);
+        msg.setExternalMessageId(externalMessageId);
+        msg.setSenderType(SuMessagingSenderType.STAFF);
+        msg.setSenderName(normalizeBlankToNull(senderName));
+        msg.setContent("");
+        msg.setSentAt(UtcTimeUtil.nowLocalDateTime());
+        msg.setIsRead(true);
+        msg.setDeliveryStatus("SENT");
+        msg.setRawJson(writeJsonSafely(Map.of(
+                "hotel_id", hotelId,
+                "channel_id", CHANNEL_BOOKING,
+                "channel_hotel_id", channelHotelId,
+                "thread_id", externalThreadId,
+                "message_id", externalMessageId,
+                "attachment_id", externalAttachmentId
+        )));
+        msg = messageRepository.save(msg);
+
+        SuMessageAttachment attachment = new SuMessageAttachment();
+        attachment.setStoreId(storeId);
+        attachment.setThread(thread);
+        attachment.setMessage(msg);
+        attachment.setExternalAttachmentId(externalAttachmentId);
+        attachment.setMimeType(mimeType);
+        attachment.setFileName(safeFileName(file.getOriginalFilename(), mimeType));
+        attachment = attachmentRepository.save(attachment);
+        msg.setAttachments(List.of(attachment));
+
+        thread.setLastMessage(IMAGE_SUMMARY);
+        thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
+        threadRepository.save(thread);
+
+        SuMessagingMessageDTO dto = toMessageDTO(msg);
+        SuMessagingMessageDTO committedDto = dto;
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    suMessagingRealtimeGateway.broadcastMessageCreated(storeId, threadId, committedDto);
+                    suMessagingRealtimeGateway.broadcastWorkbenchInvalidated(storeId, "message");
+                }
+            });
+        } else {
+            suMessagingRealtimeGateway.broadcastMessageCreated(storeId, threadId, dto);
+            suMessagingRealtimeGateway.broadcastWorkbenchInvalidated(storeId, "message");
+        }
+        return dto;
+    }
+
+    @Transactional
+    public AttachmentContent downloadAttachment(
+            Long storeId,
+            Long threadId,
+            Long messageId,
+            Long attachmentId
+    ) {
+        SuMessageAttachment attachment = attachmentRepository
+                .findByStoreIdAndThread_IdAndMessage_IdAndId(storeId, threadId, messageId, attachmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Attachment not found or no permission"));
+        SuMessageThread thread = attachment.getThread();
+        if (thread.getChannelId() == null || thread.getChannelId() != CHANNEL_BOOKING) {
+            throw new IllegalArgumentException("Attachment channel is not supported");
+        }
+
+        String hotelId = requireThreadValue(thread.getSuHotelId(), "Missing hotel_id, cannot download attachment");
+        String externalThreadId = requireThreadValue(thread.getThreadId(), "Missing thread_id, cannot download attachment");
+        String channelHotelId = resolveBookingChannelHotelId(storeId, hotelId);
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("hotel_id", hotelId);
+        payload.put("channel_id", CHANNEL_BOOKING);
+        payload.put("channel_hotel_id", channelHotelId);
+        payload.put("thread_id", externalThreadId);
+        payload.put("attachments", List.of(Map.of("attachment_id", attachment.getExternalAttachmentId())));
+
+        JsonNode response = suAccessTokenService.executeWithTokenRetry(
+                token -> suApiClient.downloadMessageAttachment(token, payload),
+                "message/downloadAttachment"
+        );
+        if (!suApiClient.isSuSuccess(response)) {
+            String err = suApiClient.extractSuErrorMessage(response);
+            throw new RuntimeException(err != null ? err : "Su attachment download failed");
+        }
+
+        JsonNode contentNode = findAttachmentContentNode(response, attachment.getExternalAttachmentId());
+        String encoded = readFirstText(
+                contentNode,
+                "attachment",
+                "file_content",
+                "attachment_content",
+                "content",
+                "base64"
+        );
+        if (encoded == null) {
+            throw new RuntimeException("Su attachment response did not include file content");
+        }
+        int comma = encoded.indexOf(',');
+        if (encoded.startsWith("data:") && comma >= 0) {
+            encoded = encoded.substring(comma + 1);
+        }
+
+        byte[] bytes;
+        try {
+            bytes = Base64.getDecoder().decode(encoded);
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Su attachment response contained invalid Base64", e);
+        }
+        if (bytes.length == 0 || bytes.length > MAX_IMAGE_BYTES) {
+            throw new RuntimeException("Su attachment size is invalid");
+        }
+        String detectedMimeType = detectImageMimeType(bytes);
+        return new AttachmentContent(bytes, detectedMimeType, attachment.getFileName());
+    }
+
+    public record AttachmentContent(byte[] bytes, String mimeType, String fileName) {}
+
     private void markKnowledgeThreadDirty(SuMessage message) {
         if (knowledgeThreadDirtyMarker == null) {
             return;
@@ -1019,6 +1254,208 @@ public class SuMessagingService {
         return payload;
     }
 
+    private String resolveBookingChannelHotelId(Long storeId, String hotelId) {
+        List<ChannelMappingPriceSetting> settings = channelMappingPriceSettingRepository
+                .findByStoreIdAndSuPropertyIdAndSuChannelId(storeId, hotelId, String.valueOf(CHANNEL_BOOKING));
+        Set<String> channelHotelIds = new LinkedHashSet<>();
+        for (ChannelMappingPriceSetting setting : settings) {
+            String value = normalizeBlankToNull(setting.getChannelHotelId());
+            if (value != null) {
+                channelHotelIds.add(value);
+            }
+        }
+        if (channelHotelIds.isEmpty()) {
+            throw new IllegalStateException("Missing Booking.com channel_hotel_id mapping");
+        }
+        if (channelHotelIds.size() > 1) {
+            throw new IllegalStateException("Conflicting Booking.com channel_hotel_id mappings");
+        }
+        return channelHotelIds.iterator().next();
+    }
+
+    private static String requireThreadValue(String value, String message) {
+        String normalized = normalizeBlankToNull(value);
+        if (normalized == null) {
+            throw new IllegalStateException(message);
+        }
+        return normalized;
+    }
+
+    private static byte[] readAndValidateImage(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Image file cannot be empty");
+        }
+        if (file.getSize() > MAX_IMAGE_BYTES) {
+            throw new IllegalArgumentException("Image must not exceed 10 MB");
+        }
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Unable to read image file", e);
+        }
+        String detected = detectImageMimeType(bytes);
+        String declared = normalizeBlankToNull(file.getContentType());
+        if (declared != null && !declared.equalsIgnoreCase(detected)) {
+            throw new IllegalArgumentException("Image content does not match its file type");
+        }
+        return bytes;
+    }
+
+    private static String detectImageMimeType(byte[] bytes) {
+        if (bytes != null && bytes.length >= 3
+                && (bytes[0] & 0xff) == 0xff
+                && (bytes[1] & 0xff) == 0xd8
+                && (bytes[2] & 0xff) == 0xff) {
+            return "image/jpeg";
+        }
+        if (bytes != null && bytes.length >= 8
+                && (bytes[0] & 0xff) == 0x89
+                && bytes[1] == 0x50
+                && bytes[2] == 0x4e
+                && bytes[3] == 0x47
+                && bytes[4] == 0x0d
+                && bytes[5] == 0x0a
+                && bytes[6] == 0x1a
+                && bytes[7] == 0x0a) {
+            return "image/png";
+        }
+        throw new IllegalArgumentException("Only JPEG and PNG images are supported");
+    }
+
+    private static String safeFileName(String originalName, String mimeType) {
+        String normalized = normalizeBlankToNull(originalName);
+        if (normalized == null) {
+            return "image." + ("image/png".equals(mimeType) ? "png" : "jpg");
+        }
+        normalized = normalized.replace('\\', '_').replace('/', '_');
+        return trimToMax(normalized, 255);
+    }
+
+    private static List<InboundAttachment> readInboundAttachments(JsonNode root) {
+        JsonNode attachmentNode = root != null ? root.get("attachment") : null;
+        if (attachmentNode == null && root != null) {
+            attachmentNode = root.get("attachments");
+        }
+        if (attachmentNode == null || attachmentNode.isNull()) {
+            return List.of();
+        }
+
+        List<JsonNode> candidates = new ArrayList<>();
+        if (attachmentNode.isArray()) {
+            attachmentNode.forEach(candidates::add);
+        } else {
+            candidates.add(attachmentNode);
+        }
+
+        List<InboundAttachment> result = new ArrayList<>();
+        Set<String> seenIds = new LinkedHashSet<>();
+        for (JsonNode candidate : candidates) {
+            String externalId;
+            String mimeType = null;
+            String fileName = null;
+            if (candidate != null && candidate.isValueNode()) {
+                externalId = normalizeBlankToNull(candidate.asText(null));
+            } else {
+                externalId = readFirstText(candidate, "attachment_id", "attachmentId", "id");
+                mimeType = readFirstText(candidate, "mime_type", "mimeType", "content_type", "contentType");
+                fileName = readFirstText(candidate, "file_name", "fileName", "name");
+            }
+            if (externalId != null && seenIds.add(externalId)) {
+                result.add(new InboundAttachment(externalId, mimeType, fileName));
+            }
+        }
+        return result;
+    }
+
+    private static String findAttachmentId(JsonNode response) {
+        if (response == null || response.isNull()) {
+            return null;
+        }
+        if (response.isObject()) {
+            String direct = readFirstText(response, "attachment_id", "attachmentId");
+            if (direct != null) {
+                return direct;
+            }
+            Iterator<JsonNode> children = response.elements();
+            while (children.hasNext()) {
+                String nested = findAttachmentId(children.next());
+                if (nested != null) {
+                    return nested;
+                }
+            }
+        } else if (response.isArray()) {
+            for (JsonNode child : response) {
+                String nested = findAttachmentId(child);
+                if (nested != null) {
+                    return nested;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String findSentMessageId(JsonNode response) {
+        if (response == null || response.isNull() || !response.isObject()) {
+            return null;
+        }
+        JsonNode data = response.get("Data");
+        if (data == null) {
+            data = response.get("data");
+        }
+        return readFirstText(data, "message_id", "messageId", "MessageId", "MessageID");
+    }
+
+    private static JsonNode findAttachmentContentNode(JsonNode node, String externalAttachmentId) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isObject()) {
+            String content = readFirstText(
+                    node,
+                    "attachment",
+                    "file_content",
+                    "attachment_content",
+                    "content",
+                    "base64"
+            );
+            String nodeId = readFirstText(node, "attachment_id", "attachmentId", "id");
+            if (content != null && (nodeId == null || externalAttachmentId.equals(nodeId))) {
+                return node;
+            }
+            Iterator<JsonNode> children = node.elements();
+            while (children.hasNext()) {
+                JsonNode found = findAttachmentContentNode(children.next(), externalAttachmentId);
+                if (found != null) {
+                    return found;
+                }
+            }
+        } else if (node.isArray()) {
+            for (JsonNode child : node) {
+                JsonNode found = findAttachmentContentNode(child, externalAttachmentId);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String readFirstText(JsonNode node, String... fields) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        for (String field : fields) {
+            String value = readText(node, field);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private record InboundAttachment(String externalId, String mimeType, String fileName) {}
+
     private String writeJsonSafely(Object payload) {
         try {
             return objectMapper.writeValueAsString(payload);
@@ -1036,6 +1473,13 @@ public class SuMessagingService {
         dto.setContent(msg.getContent());
         dto.setDeliveryStatus(msg.getDeliveryStatus());
         dto.setTimestamp(toUtcOffset(msg.getSentAt()));
+        dto.setAttachments(msg.getAttachments().stream().map(attachment -> {
+            SuMessagingAttachmentDTO item = new SuMessagingAttachmentDTO();
+            item.setId(attachment.getId());
+            item.setMimeType(attachment.getMimeType());
+            item.setFileName(attachment.getFileName());
+            return item;
+        }).toList());
         return dto;
     }
 

@@ -3,6 +3,7 @@ package server.demo.dto;
 import server.demo.enums.SuMessagingSenderType;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 public class SuMessagingMessageDTO {
     private Long id;
@@ -12,6 +13,7 @@ public class SuMessagingMessageDTO {
     private String content;
     private String deliveryStatus;
     private OffsetDateTime timestamp;
+    private List<SuMessagingAttachmentDTO> attachments = List.of();
 
     public Long getId() {
         return id;
@@ -68,5 +70,12 @@ public class SuMessagingMessageDTO {
     public void setTimestamp(OffsetDateTime timestamp) {
         this.timestamp = timestamp;
     }
-}
 
+    public List<SuMessagingAttachmentDTO> getAttachments() {
+        return attachments;
+    }
+
+    public void setAttachments(List<SuMessagingAttachmentDTO> attachments) {
+        this.attachments = attachments != null ? attachments : List.of();
+    }
+}
