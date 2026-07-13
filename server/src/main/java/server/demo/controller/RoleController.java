@@ -10,6 +10,7 @@ import server.demo.annotation.StoreScoped;
 import server.demo.dto.*;
 import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
+import server.demo.exception.PermissionDeniedException;
 import server.demo.service.RoleService;
 
 import java.util.List;
@@ -138,6 +139,8 @@ public class RoleController {
         try {
             roleService.updateRolePermissions(id, permissions);
             return ResponseEntity.ok(new ApiResponse<>(true, "更新角色权限成功", null));
+        } catch (PermissionDeniedException e) {
+            throw e;
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));

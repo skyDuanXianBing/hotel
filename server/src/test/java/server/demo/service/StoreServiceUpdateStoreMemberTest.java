@@ -14,6 +14,7 @@ import server.demo.entity.StoreUserPermission;
 import server.demo.entity.User;
 import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
+import server.demo.exception.PermissionDeniedException;
 import server.demo.repository.RoleRepository;
 import server.demo.repository.StoreUserPermissionRepository;
 import server.demo.repository.StoreUserRepository;
@@ -355,6 +356,57 @@ class StoreServiceUpdateStoreMemberTest {
         assertEquals("员工姓名不能为空", error.getMessage());
         verify(userRepository, never()).save(any(User.class));
         verify(storeUserRepository, never()).save(any(StoreUser.class));
+    }
+
+    @Test
+    void updateStoreMemberPermission_adminCannotGrantButPreservesExistingProtectedPermission() {
+        Store store = createStore(26L);
+        StoreUser operator = createStoreUser(60L, store, createUser(6L, "admin@example.com"), "admin");
+        StoreUser target = createStoreUser(44L, store, createUser(5L, "member@example.com"), "member");
+        PermissionDTO protectedDto = new PermissionDTO(
+                PermissionModule.ACCOMMODATION, PermissionAction.CREATE_INTERNAL_TASK);
+
+        UpdateStoreMemberPermissionRequest forged = new UpdateStoreMemberPermissionRequest();
+        forged.setExtraPermissions(List.of(protectedDto));
+        mockMemberLookup(operator, target);
+        when(storeUserPermissionRepository.findByStoreUser_Id(44L)).thenReturn(List.of());
+        assertThrows(PermissionDeniedException.class,
+                () -> service.updateStoreMemberPermission(26L, 6L, 5L, forged));
+        verify(storeUserRepository, never()).save(any());
+
+        StoreUserPermission existing = createStoreUserPermission(target, PermissionModule.ACCOMMODATION,
+                PermissionAction.CREATE_INTERNAL_TASK, 0L, false);
+        UpdateStoreMemberPermissionRequest omittedByOldClient = new UpdateStoreMemberPermissionRequest();
+        omittedByOldClient.setExtraPermissions(List.of());
+        when(storeUserPermissionRepository.findByStoreUser_Id(44L))
+                .thenReturn(List.of(existing), List.of(existing), List.of(existing));
+        when(storeUserRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StoreUserDTO result = service.updateStoreMemberPermission(26L, 6L, 5L, omittedByOldClient);
+        assertTrue(result.getExtraPermissions().stream().anyMatch(permission ->
+                permission.getAction() == PermissionAction.CREATE_INTERNAL_TASK));
+        verify(storeUserPermissionRepository, never()).deleteAll(Mockito.<Iterable<StoreUserPermission>>any());
+    }
+
+    @Test
+    void updateStoreMemberPermission_ownerCanRevokeProtectedPermission() {
+        Store store = createStore(26L);
+        StoreUser owner = createStoreUser(60L, store, createUser(6L, "owner@example.com"), "owner");
+        StoreUser target = createStoreUser(44L, store, createUser(5L, "member@example.com"), "member");
+        StoreUserPermission existing = createStoreUserPermission(target, PermissionModule.ACCOMMODATION,
+                PermissionAction.CREATE_INTERNAL_TASK, 0L, false);
+        UpdateStoreMemberPermissionRequest request = new UpdateStoreMemberPermissionRequest();
+        request.setExtraPermissions(List.of());
+
+        mockMemberLookup(owner, target);
+        when(storeUserRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(storeUserPermissionRepository.findByStoreUser_Id(44L))
+                .thenReturn(List.of(existing), List.of());
+
+        StoreUserDTO result = service.updateStoreMemberPermission(26L, 6L, 5L, request);
+
+        verify(storeUserPermissionRepository).deleteAll(List.of(existing));
+        assertTrue(result.getExtraPermissions().isEmpty());
     }
 
     private void mockMemberLookup(StoreUser operator, StoreUser target) {

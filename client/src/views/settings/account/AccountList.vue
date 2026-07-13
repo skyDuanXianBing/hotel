@@ -21,7 +21,9 @@
         </div>
 
         <div class="filter-item">
-          <span class="filter-label">{{ t('settingsStage4.accountList.filters.permissionRole') }}</span>
+          <span class="filter-label">{{
+            t('settingsStage4.accountList.filters.permissionRole')
+          }}</span>
           <el-select
             v-model="selectedRole"
             :placeholder="t('settingsStage4.accountList.placeholders.all')"
@@ -59,15 +61,23 @@
     <div class="action-section">
       <div class="action-left">
         <el-button link @click="toggleCollapse">
-          {{ isCollapsed ? t('settingsStage4.accountList.actions.expand') : t('settingsStage4.accountList.actions.collapse') }}
+          {{
+            isCollapsed
+              ? t('settingsStage4.accountList.actions.expand')
+              : t('settingsStage4.accountList.actions.collapse')
+          }}
           <el-icon>
             <ArrowUp v-if="!isCollapsed" />
             <ArrowDown v-else />
           </el-icon>
         </el-button>
-        <el-button @click="handleRoleManagement">{{ t('settingsStage4.accountList.actions.roleManagement') }}</el-button>
+        <el-button @click="handleRoleManagement">{{
+          t('settingsStage4.accountList.actions.roleManagement')
+        }}</el-button>
       </div>
-      <el-button type="primary" @click="handleAdd">{{ t('settingsStage4.accountList.actions.addAccount') }}</el-button>
+      <el-button type="primary" @click="handleAdd">{{
+        t('settingsStage4.accountList.actions.addAccount')
+      }}</el-button>
     </div>
 
     <el-table
@@ -85,49 +95,84 @@
         :reserve-selection="true"
         :selectable="isBatchSelectable"
       />
-      <el-table-column prop="email" :label="t('settingsStage4.accountList.columns.account')" min-width="220" />
-      <el-table-column prop="name" :label="t('settingsStage4.accountList.columns.employeeName')" min-width="140" />
+      <el-table-column
+        prop="email"
+        :label="t('settingsStage4.accountList.columns.account')"
+        min-width="220"
+      />
+      <el-table-column
+        prop="name"
+        :label="t('settingsStage4.accountList.columns.employeeName')"
+        min-width="140"
+      />
       <el-table-column :label="t('settingsStage4.accountList.columns.baseRole')" min-width="110">
         <template #default="{ row }">
-          <el-tag v-if="row.role === 'owner'" type="danger" size="small">{{ t('settingsStage4.accountList.baseRoles.owner') }}</el-tag>
-          <el-tag v-else-if="row.role === 'admin'" type="warning" size="small">{{ t('settingsStage4.accountList.baseRoles.admin') }}</el-tag>
-          <el-tag v-else type="info" size="small">{{ t('settingsStage4.accountList.baseRoles.member') }}</el-tag>
+          <el-tag v-if="row.role === 'owner'" type="danger" size="small">{{
+            t('settingsStage4.accountList.baseRoles.owner')
+          }}</el-tag>
+          <el-tag v-else-if="row.role === 'admin'" type="warning" size="small">{{
+            t('settingsStage4.accountList.baseRoles.admin')
+          }}</el-tag>
+          <el-tag v-else type="info" size="small">{{
+            t('settingsStage4.accountList.baseRoles.member')
+          }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column :label="t('settingsStage4.accountList.columns.permissionRoles')" min-width="220">
+      <el-table-column
+        :label="t('settingsStage4.accountList.columns.permissionRoles')"
+        min-width="220"
+      >
         <template #default="{ row }">
-          <el-tag
-            v-for="role in row.roles"
-            :key="role.id"
-            size="small"
-            style="margin-right: 4px"
-          >
+          <el-tag v-for="role in row.roles" :key="role.id" size="small" style="margin-right: 4px">
             {{ role.name }}
           </el-tag>
-          <span v-if="!row.roles.length" class="muted">{{ t('settingsStage4.accountList.none') }}</span>
+          <span v-if="!row.roles.length" class="muted">{{
+            t('settingsStage4.accountList.none')
+          }}</span>
         </template>
       </el-table-column>
-      <el-table-column :label="t('settingsStage4.accountList.columns.extraPermissions')" min-width="140">
+      <el-table-column
+        :label="t('settingsStage4.accountList.columns.extraPermissions')"
+        min-width="140"
+      >
         <template #default="{ row }">
           <span :class="row.extraPermissions.length ? 'primary-text' : 'muted'">
-            {{ row.extraPermissions.length ? t('settingsStage4.accountList.extraConfigured', { count: row.extraPermissions.length }) : t('settingsStage4.accountList.none') }}
+            {{
+              row.extraPermissions.length
+                ? t('settingsStage4.accountList.extraConfigured', {
+                    count: row.extraPermissions.length,
+                  })
+                : t('settingsStage4.accountList.none')
+            }}
           </span>
         </template>
       </el-table-column>
       <el-table-column :label="t('settingsStage4.accountList.columns.status')" min-width="110">
         <template #default="{ row }">
-          <span v-if="isOwnerAccount(row)" class="status-text">{{ t('settingsStage4.accountList.status.enabled') }}</span>
+          <span v-if="isOwnerAccount(row)" class="status-text">{{
+            t('settingsStage4.accountList.status.enabled')
+          }}</span>
           <el-switch
             v-else
             v-model="row.isActive"
-            :active-text="row.isActive ? t('settingsStage4.accountList.status.enabled') : t('settingsStage4.accountList.status.disabled')"
+            :active-text="
+              row.isActive
+                ? t('settingsStage4.accountList.status.enabled')
+                : t('settingsStage4.accountList.status.disabled')
+            "
             @change="handleStatusChange(row)"
           />
         </template>
       </el-table-column>
-      <el-table-column :label="t('settingsStage4.accountList.columns.actions')" min-width="200" fixed="right">
+      <el-table-column
+        :label="t('settingsStage4.accountList.columns.actions')"
+        min-width="200"
+        fixed="right"
+      >
         <template #default="{ row }">
-          <el-button link type="primary" @click="handleDetail(row)">{{ t('settingsStage4.common.details') }}</el-button>
+          <el-button link type="primary" @click="handleDetail(row)">{{
+            t('settingsStage4.common.details')
+          }}</el-button>
           <template v-if="isOwnerAccount(row)">
             <el-button
               v-if="canShowTransferOwner(row)"
@@ -139,8 +184,12 @@
             </el-button>
           </template>
           <template v-else>
-            <el-button link type="primary" @click="handleSetPermission(row)">{{ t('settingsStage4.accountList.actions.setPermissions') }}</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">{{ t('settings.common.delete') }}</el-button>
+            <el-button link type="primary" @click="handleSetPermission(row)">{{
+              t('settingsStage4.accountList.actions.setPermissions')
+            }}</el-button>
+            <el-button link type="danger" @click="handleDelete(row)">{{
+              t('settings.common.delete')
+            }}</el-button>
           </template>
         </template>
       </el-table-column>
@@ -151,11 +200,21 @@
         <el-checkbox :model-value="isCurrentPageAllSelected" @change="handleSelectAll">
           {{ t('settingsStage4.accountList.actions.selectCurrentPage') }}
         </el-checkbox>
-        <span class="selected-text">{{ t('settingsStage4.accountList.batch.selected', { count: selectedAccounts.length }) }}</span>
-        <el-button size="small" @click="handleBatchEnable">{{ t('settingsStage4.accountList.status.enabled') }}</el-button>
-        <el-button size="small" @click="handleBatchDisable">{{ t('settingsStage4.accountList.status.disabled') }}</el-button>
-        <el-button size="small" @click="handleBatchChangeRole">{{ t('settingsStage4.accountList.actions.changeRole') }}</el-button>
-        <el-button size="small" type="danger" @click="handleBatchDelete">{{ t('settings.common.delete') }}</el-button>
+        <span class="selected-text">{{
+          t('settingsStage4.accountList.batch.selected', { count: selectedAccounts.length })
+        }}</span>
+        <el-button size="small" @click="handleBatchEnable">{{
+          t('settingsStage4.accountList.status.enabled')
+        }}</el-button>
+        <el-button size="small" @click="handleBatchDisable">{{
+          t('settingsStage4.accountList.status.disabled')
+        }}</el-button>
+        <el-button size="small" @click="handleBatchChangeRole">{{
+          t('settingsStage4.accountList.actions.changeRole')
+        }}</el-button>
+        <el-button size="small" type="danger" @click="handleBatchDelete">{{
+          t('settings.common.delete')
+        }}</el-button>
       </div>
       <el-pagination
         v-model:current-page="currentPage"
@@ -168,7 +227,11 @@
       />
     </div>
 
-    <el-dialog v-model="roleDialogVisible" :title="t('settingsStage4.accountList.dialog.changeRole')" width="600px">
+    <el-dialog
+      v-model="roleDialogVisible"
+      :title="t('settingsStage4.accountList.dialog.changeRole')"
+      width="600px"
+    >
       <el-alert
         :title="t('settingsStage4.accountList.dialog.changeRoleNotice')"
         type="info"
@@ -185,7 +248,9 @@
       </div>
       <template #footer>
         <el-button @click="roleDialogVisible = false">{{ t('settings.common.cancel') }}</el-button>
-        <el-button type="primary" @click="handleConfirmRoleChange">{{ t('settings.common.save') }}</el-button>
+        <el-button type="primary" @click="handleConfirmRoleChange">{{
+          t('settings.common.save')
+        }}</el-button>
       </template>
     </el-dialog>
 
@@ -220,7 +285,11 @@
 
     <el-drawer
       v-model="drawerVisible"
-      :title="accountForm.id ? t('settingsStage4.accountList.dialog.setAccountPermissions') : t('settingsStage4.accountList.dialog.addAccount')"
+      :title="
+        accountForm.id
+          ? t('settingsStage4.accountList.dialog.setAccountPermissions')
+          : t('settingsStage4.accountList.dialog.addAccount')
+      "
       class="account-permission-drawer"
       size="72%"
       direction="rtl"
@@ -228,7 +297,9 @@
       <div class="drawer-body">
         <div class="drawer-scroll">
           <div class="section">
-            <div class="section-title">{{ t('settingsStage4.accountList.sections.basicInfo') }}</div>
+            <div class="section-title">
+              {{ t('settingsStage4.accountList.sections.basicInfo') }}
+            </div>
             <el-form class="account-basic-form" :model="accountForm" label-width="88px">
               <el-form-item :label="t('settingsStage4.accountList.fields.email')" required>
                 <el-input
@@ -253,8 +324,12 @@
           </div>
 
           <div class="section">
-            <div class="section-title">{{ t('settingsStage4.accountList.sections.permissionSettings') }}</div>
-            <div class="sub-title">{{ t('settingsStage4.accountList.sections.rolePermissions') }}</div>
+            <div class="section-title">
+              {{ t('settingsStage4.accountList.sections.permissionSettings') }}
+            </div>
+            <div class="sub-title">
+              {{ t('settingsStage4.accountList.sections.rolePermissions') }}
+            </div>
             <div class="role-checkboxes">
               <el-checkbox-group v-model="selectedAccountRoles">
                 <el-checkbox v-for="role in roleOptions" :key="role.id" :label="role.id">
@@ -285,19 +360,29 @@
                 >
                   <div class="group-title">{{ t(section.title) }}</div>
                   <div class="checkbox-grid">
-                    <el-checkbox
+                    <el-tooltip
                       v-for="item in section.items"
                       :key="`${tab.name}-${section.title}-${item.key}`"
-                      :model-value="isPermissionChecked(item)"
-                      :disabled="isPermissionDisabled(item)"
-                      @change="handlePermissionToggle(item, !!$event)"
+                      :disabled="!isOwnerOnlyPermissionLocked(item)"
+                      :content="t('settingsStage4.accountList.hints.ownerOnlyPermission')"
+                      placement="top"
                     >
-                      {{ t(item.label) }}
-                    </el-checkbox>
+                      <span class="permission-checkbox-shell">
+                        <el-checkbox
+                          :model-value="isPermissionChecked(item)"
+                          :disabled="isPermissionDisabled(item)"
+                          @change="handlePermissionToggle(item, !!$event)"
+                        >
+                          {{ t(item.label) }}
+                        </el-checkbox>
+                      </span>
+                    </el-tooltip>
                   </div>
 
                   <div v-if="showRoomTypeScopeEditor(tab.name, section)" class="room-scope-box">
-                    <div class="sub-head">{{ t('settingsStage4.accountList.sections.roomTypeScope') }}</div>
+                    <div class="sub-head">
+                      {{ t('settingsStage4.accountList.sections.roomTypeScope') }}
+                    </div>
                     <div class="permission-hint">
                       {{ t('settingsStage4.accountList.hints.roomTypeScope') }}
                     </div>
@@ -333,7 +418,9 @@
         </div>
 
         <div class="drawer-footer">
-          <el-button :disabled="memberSubmitting" @click="closeDrawer">{{ t('settings.common.cancel') }}</el-button>
+          <el-button :disabled="memberSubmitting" @click="closeDrawer">{{
+            t('settings.common.cancel')
+          }}</el-button>
           <el-button type="primary" :loading="memberSubmitting" @click="submitMember">
             {{ t('settingsStage4.accountList.actions.finish') }}
           </el-button>
@@ -376,10 +463,7 @@ import {
   type ExtraPermissionKey,
   type PermissionItemConfig,
 } from './accountPermissionSchema'
-import {
-  buildMemberUpdatePayload,
-  type AccountEditSnapshot,
-} from './accountMemberUpdatePayload'
+import { buildMemberUpdatePayload, type AccountEditSnapshot } from './accountMemberUpdatePayload'
 
 interface Account {
   id: number
@@ -445,9 +529,7 @@ const currentUserEmail = computed(() => userStore.currentUser?.email?.trim().toL
 const allItems = ACCOUNT_PERMISSION_TABS.flatMap((tab) =>
   tab.sections.flatMap((section) => section.items)
 )
-const itemMap = new Map(
-  allItems.map((item) => [`${item.module}-${item.action}`, item] as const)
-)
+const itemMap = new Map(allItems.map((item) => [`${item.module}-${item.action}`, item] as const))
 const extraForm = reactive<ExtraForm>(createExtraForm())
 
 watch([searchKeyword, selectedRole, selectedStatus, pageSize], () => {
@@ -573,8 +655,7 @@ const filteredAccounts = computed(() => {
       account.name.toLowerCase().includes(keyword)
     const matchesRole =
       selectedRole.value === '' || account.roles.some((role) => role.id === selectedRole.value)
-    const matchesStatus =
-      selectedStatus.value === '' || account.isActive === selectedStatus.value
+    const matchesStatus = selectedStatus.value === '' || account.isActive === selectedStatus.value
     return matchesKeyword && matchesRole && matchesStatus
   })
 })
@@ -594,7 +675,9 @@ const isCurrentPageAllSelected = computed(
 )
 const transferableAccounts = computed(() =>
   accounts.value.filter(
-    (account) => !isOwnerAccount(account) && (!currentOwnerAccount.value || account.id !== currentOwnerAccount.value.id)
+    (account) =>
+      !isOwnerAccount(account) &&
+      (!currentOwnerAccount.value || account.id !== currentOwnerAccount.value.id)
   )
 )
 
@@ -615,7 +698,9 @@ function canShowTransferOwner(account: Account) {
     return true
   }
 
-  return Boolean(currentUserEmail.value) && currentUserEmail.value === account.email.trim().toLowerCase()
+  return (
+    Boolean(currentUserEmail.value) && currentUserEmail.value === account.email.trim().toLowerCase()
+  )
 }
 
 function formatTransferOwnerOption(account: Account) {
@@ -649,6 +734,7 @@ function createExtraForm(): ExtraForm {
     viewPriceLog: false,
     batchChangePrice: false,
     taskList: false,
+    createInternalTask: false,
     viewOrders: false,
     modifyOrder: false,
     cancelOrder: false,
@@ -711,7 +797,11 @@ function isPermissionChecked(item: PermissionItemConfig) {
 }
 
 function isPermissionDisabled(item: PermissionItemConfig) {
-  return hasRolePermission(item)
+  return hasRolePermission(item) || isOwnerOnlyPermissionLocked(item)
+}
+
+function isOwnerOnlyPermissionLocked(item: PermissionItemConfig) {
+  return Boolean(item.ownerOnly) && currentUserRole.value !== 'owner'
 }
 
 function handlePermissionToggle(item: PermissionItemConfig, checked: boolean) {
@@ -720,17 +810,14 @@ function handlePermissionToggle(item: PermissionItemConfig, checked: boolean) {
     return
   }
 
-  if (hasRolePermission(item)) {
+  if (hasRolePermission(item) || isOwnerOnlyPermissionLocked(item)) {
     return
   }
 
   extraForm[item.key] = checked
 }
 
-function showRoomTypeScopeEditor(
-  tabName: string,
-  section: { items: PermissionItemConfig[] }
-) {
+function showRoomTypeScopeEditor(tabName: string, section: { items: PermissionItemConfig[] }) {
   return (
     tabName === 'accommodation' &&
     section.items.some((item) => item.action === PermissionAction.VIEW_ROOM_STATUS) &&
@@ -1079,7 +1166,9 @@ async function submitTransferOwner() {
     })
 
     if (!response.success) {
-      ElMessage.error(response.message || t('settingsStage4.accountList.messages.transferOwnerFailed'))
+      ElMessage.error(
+        response.message || t('settingsStage4.accountList.messages.transferOwnerFailed')
+      )
       return
     }
 
@@ -1088,7 +1177,9 @@ async function submitTransferOwner() {
     await Promise.all([loadAccounts(false), refreshCurrentStoreContext()])
   } catch (error: any) {
     console.error('更换负责人失败:', error)
-    ElMessage.error(error?.response?.data?.message || t('settingsStage4.accountList.messages.transferOwnerFailed'))
+    ElMessage.error(
+      error?.response?.data?.message || t('settingsStage4.accountList.messages.transferOwnerFailed')
+    )
   } finally {
     transferOwnerLoading.value = false
   }
@@ -1138,7 +1229,9 @@ async function submitMember() {
         )
       )
       if (!response.success) {
-        ElMessage.error(response.message || t('settingsStage4.accountList.messages.updateMemberPermissionsFailed'))
+        ElMessage.error(
+          response.message || t('settingsStage4.accountList.messages.updateMemberPermissionsFailed')
+        )
         return
       }
       const roleFilterCleared = clearRoleFilterIfMemberNoLongerMatches(selectedAccountRoles.value)
@@ -1152,7 +1245,9 @@ async function submitMember() {
       }
       const response = await addStoreMember(storeStore.currentStore.id, request)
       if (!response.success) {
-        ElMessage.error(response.message || t('settingsStage4.accountList.messages.addMemberFailed'))
+        ElMessage.error(
+          response.message || t('settingsStage4.accountList.messages.addMemberFailed')
+        )
         return
       }
       ElMessage.success(t('settingsStage4.accountList.messages.addMemberSuccess'))
@@ -1162,7 +1257,9 @@ async function submitMember() {
     await loadAccounts()
   } catch (error: any) {
     console.error('操作失败:', error)
-    ElMessage.error(error?.response?.data?.message || t('settingsStage4.accountList.messages.operationFailed'))
+    ElMessage.error(
+      error?.response?.data?.message || t('settingsStage4.accountList.messages.operationFailed')
+    )
   } finally {
     memberSubmitting.value = false
   }
@@ -1207,11 +1304,15 @@ async function handleDelete(row: Account) {
   }
 
   try {
-    await ElMessageBox.confirm(t('settingsStage4.accountList.messages.removeConfirm', { name: row.name }), t('settingsStage4.accountList.messages.removeTitle'), {
-      confirmButtonText: t('settings.common.confirm'),
-      cancelButtonText: t('settings.common.cancel'),
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      t('settingsStage4.accountList.messages.removeConfirm', { name: row.name }),
+      t('settingsStage4.accountList.messages.removeTitle'),
+      {
+        confirmButtonText: t('settings.common.confirm'),
+        cancelButtonText: t('settings.common.cancel'),
+        type: 'warning',
+      }
+    )
     const response = await removeStoreMember(storeStore.currentStore.id, row.id)
     if (!response.success) {
       ElMessage.error(response.message || t('settingsStage4.accountList.messages.removeFailed'))
@@ -1243,13 +1344,19 @@ async function handleStatusChange(row: Account) {
       isActive: row.isActive,
     })
     if (!response.success) {
-      ElMessage.error(response.message || t('settingsStage4.accountList.messages.updateStatusFailed'))
+      ElMessage.error(
+        response.message || t('settingsStage4.accountList.messages.updateStatusFailed')
+      )
       row.isActive = !row.isActive
       return
     }
     ElMessage.success(
       t('settingsStage4.accountList.messages.statusUpdated', {
-        action: t(row.isActive ? 'settingsStage4.accountList.status.enabled' : 'settingsStage4.accountList.status.disabled'),
+        action: t(
+          row.isActive
+            ? 'settingsStage4.accountList.status.enabled'
+            : 'settingsStage4.accountList.status.disabled'
+        ),
         name: row.name,
       })
     )
@@ -1324,11 +1431,19 @@ async function handleBatchUpdateStatus(isActive: boolean) {
   try {
     await ElMessageBox.confirm(
       t('settingsStage4.accountList.messages.batchStatusConfirm', {
-        action: t(isActive ? 'settingsStage4.accountList.status.enabled' : 'settingsStage4.accountList.status.disabled'),
+        action: t(
+          isActive
+            ? 'settingsStage4.accountList.status.enabled'
+            : 'settingsStage4.accountList.status.disabled'
+        ),
         count: selectedAccounts.value.length,
       }),
       t('settingsStage4.accountList.messages.batchConfirmTitle'),
-      { confirmButtonText: t('settings.common.confirm'), cancelButtonText: t('settings.common.cancel'), type: 'warning' }
+      {
+        confirmButtonText: t('settings.common.confirm'),
+        cancelButtonText: t('settings.common.cancel'),
+        type: 'warning',
+      }
     )
     loading.value = true
     const results = await Promise.allSettled(
@@ -1339,11 +1454,20 @@ async function handleBatchUpdateStatus(isActive: boolean) {
     const failed = collectFailed(results)
     const successCount = selectedAccounts.value.length - failed.length
     if (failed.length) {
-      ElMessage.warning(t('settingsStage4.accountList.messages.batchPartialFailed', { success: successCount, failed: failed.length }))
+      ElMessage.warning(
+        t('settingsStage4.accountList.messages.batchPartialFailed', {
+          success: successCount,
+          failed: failed.length,
+        })
+      )
     } else {
       ElMessage.success(
         t('settingsStage4.accountList.messages.batchStatusSuccess', {
-          action: t(isActive ? 'settingsStage4.accountList.status.enabled' : 'settingsStage4.accountList.status.disabled'),
+          action: t(
+            isActive
+              ? 'settingsStage4.accountList.status.enabled'
+              : 'settingsStage4.accountList.status.disabled'
+          ),
           count: successCount,
         })
       )
@@ -1371,9 +1495,15 @@ async function handleBatchUpdateRoles(roleIds: number[]) {
 
   try {
     await ElMessageBox.confirm(
-      t('settingsStage4.accountList.messages.batchRoleConfirm', { count: selectedAccounts.value.length }),
+      t('settingsStage4.accountList.messages.batchRoleConfirm', {
+        count: selectedAccounts.value.length,
+      }),
       t('settingsStage4.accountList.messages.batchConfirmTitle'),
-      { confirmButtonText: t('settings.common.confirm'), cancelButtonText: t('settings.common.cancel'), type: 'warning' }
+      {
+        confirmButtonText: t('settings.common.confirm'),
+        cancelButtonText: t('settings.common.cancel'),
+        type: 'warning',
+      }
     )
     loading.value = true
     const results = await Promise.allSettled(
@@ -1384,9 +1514,16 @@ async function handleBatchUpdateRoles(roleIds: number[]) {
     const failed = collectFailed(results)
     const successCount = selectedAccounts.value.length - failed.length
     if (failed.length) {
-      ElMessage.warning(t('settingsStage4.accountList.messages.batchRolePartialFailed', { success: successCount, failed: failed.length }))
+      ElMessage.warning(
+        t('settingsStage4.accountList.messages.batchRolePartialFailed', {
+          success: successCount,
+          failed: failed.length,
+        })
+      )
     } else {
-      ElMessage.success(t('settingsStage4.accountList.messages.batchRoleSuccess', { count: successCount }))
+      ElMessage.success(
+        t('settingsStage4.accountList.messages.batchRoleSuccess', { count: successCount })
+      )
     }
     roleDialogVisible.value = false
     batchSelectedRoleIds.value = []
@@ -1413,9 +1550,15 @@ async function handleBatchRemoveMembers() {
 
   try {
     await ElMessageBox.confirm(
-      t('settingsStage4.accountList.messages.batchRemoveConfirm', { count: selectedAccounts.value.length }),
+      t('settingsStage4.accountList.messages.batchRemoveConfirm', {
+        count: selectedAccounts.value.length,
+      }),
       t('settingsStage4.accountList.messages.batchRemoveTitle'),
-      { confirmButtonText: t('settings.common.confirm'), cancelButtonText: t('settings.common.cancel'), type: 'warning' }
+      {
+        confirmButtonText: t('settings.common.confirm'),
+        cancelButtonText: t('settings.common.cancel'),
+        type: 'warning',
+      }
     )
     loading.value = true
     const results = await Promise.allSettled(
@@ -1426,9 +1569,16 @@ async function handleBatchRemoveMembers() {
     const failed = collectFailed(results)
     const successCount = selectedAccounts.value.length - failed.length
     if (failed.length) {
-      ElMessage.warning(t('settingsStage4.accountList.messages.batchRemovePartialFailed', { success: successCount, failed: failed.length }))
+      ElMessage.warning(
+        t('settingsStage4.accountList.messages.batchRemovePartialFailed', {
+          success: successCount,
+          failed: failed.length,
+        })
+      )
     } else {
-      ElMessage.success(t('settingsStage4.accountList.messages.batchRemoveSuccess', { count: successCount }))
+      ElMessage.success(
+        t('settingsStage4.accountList.messages.batchRemoveSuccess', { count: successCount })
+      )
     }
     await loadAccounts()
   } catch (error: any) {
@@ -1628,6 +1778,10 @@ function handleCurrentChange(page: number) {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
   gap: 8px 18px;
+}
+
+.permission-checkbox-shell {
+  display: inline-flex;
 }
 
 .room-type-grid {

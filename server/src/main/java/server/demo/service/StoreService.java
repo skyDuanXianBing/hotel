@@ -8,6 +8,7 @@ import server.demo.entity.*;
 import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
 import server.demo.exception.SuPropertyDeleteFailedException;
+import server.demo.exception.PermissionDeniedException;
 import server.demo.repository.*;
 import server.demo.util.SuHotelIdUtil;
 import server.demo.util.StoreTimeZoneUtil;
@@ -118,9 +119,17 @@ public class StoreService {
     public List<PermissionDTO> getCurrentUserEffectivePermissions(Long storeId, Long userId) {
         StoreUser storeUser = storeUserRepository.findByStoreIdAndUserId(storeId, userId)
                 .orElseThrow(() -> new RuntimeException("No permission"));
+        if (!Boolean.TRUE.equals(storeUser.getIsActive())) {
+            throw new PermissionDeniedException("当前门店成员关系已停用");
+        }
 
-        if (isStoreManager(storeUser)) {
-            return buildManagerPermissions();
+        if ("owner".equals(storeUser.getRole())) {
+            return buildManagerPermissions(true);
+        }
+        if ("admin".equals(storeUser.getRole())) {
+            List<PermissionDTO> permissions = buildManagerPermissions(false);
+            appendExplicitInternalTaskPermission(permissions, loadStoreUserExtraPermissions(storeUser.getId()));
+            return permissions;
         }
 
         return mergeEffectivePermissions(
@@ -274,6 +283,10 @@ public class StoreService {
         if (!"owner".equals(operator.getRole()) && !"admin".equals(operator.getRole())) {
             throw new RuntimeException("只有管理员可以添加成员");
         }
+        validateAssignableBaseRole(request.getRole());
+        if (!"owner".equals(operator.getRole()) && containsCreateInternalTask(request.getExtraPermissions())) {
+            throw new PermissionDeniedException("只有门店所有者可授予创建其他任务权限");
+        }
 
         User invitedUser = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("用户不存在，请先让该用户注册账号"));
@@ -375,6 +388,26 @@ public class StoreService {
         if ("owner".equals(target.getRole()) && Boolean.FALSE.equals(request.getIsActive())) {
             throw new RuntimeException("Store owner must remain active");
         }
+        if (request.getRole() != null) {
+            validateAssignableBaseRole(request.getRole());
+        }
+
+        List<PermissionDTO> requestedExtraPermissions = request.getExtraPermissions();
+        if (requestedExtraPermissions != null && !"owner".equals(operator.getRole())) {
+            List<StoreUserPermission> existingPermissions = loadStoreUserExtraPermissions(target.getId());
+            boolean existingProtected = containsCreateInternalTaskEntities(existingPermissions);
+            boolean requestedProtected = containsCreateInternalTask(requestedExtraPermissions);
+            if (requestedProtected && !existingProtected) {
+                throw new PermissionDeniedException("只有门店所有者可授予创建其他任务权限");
+            }
+            if (existingProtected && !requestedProtected) {
+                requestedExtraPermissions = new ArrayList<>(requestedExtraPermissions);
+                requestedExtraPermissions.add(new PermissionDTO(
+                        PermissionModule.ACCOMMODATION,
+                        PermissionAction.CREATE_INTERNAL_TASK
+                ));
+            }
+        }
 
         if (request.getName() != null) {
             String normalizedName = request.getName().trim();
@@ -410,8 +443,8 @@ public class StoreService {
 
         StoreUser updatedStoreUser = storeUserRepository.save(target);
 
-        if (request.getExtraPermissions() != null) {
-            replaceStoreUserExtraPermissions(updatedStoreUser, request.getExtraPermissions());
+        if (requestedExtraPermissions != null) {
+            replaceStoreUserExtraPermissions(updatedStoreUser, requestedExtraPermissions);
         }
 
         return convertToStoreUserDTO(
@@ -743,11 +776,14 @@ public class StoreService {
         return "owner".equals(storeUser.getRole()) || "admin".equals(storeUser.getRole());
     }
 
-    private static List<PermissionDTO> buildManagerPermissions() {
+    private static List<PermissionDTO> buildManagerPermissions(boolean includeCreateInternalTask) {
         List<PermissionDTO> permissions = new ArrayList<>();
         for (PermissionModule module : PermissionModule.values()) {
             for (PermissionAction action : PermissionAction.values()) {
                 if (!belongsToModule(module, action)) {
+                    continue;
+                }
+                if (!includeCreateInternalTask && action == PermissionAction.CREATE_INTERNAL_TASK) {
                     continue;
                 }
 
@@ -781,7 +817,8 @@ public class StoreService {
                         BATCH_CHANGE_PRICE,
                         BREAKFAST_PACKAGE,
                         RESERVATION_CALENDAR,
-                        TASK_LIST -> true;
+                        TASK_LIST,
+                        CREATE_INTERNAL_TASK -> true;
                 default -> false;
             };
             case ORDER -> switch (action) {
@@ -827,6 +864,10 @@ public class StoreService {
 
             for (RolePermission permission : role.getRolePermissions()) {
                 if (permission == null || permission.getModule() == null || permission.getAction() == null) {
+                    continue;
+                }
+                if (permission.getModule() == PermissionModule.ACCOMMODATION
+                        && permission.getAction() == PermissionAction.CREATE_INTERNAL_TASK) {
                     continue;
                 }
 
@@ -1013,5 +1054,38 @@ public class StoreService {
         }
 
         return new ArrayList<>(deduped.values());
+    }
+
+    private static void appendExplicitInternalTaskPermission(
+            List<PermissionDTO> permissions,
+            List<StoreUserPermission> extraPermissions
+    ) {
+        if (containsCreateInternalTaskEntities(extraPermissions)) {
+            PermissionDTO dto = new PermissionDTO(
+                    PermissionModule.ACCOMMODATION,
+                    PermissionAction.CREATE_INTERNAL_TASK
+            );
+            dto.setRoomTypeId(0L);
+            dto.setAllRoomTypes(false);
+            permissions.add(dto);
+        }
+    }
+
+    private static boolean containsCreateInternalTask(List<PermissionDTO> permissions) {
+        return permissions != null && permissions.stream().anyMatch(permission -> permission != null
+                && permission.getModule() == PermissionModule.ACCOMMODATION
+                && permission.getAction() == PermissionAction.CREATE_INTERNAL_TASK);
+    }
+
+    private static boolean containsCreateInternalTaskEntities(List<StoreUserPermission> permissions) {
+        return permissions != null && permissions.stream().anyMatch(permission -> permission != null
+                && permission.getModule() == PermissionModule.ACCOMMODATION
+                && permission.getAction() == PermissionAction.CREATE_INTERNAL_TASK);
+    }
+
+    private static void validateAssignableBaseRole(String role) {
+        if (!"member".equals(role) && !"admin".equals(role)) {
+            throw new PermissionDeniedException("门店所有者只能通过负责人转移接口变更");
+        }
     }
 }

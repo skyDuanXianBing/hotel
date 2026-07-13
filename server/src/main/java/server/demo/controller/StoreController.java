@@ -10,6 +10,7 @@ import server.demo.annotation.RequirePermission;
 import server.demo.dto.*;
 import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
+import server.demo.exception.PermissionDeniedException;
 import server.demo.service.StoreService;
 import server.demo.service.SuPropertyService;
 
@@ -152,6 +153,8 @@ public class StoreController {
             StoreUserDTO member = storeService.addStoreMember(id, userId, request);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(new ApiResponse<>(true, "添加成员成功", member));
+        } catch (PermissionDeniedException e) {
+            throw e;
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -241,6 +244,8 @@ public class StoreController {
             Long operatorUserId = (Long) httpRequest.getAttribute("userId");
             StoreUserDTO member = storeService.updateStoreMemberPermission(id, operatorUserId, userId, request);
             return ResponseEntity.ok(new ApiResponse<>(true, "更新成员权限成功", member));
+        } catch (PermissionDeniedException e) {
+            throw e;
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));

@@ -8,7 +8,7 @@
     <div class="task-center-toolbar">
       <el-tabs v-model="activeStatus" @tab-change="handleStatusChange">
         <el-tab-pane
-          v-if="canManage"
+          v-if="capabilities.canLoadAllTasks"
           :label="t('pages.home.workbench.internalTasks.unassigned')"
           name="UNASSIGNED"
         />
@@ -46,10 +46,20 @@
           </div>
           <p v-if="task.description">{{ task.description }}</p>
           <div class="task-card-meta">
-            <span>{{ t('pages.home.workbench.internalTasks.creator') }}：{{ task.createdByName || '-' }}</span>
-            <span>{{ t('pages.home.workbench.internalTasks.assignee') }}：{{ task.assigneeName || t('pages.home.workbench.internalTasks.notAssigned') }}</span>
+            <span
+              >{{ t('pages.home.workbench.internalTasks.creator') }}：{{
+                task.createdByName || '-'
+              }}</span
+            >
+            <span
+              >{{ t('pages.home.workbench.internalTasks.assignee') }}：{{
+                task.assigneeName || t('pages.home.workbench.internalTasks.notAssigned')
+              }}</span
+            >
             <span v-if="task.completedAt">
-              {{ t('pages.home.workbench.internalTasks.completedAt') }}：{{ formatTime(task.completedAt) }}
+              {{ t('pages.home.workbench.internalTasks.completedAt') }}：{{
+                formatTime(task.completedAt)
+              }}
             </span>
             <span v-if="task.completedByName">
               {{ t('pages.home.workbench.internalTasks.completedBy') }}：{{ task.completedByName }}
@@ -57,7 +67,7 @@
           </div>
         </div>
         <div class="task-card-actions">
-          <template v-if="canManage && task.status !== 'COMPLETED'">
+          <template v-if="capabilities.canAssign && task.status !== 'COMPLETED'">
             <el-select
               v-model="assigneeSelections[task.id]"
               clearable
@@ -92,7 +102,7 @@
             {{ t('pages.home.workbench.internalTasks.markComplete') }}
           </el-button>
           <el-button
-            v-if="canManage"
+            v-if="capabilities.canArchive"
             size="small"
             type="danger"
             link
@@ -127,7 +137,13 @@
         <el-input v-model="createForm.title" maxlength="120" show-word-limit />
       </el-form-item>
       <el-form-item :label="t('pages.home.workbench.internalTasks.description')">
-        <el-input v-model="createForm.description" type="textarea" :rows="4" maxlength="1000" show-word-limit />
+        <el-input
+          v-model="createForm.description"
+          type="textarea"
+          :rows="4"
+          maxlength="1000"
+          show-word-limit
+        />
       </el-form-item>
       <el-form-item :label="t('pages.home.workbench.internalTasks.assignee')">
         <el-select
@@ -148,7 +164,9 @@
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="createVisible = false">{{ t('pages.home.workbench.internalTasks.cancel') }}</el-button>
+      <el-button @click="createVisible = false">{{
+        t('pages.home.workbench.internalTasks.cancel')
+      }}</el-button>
       <el-button type="primary" :loading="creating" @click="submitCreate">
         {{ t('pages.home.workbench.internalTasks.create') }}
       </el-button>
@@ -157,7 +175,8 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import axios from 'axios'
+import { computed, reactive, ref, watch } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -174,10 +193,18 @@ import {
   type InternalTaskPageDTO,
   type InternalTaskStatus,
 } from '@/api/internalTask'
+import { usePermissionStore } from '@/stores/permission'
+import { resolveInternalTaskCapabilities } from './internalTaskCapabilities'
 
-const props = defineProps<{ canManage: boolean }>()
-const emit = defineEmits<{ updated: [] }>()
+const props = defineProps<{ canCreate: boolean; canManage: boolean }>()
+type InternalTaskUpdateReason = 'created' | 'updated'
+
+const emit = defineEmits<{ updated: [reason: InternalTaskUpdateReason] }>()
 const { t } = useI18n()
+const permissionStore = usePermissionStore()
+const capabilities = computed(() =>
+  resolveInternalTaskCapabilities(props.canCreate, props.canManage)
+)
 
 const emptyPage = (): InternalTaskPageDTO => ({
   items: [],
@@ -201,6 +228,7 @@ const assigneeSelections = ref<Record<number, number | undefined>>({})
 const initialLoadError = ref('')
 const hasSuccessfulLoad = ref(false)
 let requestSeq = 0
+let permissionRecovery: Promise<void> | null = null
 
 const createForm = reactive<{ title: string; description: string; assigneeUserId?: number }>({
   title: '',
@@ -213,7 +241,7 @@ const openDrawer = () => {
 }
 
 const openCreate = () => {
-  if (!props.canManage) return
+  if (!capabilities.value.canCreate) return
   createVisible.value = true
 }
 
@@ -230,13 +258,12 @@ const reset = () => {
 }
 
 const loadCurrentTab = async (page: unknown = 0) => {
-  const normalizedPage =
-    typeof page === 'number' && Number.isInteger(page) && page >= 0 ? page : 0
+  const normalizedPage = typeof page === 'number' && Number.isInteger(page) && page >= 0 ? page : 0
   const seq = ++requestSeq
   loading.value = true
   try {
     const params = { status: activeStatus.value, page: normalizedPage, size: 20 }
-    const response = props.canManage
+    const response = capabilities.value.canLoadAllTasks
       ? await getInternalTasks(params)
       : await getMyInternalTasks(params)
     if (seq !== requestSeq) return
@@ -247,12 +274,13 @@ const loadCurrentTab = async (page: unknown = 0) => {
     hasSuccessfulLoad.value = true
     initialLoadError.value = ''
     assigneeSelections.value = Object.fromEntries(
-      response.data.items.map((task) => [task.id, task.assigneeUserId || undefined]),
+      response.data.items.map((task) => [task.id, task.assigneeUserId || undefined])
     )
-    if (props.canManage && activeStatus.value !== 'COMPLETED') void ensureAssignees()
+    if (capabilities.value.canAssign && activeStatus.value !== 'COMPLETED') void ensureAssignees()
   } catch (error) {
     if (seq === requestSeq) {
-      const message = error instanceof Error ? error.message : t('pages.home.workbench.internalTasks.loadFailed')
+      const message =
+        error instanceof Error ? error.message : t('pages.home.workbench.internalTasks.loadFailed')
       if (!hasSuccessfulLoad.value) {
         initialLoadError.value = message
       } else {
@@ -265,20 +293,26 @@ const loadCurrentTab = async (page: unknown = 0) => {
 }
 
 const ensureAssignees = async () => {
-  if (!props.canManage || assignees.value.length || assigneesLoading.value) return
+  if (!capabilities.value.canLoadAssignees || assignees.value.length || assigneesLoading.value)
+    return
   assigneesLoading.value = true
   try {
     const response = await getInternalTaskAssignees()
     if (!response.success) throw new Error(response.message)
     assignees.value = response.data || []
   } catch (error) {
-    ElMessage.error(error instanceof Error && error.message ? error.message : t('pages.home.workbench.internalTasks.assigneesFailed'))
+    if (!(await handlePermissionDenied(error))) {
+      ElMessage.error(getErrorMessage(error, 'pages.home.workbench.internalTasks.assigneesFailed'))
+    }
   } finally {
     assigneesLoading.value = false
   }
 }
 
 const submitCreate = async () => {
+  if (!capabilities.value.canCreate) {
+    return
+  }
   const title = createForm.title.trim()
   if (!title) {
     ElMessage.warning(t('pages.home.workbench.internalTasks.titleRequired'))
@@ -297,10 +331,12 @@ const submitCreate = async () => {
     createForm.description = ''
     createForm.assigneeUserId = undefined
     ElMessage.success(t('pages.home.workbench.internalTasks.createSuccess'))
-    emit('updated')
+    emit('updated', 'created')
     if (drawerVisible.value) await loadCurrentTab()
   } catch (error) {
-    ElMessage.error(error instanceof Error && error.message ? error.message : t('pages.home.workbench.internalTasks.createFailed'))
+    if (!(await handlePermissionDenied(error))) {
+      ElMessage.error(getErrorMessage(error, 'pages.home.workbench.internalTasks.createFailed'))
+    }
   } finally {
     creating.value = false
   }
@@ -315,10 +351,14 @@ const saveAssignee = async (task: InternalTaskDTO) => {
     })
     if (!response.success) throw new Error(response.message)
     ElMessage.success(t('pages.home.workbench.internalTasks.assignSuccess'))
-    emit('updated')
+    emit('updated', 'updated')
     await loadCurrentTab()
   } catch (error) {
-    ElMessage.error(error instanceof Error && error.message ? error.message : t('pages.home.workbench.internalTasks.assignFailed'))
+    ElMessage.error(
+      error instanceof Error && error.message
+        ? error.message
+        : t('pages.home.workbench.internalTasks.assignFailed')
+    )
   } finally {
     actionTaskId.value = null
   }
@@ -329,17 +369,21 @@ const completeTask = async (task: InternalTaskDTO) => {
     await ElMessageBox.confirm(
       t('pages.home.workbench.internalTasks.completeConfirm'),
       t('pages.home.workbench.internalTasks.completeConfirmTitle'),
-      { type: 'success' },
+      { type: 'success' }
     )
     actionTaskId.value = task.id
     const response = await completeInternalTask(task.id)
     if (!response.success) throw new Error(response.message)
     ElMessage.success(t('pages.home.workbench.internalTasks.completeSuccess'))
-    emit('updated')
+    emit('updated', 'updated')
     await loadCurrentTab()
   } catch (error) {
     if (error !== 'cancel' && error !== 'close') {
-      ElMessage.error(error instanceof Error && error.message ? error.message : t('pages.home.workbench.internalTasks.completeFailed'))
+      ElMessage.error(
+        error instanceof Error && error.message
+          ? error.message
+          : t('pages.home.workbench.internalTasks.completeFailed')
+      )
     }
   } finally {
     actionTaskId.value = null
@@ -351,17 +395,21 @@ const archiveTask = async (task: InternalTaskDTO) => {
     await ElMessageBox.confirm(
       t('pages.home.workbench.internalTasks.archiveConfirm'),
       t('pages.home.workbench.internalTasks.archive'),
-      { type: 'warning' },
+      { type: 'warning' }
     )
     actionTaskId.value = task.id
     const response = await archiveInternalTask(task.id)
     if (!response.success) throw new Error(response.message)
     ElMessage.success(t('pages.home.workbench.internalTasks.archiveSuccess'))
-    emit('updated')
+    emit('updated', 'updated')
     await loadCurrentTab()
   } catch (error) {
     if (error !== 'cancel' && error !== 'close') {
-      ElMessage.error(error instanceof Error && error.message ? error.message : t('pages.home.workbench.internalTasks.archiveFailed'))
+      ElMessage.error(
+        error instanceof Error && error.message
+          ? error.message
+          : t('pages.home.workbench.internalTasks.archiveFailed')
+      )
     }
   } finally {
     actionTaskId.value = null
@@ -378,36 +426,126 @@ const statusLabel = (status: InternalTaskStatus) =>
 const statusTagType = (status: InternalTaskStatus): 'success' | 'warning' | 'info' =>
   status === 'COMPLETED' ? 'success' : status === 'ASSIGNED' ? 'warning' : 'info'
 const assigneeLabel = (assignee: InternalTaskAssigneeDTO) => {
-  const type = assignee.employeeType === 'CLEANER'
-    ? t('pages.home.workbench.internalTasks.cleaner')
-    : assignee.employeeType === 'BOTH'
-      ? t('pages.home.workbench.internalTasks.both')
-      : t('pages.home.workbench.internalTasks.employee')
+  const type =
+    assignee.employeeType === 'CLEANER'
+      ? t('pages.home.workbench.internalTasks.cleaner')
+      : assignee.employeeType === 'BOTH'
+        ? t('pages.home.workbench.internalTasks.both')
+        : t('pages.home.workbench.internalTasks.employee')
   return `${assignee.displayName} · ${type}`
 }
 
+const getErrorMessage = (error: unknown, fallbackKey: string) => {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.message || error.message || t(fallbackKey)
+  }
+  return error instanceof Error && error.message ? error.message : t(fallbackKey)
+}
+
+const handlePermissionDenied = async (error: unknown) => {
+  if (!axios.isAxiosError(error) || error.response?.status !== 403) {
+    return false
+  }
+
+  createVisible.value = false
+  assignees.value = []
+  if (!permissionRecovery) {
+    const message = getErrorMessage(error, 'stage6.common.messages.noPermission')
+    permissionRecovery = permissionStore
+      .fetchCurrentStorePermissions(true)
+      .catch(() => undefined)
+      .then(() => {
+        ElMessage.error(message)
+      })
+      .finally(() => {
+        permissionRecovery = null
+      })
+  }
+  await permissionRecovery
+  return true
+}
+
 watch(
-  () => props.canManage,
-  (canManage) => {
+  () => [props.canCreate, props.canManage] as const,
+  ([canCreate, canManage]) => {
+    if (!canCreate) {
+      createVisible.value = false
+    }
     activeStatus.value = canManage ? 'UNASSIGNED' : 'ASSIGNED'
     pageData.value = emptyPage()
-  },
+  }
 )
 
 defineExpose({ openDrawer, openCreate, reset })
 </script>
 
 <style scoped>
-.task-center-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.task-center-toolbar :deep(.el-tabs) { flex: 1; }
-.internal-task-list { min-height: 240px; }
-.internal-task-card { display: flex; gap: 16px; justify-content: space-between; padding: 16px; margin-bottom: 12px; border: 1px solid #e4e7ed; border-radius: 12px; background: #fff; }
-.task-card-main { min-width: 0; flex: 1; }
-.task-card-title-row { display: flex; align-items: center; gap: 10px; }
-.task-card-title-row h4 { margin: 0; font-size: 15px; color: #303133; }
-.task-card-main p { margin: 8px 0; color: #606266; white-space: pre-wrap; }
-.task-card-meta { display: flex; flex-wrap: wrap; gap: 6px 16px; color: #909399; font-size: 12px; }
-.task-card-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; max-width: 310px; }
-.task-card-actions :deep(.el-select) { width: 180px; }
-@media (max-width: 640px) { .internal-task-card { flex-direction: column; } .task-card-actions { max-width: none; justify-content: flex-start; } }
+.task-center-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.task-center-toolbar :deep(.el-tabs) {
+  flex: 1;
+}
+.internal-task-list {
+  min-height: 240px;
+}
+.internal-task-card {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid #e4e7ed;
+  border-radius: 12px;
+  background: #fff;
+}
+.task-card-main {
+  min-width: 0;
+  flex: 1;
+}
+.task-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.task-card-title-row h4 {
+  margin: 0;
+  font-size: 15px;
+  color: #303133;
+}
+.task-card-main p {
+  margin: 8px 0;
+  color: #606266;
+  white-space: pre-wrap;
+}
+.task-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  color: #909399;
+  font-size: 12px;
+}
+.task-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 310px;
+}
+.task-card-actions :deep(.el-select) {
+  width: 180px;
+}
+@media (max-width: 640px) {
+  .internal-task-card {
+    flex-direction: column;
+  }
+  .task-card-actions {
+    max-width: none;
+    justify-content: flex-start;
+  }
+}
 </style>

@@ -94,6 +94,16 @@ public class PermissionService {
         }
 
         StoreUser storeUser = storeUserOpt.get();
+        if (!Boolean.TRUE.equals(storeUser.getIsActive())) {
+            return false;
+        }
+        if (module == PermissionModule.ACCOMMODATION
+                && action == PermissionAction.CREATE_INTERNAL_TASK) {
+            if ("owner".equals(storeUser.getRole())) {
+                return true;
+            }
+            return hasExtraPermission(loadExtraPermissions(storeUser.getId()), module, action);
+        }
         if (isStoreManager(storeUser)) {
             return true;
         }
@@ -111,6 +121,13 @@ public class PermissionService {
         }
 
         StoreUser storeUser = storeUserOpt.get();
+        if (!Boolean.TRUE.equals(storeUser.getIsActive())) {
+            return false;
+        }
+        if (module == PermissionModule.ACCOMMODATION
+                && action == PermissionAction.CREATE_INTERNAL_TASK) {
+            return hasPermission(storeId, userId, module, action);
+        }
         if (isStoreManager(storeUser)) {
             return true;
         }

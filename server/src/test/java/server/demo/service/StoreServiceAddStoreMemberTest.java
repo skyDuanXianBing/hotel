@@ -15,6 +15,7 @@ import server.demo.entity.StoreUserPermission;
 import server.demo.entity.User;
 import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
+import server.demo.exception.PermissionDeniedException;
 import server.demo.repository.RoleRepository;
 import server.demo.repository.StoreUserPermissionRepository;
 import server.demo.repository.StoreUserRepository;
@@ -185,6 +186,31 @@ class StoreServiceAddStoreMemberTest {
         assertEquals("该用户已是门店成员", error.getMessage());
         verify(storeUserRepository, never()).save(any(StoreUser.class));
         verify(storeUserPermissionRepository, never()).deleteByStoreUser_Id(any());
+    }
+
+    @Test
+    void addStoreMember_shouldRejectOwnerRoleAndAdminProtectedGrantBeforeWrites() {
+        Store store = createStore(26L);
+        StoreUser admin = new StoreUser();
+        admin.setStore(store);
+        admin.setUser(createUser(6L, "admin@example.com"));
+        admin.setRole("admin");
+        admin.setIsActive(true);
+        when(storeUserRepository.findByStoreIdAndUserId(26L, 6L)).thenReturn(Optional.of(admin));
+
+        AddStoreMemberRequest ownerRequest = new AddStoreMemberRequest("member@example.com", "owner");
+        assertThrows(PermissionDeniedException.class,
+                () -> service.addStoreMember(26L, 6L, ownerRequest));
+
+        AddStoreMemberRequest protectedRequest = new AddStoreMemberRequest("member@example.com", "member");
+        protectedRequest.setExtraPermissions(List.of(new PermissionDTO(
+                PermissionModule.ACCOMMODATION, PermissionAction.CREATE_INTERNAL_TASK)));
+        assertThrows(PermissionDeniedException.class,
+                () -> service.addStoreMember(26L, 6L, protectedRequest));
+
+        verify(userRepository, never()).findByEmail(any());
+        verify(storeUserRepository, never()).save(any());
+        verify(storeUserPermissionRepository, never()).saveAll(any());
     }
 
     private static Store createStore(Long id) {

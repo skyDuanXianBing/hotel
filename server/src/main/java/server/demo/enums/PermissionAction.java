@@ -17,6 +17,7 @@ public enum PermissionAction {
     BREAKFAST_PACKAGE("餐食核销"),
     RESERVATION_CALENDAR("保洁日历"),
     TASK_LIST("任务列表"),
+    CREATE_INTERNAL_TASK("创建其他任务"),
 
     // 订单管理相关
     VIEW_ORDERS("查看订单"),

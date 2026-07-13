@@ -7,6 +7,7 @@ const ORDER_MODULE = 'ORDER' as PermissionDTO['module']
 const VIEW_ROOM_STATUS_ACTION = 'VIEW_ROOM_STATUS' as PermissionDTO['action']
 const VIEW_ORDERS_ACTION = 'VIEW_ORDERS' as PermissionDTO['action']
 const MODIFY_ORDER_ACTION = 'MODIFY_ORDER' as PermissionDTO['action']
+const CREATE_INTERNAL_TASK_ACTION = 'CREATE_INTERNAL_TASK' as PermissionDTO['action']
 
 const createPermission = (
   module: PermissionDTO['module'],
@@ -51,7 +52,12 @@ describe('buildMemberUpdatePayload', () => {
       createPermission(ORDER_MODULE, MODIFY_ORDER_ACTION),
     ]
 
-    const payload = buildMemberUpdatePayload(createSnapshot(), 'Alice', [1, 4], nextExtraPermissions)
+    const payload = buildMemberUpdatePayload(
+      createSnapshot(),
+      'Alice',
+      [1, 4],
+      nextExtraPermissions
+    )
 
     expect(payload).toEqual({
       roleIds: [1, 4],
@@ -86,5 +92,21 @@ describe('buildMemberUpdatePayload', () => {
     )
 
     expect(payload).toEqual({})
+  })
+
+  test('只改其他字段时不会误删受保护的创建任务权限', () => {
+    const protectedPermission = createPermission(ACCOMMODATION_MODULE, CREATE_INTERNAL_TASK_ACTION)
+    const snapshot = createSnapshot()
+    snapshot.extraPermissions = [...snapshot.extraPermissions, protectedPermission]
+    const nextPermissions = [
+      createPermission(ORDER_MODULE, MODIFY_ORDER_ACTION),
+      protectedPermission,
+    ]
+
+    const payload = buildMemberUpdatePayload(snapshot, 'Alice Wang', [3, 1], nextPermissions)
+
+    expect(payload.name).toBe('Alice Wang')
+    expect(payload.extraPermissions).toEqual(nextPermissions)
+    expect(payload.extraPermissions).toContainEqual(protectedPermission)
   })
 })

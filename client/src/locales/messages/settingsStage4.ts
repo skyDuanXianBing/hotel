@@ -155,7 +155,8 @@ export const settingsStage4Messages = {
         hints: {
           roomDeleteImpact:
             'After rooms are deleted, related orders may no longer support "Undo check-out" or "Restore booking".',
-          roomNumbersManagePrefix: 'Room numbers can be viewed and edited. To add or delete rooms, go to',
+          roomNumbersManagePrefix:
+            'Room numbers can be viewed and edited. To add or delete rooms, go to',
           roomManagementLink: 'Room Management',
           roomNumbersManageSuffix: 'to operate.',
         },
@@ -366,7 +367,8 @@ export const settingsStage4Messages = {
         },
       },
       roomSort: {
-        notice: 'Drag {name} to reorder {name}. After sorting, the room status calendar will follow this order.',
+        notice:
+          'Drag {name} to reorder {name}. After sorting, the room status calendar will follow this order.',
         tabs: {
           roomType: 'Room Type Sort',
           room: 'Room Sort',
@@ -642,20 +644,25 @@ export const settingsStage4Messages = {
           selfCheckinLink: 'here',
           selfCheckinDescAfter: ' to configure it.',
           commonLink: 'Common Check-in Link',
-          commonLinkDesc: 'Guests can complete check-in registration and view check-in instructions through this link.',
+          commonLinkDesc:
+            'Guests can complete check-in registration and view check-in instructions through this link.',
           storeQrCode: 'Store QR Code',
-          storeQrCodeDesc: 'Download and print this QR code for front desk on-site confirmation or lookup.',
+          storeQrCodeDesc:
+            'Download and print this QR code for front desk on-site confirmation or lookup.',
           files: 'Files',
-          filesDesc: 'Uploaded files will appear on the check-in platform home page without viewing restrictions.',
+          filesDesc:
+            'Uploaded files will appear on the check-in platform home page without viewing restrictions.',
           uploadHint: 'File size limit is 10MB. PDF only.',
         },
         checkin: {
           guestRegistration: 'Guest Registration',
           form: 'Check-in Form',
-          formDesc: 'After enabled, the guest registration fields below will appear on the check-in platform.',
+          formDesc:
+            'After enabled, the guest registration fields below will appear on the check-in platform.',
           templateLibrary: 'Template Library',
           identityVerification: 'Identity Verification',
-          identityVerificationDesc: 'After enabled, guest identity information will be collected according to your settings.',
+          identityVerificationDesc:
+            'After enabled, guest identity information will be collected according to your settings.',
         },
         fields: {
           checkinTime: 'Check-in Time',
@@ -674,7 +681,8 @@ export const settingsStage4Messages = {
           displayTimeDesc: 'How many hours before check-in guests can view the check-in guide.',
           hours: 'hours',
           displayConditions: 'Display Conditions',
-          displayConditionsDesc: 'The check-in guide will be shown to guests when these conditions are met.',
+          displayConditionsDesc:
+            'The check-in guide will be shown to guests when these conditions are met.',
           payment: 'Payment',
           fullPaymentRequired: 'Full payment required',
           guestForm: 'Guest Form',
@@ -714,7 +722,8 @@ export const settingsStage4Messages = {
           accountDesc: 'Enter the email address registered with PriceLabs.',
           integrationStatus: 'Integration Status',
           multiAccount: 'Multi-account Management',
-          multiAccountDesc: 'Multiple PriceLabs accounts can be active at the same time. Listing connections bind to specific accounts.',
+          multiAccountDesc:
+            'Multiple PriceLabs accounts can be active at the same time. Listing connections bind to specific accounts.',
           diagnostics: 'Diagnostics',
         },
         actions: {
@@ -791,9 +800,12 @@ export const settingsStage4Messages = {
         },
         hints: {
           disableBeforeEditEmail: '(Disable the integration before changing the email)',
-          diagnostics: 'For authentication and troubleshooting: query /status or manually push /reservations.',
-          singleActiveConnection: 'To keep rate push stable, each room type can only bind one enabled price plan connection.',
-          replaceConnection: 'To replace a price plan, disable or delete the existing connection for this room type first.',
+          diagnostics:
+            'For authentication and troubleshooting: query /status or manually push /reservations.',
+          singleActiveConnection:
+            'To keep rate push stable, each room type can only bind one enabled price plan connection.',
+          replaceConnection:
+            'To replace a price plan, disable or delete the existing connection for this room type first.',
           autoSync: 'After enabled, prices will automatically sync to OTA.',
           reservationId: 'reservation usually uses the order number (orderNumber).',
           defaultDateRange: 'Default: 2020-01-01 ~ today+365',
@@ -854,7 +866,8 @@ export const settingsStage4Messages = {
           addAndEnableAccountFirst: 'Please add and enable at least one PriceLabs account first',
           saveDefaultAccountFirst: 'Please save the default PriceLabs account configuration first',
           enableDefaultAccountFirst: 'Please enable the current default PriceLabs account first',
-          noAvailableAccountEmail: 'No available PriceLabs account email. Please check account configuration first.',
+          noAvailableAccountEmail:
+            'No available PriceLabs account email. Please check account configuration first.',
           integrationEnabled: 'PriceLabs integration enabled',
           integrationDisabled: 'PriceLabs integration disabled',
           selectAccountToBind: 'Please select the account to bind',
@@ -864,8 +877,10 @@ export const settingsStage4Messages = {
           selectPricePlan: 'Please select a price plan',
           duplicateConnection:
             'This room type and price plan are already bound to account "{account}". Please review the existing connection, then delete or adjust it before retrying.',
-          selectBoundPricePlan: 'Please select a price plan already bound in Price Plan - Applied Room Types',
-          selectedAccountMissingEmail: 'The selected account has no available email. Please complete account configuration first.',
+          selectBoundPricePlan:
+            'Please select a price plan already bound in Price Plan - Applied Room Types',
+          selectedAccountMissingEmail:
+            'The selected account has no available email. Please complete account configuration first.',
           enableIntegrationFailed: 'Failed to enable PriceLabs integration',
           connectionAdded: 'Connection added successfully',
           connectionSavedSyncFailed: 'Connection saved, but sync failed',
@@ -898,6 +913,7 @@ export const settingsStage4Messages = {
           roomStatus: 'Room Status',
           roomPrice: 'Room Pricing',
           cleaning: 'Housekeeping',
+          internalTasks: 'Other Tasks',
           order: 'Order Permissions',
           channel: 'Channel Permissions',
           statistics: 'Statistics',
@@ -913,6 +929,7 @@ export const settingsStage4Messages = {
           viewPriceLog: 'View price change logs',
           batchChangePrice: 'Bulk change rates',
           taskList: 'View housekeeping tasks',
+          createInternalTask: 'Create other tasks',
           viewOrders: 'View orders',
           modifyOrder: 'Edit orders',
           cancelOrder: 'Cancel orders',
@@ -955,7 +972,8 @@ export const settingsStage4Messages = {
           deleteRoleTitle: 'Delete this role?',
           deleteSuccess: 'Deleted successfully',
           deleteRoleFailed: 'Failed to delete role',
-          selectRoomTypeScope: 'Select at least one room type, or enable all room type permissions.',
+          selectRoomTypeScope:
+            'Select at least one room type, or enable all room type permissions.',
           savePermissionsSuccess: 'Permissions saved successfully',
           savePermissionsFailed: 'Failed to save permissions',
         },
@@ -1037,9 +1055,11 @@ export const settingsStage4Messages = {
           roomTypeScope:
             'After selection, this account can view room status for the selected room types. Room types inherited from roles are shown as selected.',
           noRoomTypes: 'No room types in the current store',
+          ownerOnlyPermission: 'Only the store owner can grant or revoke this permission.',
         },
         messages: {
-          selectRoomTypeScope: 'Select at least one room type, or directly grant all room type permissions.',
+          selectRoomTypeScope:
+            'Select at least one room type, or directly grant all room type permissions.',
           selectStore: 'Select a store first',
           loadAccountsFailed: 'Failed to load account list',
           noTransferableMembers: 'No member is available to take over ownership',
@@ -1070,7 +1090,8 @@ export const settingsStage4Messages = {
           batchStatusSuccess: 'Batch {action} succeeded, {count} total',
           batchUpdateStatusFailed: 'Failed to batch update status',
           batchRoleConfirm: 'Batch change roles for the selected {count} employees?',
-          batchRolePartialFailed: 'Partial role change failed: {success} succeeded, {failed} failed',
+          batchRolePartialFailed:
+            'Partial role change failed: {success} succeeded, {failed} failed',
           batchRoleSuccess: 'Batch role change succeeded, {count} total',
           batchRoleFailed: 'Failed to batch change roles',
           batchRemoveConfirm: 'Remove the selected {count} employees from this store?',
@@ -1250,7 +1271,8 @@ export const settingsStage4Messages = {
             'From the second day after guest check-in until the day before check-out, create a stayover task every day.',
           checkout: 'Create a check-out housekeeping task on the guest check-out day.',
           autoStay: 'When enabled, the system automatically creates stayover housekeeping tasks.',
-          autoCheckout: 'When enabled, the system automatically creates turnover housekeeping tasks.',
+          autoCheckout:
+            'When enabled, the system automatically creates turnover housekeeping tasks.',
         },
         placeholders: {
           selectTime: 'Select time',
@@ -1280,7 +1302,8 @@ export const settingsStage4Messages = {
           emailRequired: 'Enter email',
           emailInvalid: 'Enter a valid email address',
           storeNotSelected: 'No store selected',
-          invitationSent: 'Invitation email sent. The cleaner will appear in the list after registration.',
+          invitationSent:
+            'Invitation email sent. The cleaner will appear in the list after registration.',
           invitationFailed: 'Failed to send invitation',
           supplyNotConfigured: 'This room type has no supplies configured',
           clearSupplyConfirm: 'Clear supplies settings for "{roomType}"?',
@@ -1873,7 +1896,8 @@ export const settingsStage4Messages = {
           deletePlanTitle: '删除价格计划',
           deletePlanFailed: '删除价格计划失败',
           deletePlanSuccess: '价格计划已删除',
-          forceDeleteConfirm: '该价格计划存在渠道价格记录。彻底删除会先清理相关渠道价格，是否继续？',
+          forceDeleteConfirm:
+            '该价格计划存在渠道价格记录。彻底删除会先清理相关渠道价格，是否继续？',
           forceDeleteTitle: '彻底删除价格计划',
           forceDeleteFailed: '彻底删除失败',
           forceDeleteSuccess: '价格计划已彻底删除',
@@ -1887,7 +1911,8 @@ export const settingsStage4Messages = {
           assignPlanSuccess: '价格计划分配成功',
           assignPlanFailed: '分配价格计划失败',
           loadLinkedRoomTypesFailed: '加载关联房型失败',
-          removeRelationConfirm: '确定要将“{roomTypeName}”从“{planName}”解除关联吗？请选择是否清理相关价格。',
+          removeRelationConfirm:
+            '确定要将“{roomTypeName}”从“{planName}”解除关联吗？请选择是否清理相关价格。',
           removeRelationTitle: '解除房型关联',
           relationIdMissing: '关联 ID 缺失',
           deleteRelationFailed: '删除关联失败',
@@ -1937,7 +1962,8 @@ export const settingsStage4Messages = {
         },
         basic: {
           selfCheckin: '自助入住',
-          selfCheckinDescBefore: '开启后，系统将会自动给客人发送入住邮件。如需自定义邮件内容，请点击',
+          selfCheckinDescBefore:
+            '开启后，系统将会自动给客人发送入住邮件。如需自定义邮件内容，请点击',
           selfCheckinLink: '此处',
           selfCheckinDescAfter: '进行设置。',
           commonLink: '通用入住链接',
@@ -2158,7 +2184,8 @@ export const settingsStage4Messages = {
           integrationDisabled: '已禁用 PriceLabs 集成',
           selectAccountToBind: '请选择要绑定的账号',
           selectRoomType: '请选择房型',
-          roomTypeAlreadyConnected: '该房型已绑定价格计划：{planName}。如需更换，请先禁用或删除原连接后再添加。',
+          roomTypeAlreadyConnected:
+            '该房型已绑定价格计划：{planName}。如需更换，请先禁用或删除原连接后再添加。',
           selectPricePlan: '请选择价格计划',
           duplicateConnection:
             '该房型与价格计划已绑定到账号“{account}”，请先查看现有连接并删除或调整后再重试。',
@@ -2196,6 +2223,7 @@ export const settingsStage4Messages = {
           roomStatus: '房态管理',
           roomPrice: '房价管理',
           cleaning: '保洁管理',
+          internalTasks: '其他任务',
           order: '订单管理',
           channel: '渠道权限',
           statistics: '统计分析',
@@ -2211,6 +2239,7 @@ export const settingsStage4Messages = {
           viewPriceLog: '查看改价记录',
           batchChangePrice: '批量改价',
           taskList: '查看保洁任务',
+          createInternalTask: '创建其他任务',
           viewOrders: '查看订单',
           modifyOrder: '修改订单',
           cancelOrder: '取消订单',
@@ -2331,6 +2360,7 @@ export const settingsStage4Messages = {
         hints: {
           roomTypeScope: '勾选后表示该账号可查看对应房型房态；角色已拥有的房型会直接显示为已勾选。',
           noRoomTypes: '当前门店暂无房型',
+          ownerOnlyPermission: '仅门店负责人可以授予或撤销此权限。',
         },
         messages: {
           selectRoomTypeScope: '请至少选择一个房型，或直接授予全部房型权限',
@@ -2508,7 +2538,8 @@ export const settingsStage4Messages = {
       cleaningSettings: {
         notices: {
           storeProfileFirst: '在配置之前，请先去设置门店资料',
-          taskTime: '1.在配置之前，请先去设置门店详情资料。2.该配置系统自动生成保洁任务对任务有效时间。',
+          taskTime:
+            '1.在配置之前，请先去设置门店详情资料。2.该配置系统自动生成保洁任务对任务有效时间。',
         },
         actions: {
           configure: '配置',
@@ -2583,7 +2614,8 @@ export const settingsStage4Messages = {
         },
       },
       cleaningSupplies: {
-        notice: '您可以添加易耗品并与房型关联，对易耗品进行编辑或删除后，系统会将结果同步到引用该易耗品的房型中。',
+        notice:
+          '您可以添加易耗品并与房型关联，对易耗品进行编辑或删除后，系统会将结果同步到引用该易耗品的房型中。',
         actions: {
           addSupply: '添加易耗品',
         },
@@ -3164,7 +3196,8 @@ export const settingsStage4Messages = {
           deletePlanTitle: '刪除價格計劃',
           deletePlanFailed: '刪除價格計劃失敗',
           deletePlanSuccess: '價格計劃已刪除',
-          forceDeleteConfirm: '此價格計劃存在渠道價格記錄。徹底刪除會先清理相關渠道價格，是否繼續？',
+          forceDeleteConfirm:
+            '此價格計劃存在渠道價格記錄。徹底刪除會先清理相關渠道價格，是否繼續？',
           forceDeleteTitle: '徹底刪除價格計劃',
           forceDeleteFailed: '徹底刪除失敗',
           forceDeleteSuccess: '價格計劃已徹底刪除',
@@ -3178,7 +3211,8 @@ export const settingsStage4Messages = {
           assignPlanSuccess: '價格計劃分配成功',
           assignPlanFailed: '分配價格計劃失敗',
           loadLinkedRoomTypesFailed: '載入關聯房型失敗',
-          removeRelationConfirm: '確定要將「{roomTypeName}」從「{planName}」解除關聯嗎？請選擇是否清理相關價格。',
+          removeRelationConfirm:
+            '確定要將「{roomTypeName}」從「{planName}」解除關聯嗎？請選擇是否清理相關價格。',
           removeRelationTitle: '解除房型關聯',
           relationIdMissing: '關聯 ID 缺失',
           deleteRelationFailed: '刪除關聯失敗',
@@ -3449,7 +3483,8 @@ export const settingsStage4Messages = {
           integrationDisabled: '已停用 PriceLabs 集成',
           selectAccountToBind: '請選擇要綁定的帳號',
           selectRoomType: '請選擇房型',
-          roomTypeAlreadyConnected: '該房型已綁定價格計劃：{planName}。如需更換，請先停用或刪除原連接後再新增。',
+          roomTypeAlreadyConnected:
+            '該房型已綁定價格計劃：{planName}。如需更換，請先停用或刪除原連接後再新增。',
           selectPricePlan: '請選擇價格計劃',
           duplicateConnection:
             '該房型與價格計劃已綁定到帳號「{account}」，請先查看現有連接並刪除或調整後再重試。',
@@ -3487,6 +3522,7 @@ export const settingsStage4Messages = {
           roomStatus: '房態管理',
           roomPrice: '房價管理',
           cleaning: '保潔管理',
+          internalTasks: '其他任務',
           order: '訂單管理',
           channel: '渠道權限',
           statistics: '統計分析',
@@ -3502,6 +3538,7 @@ export const settingsStage4Messages = {
           viewPriceLog: '查看改價記錄',
           batchChangePrice: '批量改價',
           taskList: '查看保潔任務',
+          createInternalTask: '建立其他任務',
           viewOrders: '查看訂單',
           modifyOrder: '修改訂單',
           cancelOrder: '取消訂單',
@@ -3622,6 +3659,7 @@ export const settingsStage4Messages = {
         hints: {
           roomTypeScope: '勾選後表示該帳號可查看對應房型房態；角色已擁有的房型會直接顯示為已勾選。',
           noRoomTypes: '目前門店暫無房型',
+          ownerOnlyPermission: '僅門店負責人可以授予或撤銷此權限。',
         },
         messages: {
           selectRoomTypeScope: '請至少選擇一個房型，或直接授予全部房型權限',
@@ -3799,7 +3837,8 @@ export const settingsStage4Messages = {
       cleaningSettings: {
         notices: {
           storeProfileFirst: '在配置之前，請先去設定門店資料',
-          taskTime: '1.在配置之前，請先去設定門店詳情資料。2.該配置系統自動生成保潔任務對任務有效時間。',
+          taskTime:
+            '1.在配置之前，請先去設定門店詳情資料。2.該配置系統自動生成保潔任務對任務有效時間。',
         },
         actions: {
           configure: '配置',
@@ -3874,7 +3913,8 @@ export const settingsStage4Messages = {
         },
       },
       cleaningSupplies: {
-        notice: '您可以新增易耗品並與房型關聯，對易耗品進行編輯或刪除後，系統會將結果同步到引用該易耗品的房型中。',
+        notice:
+          '您可以新增易耗品並與房型關聯，對易耗品進行編輯或刪除後，系統會將結果同步到引用該易耗品的房型中。',
         actions: {
           addSupply: '新增易耗品',
         },
@@ -4259,7 +4299,8 @@ export const settingsStage4Messages = {
         },
       },
       roomSort: {
-        notice: '{name}をドラッグして{name}を変更できます。保存後、客室状況カレンダーは下記の順序で表示されます。',
+        notice:
+          '{name}をドラッグして{name}を変更できます。保存後、客室状況カレンダーは下記の順序で表示されます。',
         tabs: {
           roomType: '客室タイプ並び替え',
           room: '客室並び替え',
@@ -4535,20 +4576,25 @@ export const settingsStage4Messages = {
           selfCheckinLink: 'こちら',
           selfCheckinDescAfter: 'をクリックして設定してください。',
           commonLink: '共通チェックインリンク',
-          commonLinkDesc: 'ゲストはこのリンクからチェックイン登録を完了し、チェックインガイドを確認できます。',
+          commonLinkDesc:
+            'ゲストはこのリンクからチェックイン登録を完了し、チェックインガイドを確認できます。',
           storeQrCode: '店舗QRコード',
-          storeQrCodeDesc: 'このQRコードをダウンロードして印刷し、フロントでの現地確認や照会に使用してください。',
+          storeQrCodeDesc:
+            'このQRコードをダウンロードして印刷し、フロントでの現地確認や照会に使用してください。',
           files: 'ファイル',
-          filesDesc: 'アップロードしたファイルはチェックインプラットフォームのホームに表示され、閲覧制限はありません。',
+          filesDesc:
+            'アップロードしたファイルはチェックインプラットフォームのホームに表示され、閲覧制限はありません。',
           uploadHint: 'ファイルサイズ上限は 10MB です。PDF のみ対応しています。',
         },
         checkin: {
           guestRegistration: '宿泊者登録',
           form: 'チェックインフォーム',
-          formDesc: '有効にすると、以下の宿泊者登録フォーム項目がチェックインプラットフォームに表示されます。',
+          formDesc:
+            '有効にすると、以下の宿泊者登録フォーム項目がチェックインプラットフォームに表示されます。',
           templateLibrary: 'テンプレートライブラリ',
           identityVerification: '本人確認',
-          identityVerificationDesc: '有効にすると、設定に基づいて宿泊者の本人確認情報を収集します。',
+          identityVerificationDesc:
+            '有効にすると、設定に基づいて宿泊者の本人確認情報を収集します。',
         },
         fields: {
           checkinTime: 'チェックイン時間',
@@ -4567,7 +4613,8 @@ export const settingsStage4Messages = {
           displayTimeDesc: '宿泊者がチェックインガイドを何時間前から確認できるかを設定します。',
           hours: '時間',
           displayConditions: '表示条件',
-          displayConditionsDesc: '以下の条件を満たす場合、チェックインガイドがゲストに表示されます。',
+          displayConditionsDesc:
+            '以下の条件を満たす場合、チェックインガイドがゲストに表示されます。',
           payment: '支払い',
           fullPaymentRequired: '全額支払いが必要',
           guestForm: '宿泊者フォーム',
@@ -4607,7 +4654,8 @@ export const settingsStage4Messages = {
           accountDesc: 'PriceLabs に登録したメールアドレスを入力してください。',
           integrationStatus: '連携ステータス',
           multiAccount: '複数アカウント管理',
-          multiAccountDesc: '複数の PriceLabs アカウントを同時に有効化できます。リスティング接続は個別のアカウントに紐づきます。',
+          multiAccountDesc:
+            '複数の PriceLabs アカウントを同時に有効化できます。リスティング接続は個別のアカウントに紐づきます。',
           diagnostics: '診断ツール',
         },
         actions: {
@@ -4684,9 +4732,12 @@ export const settingsStage4Messages = {
         },
         hints: {
           disableBeforeEditEmail: '（メールを変更するには先に連携を無効化してください）',
-          diagnostics: '認証とトラブルシュート用: /status の照会、または /reservations の手動送信。',
-          singleActiveConnection: '料金送信の安定性のため、同じ客室タイプには有効な料金プラン接続を1つだけ紐づけできます。',
-          replaceConnection: '料金プランを変更する場合は、この客室タイプの既存接続を先に無効化または削除してください。',
+          diagnostics:
+            '認証とトラブルシュート用: /status の照会、または /reservations の手動送信。',
+          singleActiveConnection:
+            '料金送信の安定性のため、同じ客室タイプには有効な料金プラン接続を1つだけ紐づけできます。',
+          replaceConnection:
+            '料金プランを変更する場合は、この客室タイプの既存接続を先に無効化または削除してください。',
           autoSync: '有効にすると、料金を OTA へ自動同期します。',
           reservationId: 'reservation は通常、予約番号（orderNumber）を使用します。',
           defaultDateRange: 'デフォルト: 2020-01-01 ~ today+365',
@@ -4712,7 +4763,8 @@ export const settingsStage4Messages = {
           commission: 'コミッション',
         },
         examplePreview: '基本料金 ¥1000 -> チャネル料金 ¥{price}',
-        accountFilterTip: '現在、アカウント「{name}」に紐づく客室タイプの同期ステータスのみ表示しています。',
+        accountFilterTip:
+          '現在、アカウント「{name}」に紐づく客室タイプの同期ステータスのみ表示しています。',
         result: {
           title: '結果',
           count: '{count} 件',
@@ -4744,10 +4796,13 @@ export const settingsStage4Messages = {
           defaultAccountMissingEmail: '現在のデフォルトアカウントに利用可能なメールがありません',
           enterPriceLabsEmail: 'PriceLabs メールアドレスを入力してください',
           syncDefaultEmailFailed: 'PriceLabs デフォルトメールの同期に失敗しました',
-          addAndEnableAccountFirst: '少なくとも1つの PriceLabs アカウントを追加して有効化してください',
+          addAndEnableAccountFirst:
+            '少なくとも1つの PriceLabs アカウントを追加して有効化してください',
           saveDefaultAccountFirst: 'デフォルト PriceLabs アカウント設定を先に保存してください',
-          enableDefaultAccountFirst: '現在のデフォルト PriceLabs アカウントを先に有効化してください',
-          noAvailableAccountEmail: '利用可能な PriceLabs アカウントメールがありません。アカウント設定を確認してください。',
+          enableDefaultAccountFirst:
+            '現在のデフォルト PriceLabs アカウントを先に有効化してください',
+          noAvailableAccountEmail:
+            '利用可能な PriceLabs アカウントメールがありません。アカウント設定を確認してください。',
           integrationEnabled: 'PriceLabs 連携を有効化しました',
           integrationDisabled: 'PriceLabs 連携を無効化しました',
           selectAccountToBind: '紐づけるアカウントを選択してください',
@@ -4757,8 +4812,10 @@ export const settingsStage4Messages = {
           selectPricePlan: '料金プランを選択してください',
           duplicateConnection:
             'この客室タイプと料金プランはすでにアカウント「{account}」に紐づいています。既存接続を確認し、削除または調整してから再試行してください。',
-          selectBoundPricePlan: '「料金プラン - 適用客室タイプ」でこの客室タイプに紐づき済みの料金プランを選択してください',
-          selectedAccountMissingEmail: '選択したアカウントに利用可能なメールがありません。アカウント設定を完了してください。',
+          selectBoundPricePlan:
+            '「料金プラン - 適用客室タイプ」でこの客室タイプに紐づき済みの料金プランを選択してください',
+          selectedAccountMissingEmail:
+            '選択したアカウントに利用可能なメールがありません。アカウント設定を完了してください。',
           enableIntegrationFailed: 'PriceLabs 連携の有効化に失敗しました',
           connectionAdded: '接続を追加しました',
           connectionSavedSyncFailed: '接続は保存されましたが、同期に失敗しました',
@@ -4791,6 +4848,7 @@ export const settingsStage4Messages = {
           roomStatus: '客室状況管理',
           roomPrice: '料金管理',
           cleaning: '清掃管理',
+          internalTasks: 'その他のタスク',
           order: '予約管理',
           channel: 'チャネル権限',
           statistics: '統計分析',
@@ -4806,6 +4864,7 @@ export const settingsStage4Messages = {
           viewPriceLog: '料金変更履歴を表示',
           batchChangePrice: '料金を一括変更',
           taskList: '清掃タスクを表示',
+          createInternalTask: 'その他のタスクを作成',
           viewOrders: '予約を表示',
           modifyOrder: '予約を編集',
           cancelOrder: '予約をキャンセル',
@@ -4848,7 +4907,8 @@ export const settingsStage4Messages = {
           deleteRoleTitle: 'このロールを削除しますか？',
           deleteSuccess: '削除しました',
           deleteRoleFailed: 'ロールの削除に失敗しました',
-          selectRoomTypeScope: '少なくとも1つの客室タイプを選択するか、すべての客室タイプ権限を有効にしてください',
+          selectRoomTypeScope:
+            '少なくとも1つの客室タイプを選択するか、すべての客室タイプ権限を有効にしてください',
           savePermissionsSuccess: '権限を保存しました',
           savePermissionsFailed: '権限の保存に失敗しました',
         },
@@ -4904,9 +4964,11 @@ export const settingsStage4Messages = {
         },
         dialog: {
           changeRole: 'ロールを変更',
-          changeRoleNotice: '一括ロール変更は現在のロールを直接置き換えます。追加権限は保持されます。',
+          changeRoleNotice:
+            '一括ロール変更は現在のロールを直接置き換えます。追加権限は保持されます。',
           transferOwner: '責任者を変更',
-          transferOwnerTip: '新しい店舗責任者を選択してください。変更後、現在の責任者は自動的に管理者になります。',
+          transferOwnerTip:
+            '新しい店舗責任者を選択してください。変更後、現在の責任者は自動的に管理者になります。',
           setAccountPermissions: 'アカウント権限を設定',
           addAccount: 'アカウントを追加',
         },
@@ -4928,9 +4990,11 @@ export const settingsStage4Messages = {
           roomTypeScope:
             '選択すると、このアカウントは該当する客室タイプの客室状況を表示できます。ロールで付与済みの客室タイプは選択済みとして表示されます。',
           noRoomTypes: '現在の店舗に客室タイプはありません',
+          ownerOnlyPermission: 'この権限を付与または取り消せるのは店舗オーナーのみです。',
         },
         messages: {
-          selectRoomTypeScope: '少なくとも1つの客室タイプを選択するか、すべての客室タイプ権限を直接付与してください',
+          selectRoomTypeScope:
+            '少なくとも1つの客室タイプを選択するか、すべての客室タイプ権限を直接付与してください',
           selectStore: '先に店舗を選択してください',
           loadAccountsFailed: 'アカウント一覧の読み込みに失敗しました',
           noTransferableMembers: '責任者を引き継げるメンバーがいません',
@@ -4961,7 +5025,8 @@ export const settingsStage4Messages = {
           batchStatusSuccess: '一括{action}に成功しました。合計 {count} 名',
           batchUpdateStatusFailed: 'ステータスの一括更新に失敗しました',
           batchRoleConfirm: '選択した {count} 名の従業員のロールを一括変更しますか？',
-          batchRolePartialFailed: '一部のロール変更に失敗しました: 成功 {success} 名、失敗 {failed} 名',
+          batchRolePartialFailed:
+            '一部のロール変更に失敗しました: 成功 {success} 名、失敗 {failed} 名',
           batchRoleSuccess: 'ロールの一括変更に成功しました。合計 {count} 名',
           batchRoleFailed: 'ロールの一括変更に失敗しました',
           batchRemoveConfirm: '選択した {count} 名の従業員をこの店舗から削除しますか？',

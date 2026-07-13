@@ -11,6 +11,7 @@ import server.demo.entity.Role;
 import server.demo.entity.RolePermission;
 import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
+import server.demo.exception.PermissionDeniedException;
 import server.demo.repository.RolePermissionRepository;
 import server.demo.repository.RoleRepository;
 import server.demo.repository.RoomTypeRepository;
@@ -22,6 +23,7 @@ import java.util.stream.StreamSupport;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -92,5 +94,18 @@ class RolePermissionServiceTest {
                 .orElseThrow();
         assertThat(savedEditRoomStatus.getAllRoomTypes()).isFalse();
         assertThat(savedEditRoomStatus.getRoomTypeId()).isEqualTo(0L);
+    }
+
+    @Test
+    void updateRolePermissions_rejectsInternalTaskCreationPermissionBeforeRoleWrites() {
+        PermissionDTO protectedPermission = new PermissionDTO(
+                PermissionModule.ACCOMMODATION,
+                PermissionAction.CREATE_INTERNAL_TASK
+        );
+
+        org.junit.jupiter.api.Assertions.assertThrows(PermissionDeniedException.class,
+                () -> rolePermissionService.updateRolePermissions(1L, List.of(protectedPermission)));
+
+        verifyNoInteractions(roleRepository, rolePermissionRepository, roomTypeRepository);
     }
 }

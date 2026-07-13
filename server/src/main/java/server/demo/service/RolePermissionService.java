@@ -7,6 +7,8 @@ import server.demo.dto.PermissionDTO;
 import server.demo.entity.Role;
 import server.demo.entity.RolePermission;
 import server.demo.enums.PermissionModule;
+import server.demo.enums.PermissionAction;
+import server.demo.exception.PermissionDeniedException;
 import server.demo.repository.RolePermissionRepository;
 import server.demo.repository.RoleRepository;
 import server.demo.repository.RoomTypeRepository;
@@ -53,6 +55,11 @@ public class RolePermissionService {
      */
     @Transactional
     public void updateRolePermissions(Long roleId, List<PermissionDTO> permissionDTOs) {
+        if (permissionDTOs != null && permissionDTOs.stream().anyMatch(dto -> dto != null
+                && dto.getModule() == PermissionModule.ACCOMMODATION
+                && dto.getAction() == PermissionAction.CREATE_INTERNAL_TASK)) {
+            throw new PermissionDeniedException("创建其他任务权限只能直接授予门店成员");
+        }
         Role role = roleRepository.findById(roleId)
                 .orElseThrow(() -> new RuntimeException("角色不存在"));
 

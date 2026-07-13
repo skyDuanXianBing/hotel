@@ -7,6 +7,8 @@ import server.demo.context.StoreContext;
 import server.demo.dto.internaltask.*;
 import server.demo.entity.*;
 import server.demo.enums.InternalTaskStatus;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
 import server.demo.exception.*;
 import server.demo.repository.*;
 import server.demo.util.StoreContextUtils;
@@ -20,11 +22,14 @@ public class InternalTaskService {
     private final StoreUserRepository storeUserRepository;
     private final UserRepository userRepository;
     private final CleanerRepository cleanerRepository;
+    private final PermissionService permissionService;
 
     public InternalTaskService(InternalTaskRepository taskRepository, StoreUserRepository storeUserRepository,
-                               UserRepository userRepository, CleanerRepository cleanerRepository) {
+                               UserRepository userRepository, CleanerRepository cleanerRepository,
+                               PermissionService permissionService) {
         this.taskRepository = taskRepository; this.storeUserRepository = storeUserRepository;
         this.userRepository = userRepository; this.cleanerRepository = cleanerRepository;
+        this.permissionService = permissionService;
     }
 
     @Transactional(readOnly = true)
@@ -37,13 +42,13 @@ public class InternalTaskService {
                 ? Sort.by(Sort.Direction.DESC, "completedAt") : Sort.by(Sort.Direction.DESC, "createdAt");
         Pageable pageable = PageRequest.of(safePage(page), safeSize(size), sort);
         Page<InternalTask> result = taskRepository
-                .findByStoreIdAndAssigneeUserIdAndStatusAndArchivedAtIsNull(
+                .findVisibleToUser(
                         context.getStoreId(), context.getUserId(), status, pageable);
         boolean manager = isManager(context);
         List<InternalTaskDTO> items = result.map(task -> toDto(task, context, manager)).getContent();
-        long assigned = taskRepository.countByStoreIdAndAssigneeUserIdAndStatusAndArchivedAtIsNull(
+        long assigned = taskRepository.countVisibleToUser(
                 context.getStoreId(), context.getUserId(), InternalTaskStatus.ASSIGNED);
-        long completed = taskRepository.countByStoreIdAndAssigneeUserIdAndStatusAndArchivedAtIsNull(
+        long completed = taskRepository.countVisibleToUser(
                 context.getStoreId(), context.getUserId(), InternalTaskStatus.COMPLETED);
         return new InternalTaskPageDTO(items, result.getNumber(), result.getSize(), result.getTotalElements(), assigned, completed);
     }
@@ -95,7 +100,9 @@ public class InternalTaskService {
         StoreContext context = requireActiveContext();
         InternalTask task = scopedTask(id, context.getStoreId());
         boolean manager = isManager(context);
-        if (!manager && !Objects.equals(task.getAssigneeUserId(), context.getUserId())) {
+        if (!manager
+                && !Objects.equals(task.getCreatedByUserId(), context.getUserId())
+                && !Objects.equals(task.getAssigneeUserId(), context.getUserId())) {
             throw new InternalTaskNotFoundException("任务不存在");
         }
         return toDto(task, context, manager);
@@ -103,7 +110,7 @@ public class InternalTaskService {
 
     @Transactional
     public InternalTaskDTO create(InternalTaskCreateRequest request) {
-        StoreContext context = requireManager();
+        StoreContext context = requireCreateInternalTask();
         String title = request == null || request.getTitle() == null ? "" : request.getTitle().trim();
         if (title.isEmpty() || title.length() > 160) throw new IllegalArgumentException("任务标题不能为空且不能超过160个字符");
         User actor = activeUser(context.getUserId());
@@ -111,7 +118,7 @@ public class InternalTaskService {
         task.setDescription(normalizeDescription(request.getDescription())); task.setCreatedByUserId(actor.getId());
         task.setCreatedByNameSnapshot(displayName(actor));
         applyAssignee(task, request.getAssigneeUserId(), context.getStoreId());
-        return toDto(taskRepository.save(task), context, true);
+        return toDto(taskRepository.save(task), context, isManager(context));
     }
 
     @Transactional
@@ -151,7 +158,7 @@ public class InternalTaskService {
 
     @Transactional(readOnly = true)
     public List<InternalTaskAssigneeDTO> getAssignees() {
-        StoreContext context = requireManager(); Long storeId = context.getStoreId();
+        StoreContext context = requireCreateInternalTask(); Long storeId = context.getStoreId();
         Map<Long, Cleaner> activeCleaners = validateCleanerIdentities(storeId);
         List<InternalTaskAssigneeDTO> result = new ArrayList<>();
         for (StoreUser membership : storeUserRepository.findActiveUsersByStoreId(storeId)) {
@@ -183,9 +190,12 @@ public class InternalTaskService {
 
     private void applyAssignee(InternalTask task, Long assigneeUserId, Long storeId) {
         if (assigneeUserId == null) { task.setAssigneeUserId(null); task.setAssigneeNameSnapshot(null); task.setStatus(InternalTaskStatus.UNASSIGNED); return; }
-        User user = activeUser(assigneeUserId);
         StoreUser membership = storeUserRepository.findByStoreIdAndUserId(storeId, assigneeUserId)
                 .filter(item -> Boolean.TRUE.equals(item.getIsActive())).orElseThrow(() -> new InternalTaskConflictException("执行人不是当前门店有效员工"));
+        User user = membership.getUser();
+        if (user == null || user.getId() == null || !Boolean.TRUE.equals(user.getIsActive())) {
+            throw new InternalTaskConflictException("执行人不是当前门店有效员工");
+        }
         List<Cleaner> cleaners = cleanerRepository.findByUserIdAndStoreId(assigneeUserId, storeId);
         if (cleaners.size() > 1) throw new InternalTaskConflictException("执行人在当前门店存在重复保洁身份");
         if (!cleaners.isEmpty()) {
@@ -206,6 +216,14 @@ public class InternalTaskService {
         return context;
     }
     private StoreContext requireManager() { StoreContext context = requireActiveContext(); if (!isManager(context)) throw new PermissionDeniedException("仅门店所有者或管理员可管理内部任务"); return context; }
+    private StoreContext requireCreateInternalTask() {
+        StoreContext context = requireActiveContext();
+        if (!permissionService.hasPermission(context.getStoreId(), context.getUserId(),
+                PermissionModule.ACCOMMODATION, PermissionAction.CREATE_INTERNAL_TASK)) {
+            throw new PermissionDeniedException("您没有创建其他任务的权限");
+        }
+        return context;
+    }
     private boolean isManager(StoreContext context) { return "owner".equalsIgnoreCase(context.getRole()) || "admin".equalsIgnoreCase(context.getRole()); }
     private User activeUser(Long id) { return userRepository.findById(id).filter(user -> Boolean.TRUE.equals(user.getIsActive())).orElseThrow(() -> new PermissionDeniedException("用户账号已停用或不存在")); }
     private InternalTask scopedTask(Long id, Long storeId) { return taskRepository.findByIdAndStoreId(id, storeId).orElseThrow(() -> new InternalTaskNotFoundException("任务不存在")); }

@@ -15,14 +15,21 @@ public interface InternalTaskRepository extends JpaRepository<InternalTask, Long
     Optional<InternalTask> findByIdAndStoreId(Long id, Long storeId);
     Page<InternalTask> findByStoreIdAndArchivedAtIsNull(Long storeId, Pageable pageable);
     Page<InternalTask> findByStoreIdAndStatusAndArchivedAtIsNull(Long storeId, InternalTaskStatus status, Pageable pageable);
-    Page<InternalTask> findByStoreIdAndAssigneeUserIdAndStatusAndArchivedAtIsNull(Long storeId, Long userId, InternalTaskStatus status, Pageable pageable);
-    long countByStoreIdAndAssigneeUserIdAndStatusAndArchivedAtIsNull(Long storeId, Long userId, InternalTaskStatus status);
+    @Query("select t from InternalTask t where t.storeId=:storeId and t.archivedAt is null " +
+           "and (t.createdByUserId=:userId or t.assigneeUserId=:userId) and t.status=:status")
+    Page<InternalTask> findVisibleToUser(@Param("storeId") Long storeId, @Param("userId") Long userId,
+                                         @Param("status") InternalTaskStatus status, Pageable pageable);
+
+    @Query("select count(t) from InternalTask t where t.storeId=:storeId and t.archivedAt is null " +
+           "and (t.createdByUserId=:userId or t.assigneeUserId=:userId) and t.status=:status")
+    long countVisibleToUser(@Param("storeId") Long storeId, @Param("userId") Long userId,
+                            @Param("status") InternalTaskStatus status);
     long countByStoreIdAndStatusAndArchivedAtIsNull(Long storeId, InternalTaskStatus status);
 
     @Query("""
             select t from InternalTask t
             where t.storeId = :storeId and t.archivedAt is null
-              and (:manager = true or t.assigneeUserId = :userId)
+              and (:manager = true or t.createdByUserId = :userId or t.assigneeUserId = :userId)
               and (:status is null or t.status = :status)
               and (t.status <> server.demo.enums.InternalTaskStatus.COMPLETED
                    or t.completedAt >= :completedSince)
@@ -47,7 +54,7 @@ public interface InternalTaskRepository extends JpaRepository<InternalTask, Long
                                      Pageable pageable);
 
     @Query("select count(t) from InternalTask t where t.storeId=:storeId and t.archivedAt is null " +
-           "and (:manager=true or t.assigneeUserId=:userId) and t.status=:status " +
+           "and (:manager=true or t.createdByUserId=:userId or t.assigneeUserId=:userId) and t.status=:status " +
            "and (:completedSince is null or t.completedAt >= :completedSince)")
     long countHome(@Param("storeId") Long storeId, @Param("userId") Long userId,
                    @Param("manager") boolean manager, @Param("status") InternalTaskStatus status,

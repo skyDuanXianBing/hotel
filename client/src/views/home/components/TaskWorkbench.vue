@@ -23,11 +23,7 @@
     </div>
 
     <div class="type-strip" role="tablist" :aria-label="t('pages.home.workbench.typeFilter')">
-      <div
-        v-for="summary in taskTypeSummaries"
-        :key="summary.type"
-        class="type-chip-shell"
-      >
+      <div v-for="summary in taskTypeSummaries" :key="summary.type" class="type-chip-shell">
         <button
           class="type-chip"
           :class="{ active: activeType === summary.type }"
@@ -47,7 +43,7 @@
           </span>
         </button>
         <button
-          v-if="summary.type === 'other' && canManageInternalTasks"
+          v-if="summary.type === 'other' && canCreateInternalTasks"
           type="button"
           class="other-add-button"
           :aria-label="t('pages.home.workbench.internalTasks.createTitle')"
@@ -194,8 +190,9 @@
 
     <InternalTaskCenter
       ref="internalTaskCenterRef"
+      :can-create="canCreateInternalTasks"
       :can-manage="canManageInternalTasks"
-      @updated="queueWorkbenchRefresh"
+      @updated="handleInternalTaskUpdated"
     />
   </section>
 </template>
@@ -212,6 +209,8 @@ import workbenchOrderIcon from '@/assets/home/workbench-order.svg'
 import workbenchOtherIcon from '@/assets/home/workbench-other.svg'
 import workbenchReviewIcon from '@/assets/home/workbench-review.svg'
 import { useStoreStore } from '@/stores/store'
+import { usePermissionStore } from '@/stores/permission'
+import { PermissionAction, PermissionModule } from '@/api/role'
 import InternalTaskCenter from '@/views/home/components/InternalTaskCenter.vue'
 import { getWorkbenchStatusLabelKey } from '@/views/home/composables/workbenchPagination'
 import {
@@ -260,7 +259,14 @@ const {
 } = useHomeTaskWorkbench()
 
 const storeStore = useStoreStore()
+const permissionStore = usePermissionStore()
 const canManageInternalTasks = computed(() => storeStore.hasAdminPermission)
+const canCreateInternalTasks = computed(() =>
+  permissionStore.hasPermission(
+    PermissionModule.ACCOMMODATION,
+    PermissionAction.CREATE_INTERNAL_TASK
+  )
+)
 const internalTaskCenterRef = ref<InstanceType<typeof InternalTaskCenter> | null>(null)
 const taskListShellRef = ref<HTMLElement | null>(null)
 const loadMoreSentinelRef = ref<HTMLElement | null>(null)
@@ -269,6 +275,8 @@ let loadMoreObserver: IntersectionObserver | null = null
 let listResizeObserver: ResizeObserver | null = null
 let refreshTimer: number | null = null
 let refreshDebounceTimer: number | null = null
+let createdRefreshPromise: Promise<void> | null = null
+let createdRefreshSeq = 0
 let unmounted = false
 
 const REFRESH_DELAY_MS = 30_000
@@ -307,7 +315,7 @@ const allowedRouteNames = new Set([
 ])
 
 const normalizeRouteRecord = (
-  source?: Record<string, string | number | boolean | null | undefined>,
+  source?: Record<string, string | number | boolean | null | undefined>
 ) => {
   const normalized: Record<string, string> = {}
   if (!source) {
@@ -325,7 +333,7 @@ const normalizeRouteRecord = (
 }
 
 const getTargetShortcutQuery = (
-  target: Exclude<WorkbenchTaskTarget, string | null | undefined>,
+  target: Exclude<WorkbenchTaskTarget, string | null | undefined>
 ) => {
   const query: Record<string, string> = {}
   if (target.reservationId) {
@@ -380,7 +388,7 @@ const resolveStringTargetRoute = (target: string): RouteLocationRaw | null => {
 }
 
 const resolveObjectTargetRoute = (
-  target: Exclude<WorkbenchTaskTarget, string | null | undefined>,
+  target: Exclude<WorkbenchTaskTarget, string | null | undefined>
 ): RouteLocationRaw | null => {
   const routeName = target.routeName || target.name || ''
   const query = {
@@ -506,7 +514,9 @@ const rebuildLoadMoreObserver = async () => {
   if (unmounted || !hasMore.value || !loadMoreSentinelRef.value) return
   const shell = taskListShellRef.value
   const scrollsInternally = Boolean(
-    shell && getComputedStyle(shell).overflowY !== 'visible' && shell.scrollHeight > shell.clientHeight,
+    shell &&
+      getComputedStyle(shell).overflowY !== 'visible' &&
+      shell.scrollHeight > shell.clientHeight
   )
   loadMoreObserver = new IntersectionObserver(
     (entries) => {
@@ -519,7 +529,7 @@ const rebuildLoadMoreObserver = async () => {
         void loadMoreWorkbench().finally(rebuildLoadMoreObserver)
       }
     },
-    { root: scrollsInternally ? shell : null, rootMargin: '0px 0px 400px 0px', threshold: 0 },
+    { root: scrollsInternally ? shell : null, rootMargin: '0px 0px 400px 0px', threshold: 0 }
   )
   loadMoreObserver.observe(loadMoreSentinelRef.value)
 }
@@ -618,6 +628,30 @@ const queueWorkbenchRefresh = () => {
   }, REFRESH_EVENT_DEBOUNCE_MS)
 }
 
+const refreshAfterInternalTaskCreated = () => {
+  if (unmounted || createdRefreshPromise) return createdRefreshPromise
+  const seq = ++createdRefreshSeq
+  clearRefreshTimer()
+  clearRefreshDebounce()
+  taskListShellRef.value?.scrollTo({ top: 0 })
+  createdRefreshPromise = refreshFromTop()
+    .finally(() => {
+      if (seq !== createdRefreshSeq) return
+      void rebuildLoadMoreObserver()
+      scheduleNextRefresh()
+      createdRefreshPromise = null
+    })
+  return createdRefreshPromise
+}
+
+const handleInternalTaskUpdated = (reason: 'created' | 'updated') => {
+  if (reason === 'created') {
+    void refreshAfterInternalTaskCreated()
+    return
+  }
+  queueWorkbenchRefresh()
+}
+
 const refreshWhenActive = () => {
   if (document.visibilityState === 'visible') {
     queueWorkbenchRefresh()
@@ -656,6 +690,8 @@ watch(
     if (nextStoreId === previousStoreId) return
     clearRefreshTimer()
     clearRefreshDebounce()
+    createdRefreshSeq += 1
+    createdRefreshPromise = null
     clearWorkbench()
     internalTaskCenterRef.value?.reset()
     if (nextStoreId) {
@@ -665,7 +701,7 @@ watch(
         scheduleNextRefresh()
       })
     }
-  },
+  }
 )
 
 watch(resetToken, () => {
@@ -677,6 +713,8 @@ onBeforeUnmount(() => {
   unmounted = true
   clearRefreshTimer()
   clearRefreshDebounce()
+  createdRefreshSeq += 1
+  createdRefreshPromise = null
   loadMoreObserver?.disconnect()
   listResizeObserver?.disconnect()
   loadMoreObserver = null

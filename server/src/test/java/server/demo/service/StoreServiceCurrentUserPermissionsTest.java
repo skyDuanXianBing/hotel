@@ -43,6 +43,7 @@ class StoreServiceCurrentUserPermissionsTest {
         StoreUser storeUser = new StoreUser();
         storeUser.setId(8L);
         storeUser.setRole("member");
+        storeUser.setIsActive(true);
         storeUser.setRoles(Set.of(createRoleWithPermissions()));
 
         StoreUserPermission extraOrderModify = new StoreUserPermission();
@@ -84,6 +85,7 @@ class StoreServiceCurrentUserPermissionsTest {
     void getCurrentUserEffectivePermissions_ownerReturnsManagerPermissions() {
         StoreUser storeUser = new StoreUser();
         storeUser.setRole("owner");
+        storeUser.setIsActive(true);
 
         Mockito.when(storeUserRepository.findByStoreIdAndUserId(11L, 21L)).thenReturn(Optional.of(storeUser));
 
@@ -107,9 +109,36 @@ class StoreServiceCurrentUserPermissionsTest {
         ));
         assertTrue(result.stream().anyMatch(permission ->
                 permission.getModule() == PermissionModule.ACCOMMODATION
+                        && permission.getAction() == PermissionAction.CREATE_INTERNAL_TASK
+        ));
+        assertTrue(result.stream().anyMatch(permission ->
+                permission.getModule() == PermissionModule.ACCOMMODATION
                         && permission.getAction() == PermissionAction.VIEW_ROOM_STATUS
                         && Boolean.TRUE.equals(permission.getAllRoomTypes())
         ));
+    }
+
+    @Test
+    void getCurrentUserEffectivePermissions_adminOnlyReceivesProtectedActionFromExtraPermissions() {
+        StoreUser admin = new StoreUser();
+        admin.setId(9L);
+        admin.setRole("admin");
+        admin.setIsActive(true);
+        Mockito.when(storeUserRepository.findByStoreIdAndUserId(11L, 21L)).thenReturn(Optional.of(admin));
+        Mockito.when(storeUserPermissionRepository.findByStoreUser_Id(9L)).thenReturn(List.of());
+
+        List<PermissionDTO> withoutGrant = service.getCurrentUserEffectivePermissions(11L, 21L);
+        assertTrue(withoutGrant.stream().noneMatch(permission ->
+                permission.getAction() == PermissionAction.CREATE_INTERNAL_TASK));
+        assertTrue(withoutGrant.stream().anyMatch(permission ->
+                permission.getAction() == PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS));
+
+        StoreUserPermission grant = new StoreUserPermission(
+                admin, PermissionModule.ACCOMMODATION, PermissionAction.CREATE_INTERNAL_TASK);
+        Mockito.when(storeUserPermissionRepository.findByStoreUser_Id(9L)).thenReturn(List.of(grant));
+        List<PermissionDTO> withGrant = service.getCurrentUserEffectivePermissions(11L, 21L);
+        assertTrue(withGrant.stream().anyMatch(permission ->
+                permission.getAction() == PermissionAction.CREATE_INTERNAL_TASK));
     }
 
     private static Role createRoleWithPermissions() {

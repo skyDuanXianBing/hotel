@@ -24,6 +24,27 @@ class HomeWorkbenchKeysetQueryContractTest {
                 "case when t.status", "coalesce(t.completedat, t.updatedat)", "t.id > :cursorid", "order by");
     }
 
+    @Test
+    void internalTaskQueriesUseOneCreatorOrAssigneeVisibilityPredicate() {
+        assertQueryContains(InternalTaskRepository.class, "findVisibleToUser",
+                "t.createdbyuserid=:userid or t.assigneeuserid=:userid");
+        assertQueryContains(InternalTaskRepository.class, "countVisibleToUser",
+                "t.createdbyuserid=:userid or t.assigneeuserid=:userid");
+        assertQueryContains(InternalTaskRepository.class, "findHomeSlice",
+                ":manager = true or t.createdbyuserid = :userid or t.assigneeuserid = :userid");
+        assertQueryContains(InternalTaskRepository.class, "countHome",
+                ":manager=true or t.createdbyuserid=:userid or t.assigneeuserid=:userid");
+    }
+
+    private static void assertQueryContains(Class<?> repository, String methodName, String fragment) {
+        Method method = Arrays.stream(repository.getMethods())
+                .filter(candidate -> candidate.getName().equals(methodName))
+                .findFirst().orElseThrow();
+        Query query = method.getAnnotation(Query.class);
+        String sql = query.value().toLowerCase().replaceAll("\\s+", " ");
+        assertTrue(sql.contains(fragment), repository.getSimpleName() + " missing " + fragment);
+    }
+
     private static void assertQuery(Class<?> repository, String methodName, String... fragments) {
         Method method = Arrays.stream(repository.getMethods())
                 .filter(candidate -> candidate.getName().equals(methodName))

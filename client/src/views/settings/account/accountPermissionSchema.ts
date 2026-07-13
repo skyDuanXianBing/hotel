@@ -9,6 +9,7 @@ export type ExtraPermissionKey =
   | 'viewPriceLog'
   | 'batchChangePrice'
   | 'taskList'
+  | 'createInternalTask'
   | 'viewOrders'
   | 'modifyOrder'
   | 'cancelOrder'
@@ -25,6 +26,7 @@ export interface PermissionItemConfig {
   label: string
   module: PermissionModule
   action: PermissionAction
+  ownerOnly?: boolean
 }
 
 export interface PermissionSectionConfig {
@@ -103,6 +105,18 @@ export const ACCOUNT_PERMISSION_TABS: PermissionTabConfig[] = [
             label: 'settingsStage4.accountPermission.items.taskList',
             module: PermissionModule.ACCOMMODATION,
             action: PermissionAction.TASK_LIST,
+          },
+        ],
+      },
+      {
+        title: 'settingsStage4.accountPermission.sections.internalTasks',
+        items: [
+          {
+            key: 'createInternalTask',
+            label: 'settingsStage4.accountPermission.items.createInternalTask',
+            module: PermissionModule.ACCOMMODATION,
+            action: PermissionAction.CREATE_INTERNAL_TASK,
+            ownerOnly: true,
           },
         ],
       },

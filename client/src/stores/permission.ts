@@ -1,10 +1,6 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import {
-  PermissionAction,
-  PermissionModule,
-  type PermissionDTO,
-} from '@/api/role'
+import { PermissionAction, PermissionModule, type PermissionDTO } from '@/api/role'
 import { getMyStorePermissions } from '@/api/store'
 import { useStoreStore } from '@/stores/store'
 import { i18n } from '@/locales'
@@ -33,17 +29,21 @@ export const usePermissionStore = defineStore('permission', () => {
   const permissions = ref<PermissionDTO[]>([])
   const loading = ref(false)
   const loadedStoreId = ref<number | null>(null)
+  let requestSeq = 0
 
   const currentStoreId = computed(() => storeStore.currentStore?.id ?? null)
   const isStoreManager = computed(() => {
     const role = storeStore.currentStore?.userRole ?? ''
     return role === 'owner' || role === 'admin'
   })
+  const isStoreOwner = computed(() => storeStore.currentStore?.userRole === 'owner')
   const permissionKeySet = computed(() => new Set(permissions.value.map(buildPermissionKey)))
 
   const clearPermissions = () => {
+    requestSeq += 1
     permissions.value = []
     loadedStoreId.value = null
+    loading.value = false
   }
 
   const fetchCurrentStorePermissions = async (force = false) => {
@@ -52,30 +52,47 @@ export const usePermissionStore = defineStore('permission', () => {
       return []
     }
 
-    if (isStoreManager.value) {
-      loadedStoreId.value = currentStoreId.value
+    const requestedStoreId = currentStoreId.value
+
+    if (isStoreOwner.value) {
+      clearPermissions()
+      loadedStoreId.value = requestedStoreId
       permissions.value = []
       return []
     }
 
-    if (!force && loadedStoreId.value === currentStoreId.value) {
+    if (!force && loadedStoreId.value === requestedStoreId) {
       return permissions.value
     }
 
+    const seq = ++requestSeq
+    permissions.value = []
+    loadedStoreId.value = null
     loading.value = true
     try {
-      const response = await getMyStorePermissions(currentStoreId.value)
+      const response = await getMyStorePermissions(requestedStoreId)
+      if (seq !== requestSeq || currentStoreId.value !== requestedStoreId) {
+        return permissions.value
+      }
       if (!response.success) {
-        throw new Error(response.message || translate('stage6.common.messages.fetchStorePermissionsFailed'))
+        throw new Error(
+          response.message || translate('stage6.common.messages.fetchStorePermissionsFailed')
+        )
       }
       permissions.value = response.data || []
-      loadedStoreId.value = currentStoreId.value
+      loadedStoreId.value = requestedStoreId
       return permissions.value
     } catch (error) {
-      clearPermissions()
+      if (seq !== requestSeq || currentStoreId.value !== requestedStoreId) {
+        return permissions.value
+      }
+      permissions.value = []
+      loadedStoreId.value = null
       throw error
     } finally {
-      loading.value = false
+      if (seq === requestSeq) {
+        loading.value = false
+      }
     }
   }
 
@@ -84,6 +101,18 @@ export const usePermissionStore = defineStore('permission', () => {
     action: PermissionAction,
     roomTypeId?: number
   ) => {
+    if (
+      module === PermissionModule.ACCOMMODATION &&
+      action === PermissionAction.CREATE_INTERNAL_TASK
+    ) {
+      return (
+        isStoreOwner.value ||
+        permissions.value.some(
+          (permission) => permission.module === module && permission.action === action
+        )
+      )
+    }
+
     if (isStoreManager.value) {
       return true
     }
@@ -110,6 +139,16 @@ export const usePermissionStore = defineStore('permission', () => {
     )
   }
 
+  watch(
+    currentStoreId,
+    (storeId, previousStoreId) => {
+      if (storeId !== previousStoreId) {
+        clearPermissions()
+      }
+    },
+    { flush: 'sync' }
+  )
+
   const hasPermissions = (
     requirements: PermissionRequirement[] = [],
     matchMode: PermissionMatchMode = 'all'
@@ -130,6 +169,7 @@ export const usePermissionStore = defineStore('permission', () => {
     loading,
     loadedStoreId,
     isStoreManager,
+    isStoreOwner,
     fetchCurrentStorePermissions,
     clearPermissions,
     hasPermission,
