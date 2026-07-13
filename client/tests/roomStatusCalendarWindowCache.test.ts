@@ -76,4 +76,31 @@ describe('room status calendar LRU and request coordination', () => {
     await expect(cache.load('failed', async () => 1)).rejects.toBeInstanceOf(CalendarWindowBackoffError)
     await expect(cache.load('failed', async () => 2, { force: true })).resolves.toBe(2)
   })
+
+  test('does not back cancellation off and allows an immediate retry after pending cleanup', async () => {
+    const cache = new CalendarWindowCache<number>({ jitter: () => 0.5 })
+    let calls = 0
+    const cancellation = Object.assign(new Error('canceled'), {
+      name: 'CanceledError',
+      code: 'ERR_CANCELED',
+    })
+
+    await expect(
+      cache.load('canceled', async () => {
+        calls += 1
+        throw cancellation
+      }),
+    ).rejects.toBe(cancellation)
+
+    expect(cache.retryAt('canceled')).toBeUndefined()
+    expect(cache.canRequest('canceled')).toBe(true)
+    expect(cache.getPending('canceled')).toBeUndefined()
+    await expect(
+      cache.load('canceled', async () => {
+        calls += 1
+        return 9
+      }),
+    ).resolves.toBe(9)
+    expect(calls).toBe(2)
+  })
 })

@@ -10,6 +10,9 @@ const assert = (condition: boolean, message: string): void => {
 }
 
 const calendar = read('src/views/room-status/RoomStatusCalendar.vue')
+const request = read('src/utils/request.ts')
+const cache = read('src/views/room-status/calendarWindowCache.ts')
+const locale = read('src/locales/messages/accommodationRoomStatus.ts')
 const navigationStart = calendar.indexOf('const navigateToCalendarWindow =')
 const navigationEnd = calendar.indexOf('// 业务变更和首次进入', navigationStart)
 const navigation = calendar.slice(navigationStart, navigationEnd)
@@ -33,6 +36,38 @@ const contextInvalidationEnd = calendar.indexOf('const transformCalendarWindow =
 const contextInvalidation = calendar.slice(contextInvalidationStart, contextInvalidationEnd)
 
 assert(navigationStart >= 0 && navigationEnd > navigationStart, 'navigation must remain auditable')
+assert(
+  (calendar.match(/isRequestCancellationError\(error\)/g) || []).length >= 3,
+  'all three calendar request catches must use the shared cancellation helper',
+)
+assert(
+  !calendar.includes("error instanceof DOMException && error.name === 'AbortError'"),
+  'calendar catches must not rely on a DOMException-only cancellation check',
+)
+const responseErrorInterceptor = request.slice(
+  request.indexOf('(error) => {', request.indexOf('interceptors.response.use')),
+)
+const cancellationShortCircuitIndex = responseErrorInterceptor.indexOf(
+  'isRequestCancellationError(error)',
+)
+assert(
+  cancellationShortCircuitIndex >= 0 &&
+    cancellationShortCircuitIndex <
+      responseErrorInterceptor.indexOf('shouldSuppressErrorToast(error)') &&
+    cancellationShortCircuitIndex < responseErrorInterceptor.indexOf('clearAllLocalSessions()') &&
+    cancellationShortCircuitIndex < responseErrorInterceptor.indexOf('ElMessage.error'),
+  'request interceptor must reject cancellation before auth or toast side effects',
+)
+assert(
+  cache.includes('if (isRequestCancellationError(error))') &&
+    cache.indexOf('if (isRequestCancellationError(error))') <
+      cache.indexOf('this.failures.set(key'),
+  'calendar cache must exclude cancellation from failure backoff',
+)
+assert(!locale.includes('使用模拟数据'), 'calendar failure copy must not claim mock data is used')
+assert(!locale.includes('使用模擬資料'), 'traditional Chinese copy must not claim mock data is used')
+assert(!locale.includes('Using mock data'), 'English copy must not claim mock data is used')
+assert(!locale.includes('モックデータを使用'), 'Japanese copy must not claim mock data is used')
 assert(navigation.includes('calendarWindowCache.get(key)'), 'navigation must check cache first')
 assert(!navigation.includes('loadRoomTypesData'), 'navigation must not rebuild room skeletons')
 assert(!navigation.includes('loading.value = true'), 'navigation hit/miss must avoid full-table loading')

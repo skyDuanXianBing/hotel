@@ -2535,6 +2535,7 @@ import {
   type RoomGroupMemberDTO,
 } from '@/api/roomGroup'
 import { calculateTotalPriceByDates } from '@/utils/priceHelper'
+import { isRequestCancellationError } from '@/utils/requestCancellation'
 import { useAccommodationI18n } from '@/composables/useAccommodationI18n'
 import {
   addCalendarMonthsToYmd,
@@ -5248,15 +5249,14 @@ const prefetchCalendarWindow = async (
   try {
     await requestCalendarWindow(range)
   } catch (error) {
+    if (isRequestCancellationError(error)) return
     if (
       error instanceof CalendarWindowBackoffError ||
       contextGeneration !== calendarWindowContextGeneration
     ) {
       return
     }
-    if (!(error instanceof DOMException && error.name === 'AbortError')) {
-      console.warn('后台预取相邻房态窗口失败:', error)
-    }
+    console.warn('后台预取相邻房态窗口失败:', error)
   }
 }
 
@@ -5309,10 +5309,10 @@ const navigateToCalendarWindow = async (range: CalendarDateRange) => {
     applyCalendarWindow(data)
     scheduleAdjacentCalendarWindows(range)
   } catch (error) {
+    if (isRequestCancellationError(error)) return
     if (
       contextGeneration === calendarWindowContextGeneration &&
-      viewGeneration === calendarWindowViewGeneration &&
-      !(error instanceof DOMException && error.name === 'AbortError')
+      viewGeneration === calendarWindowViewGeneration
     ) {
       restoreVisibleRangeAfterNavigationFailure()
       console.error('加载目标房态窗口失败:', error)
@@ -5344,10 +5344,9 @@ const loadRoomStatusCalendarData = async () => {
     applyCalendarWindow(data)
     scheduleAdjacentCalendarWindows(range)
   } catch (error) {
-    if (!(error instanceof DOMException && error.name === 'AbortError')) {
-      console.error('加载房态日历数据失败:', error)
-      ElMessage.warning(t('roomStatus.messages.loadCalendarFallback'))
-    }
+    if (isRequestCancellationError(error)) return
+    console.error('加载房态日历数据失败:', error)
+    ElMessage.warning(t('roomStatus.messages.loadCalendarFallback'))
   } finally {
     if (contextGeneration === calendarWindowContextGeneration) loading.value = false
   }

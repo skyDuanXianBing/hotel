@@ -1056,7 +1056,7 @@ export const accommodationRoomStatusMessages = {
         updatePriceFailed: 'Failed to update the room rate',
       },
       messages: {
-        loadCalendarFallback: 'Failed to load room status data. Using mock data',
+        loadCalendarFallback: 'Failed to load room status data. Please try again later',
         loadCalendarFailed: 'Failed to load room status data',
         missingOrderInfo: 'Order information not found',
         missingReservationInfo: 'Reservation information not found',
@@ -2128,7 +2128,7 @@ export const accommodationRoomStatusMessages = {
         updatePriceFailed: '更新房价失败',
       },
       messages: {
-        loadCalendarFallback: '加载房态数据失败，使用模拟数据',
+        loadCalendarFallback: '加载房态数据失败，请稍后重试',
         loadCalendarFailed: '加载房态数据失败',
         missingOrderInfo: '未找到订单信息',
         missingReservationInfo: '未找到预订信息',
@@ -3199,7 +3199,7 @@ export const accommodationRoomStatusMessages = {
         updatePriceFailed: '更新房價失敗',
       },
       messages: {
-        loadCalendarFallback: '載入房態資料失敗，使用模擬資料',
+        loadCalendarFallback: '載入房態資料失敗，請稍後重試',
         loadCalendarFailed: '載入房態資料失敗',
         missingOrderInfo: '未找到訂單資訊',
         missingReservationInfo: '未找到預訂資訊',
@@ -4282,7 +4282,7 @@ export const accommodationRoomStatusMessages = {
         updatePriceFailed: '料金更新に失敗しました',
       },
       messages: {
-        loadCalendarFallback: '客室状況データの読み込みに失敗したため、モックデータを使用します',
+        loadCalendarFallback: '客室状況データの読み込みに失敗しました。しばらくしてから再試行してください',
         loadCalendarFailed: '客室状況データの読み込みに失敗しました',
         missingOrderInfo: '注文情報が見つかりません',
         missingReservationInfo: '予約情報が見つかりません',

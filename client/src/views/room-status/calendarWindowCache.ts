@@ -1,3 +1,5 @@
+import { isRequestCancellationError } from '../../utils/requestCancellation'
+
 export type CalendarDateRange = readonly [string, string]
 
 export interface CalendarWindowContext {
@@ -143,6 +145,10 @@ export class CalendarWindowCache<T> {
         return value
       })
       .catch((error) => {
+        if (isRequestCancellationError(error)) {
+          throw error
+        }
+
         const attempts = (this.failures.get(key)?.attempts ?? 0) + 1
         const baseDelay = Math.min(
           this.maxBackoffMs,

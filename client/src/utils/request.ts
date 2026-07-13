@@ -8,6 +8,7 @@ import {
   PMS_TOKEN_KEY,
   clearAllLocalSessions,
 } from '@/utils/cleanerSession'
+import { isRequestCancellationError } from '@/utils/requestCancellation'
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -99,6 +100,10 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   (response: AxiosResponse) => response.data,
   (error) => {
+    if (isRequestCancellationError(error)) {
+      return Promise.reject(error)
+    }
+
     const suppressErrorToast = shouldSuppressErrorToast(error)
 
     if (error.response?.status === 401) {
