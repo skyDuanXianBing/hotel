@@ -73,10 +73,12 @@ export interface ApiResponse<T> {
 export const getRoomStatusCalendar = async (
   startDate: string,
   endDate: string,
+  signal?: AbortSignal,
 ): Promise<ApiResponse<RoomStatusCalendarDTO>> => {
   return await request.get('/room-status/calendar', {
     params: { startDate, endDate },
     timeout: ROOM_STATUS_CALENDAR_TIMEOUT_MS,
+    signal,
   })
 }
 

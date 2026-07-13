@@ -125,7 +125,12 @@
       </div>
 
       <!-- 主要内容区域 -->
-      <div class="calendar-content" v-loading="loading">
+      <div
+        ref="calendarContentRef"
+        class="calendar-content"
+        v-loading="loading"
+        @scroll.passive="onCalendarScroll"
+      >
         <div class="calendar-container">
           <!-- 日期表头 -->
           <div class="date-header">
@@ -2453,6 +2458,7 @@ import {
   computed,
   watch,
   nextTick,
+  markRaw,
 } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
@@ -2479,6 +2485,7 @@ import {
 import { useRoomStatusStore } from '@/stores/roomStatus'
 import { useUserStore } from '@/stores/user'
 import { useStoreStore } from '@/stores/store'
+import { usePermissionStore } from '@/stores/permission'
 import {
   createReservation,
   checkInReservation,
@@ -2495,7 +2502,12 @@ import {
   type ReservationHoverSummaryCapabilities,
   type ReservationHoverSummaryItem,
 } from '@/api/reservation'
-import { closeRoomBlockouts, getRoomStatusCalendar, openRoomBlockouts } from '@/api/roomStatus'
+import {
+  closeRoomBlockouts,
+  getRoomStatusCalendar,
+  openRoomBlockouts,
+  type RoomStatusCalendarDTO,
+} from '@/api/roomStatus'
 import type { CreateReservationRequest } from '@/api/reservation'
 import { RoomStatus, ReservationStatus } from '@/types/room'
 import type { CalendarRoomData, DailyRoomStatus } from '@/types/room'
@@ -2567,12 +2579,22 @@ import {
   normalizeReservationIds,
   runWithConcurrency,
 } from './hoverSummaryCache'
+import {
+  buildCalendarWindowKey,
+  CalendarWindowBackoffError,
+  CalendarWindowCache,
+  scheduleCalendarWindowIdleTask,
+  shiftCalendarWindow,
+  type CalendarDateRange,
+  type CalendarWindowContext,
+} from './calendarWindowCache'
 
 const router = useRouter()
 const route = useRoute()
 const roomStatusStore = useRoomStatusStore()
 const userStore = useUserStore()
 const storeStore = useStoreStore()
+const permissionStore = usePermissionStore()
 const { t } = useI18n()
 const { batchDateSelectorLabelMap, closeRoomTypeLabelMap, weekdayShortMap } = useAccommodationI18n()
 
@@ -2616,6 +2638,7 @@ const bookingMode = ref<'create' | 'edit' | 'check-in'>('create')
 const showBookingDetailSidebar = ref(false)
 const selectedReservation = ref<any>(null)
 const reservationDetailRequestId = ref(0)
+let sensitiveCalendarUiGeneration = 0
 const detailNotesDraft = ref('')
 const savingDetailNotes = ref(false)
 const activeDetailTab = ref('detail')
@@ -2759,19 +2782,31 @@ const suWebhookStatusOptions = computed<Array<{ label: string; value: SuWebhookE
 )
 
 const loadSuWebhookEvents = async () => {
+  const generation = sensitiveCalendarUiGeneration
+  const requestedStatus = suWebhookStatusFilter.value
   suWebhookEventsLoading.value = true
   try {
-    const res = await getSuWebhookEvents({ status: suWebhookStatusFilter.value, size: 50 })
+    const res = await getSuWebhookEvents({ status: requestedStatus, size: 50 })
+    if (
+      generation !== sensitiveCalendarUiGeneration ||
+      requestedStatus !== suWebhookStatusFilter.value
+    ) {
+      return
+    }
     if (res.success) {
       suWebhookEvents.value = res.data || []
     } else {
       suWebhookEvents.value = []
     }
   } catch (error) {
-    console.error('加载补偿事件失败:', error)
-    suWebhookEvents.value = []
+    if (generation === sensitiveCalendarUiGeneration) {
+      console.error('加载补偿事件失败:', error)
+      suWebhookEvents.value = []
+    }
   } finally {
-    suWebhookEventsLoading.value = false
+    if (generation === sensitiveCalendarUiGeneration) {
+      suWebhookEventsLoading.value = false
+    }
   }
 }
 
@@ -2805,38 +2840,52 @@ watch(suWebhookStatusFilter, async () => {
 })
 
 const loadOperationLogs = async (reservationId: number) => {
+  const generation = sensitiveCalendarUiGeneration
+  const isCurrentRequest = () =>
+    generation === sensitiveCalendarUiGeneration &&
+    Number(selectedReservation.value?.id || 0) === reservationId
   operationLogsLoading.value = true
   operationLogs.value = []
   try {
     const res = await getOperationLogsByReservationId(reservationId)
+    if (!isCurrentRequest()) return
     if (res.success) {
       operationLogs.value = res.data || []
     } else {
       operationLogs.value = []
     }
   } catch (error) {
-    console.error('加载操作日志失败:', error)
-    operationLogs.value = []
+    if (isCurrentRequest()) {
+      console.error('加载操作日志失败:', error)
+      operationLogs.value = []
+    }
   } finally {
-    operationLogsLoading.value = false
+    if (isCurrentRequest()) operationLogsLoading.value = false
   }
 }
 
 const loadChannelInfo = async (reservationId: number) => {
+  const generation = sensitiveCalendarUiGeneration
+  const isCurrentRequest = () =>
+    generation === sensitiveCalendarUiGeneration &&
+    Number(selectedReservation.value?.id || 0) === reservationId
   channelInfoLoading.value = true
   channelInfo.value = null
   try {
     const res = await getReservationChannelInfo(reservationId)
+    if (!isCurrentRequest()) return
     if (res.success) {
       channelInfo.value = res.data || null
     } else {
       channelInfo.value = null
     }
   } catch (error) {
-    console.error('加载渠道信息失败:', error)
-    channelInfo.value = null
+    if (isCurrentRequest()) {
+      console.error('加载渠道信息失败:', error)
+      channelInfo.value = null
+    }
   } finally {
-    channelInfoLoading.value = false
+    if (isCurrentRequest()) channelInfoLoading.value = false
   }
 }
 
@@ -2911,8 +2960,12 @@ const getReservationVisibleRange = (dailyStatus: DailyRoomStatus) => {
   const stayEndDate = getReservationStayEndDate(reservation)
   if (!checkInDate || !stayEndDate) return null
 
-  const visibleStartDate = normalizeDateOnly(visibleDateRange.value[0])
-  const visibleEndDate = normalizeDateOnly(visibleDateRange.value[1])
+  const visibleStartDate = normalizeDateOnly(
+    calendarData.value.dateRange.startDate || visibleDateRange.value[0],
+  )
+  const visibleEndDate = normalizeDateOnly(
+    calendarData.value.dateRange.endDate || visibleDateRange.value[1],
+  )
   const startDate = checkInDate > visibleStartDate ? checkInDate : visibleStartDate
   const endDate = stayEndDate < visibleEndDate ? stayEndDate : visibleEndDate
 
@@ -3449,6 +3502,8 @@ const calendarManagementPriceMap = ref<Map<string, number>>(new Map())
 const calendarDefaultManagementPriceMap = ref<Map<string, number>>(new Map())
 const calendarManagementMinStayMap = ref<Map<string, number>>(new Map())
 const calendarDefaultManagementMinStayMap = ref<Map<string, number>>(new Map())
+let calendarManagementPriceGeneration = 0
+let calendarDefaultPriceGeneration = 0
 const DEFAULT_SORT_ORDER = 999999
 const roomTypeIdMap = ref<Map<string, number>>(new Map())
 const roomTypeSortOrderMap = ref<Record<number, number>>({})
@@ -3648,8 +3703,52 @@ const resetCalendarDefaultManagementPriceCache = () => {
   loadedCalendarDefaultPriceRangeSignature.value = ''
 }
 
+const invalidateCalendarPriceRequests = () => {
+  calendarManagementPriceGeneration += 1
+  calendarDefaultPriceGeneration += 1
+  loadingCalendarManagementPrices.value = false
+  loadingCalendarDefaultManagementPrices.value = false
+}
+
+const buildCalendarPriceContextSignature = (
+  startDate: string,
+  endDate: string,
+  source: string,
+) =>
+  [
+    userStore.currentUser?.id || 0,
+    storeStore.currentStore?.id || 0,
+    storeStore.currentStore?.timezone || '',
+    storeStore.currentStore?.userRole || '',
+    getCalendarPermissionContext(),
+    startDate,
+    endDate,
+    source,
+  ].join('|')
+
+const isCalendarPriceCommitCurrent = (
+  generation: number,
+  currentGeneration: number,
+  contextSignature: string,
+  startDate: string,
+  endDate: string,
+  source: string,
+) =>
+  generation === currentGeneration &&
+  showCellDefaultPrice.value &&
+  cellPriceDisplaySource.value === source &&
+  contextSignature === buildCalendarPriceContextSignature(startDate, endDate, source) &&
+  visibleDateRange.value[0] === startDate &&
+  visibleDateRange.value[1] === endDate &&
+  lastAppliedCalendarRange?.[0] === startDate &&
+  lastAppliedCalendarRange?.[1] === endDate &&
+  calendarData.value.dateRange.startDate === startDate &&
+  calendarData.value.dateRange.endDate === endDate
+
 const loadCalendarDefaultManagementPrices = async (force = false) => {
+  const generation = ++calendarDefaultPriceGeneration
   if (!showCellDefaultPrice.value || cellPriceDisplaySource.value !== 'default') {
+    loadingCalendarDefaultManagementPrices.value = false
     resetCalendarDefaultManagementPriceCache()
     return
   }
@@ -3658,19 +3757,23 @@ const loadCalendarDefaultManagementPrices = async (force = false) => {
     .map((id) => Number(id))
     .filter((id) => id > 0)
   if (roomTypeIds.length === 0) {
+    loadingCalendarDefaultManagementPrices.value = false
     resetCalendarDefaultManagementPriceCache()
     return
   }
 
   const [startDate, endDate] = dateRange.value
   if (!startDate || !endDate) {
+    loadingCalendarDefaultManagementPrices.value = false
     resetCalendarDefaultManagementPriceCache()
     return
   }
 
   const roomTypeIdsSignature = getRoomTypeIdsSignature()
   const rangeSignature = `${roomTypeIdsSignature}|default|${startDate}|${endDate}`
+  const contextSignature = buildCalendarPriceContextSignature(startDate, endDate, 'default')
   if (!force && loadedCalendarDefaultPriceRangeSignature.value === rangeSignature) {
+    loadingCalendarDefaultManagementPrices.value = false
     return
   }
 
@@ -3710,20 +3813,38 @@ const loadCalendarDefaultManagementPrices = async (force = false) => {
       }
     })
 
+    if (
+      !isCalendarPriceCommitCurrent(
+        generation,
+        calendarDefaultPriceGeneration,
+        contextSignature,
+        startDate,
+        endDate,
+        'default',
+      )
+    ) {
+      return
+    }
     calendarDefaultManagementPriceMap.value = nextPriceMap
     calendarDefaultManagementMinStayMap.value = nextMinStayMap
     loadedCalendarDefaultPriceRangeSignature.value = rangeSignature
   } catch (error) {
-    console.error('加载房价管理默认价格失败:', error)
-    resetCalendarDefaultManagementPriceCache()
+    if (generation === calendarDefaultPriceGeneration) {
+      console.error('加载房价管理默认价格失败:', error)
+      resetCalendarDefaultManagementPriceCache()
+    }
   } finally {
-    loadingCalendarDefaultManagementPrices.value = false
+    if (generation === calendarDefaultPriceGeneration) {
+      loadingCalendarDefaultManagementPrices.value = false
+    }
   }
 }
 
 const loadCalendarManagementPrices = async (force = false) => {
+  const generation = ++calendarManagementPriceGeneration
   const selectedPlanId = getSelectedCellPricePlanId()
   if (!showCellDefaultPrice.value || !selectedPlanId) {
+    loadingCalendarManagementPrices.value = false
     resetCalendarManagementPriceCache()
     return
   }
@@ -3732,19 +3853,24 @@ const loadCalendarManagementPrices = async (force = false) => {
     .map((id) => Number(id))
     .filter((id) => id > 0)
   if (roomTypeIds.length === 0) {
+    loadingCalendarManagementPrices.value = false
     resetCalendarManagementPriceCache()
     return
   }
 
   const [startDate, endDate] = dateRange.value
   if (!startDate || !endDate) {
+    loadingCalendarManagementPrices.value = false
     resetCalendarManagementPriceCache()
     return
   }
 
   const roomTypeIdsSignature = getRoomTypeIdsSignature()
   const rangeSignature = `${roomTypeIdsSignature}|${selectedPlanId}|${startDate}|${endDate}`
+  const source = `plan:${selectedPlanId}`
+  const contextSignature = buildCalendarPriceContextSignature(startDate, endDate, source)
   if (!force && loadedCalendarManagementPriceRangeSignature.value === rangeSignature) {
+    loadingCalendarManagementPrices.value = false
     return
   }
 
@@ -3784,14 +3910,30 @@ const loadCalendarManagementPrices = async (force = false) => {
       }
     })
 
+    if (
+      !isCalendarPriceCommitCurrent(
+        generation,
+        calendarManagementPriceGeneration,
+        contextSignature,
+        startDate,
+        endDate,
+        source,
+      )
+    ) {
+      return
+    }
     calendarManagementPriceMap.value = nextPriceMap
     calendarManagementMinStayMap.value = nextMinStayMap
     loadedCalendarManagementPriceRangeSignature.value = rangeSignature
   } catch (error) {
-    console.error('加载房价管理价格失败:', error)
-    resetCalendarManagementPriceCache()
+    if (generation === calendarManagementPriceGeneration) {
+      console.error('加载房价管理价格失败:', error)
+      resetCalendarManagementPriceCache()
+    }
   } finally {
-    loadingCalendarManagementPrices.value = false
+    if (generation === calendarManagementPriceGeneration) {
+      loadingCalendarManagementPrices.value = false
+    }
   }
 }
 
@@ -4193,13 +4335,15 @@ const batchDateSelectorText = computed(() => {
 
 // 计算属性
 const loading = ref(false)
-const calendarData = ref<{
+type CalendarWindowData = {
   dateRange: {
     startDate: string
     endDate: string
   }
   rooms: CalendarRoomData[]
-}>({
+}
+
+const calendarData = ref<CalendarWindowData>({
   dateRange: {
     startDate: '',
     endDate: '',
@@ -4210,6 +4354,24 @@ const calendarData = ref<{
 const CALENDAR_DAYS_BEFORE_BASE = 2
 const CALENDAR_VISIBLE_MONTHS = 1
 const CALENDAR_NAVIGATION_STEP_DAYS = 30
+const CALENDAR_WINDOW_SCROLL_SETTLE_MS = 140
+const calendarContentRef = ref<HTMLElement | null>(null)
+const calendarWindowCache = new CalendarWindowCache<CalendarWindowData>({
+  maxEntries: 3,
+  ttlMs: 90_000,
+  baseBackoffMs: 5_000,
+  maxBackoffMs: 60_000,
+})
+const calendarWindowAbortControllers = new Set<AbortController>()
+let calendarWindowForegroundAbortController: AbortController | null = null
+let calendarWindowContextGeneration = 0
+let calendarWindowViewGeneration = 0
+let cancelCalendarWindowPrefetch: (() => void) | null = null
+let calendarScrollSettleTimer: number | null = null
+let calendarIsScrolling = false
+let calendarWasDeactivated = false
+let lastAppliedCalendarRange: [string, string] | null = null
+let restoringLastAppliedCalendarRange = false
 
 const buildVisibleDateRangeFromBase = (baseDateValue: string): [string, string] => {
   const startDate = addDaysToYmd(baseDateValue, -CALENDAR_DAYS_BEFORE_BASE)
@@ -4222,7 +4384,9 @@ const visibleDateRange = ref<[string, string]>(buildVisibleDateRangeFromBase(cur
 
 // 根据当前可视日期范围生成日期列
 const dateColumns = computed(() => {
-  return getYmdRange(visibleDateRange.value[0], visibleDateRange.value[1]).map((date) => ({ date }))
+  const displayedStart = calendarData.value.dateRange.startDate || visibleDateRange.value[0]
+  const displayedEnd = calendarData.value.dateRange.endDate || visibleDateRange.value[1]
+  return getYmdRange(displayedStart, displayedEnd).map((date) => ({ date }))
 })
 
 // 计算当前日期范围（用于API调用）
@@ -4233,9 +4397,7 @@ const dateRange = computed(() => {
 // 方法
 
 const reloadCalendarForVisibleRange = async () => {
-  // 先按当前日期范围重建房间日历骨架，再叠加后端房态
-  await loadRoomTypesData()
-  await loadRoomStatusCalendarData()
+  await navigateToCalendarWindow([visibleDateRange.value[0], visibleDateRange.value[1]])
 }
 
 const previousWeek = () => {
@@ -4779,112 +4941,415 @@ const loadCalendarData = async () => {
   initFilterOptions()
 }
 
-// 加载真实的房态日历数据
-const loadRoomStatusCalendarData = async () => {
-  const summaryContext = beginHoverSummaryGeneration()
-  try {
-    loading.value = true
+const getCalendarPermissionContext = () => {
+  const permissions = permissionStore.permissions
+    .map((permission) =>
+      [
+        permission.module,
+        permission.action,
+        permission.roomTypeId ?? 0,
+        permission.allRoomTypes ? 1 : 0,
+      ].join(':'),
+    )
+    .sort()
+    .join(',')
+  return `${storeStore.currentStore?.userRole || ''}|${permissionStore.loadedStoreId || 0}|${permissions}`
+}
 
-    const response = await getRoomStatusCalendar(dateRange.value[0], dateRange.value[1])
-    if (!isCurrentHoverSummaryContext(summaryContext.generation, summaryContext.storeId)) return
-    console.log('loadRoomStatusCalendarData - 后端API响应:', response)
-    console.log('loadRoomStatusCalendarData - response.data.rooms:', response.data?.rooms)
+const getCalendarWindowContext = (): CalendarWindowContext => ({
+  userId: Number(userStore.currentUser?.id || 0),
+  storeId: getCurrentStoreId(),
+  timezone: String(storeStore.currentStore?.timezone || ''),
+  permissionContext: `${getCalendarPermissionContext()}|g:${calendarWindowContextGeneration}`,
+})
 
-    if (response.success && response.data) {
-      // 转换后端数据格式为前端需要的格式
-      const transformedData = {
-        dateRange: response.data.dateRange,
-        rooms: response.data.rooms.map((room) => ({
-          roomId: room.roomId,
-          roomNumber: room.roomNumber,
-          roomType: room.roomType,
-          dailyStatus: room.dailyStatus.map((daily) => ({
-            date: daily.date,
-            status: daily.status as RoomStatus,
-            closed: daily.closed || false,
-            closeType: daily.closeType || '',
-            closeRemark: daily.closeRemark || '',
-            reservation: daily.reservation
-              ? {
-                  id: daily.reservation.id,
-                  guestName: daily.reservation.guestName,
-                  channel: daily.reservation.channel,
-                  checkIn: daily.reservation.checkIn || (daily.reservation as any).checkInDate,
-                  checkOut: daily.reservation.checkOut || (daily.reservation as any).checkOutDate,
-                  effectiveCheckOut:
-                    daily.reservation.effectiveCheckOut ||
-                    (daily.reservation as any).effectiveCheckOutDate ||
-                    '',
-                  checkInDate: daily.reservation.checkIn || (daily.reservation as any).checkInDate,
-                  checkOutDate: daily.reservation.checkOut || (daily.reservation as any).checkOutDate,
-                  effectiveCheckOutDate:
-                    daily.reservation.effectiveCheckOut ||
-                    (daily.reservation as any).effectiveCheckOutDate ||
-                    '',
-                  orderNumber: daily.reservation.orderNumber,
-                  groupOrderNo: (daily.reservation as any).groupOrderNo || '',
-                  specialRequests: (daily.reservation as any).specialRequests || '',
-                  notes: daily.reservation.notes || (daily.reservation as any).remark || '',
-                  adults: 1,
-                  children: 0,
-                  totalAmount:
-                    daily.reservation.totalAmount == null
-                      ? 0
-                      : Number(daily.reservation.totalAmount),
-                  totalAmountKnown: daily.reservation.totalAmount != null,
-                  status: resolveCalendarReservationStatus(daily) as ReservationStatus,
-                }
-              : null,
-          })),
-        })),
-      }
+const getCalendarWindowKey = (range: CalendarDateRange) =>
+  buildCalendarWindowKey(getCalendarWindowContext(), range)
 
-      // 只有在返回的房间数据不为空时才覆盖
-      if (transformedData.rooms && transformedData.rooms.length > 0) {
-        calendarData.value = transformedData
-        applyCalendarRoomSorting()
+const stopCalendarWindowPrefetch = () => {
+  cancelCalendarWindowPrefetch?.()
+  cancelCalendarWindowPrefetch = null
+}
 
-        const reservationIds = transformedData.rooms.flatMap((room) =>
-          room.dailyStatus.map((daily) => Number(daily.reservation?.id || 0)),
-        )
-        hoverSummaryWindowReservationIds = normalizeReservationIds(reservationIds)
-        scheduleWindowHoverSummaryPrefetch(summaryContext)
+const abortCalendarWindowRequests = () => {
+  calendarWindowForegroundAbortController?.abort()
+  calendarWindowForegroundAbortController = null
+  calendarWindowAbortControllers.forEach((controller) => controller.abort())
+  calendarWindowAbortControllers.clear()
+}
 
-        // 同步后端落库的关房信息到 UI overlay（roomExtraStatus）
-        transformedData.rooms.forEach((room) => {
-          room.dailyStatus.forEach((daily) => {
-            const key = `${room.roomId}-${daily.date}`
-            const current = roomExtraStatus.value.get(key) || {
-              isDirty: false,
-              isClosed: false,
-              closeType: '',
+const clearSensitiveCalendarUiState = () => {
+  sensitiveCalendarUiGeneration += 1
+  reservationDetailRequestId.value += 1
+  ElMessageBox.close()
+
+  showBookingSidebar.value = false
+  showBookingDetailSidebar.value = false
+  showCancelReservationSidebar.value = false
+  showAddConsumptionSidebar.value = false
+  showPaymentSidebar.value = false
+  showRoomChangeConfirmDialog.value = false
+  showFilterSidebar.value = false
+  showQuickActions.value = false
+  showQuickPriceDialog.value = false
+  showClosedRoomActions.value = false
+  showBatchDialog.value = false
+  showCloseRoomDialog.value = false
+  showBatchCloseRoomDialog.value = false
+
+  selectedReservation.value = null
+  selectedRoom.value = null
+  selectedDailyStatus.value = null
+  selectedDate.value = ''
+  searchKeyword.value = ''
+  searchResults.value = []
+  if (searchTimeout.value != null) {
+    window.clearTimeout(searchTimeout.value)
+    searchTimeout.value = null
+  }
+  paymentList.value = []
+  consumptionList.value = []
+  paymentItems.value = []
+  consumptionItems.value = []
+  totalPayment.value = 0
+  totalConsumption.value = 0
+  selectedRefundRecords.value = []
+  channelInfo.value = null
+  operationLogs.value = []
+  suWebhookEvents.value = []
+
+  pendingRoomChange.value = null
+  draggingReservationContext.value = null
+  roomChangeDropTargetKey.value = ''
+  roomChangeUpdatePrice.value = false
+  bookingMode.value = 'create'
+  activeDetailTab.value = 'detail'
+  activePaymentTab.value = 'payment'
+  refundType.value = 'online'
+  logFilterType.value = 'all'
+  quickActionRoom.value = null
+  quickActionDate.value = ''
+  quickActionDateRange.value = null
+  closedRoomActionData.value = { room: null, date: '' }
+  selectedCells.value = new Set()
+  batchMode.value = false
+  batchAction.value = ''
+  batchSelectedRoomIds.value = []
+  batchCloseSelectedRoomIds.value = []
+  isDraggingCellSelection.value = false
+  dragSelectionRoomId.value = null
+  dragSelectionStartDate.value = ''
+  dragSelectionEndDate.value = ''
+  dragSelectionRoom.value = null
+  dragSelectionTriggerRect.value = null
+  dragSelectionOriginCells.value = new Set()
+  dragSelectionMoved.value = false
+  suppressNextCellClick.value = false
+
+  detailNotesDraft.value = ''
+  currentRoomType.value = null
+  roomTypePricePlanMappings.value = []
+  selectedPricePlanId.value = null
+  bookingForm.value = {
+    id: null,
+    guestName: '',
+    guestPhone: '',
+    guestIdCard: '',
+    channelId: null,
+    checkInDate: '',
+    checkOutDate: '',
+    roomId: null,
+    roomNumber: '',
+    roomTypeName: '',
+    adults: 1,
+    children: 0,
+    totalAmount: 0,
+    pricePlan: '',
+    notes: '',
+    hasSpecialColor: false,
+  }
+  cancelForm.value = { reason: '', notes: '', refundType: 'full', refundAmount: 0 }
+  consumptionForm.value = { item: '', quantity: 1, amount: 0, date: '', remark: '' }
+  paymentForm.value = { type: 'payment', paymentMethod: '', amount: 0, date: '', remark: '' }
+
+  savingDetailNotes.value = false
+  channelInfoLoading.value = false
+  operationLogsLoading.value = false
+  suWebhookEventsLoading.value = false
+  suWebhookEventsProcessing.value = false
+  roomChangeSubmitting.value = false
+  isLoadingPrice.value = false
+  quickPriceSaving.value = false
+  hideHoverCard()
+}
+
+const invalidateCalendarWindowContext = (options: { clearApplied?: boolean } = {}) => {
+  stopCalendarWindowPrefetch()
+  abortCalendarWindowRequests()
+  invalidateCalendarPriceRequests()
+  calendarWindowContextGeneration += 1
+  calendarWindowViewGeneration += 1
+  calendarWindowCache.clear()
+  if (options.clearApplied) {
+    lastAppliedCalendarRange = null
+    calendarData.value = markRaw({
+      dateRange: {
+        startDate: visibleDateRange.value[0],
+        endDate: visibleDateRange.value[1],
+      },
+      rooms: [],
+    })
+    roomExtraStatus.value = new Map()
+    roomTypeIdMap.value = new Map()
+    roomTypeDefaultPriceMap.value = new Map()
+    filterOptions.value.roomTypes = []
+    filterOptions.value.selectedRoomTypes = []
+    filterOptions.value.roomGroups = []
+    filterOptions.value.selectedRoomGroupIds = []
+    resetCalendarManagementPriceCache()
+    resetCalendarDefaultManagementPriceCache()
+    clearSensitiveCalendarUiState()
+  }
+}
+
+const transformCalendarWindow = (data: RoomStatusCalendarDTO): CalendarWindowData =>
+  markRaw({
+    dateRange: data.dateRange,
+    rooms: data.rooms.map((room) => ({
+      roomId: room.roomId,
+      roomNumber: room.roomNumber,
+      roomType: room.roomType,
+      dailyStatus: room.dailyStatus.map((daily) => ({
+        date: daily.date,
+        status: daily.status as RoomStatus,
+        closed: daily.closed || false,
+        closeType: daily.closeType || '',
+        closeRemark: daily.closeRemark || '',
+        reservation: daily.reservation
+          ? {
+              id: daily.reservation.id,
+              guestName: daily.reservation.guestName,
+              channel: daily.reservation.channel,
+              checkIn: daily.reservation.checkIn || daily.reservation.checkInDate || '',
+              checkOut: daily.reservation.checkOut || daily.reservation.checkOutDate || '',
+              effectiveCheckOut:
+                daily.reservation.effectiveCheckOut || daily.reservation.effectiveCheckOutDate || '',
+              checkInDate: daily.reservation.checkIn || daily.reservation.checkInDate || '',
+              checkOutDate: daily.reservation.checkOut || daily.reservation.checkOutDate || '',
+              effectiveCheckOutDate:
+                daily.reservation.effectiveCheckOut || daily.reservation.effectiveCheckOutDate || '',
+              orderNumber: daily.reservation.orderNumber,
+              groupOrderNo: daily.reservation.groupOrderNo || '',
+              specialRequests: daily.reservation.specialRequests || '',
+              notes: daily.reservation.notes || daily.reservation.remark || '',
+              adults: 1,
+              children: 0,
+              totalAmount:
+                daily.reservation.totalAmount == null ? 0 : Number(daily.reservation.totalAmount),
+              totalAmountKnown: daily.reservation.totalAmount != null,
+              status: resolveCalendarReservationStatus(daily) as ReservationStatus,
             }
-            roomExtraStatus.value.set(key, {
-              ...current,
-              isClosed: !!daily.closed,
-              closeType: daily.closed ? daily.closeType || '' : '',
-            })
-          })
-        })
+          : null,
+      })),
+    })),
+  })
 
-        console.log('房态日历数据加载成功:', transformedData)
-        console.log('transformedData.rooms数量:', transformedData.rooms?.length)
-        console.log('calendarData.value.rooms数量:', calendarData.value.rooms?.length)
-      } else {
-        console.warn('后端返回的房间数据为空,保留已有的房型数据')
-        console.log('当前calendarData.value.rooms数量:', calendarData.value.rooms?.length)
-        // 不覆盖calendarData,保持使用loadRoomTypesData()加载的数据
+const requestCalendarWindow = (
+  range: CalendarDateRange,
+  options: { force?: boolean; controller?: AbortController } = {},
+): Promise<CalendarWindowData> => {
+  const key = getCalendarWindowKey(range)
+  const requestContextGeneration = calendarWindowContextGeneration
+  return calendarWindowCache.load(
+    key,
+    async () => {
+      const controller = options.controller ?? new AbortController()
+      calendarWindowAbortControllers.add(controller)
+      try {
+        const response = await getRoomStatusCalendar(range[0], range[1], controller.signal)
+        if (requestContextGeneration !== calendarWindowContextGeneration) {
+          throw new DOMException('Stale calendar window context', 'AbortError')
+        }
+        if (!response.success || !response.data) {
+          throw new Error(response.message || 'Calendar window request failed')
+        }
+        return transformCalendarWindow(response.data)
+      } finally {
+        calendarWindowAbortControllers.delete(controller)
       }
+    },
+    { force: options.force },
+  )
+}
+
+const isCalendarRangeCurrent = (range: CalendarDateRange) =>
+  visibleDateRange.value[0] === range[0] && visibleDateRange.value[1] === range[1]
+
+const restoreVisibleRangeAfterNavigationFailure = () => {
+  if (!lastAppliedCalendarRange) return
+  if (isCalendarRangeCurrent(lastAppliedCalendarRange)) return
+  restoringLastAppliedCalendarRange = true
+  visibleDateRange.value = [lastAppliedCalendarRange[0], lastAppliedCalendarRange[1]]
+  currentBaseDate.value = shiftYmdDate(
+    lastAppliedCalendarRange[0],
+    CALENDAR_DAYS_BEFORE_BASE,
+  )
+  scheduleAdjacentCalendarWindows(lastAppliedCalendarRange)
+}
+
+const applyCalendarWindow = (data: CalendarWindowData) => {
+  const summaryContext = beginHoverSummaryGeneration()
+  calendarData.value = data
+  lastAppliedCalendarRange = [data.dateRange.startDate, data.dateRange.endDate]
+  applyCalendarRoomSorting()
+
+  if (!data.rooms.length) {
+    roomExtraStatus.value = new Map()
+  }
+
+  const reservationIds = data.rooms.flatMap((room) =>
+    room.dailyStatus.map((daily) => Number(daily.reservation?.id || 0)),
+  )
+  hoverSummaryWindowReservationIds = normalizeReservationIds(reservationIds)
+  scheduleWindowHoverSummaryPrefetch(summaryContext)
+
+  if (showCellDefaultPrice.value) {
+    if (cellPriceDisplaySource.value === 'default') {
+      void loadCalendarDefaultManagementPrices(true)
     } else {
-      console.warn('API调用失败,保留已有数据。API返回:', response)
-      // 如果API调用失败,保持使用已有数据
+      void loadCalendarManagementPrices(true)
     }
+  }
+
+  data.rooms.forEach((room) => {
+    room.dailyStatus.forEach((daily) => {
+      const key = `${room.roomId}-${daily.date}`
+      const current = roomExtraStatus.value.get(key) || {
+        isDirty: false,
+        isClosed: false,
+        closeType: '',
+      }
+      roomExtraStatus.value.set(key, {
+        ...current,
+        isClosed: !!daily.closed,
+        closeType: daily.closed ? daily.closeType || '' : '',
+      })
+    })
+  })
+}
+
+const prefetchCalendarWindow = async (
+  range: CalendarDateRange,
+  contextGeneration: number,
+) => {
+  if (contextGeneration !== calendarWindowContextGeneration) return
+  const key = getCalendarWindowKey(range)
+  if (calendarWindowCache.get(key) || !calendarWindowCache.canRequest(key)) return
+  try {
+    await requestCalendarWindow(range)
   } catch (error) {
-    console.error('加载房态日历数据失败:', error)
-    ElMessage.warning(t('roomStatus.messages.loadCalendarFallback'))
-    // 发生错误时保持使用模拟数据
+    if (
+      error instanceof CalendarWindowBackoffError ||
+      contextGeneration !== calendarWindowContextGeneration
+    ) {
+      return
+    }
+    if (!(error instanceof DOMException && error.name === 'AbortError')) {
+      console.warn('后台预取相邻房态窗口失败:', error)
+    }
+  }
+}
+
+const scheduleAdjacentCalendarWindows = (range: CalendarDateRange) => {
+  stopCalendarWindowPrefetch()
+  const generation = calendarWindowContextGeneration
+  const previousRange = shiftCalendarWindow(range, -CALENDAR_NAVIGATION_STEP_DAYS)
+  const nextRange = shiftCalendarWindow(range, CALENDAR_NAVIGATION_STEP_DAYS)
+  // 先触碰已缓存的相邻窗，避免 LRU 在加载缺失的一侧时误淘汰另一侧。
+  calendarWindowCache.get(getCalendarWindowKey(previousRange))
+  calendarWindowCache.get(getCalendarWindowKey(nextRange))
+  void nextTick(() => {
+    if (generation !== calendarWindowContextGeneration || !isCalendarRangeCurrent(range)) return
+    cancelCalendarWindowPrefetch = scheduleCalendarWindowIdleTask(() => {
+      void (async () => {
+        await prefetchCalendarWindow(previousRange, generation)
+        await prefetchCalendarWindow(nextRange, generation)
+      })()
+    })
+  })
+}
+
+const navigateToCalendarWindow = async (range: CalendarDateRange) => {
+  stopCalendarWindowPrefetch()
+  calendarWindowForegroundAbortController?.abort()
+  calendarWindowForegroundAbortController = null
+  const contextGeneration = calendarWindowContextGeneration
+  const viewGeneration = ++calendarWindowViewGeneration
+  const key = getCalendarWindowKey(range)
+  const cached = calendarWindowCache.get(key)
+  if (cached) {
+    if (isCalendarRangeCurrent(range)) {
+      applyCalendarWindow(cached)
+      scheduleAdjacentCalendarWindows(range)
+    }
+    return
+  }
+
+  const controller = new AbortController()
+  calendarWindowForegroundAbortController = controller
+  try {
+    const data = await requestCalendarWindow(range, { force: true, controller })
+    if (
+      contextGeneration !== calendarWindowContextGeneration ||
+      viewGeneration !== calendarWindowViewGeneration ||
+      !isCalendarRangeCurrent(range)
+    ) {
+      return
+    }
+    applyCalendarWindow(data)
+    scheduleAdjacentCalendarWindows(range)
+  } catch (error) {
+    if (
+      contextGeneration === calendarWindowContextGeneration &&
+      viewGeneration === calendarWindowViewGeneration &&
+      !(error instanceof DOMException && error.name === 'AbortError')
+    ) {
+      restoreVisibleRangeAfterNavigationFailure()
+      console.error('加载目标房态窗口失败:', error)
+      ElMessage.warning(t('roomStatus.messages.loadCalendarFallback'))
+    }
   } finally {
-    loading.value = false
+    if (calendarWindowForegroundAbortController === controller) {
+      calendarWindowForegroundAbortController = null
+    }
+  }
+}
+
+// 业务变更和首次进入都强制刷新当前窗口，并让相邻缓存重新预取。
+const loadRoomStatusCalendarData = async () => {
+  invalidateCalendarWindowContext()
+  const range: [string, string] = [dateRange.value[0], dateRange.value[1]]
+  const contextGeneration = calendarWindowContextGeneration
+  const viewGeneration = ++calendarWindowViewGeneration
+  loading.value = true
+  try {
+    const data = await requestCalendarWindow(range, { force: true })
+    if (
+      contextGeneration !== calendarWindowContextGeneration ||
+      viewGeneration !== calendarWindowViewGeneration ||
+      !isCalendarRangeCurrent(range)
+    ) {
+      return
+    }
+    applyCalendarWindow(data)
+    scheduleAdjacentCalendarWindows(range)
+  } catch (error) {
+    if (!(error instanceof DOMException && error.name === 'AbortError')) {
+      console.error('加载房态日历数据失败:', error)
+      ElMessage.warning(t('roomStatus.messages.loadCalendarFallback'))
+    }
+  } finally {
+    if (contextGeneration === calendarWindowContextGeneration) loading.value = false
   }
 }
 
@@ -4892,7 +5357,7 @@ const loadRoomTypesData = async () => {
   loading.value = true
   try {
     const response = (await request.get('/room-types/with-rooms')) as any
-    if (response.success && response.data && response.data.length > 0) {
+    if (response.success && Array.isArray(response.data)) {
       // 将房型数据转换为房态日历格式
       const roomsData: any[] = []
       let roomIdCounter = 1
@@ -4935,6 +5400,7 @@ const loadRoomTypesData = async () => {
       roomTypeIdMap.value = nextRoomTypeIdMap
       roomTypeDefaultPriceMap.value = nextRoomTypeDefaultPriceMap
       loadedCellPricePlanRoomTypeIdsSignature.value = ''
+      invalidateCalendarPriceRequests()
       resetCalendarManagementPriceCache()
       resetCalendarDefaultManagementPriceCache()
       if (showCellDefaultPrice.value) {
@@ -4958,8 +5424,7 @@ const loadRoomTypesData = async () => {
 
       console.log('加载房型数据成功，生成房间数:', roomsData.length)
     } else {
-      console.log('暂无房型数据，使用模拟数据')
-      // 如果没有房型数据，可以保持原有的模拟数据
+      console.warn('房型接口返回失败，保留当前上下文已有数据')
     }
   } catch (error) {
     console.error('加载房型数据失败:', error)
@@ -5589,6 +6054,7 @@ const onCellMouseEnter = (
     updateDragSelection(event, roomData, dailyStatus)
     return
   }
+  if (calendarIsScrolling) return
   onCellHover(event, dailyStatus, roomData)
 }
 
@@ -5899,6 +6365,7 @@ const adjustHoverCardPosition = () => {
 
 // 房间号悬停处理
 const onRoomNumberHover = (event: MouseEvent, roomData: CalendarRoomData) => {
+  if (calendarIsScrolling) return
   // 只在展开状态下显示脏房提示
   if (!isRoomCollapsed.value) {
     hoverDirtyRoomId.value = roomData.roomId
@@ -5977,6 +6444,20 @@ const hideHoverCard = () => {
   hoverDirtyRoomId.value = null
   hoverTotalPayment.value = null
   hoverCardAnchorRect.value = null
+}
+
+const onCalendarScroll = () => {
+  if (!calendarIsScrolling) {
+    calendarIsScrolling = true
+    hideHoverCard()
+  }
+  if (calendarScrollSettleTimer != null) {
+    window.clearTimeout(calendarScrollSettleTimer)
+  }
+  calendarScrollSettleTimer = window.setTimeout(() => {
+    calendarScrollSettleTimer = null
+    calendarIsScrolling = false
+  }, CALENDAR_WINDOW_SCROLL_SETTLE_MS)
 }
 
 const normalizeReservationDetail = (reservation: ReservationDTO) => ({
@@ -6423,10 +6904,12 @@ const submitConsumption = async () => {
     ElMessage.warning(t('roomStatus.consumption.messages.reservationMissing'))
     return
   }
+  const generation = sensitiveCalendarUiGeneration
+  const reservationId = Number(selectedReservation.value.id)
 
   try {
     const consumptionData: ConsumptionDTO = {
-      reservationId: selectedReservation.value.id,
+      reservationId,
       item: consumptionForm.value.item,
       quantity: consumptionForm.value.quantity,
       amount: Math.abs(consumptionForm.value.amount), // 后端会自动转为负数
@@ -6436,6 +6919,12 @@ const submitConsumption = async () => {
     }
 
     const response = await createConsumption(consumptionData)
+    if (
+      generation !== sensitiveCalendarUiGeneration ||
+      Number(selectedReservation.value?.id || 0) !== reservationId
+    ) {
+      return
+    }
     if (response.success) {
       ElMessage.success(t('roomStatus.consumption.messages.success'))
       showAddConsumptionSidebar.value = false
@@ -6450,8 +6939,10 @@ const submitConsumption = async () => {
       ElMessage.error(response.message || t('roomStatus.consumption.messages.failed'))
     }
   } catch (error: any) {
-    console.error('添加消费记录失败:', error)
-    ElMessage.error(t('roomStatus.consumption.messages.networkFailed'))
+    if (generation === sensitiveCalendarUiGeneration) {
+      console.error('添加消费记录失败:', error)
+      ElMessage.error(t('roomStatus.consumption.messages.networkFailed'))
+    }
   }
 }
 
@@ -6470,6 +6961,7 @@ const submitPayment = async () => {
     return
   }
   const reservationId = Number(selectedReservation.value.id)
+  const generation = sensitiveCalendarUiGeneration
 
   try {
     const paymentData: PaymentDTO = {
@@ -6483,6 +6975,12 @@ const submitPayment = async () => {
     }
 
     const response = await createPayment(paymentData)
+    if (
+      generation !== sensitiveCalendarUiGeneration ||
+      Number(selectedReservation.value?.id || 0) !== reservationId
+    ) {
+      return
+    }
     if (response.success) {
       ElMessage.success(t('roomStatus.payment.messages.success'))
       showPaymentSidebar.value = false
@@ -6498,8 +6996,10 @@ const submitPayment = async () => {
       ElMessage.error(response.message || t('roomStatus.payment.messages.failed'))
     }
   } catch (error: any) {
-    console.error('添加收款记录失败:', error)
-    ElMessage.error(t('roomStatus.payment.messages.networkFailed'))
+    if (generation === sensitiveCalendarUiGeneration) {
+      console.error('添加收款记录失败:', error)
+      ElMessage.error(t('roomStatus.payment.messages.networkFailed'))
+    }
   }
 }
 
@@ -6526,6 +7026,7 @@ const loadConsumptionAndPaymentData = async () => {
   }
 
   const reservationId = selectedReservation.value.id
+  const generation = sensitiveCalendarUiGeneration
   console.log('loadConsumptionAndPaymentData: 开始加载预订ID:', reservationId)
 
   try {
@@ -6537,7 +7038,10 @@ const loadConsumptionAndPaymentData = async () => {
       getTotalPayment(reservationId),
     ])
 
-    if (selectedReservation.value?.id !== reservationId) {
+    if (
+      generation !== sensitiveCalendarUiGeneration ||
+      selectedReservation.value?.id !== reservationId
+    ) {
       return
     }
 
@@ -6569,6 +7073,7 @@ const loadConsumptionAndPaymentData = async () => {
 
 // 删除消费记录
 const handleDeleteConsumption = async (id: number) => {
+  const generation = sensitiveCalendarUiGeneration
   try {
     await ElMessageBox.confirm(
       t('roomStatus.consumption.messages.deleteConfirm'),
@@ -6580,7 +7085,10 @@ const handleDeleteConsumption = async (id: number) => {
       },
     )
 
+    if (generation !== sensitiveCalendarUiGeneration) return
+
     const response = await deleteConsumption(id)
+    if (generation !== sensitiveCalendarUiGeneration) return
     if (response.success) {
       ElMessage.success(t('roomStatus.consumption.messages.deleteSuccess'))
       await loadConsumptionAndPaymentData()
@@ -6588,7 +7096,7 @@ const handleDeleteConsumption = async (id: number) => {
       ElMessage.error(response.message || t('roomStatus.consumption.messages.deleteFailed'))
     }
   } catch (error: any) {
-    if (error !== 'cancel') {
+    if (error !== 'cancel' && generation === sensitiveCalendarUiGeneration) {
       console.error('删除消费记录失败:', error)
       ElMessage.error(t('roomStatus.consumption.messages.deleteFailed'))
     }
@@ -6598,6 +7106,7 @@ const handleDeleteConsumption = async (id: number) => {
 // 删除收款记录
 const handleDeletePayment = async (id: number) => {
   const reservationId = Number(selectedReservation.value?.id || 0)
+  const generation = sensitiveCalendarUiGeneration
   try {
     await ElMessageBox.confirm(
       t('roomStatus.payment.messages.deleteConfirm'),
@@ -6609,7 +7118,10 @@ const handleDeletePayment = async (id: number) => {
       },
     )
 
+    if (generation !== sensitiveCalendarUiGeneration) return
+
     const response = await deletePayment(id)
+    if (generation !== sensitiveCalendarUiGeneration) return
     if (response.success) {
       ElMessage.success(t('roomStatus.payment.messages.deleteSuccess'))
       if (reservationId) refreshHoverSummary(reservationId)
@@ -6618,7 +7130,7 @@ const handleDeletePayment = async (id: number) => {
       ElMessage.error(response.message || t('roomStatus.payment.messages.deleteFailed'))
     }
   } catch (error: any) {
-    if (error !== 'cancel') {
+    if (error !== 'cancel' && generation === sensitiveCalendarUiGeneration) {
       console.error('删除收款记录失败:', error)
       ElMessage.error(t('roomStatus.payment.messages.deleteFailed'))
     }
@@ -6861,28 +7373,38 @@ const getRoomDisplayText = () => {
 // 获取房间价格信息
 const fetchRoomTypePrice = async (roomId: number) => {
   if (!roomId) return
+  const generation = sensitiveCalendarUiGeneration
+  const isCurrentRequest = () => generation === sensitiveCalendarUiGeneration
 
   try {
     isLoadingPrice.value = true
     const response = await getRoomTypeByRoomId(roomId)
+    if (!isCurrentRequest()) return
 
     if (response.success) {
       currentRoomType.value = response.data
-      await loadRoomTypePricePlans(response.data.id)
+      await loadRoomTypePricePlans(response.data.id, generation)
+      if (!isCurrentRequest()) return
       updateBookingPrice()
     } else {
       console.error('获取房型价格失败:', response.message)
       ElMessage.error(t('roomStatus.messages.roomTypePriceFailed'))
     }
   } catch (error) {
-    console.error('获取房型价格出错:', error)
-    ElMessage.error(t('roomStatus.messages.roomTypePriceError'))
+    if (isCurrentRequest()) {
+      console.error('获取房型价格出错:', error)
+      ElMessage.error(t('roomStatus.messages.roomTypePriceError'))
+    }
   } finally {
-    isLoadingPrice.value = false
+    if (isCurrentRequest()) isLoadingPrice.value = false
   }
 }
 
-const loadRoomTypePricePlans = async (roomTypeId: number) => {
+const loadRoomTypePricePlans = async (
+  roomTypeId: number,
+  generation = sensitiveCalendarUiGeneration,
+) => {
+  const isCurrentRequest = () => generation === sensitiveCalendarUiGeneration
   const previousPricePlanName = bookingForm.value.pricePlan
   roomTypePricePlanMappings.value = []
   selectedPricePlanId.value = null
@@ -6897,6 +7419,7 @@ const loadRoomTypePricePlans = async (roomTypeId: number) => {
       success?: boolean
       data?: RoomTypePricePlanDTO[]
     }
+    if (!isCurrentRequest()) return
     const mappings = Array.isArray(res?.data) ? res.data : []
     roomTypePricePlanMappings.value = mappings
 
@@ -6913,10 +7436,12 @@ const loadRoomTypePricePlans = async (roomTypeId: number) => {
     const selected = pricePlanOptions.value.find((item) => item.id === selectedPricePlanId.value)
     bookingForm.value.pricePlan = selected?.name || ''
   } catch (error) {
-    console.error('加载房型价格计划失败:', error)
-    roomTypePricePlanMappings.value = []
-    selectedPricePlanId.value = null
-    bookingForm.value.pricePlan = ''
+    if (isCurrentRequest()) {
+      console.error('加载房型价格计划失败:', error)
+      roomTypePricePlanMappings.value = []
+      selectedPricePlanId.value = null
+      bookingForm.value.pricePlan = ''
+    }
   }
 }
 
@@ -7724,10 +8249,15 @@ const querySearchAsync = (
     clearTimeout(searchTimeout.value)
   }
 
+  const generation = sensitiveCalendarUiGeneration
   // 设置新的搜索定时器，防抖300ms
   searchTimeout.value = setTimeout(async () => {
     try {
       const response = await searchReservations(queryString.trim())
+      if (generation !== sensitiveCalendarUiGeneration) {
+        callback([])
+        return
+      }
       if (response.success && response.data) {
         searchResults.value = response.data
         callback(response.data)
@@ -7735,7 +8265,9 @@ const querySearchAsync = (
         callback([])
       }
     } catch (error) {
-      console.error('搜索预订失败:', error)
+      if (generation === sensitiveCalendarUiGeneration) {
+        console.error('搜索预订失败:', error)
+      }
       callback([])
     }
   }, 300)
@@ -8006,17 +8538,29 @@ watch(visibleDateRange, (newRange, oldRange) => {
     return
   }
 
+  if (restoringLastAppliedCalendarRange) {
+    restoringLastAppliedCalendarRange = false
+    return
+  }
+
   // 日期输入和左右切换统一从这里触发，避免 @change 在某些场景不触发
   currentBaseDate.value = shiftYmdDate(newRange[0], CALENDAR_DAYS_BEFORE_BASE)
   void reloadCalendarForVisibleRange()
 })
 
 watch(
-  () => storeStore.currentStore?.id,
-  (newStoreId, oldStoreId) => {
-    if (newStoreId === oldStoreId) return
+  () => [
+    userStore.currentUser?.id || 0,
+    storeStore.currentStore?.id || 0,
+    storeStore.currentStore?.timezone || '',
+    getCalendarPermissionContext(),
+  ],
+  (newContext, oldContext) => {
+    if (newContext.every((value, index) => value === oldContext?.[index])) return
     stopHoverSummaryRequests()
     hideHoverCard()
+    invalidateCalendarWindowContext({ clearApplied: true })
+    void loadCalendarData()
   },
 )
 
@@ -8040,14 +8584,30 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('mouseup', handleWindowMouseUp)
+  if (calendarScrollSettleTimer != null) {
+    window.clearTimeout(calendarScrollSettleTimer)
+    calendarScrollSettleTimer = null
+  }
+  calendarIsScrolling = false
+  invalidateCalendarWindowContext({ clearApplied: true })
   stopHoverSummaryRequests()
 })
 
 onDeactivated(() => {
+  calendarWasDeactivated = true
+  if (calendarScrollSettleTimer != null) {
+    window.clearTimeout(calendarScrollSettleTimer)
+    calendarScrollSettleTimer = null
+  }
+  calendarIsScrolling = false
+  invalidateCalendarWindowContext({ clearApplied: true })
   stopHoverSummaryRequests()
 })
 
 onActivated(async () => {
+  // KeepAlive 首次挂载也会触发 activated；首屏只由 mounted 发起一次加载。
+  if (!calendarWasDeactivated) return
+  calendarWasDeactivated = false
   loadCellPriceDisplayPreferences()
   await loadPaymentMethodOptions()
   await loadCalendarData()
