@@ -68,27 +68,31 @@ function handleConnect(channel: ChannelItem) {
 
 <style scoped>
 .channel-list-panel {
+  min-height: calc(100vh - 100px);
   height: 100%;
   overflow: auto;
   background: #ffffff;
-  padding: 46px 96px;
+  box-sizing: border-box;
+  padding: 28px clamp(20px, 2.6vw, 36px);
 }
 
 .channel-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(320px, 1fr));
-  gap: 24px;
-  max-width: 1160px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  max-width: 1320px;
   margin: 0 auto;
 }
 
 .channel-card {
-  min-height: 166px;
+  min-height: 148px;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
-  gap: 24px;
-  padding: 26px 10px 20px 32px;
+  gap: 14px;
+  box-sizing: border-box;
+  padding: 22px 14px 20px 22px;
   border: 1px solid #dcdfe6;
   border-radius: 4px;
   background: #ffffff;
@@ -108,20 +112,22 @@ function handleConnect(channel: ChannelItem) {
 }
 
 .channel-info {
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 13px;
+  justify-content: space-between;
 }
 
 .channel-name {
-  max-width: 260px;
+  width: 100%;
+  max-width: 170px;
   margin: 0;
   color: #303133;
-  font-size: 34px;
+  font-size: 24px;
   font-weight: 700;
-  line-height: 1.18;
+  line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -130,20 +136,21 @@ function handleConnect(channel: ChannelItem) {
 .channel-status {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   color: #303133;
-  font-size: 16px;
-  line-height: 1;
+  font-size: 15px;
+  line-height: 20px;
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
   border-radius: 50%;
 }
 
 .status-dot.connected {
-  background: #67c23a;
+  background: #57d879;
 }
 
 .status-dot.disconnected {
@@ -151,7 +158,7 @@ function handleConnect(channel: ChannelItem) {
 }
 
 .config-btn {
-  min-width: 98px;
+  min-width: 88px;
   height: 28px;
   margin: 0;
   border-radius: 4px;
@@ -159,13 +166,15 @@ function handleConnect(channel: ChannelItem) {
 }
 
 .channel-logo-wrapper {
-  width: 176px;
-  height: 120px;
-  flex: 0 0 176px;
+  width: clamp(136px, 11.4vw, 170px);
+  height: 104px;
+  flex: 0 0 clamp(136px, 11.4vw, 170px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 18px;
+  align-self: center;
+  box-sizing: border-box;
+  padding: 14px;
   border: 1px solid #dcdfe6;
   border-radius: 4px;
   background: #ffffff;
@@ -177,11 +186,17 @@ function handleConnect(channel: ChannelItem) {
   object-fit: contain;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1060px) {
   .channel-list-panel {
-    padding: 32px;
+    padding: 24px;
   }
 
+  .channel-grid {
+    grid-template-columns: repeat(2, minmax(300px, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
   .channel-grid {
     grid-template-columns: 1fr;
   }
@@ -208,8 +223,8 @@ function handleConnect(channel: ChannelItem) {
   }
 
   .channel-name {
-    max-width: 180px;
-    font-size: 26px;
+    max-width: 100%;
+    font-size: 22px;
   }
 }
 </style>
