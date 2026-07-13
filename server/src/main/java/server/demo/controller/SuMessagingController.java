@@ -189,6 +189,8 @@ public class SuMessagingController {
             Long storeId = StoreContextHolder.getContext().getStoreId();
             SuMessagingMessageDTO dto = suMessagingService.sendAttachment(storeId, threadId, file, senderName);
             return ResponseEntity.ok(ApiResponse.success(dto));
+        } catch (SuMessagingService.BookingChannelHotelMappingConflictException e) {
+            return ResponseEntity.status(409).body(ApiResponse.error(e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
@@ -215,6 +217,8 @@ public class SuMessagingController {
                     .cacheControl(CacheControl.noStore())
                     .contentType(MediaType.parseMediaType(content.mimeType()))
                     .body(content.bytes());
+        } catch (SuMessagingService.BookingChannelHotelMappingConflictException e) {
+            return ResponseEntity.status(409).build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         } catch (Exception e) {

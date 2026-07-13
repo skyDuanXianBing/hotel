@@ -1594,11 +1594,18 @@ class SuMessagingServiceTest {
         SuMessageThread thread = newThread(5L, SuMessagingService.CHANNEL_BOOKING, "THREAD-5", "B5", "B");
         thread.setStoreId(10L);
         thread.setSuHotelId("STORE10");
-        ChannelMappingPriceSetting mapping = new ChannelMappingPriceSetting();
-        mapping.setChannelHotelId("BOOKING-HOTEL-7");
+        thread.setListingId(" BOOKING-HOTEL-7 ");
+        ChannelMappingPriceSetting first = new ChannelMappingPriceSetting();
+        first.setChannelHotelId("BOOKING-HOTEL-1");
+        ChannelMappingPriceSetting second = new ChannelMappingPriceSetting();
+        second.setChannelHotelId("BOOKING-HOTEL-7");
+        ChannelMappingPriceSetting third = new ChannelMappingPriceSetting();
+        third.setChannelHotelId("BOOKING-HOTEL-8");
+        ChannelMappingPriceSetting fourth = new ChannelMappingPriceSetting();
+        fourth.setChannelHotelId("BOOKING-HOTEL-9");
         when(threadRepository.findByStoreIdAndId(10L, 5L)).thenReturn(Optional.of(thread));
         when(mappingRepository.findByStoreIdAndSuPropertyIdAndSuChannelId(10L, "STORE10", "19"))
-                .thenReturn(List.of(mapping));
+                .thenReturn(List.of(first, second, third, fourth));
         JsonNode ok = new ObjectMapper().readTree("""
                 {"Status":"Success","Data":{"message_id":"MSG-7","attachment_id":"ATT-7"}}
                 """);
@@ -1639,6 +1646,69 @@ class SuMessagingServiceTest {
         ArgumentCaptor<SuMessage> messageCaptor = ArgumentCaptor.forClass(SuMessage.class);
         verify(messageRepository).save(messageCaptor.capture());
         assertEquals("MSG-7", messageCaptor.getValue().getExternalMessageId());
+    }
+
+    @Test
+    void sendAttachment_shouldFallbackWhenOnlyOneChannelHotelMappingExists() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        SuMessageAttachmentRepository attachmentRepository = Mockito.mock(SuMessageAttachmentRepository.class);
+        ChannelMappingPriceSettingRepository mappingRepository = Mockito.mock(ChannelMappingPriceSettingRepository.class);
+        SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
+        SuAccessTokenService tokenService = Mockito.mock(SuAccessTokenService.class);
+        SuMessagingService service = newAttachmentService(
+                threadRepository,
+                messageRepository,
+                attachmentRepository,
+                mappingRepository,
+                suApiClient,
+                tokenService,
+                Mockito.mock(SuMessagingRealtimeGateway.class)
+        );
+        SuMessageThread thread = newThread(5L, SuMessagingService.CHANNEL_BOOKING, "THREAD-5", "B5", "B");
+        thread.setStoreId(10L);
+        thread.setSuHotelId("STORE10");
+        thread.setListingId(null);
+        ChannelMappingPriceSetting mapping = new ChannelMappingPriceSetting();
+        mapping.setChannelHotelId(" ONLY-HOTEL ");
+        when(threadRepository.findByStoreIdAndId(10L, 5L)).thenReturn(Optional.of(thread));
+        when(mappingRepository.findByStoreIdAndSuPropertyIdAndSuChannelId(10L, "STORE10", "19"))
+                .thenReturn(List.of(mapping));
+        JsonNode ok = new ObjectMapper().readTree(
+                "{\"Status\":\"Success\",\"Data\":{\"message_id\":\"MSG-1\",\"attachment_id\":\"ATT-1\"}}"
+        );
+        when(suApiClient.sendMessageAttachment(anyString(), any())).thenReturn(ok);
+        when(suApiClient.isSuSuccess(ok)).thenReturn(true);
+        stubTokenExecution(tokenService);
+        when(messageRepository.save(any())).thenAnswer(inv -> {
+            SuMessage value = inv.getArgument(0);
+            value.setId(301L);
+            return value;
+        });
+        when(attachmentRepository.save(any())).thenAnswer(inv -> {
+            SuMessageAttachment value = inv.getArgument(0);
+            value.setId(401L);
+            return value;
+        });
+        when(threadRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.sendAttachment(
+                10L,
+                5L,
+                new MockMultipartFile(
+                        "file",
+                        "photo.jpg",
+                        "image/jpeg",
+                        new byte[]{(byte) 0xff, (byte) 0xd8, (byte) 0xff}
+                ),
+                null
+        );
+
+        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(suApiClient).sendMessageAttachment(eq("token"), payloadCaptor.capture());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> payload = (Map<String, Object>) payloadCaptor.getValue();
+        assertEquals("ONLY-HOTEL", payload.get("channel_hotel_id"));
     }
 
     @Test
@@ -1791,7 +1861,7 @@ class SuMessagingServiceTest {
     }
 
     @Test
-    void sendAttachment_shouldRejectSpoofedMimeAndConflictingChannelHotelMappings() {
+    void sendAttachment_shouldRejectSpoofedMimeAndUnmatchedConflictingChannelHotelMappings() {
         SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
         ChannelMappingPriceSettingRepository mappingRepository = Mockito.mock(ChannelMappingPriceSettingRepository.class);
         SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
@@ -1838,8 +1908,9 @@ class SuMessagingServiceTest {
         second.setChannelHotelId("H2");
         when(mappingRepository.findByStoreIdAndSuPropertyIdAndSuChannelId(10L, "STORE10", "19"))
                 .thenReturn(List.of(first, second));
+        thread.setListingId(null);
         org.junit.jupiter.api.Assertions.assertThrows(
-                IllegalStateException.class,
+                SuMessagingService.BookingChannelHotelMappingConflictException.class,
                 () -> service.sendAttachment(
                         10L,
                         5L,
@@ -1852,6 +1923,67 @@ class SuMessagingServiceTest {
                         null
                 )
         );
+        thread.setListingId("NOT-A-MAPPED-HOTEL");
+        org.junit.jupiter.api.Assertions.assertThrows(
+                SuMessagingService.BookingChannelHotelMappingConflictException.class,
+                () -> service.sendAttachment(
+                        10L,
+                        5L,
+                        new MockMultipartFile(
+                                "file",
+                                "photo.jpg",
+                                "image/jpeg",
+                                new byte[]{(byte) 0xff, (byte) 0xd8, (byte) 0xff}
+                        ),
+                        null
+                )
+        );
+        Mockito.verifyNoInteractions(suApiClient);
+    }
+
+    @Test
+    void downloadAttachment_shouldRejectMissingOrUnmatchedListingWithConflictingMappingsBeforeCallingSu() {
+        SuMessageAttachmentRepository attachmentRepository = Mockito.mock(SuMessageAttachmentRepository.class);
+        ChannelMappingPriceSettingRepository mappingRepository = Mockito.mock(ChannelMappingPriceSettingRepository.class);
+        SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
+        SuMessagingService service = newAttachmentService(
+                Mockito.mock(SuMessageThreadRepository.class),
+                Mockito.mock(SuMessageRepository.class),
+                attachmentRepository,
+                mappingRepository,
+                suApiClient,
+                Mockito.mock(SuAccessTokenService.class),
+                Mockito.mock(SuMessagingRealtimeGateway.class)
+        );
+        SuMessageThread thread = newThread(5L, SuMessagingService.CHANNEL_BOOKING, "THREAD-5", "B5", "B");
+        thread.setStoreId(10L);
+        thread.setSuHotelId("STORE10");
+        SuMessageAttachment attachment = new SuMessageAttachment();
+        attachment.setId(401L);
+        attachment.setStoreId(10L);
+        attachment.setThread(thread);
+        attachment.setMessage(newMessage(301L, thread, ""));
+        attachment.setExternalAttachmentId("ATT-7");
+        ChannelMappingPriceSetting first = new ChannelMappingPriceSetting();
+        first.setChannelHotelId("H1");
+        ChannelMappingPriceSetting second = new ChannelMappingPriceSetting();
+        second.setChannelHotelId("H2");
+        when(attachmentRepository.findByStoreIdAndThread_IdAndMessage_IdAndId(10L, 5L, 301L, 401L))
+                .thenReturn(Optional.of(attachment));
+        when(mappingRepository.findByStoreIdAndSuPropertyIdAndSuChannelId(10L, "STORE10", "19"))
+                .thenReturn(List.of(first, second));
+
+        thread.setListingId(null);
+        org.junit.jupiter.api.Assertions.assertThrows(
+                SuMessagingService.BookingChannelHotelMappingConflictException.class,
+                () -> service.downloadAttachment(10L, 5L, 301L, 401L)
+        );
+        thread.setListingId("NOT-A-MAPPED-HOTEL");
+        org.junit.jupiter.api.Assertions.assertThrows(
+                SuMessagingService.BookingChannelHotelMappingConflictException.class,
+                () -> service.downloadAttachment(10L, 5L, 301L, 401L)
+        );
+
         Mockito.verifyNoInteractions(suApiClient);
     }
 
@@ -1897,6 +2029,7 @@ class SuMessagingServiceTest {
         SuMessageThread thread = newThread(5L, SuMessagingService.CHANNEL_BOOKING, "THREAD-5", "B5", "B");
         thread.setStoreId(10L);
         thread.setSuHotelId("STORE10");
+        thread.setListingId("BOOKING-HOTEL-7");
         SuMessage message = newMessage(301L, thread, "");
         SuMessageAttachment attachment = new SuMessageAttachment();
         attachment.setId(401L);
@@ -1904,12 +2037,18 @@ class SuMessagingServiceTest {
         attachment.setThread(thread);
         attachment.setMessage(message);
         attachment.setExternalAttachmentId("ATT-7");
-        ChannelMappingPriceSetting mapping = new ChannelMappingPriceSetting();
-        mapping.setChannelHotelId("BOOKING-HOTEL-7");
+        ChannelMappingPriceSetting first = new ChannelMappingPriceSetting();
+        first.setChannelHotelId("BOOKING-HOTEL-1");
+        ChannelMappingPriceSetting second = new ChannelMappingPriceSetting();
+        second.setChannelHotelId("BOOKING-HOTEL-7");
+        ChannelMappingPriceSetting third = new ChannelMappingPriceSetting();
+        third.setChannelHotelId("BOOKING-HOTEL-8");
+        ChannelMappingPriceSetting fourth = new ChannelMappingPriceSetting();
+        fourth.setChannelHotelId("BOOKING-HOTEL-9");
         when(attachmentRepository.findByStoreIdAndThread_IdAndMessage_IdAndId(10L, 5L, 301L, 401L))
                 .thenReturn(Optional.of(attachment));
         when(mappingRepository.findByStoreIdAndSuPropertyIdAndSuChannelId(10L, "STORE10", "19"))
-                .thenReturn(List.of(mapping));
+                .thenReturn(List.of(first, second, third, fourth));
         byte[] png = new byte[]{(byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a};
         String encoded = Base64.getEncoder().encodeToString(png);
         JsonNode ok = new ObjectMapper().readTree("""
@@ -1929,6 +2068,7 @@ class SuMessagingServiceTest {
         verify(suApiClient).downloadMessageAttachment(eq("token"), payloadCaptor.capture());
         @SuppressWarnings("unchecked")
         Map<String, Object> payload = (Map<String, Object>) payloadCaptor.getValue();
+        assertEquals("BOOKING-HOTEL-7", payload.get("channel_hotel_id"));
         assertEquals(List.of(Map.of("attachment_id", "ATT-7")), payload.get("attachments"));
         assertFalse(payload.containsKey("attachment_id"));
     }

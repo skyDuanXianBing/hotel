@@ -3,11 +3,13 @@ package server.demo.controller;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.bind.annotation.GetMapping;
 import server.demo.annotation.RequirePermission;
 import server.demo.context.StoreContext;
 import server.demo.context.StoreContextHolder;
 import server.demo.dto.ApiResponse;
+import server.demo.dto.SuMessagingMessageDTO;
 import server.demo.dto.SuMessagingMessagePageResponse;
 import server.demo.dto.SuMessagingThreadDTO;
 import server.demo.dto.SuMessagingThreadPageResponse;
@@ -23,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -30,6 +33,63 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SuMessagingControllerTest {
+
+    @Test
+    void sendAttachment_shouldReturnConflictResponseForChannelHotelMappingConflict() {
+        SuMessagingService suMessagingService = mock(SuMessagingService.class);
+        SuMessagingController controller = new SuMessagingController(
+                suMessagingService,
+                mock(SuMessagingAiSettingService.class),
+                mock(RegistrationLinkInboxService.class)
+        );
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "photo.jpg",
+                "image/jpeg",
+                new byte[]{(byte) 0xff, (byte) 0xd8, (byte) 0xff}
+        );
+        when(suMessagingService.sendAttachment(26L, 77L, file, null))
+                .thenThrow(new SuMessagingService.BookingChannelHotelMappingConflictException());
+
+        StoreContextHolder.setContext(new StoreContext(1L, 26L, "OWNER"));
+        try {
+            ResponseEntity<ApiResponse<SuMessagingMessageDTO>> response =
+                    controller.sendAttachment(77L, file, null);
+
+            assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertFalse(response.getBody().isSuccess());
+            assertEquals(
+                    "Conflicting Booking.com channel_hotel_id mappings for thread",
+                    response.getBody().getMessage()
+            );
+            verify(suMessagingService).sendAttachment(26L, 77L, file, null);
+        } finally {
+            StoreContextHolder.clear();
+        }
+    }
+
+    @Test
+    void downloadAttachment_shouldReturnConflictForChannelHotelMappingConflict() {
+        SuMessagingService suMessagingService = mock(SuMessagingService.class);
+        SuMessagingController controller = new SuMessagingController(
+                suMessagingService,
+                mock(SuMessagingAiSettingService.class),
+                mock(RegistrationLinkInboxService.class)
+        );
+        when(suMessagingService.downloadAttachment(26L, 77L, 88L, 99L))
+                .thenThrow(new SuMessagingService.BookingChannelHotelMappingConflictException());
+
+        StoreContextHolder.setContext(new StoreContext(1L, 26L, "OWNER"));
+        try {
+            ResponseEntity<byte[]> response = controller.downloadAttachment(77L, 88L, 99L);
+
+            assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+            verify(suMessagingService).downloadAttachment(26L, 77L, 88L, 99L);
+        } finally {
+            StoreContextHolder.clear();
+        }
+    }
 
     @Test
     void listThreadPage_shouldExposeEndpointUseStoreContextAndReturnClientContract() throws Exception {

@@ -1061,7 +1061,7 @@ public class SuMessagingService {
         String mimeType = detectImageMimeType(bytes);
         String hotelId = requireThreadValue(thread.getSuHotelId(), "Missing hotel_id, cannot send attachment");
         String externalThreadId = requireThreadValue(thread.getThreadId(), "Missing thread_id, cannot send attachment");
-        String channelHotelId = resolveBookingChannelHotelId(storeId, hotelId);
+        String channelHotelId = resolveBookingChannelHotelId(storeId, hotelId, thread.getListingId());
 
         Map<String, Object> payload = new HashMap<>();
         payload.put("hotel_id", hotelId);
@@ -1156,7 +1156,7 @@ public class SuMessagingService {
 
         String hotelId = requireThreadValue(thread.getSuHotelId(), "Missing hotel_id, cannot download attachment");
         String externalThreadId = requireThreadValue(thread.getThreadId(), "Missing thread_id, cannot download attachment");
-        String channelHotelId = resolveBookingChannelHotelId(storeId, hotelId);
+        String channelHotelId = resolveBookingChannelHotelId(storeId, hotelId, thread.getListingId());
         Map<String, Object> payload = new HashMap<>();
         payload.put("hotel_id", hotelId);
         payload.put("channel_id", CHANNEL_BOOKING);
@@ -1204,6 +1204,12 @@ public class SuMessagingService {
     }
 
     public record AttachmentContent(byte[] bytes, String mimeType, String fileName) {}
+
+    public static final class BookingChannelHotelMappingConflictException extends IllegalStateException {
+        public BookingChannelHotelMappingConflictException() {
+            super("Conflicting Booking.com channel_hotel_id mappings for thread");
+        }
+    }
 
     private void markKnowledgeThreadDirty(SuMessage message) {
         if (knowledgeThreadDirtyMarker == null) {
@@ -1254,7 +1260,7 @@ public class SuMessagingService {
         return payload;
     }
 
-    private String resolveBookingChannelHotelId(Long storeId, String hotelId) {
+    private String resolveBookingChannelHotelId(Long storeId, String hotelId, String listingId) {
         List<ChannelMappingPriceSetting> settings = channelMappingPriceSettingRepository
                 .findByStoreIdAndSuPropertyIdAndSuChannelId(storeId, hotelId, String.valueOf(CHANNEL_BOOKING));
         Set<String> channelHotelIds = new LinkedHashSet<>();
@@ -1267,10 +1273,15 @@ public class SuMessagingService {
         if (channelHotelIds.isEmpty()) {
             throw new IllegalStateException("Missing Booking.com channel_hotel_id mapping");
         }
-        if (channelHotelIds.size() > 1) {
-            throw new IllegalStateException("Conflicting Booking.com channel_hotel_id mappings");
+
+        String normalizedListingId = normalizeBlankToNull(listingId);
+        if (normalizedListingId != null && channelHotelIds.contains(normalizedListingId)) {
+            return normalizedListingId;
         }
-        return channelHotelIds.iterator().next();
+        if (channelHotelIds.size() == 1) {
+            return channelHotelIds.iterator().next();
+        }
+        throw new BookingChannelHotelMappingConflictException();
     }
 
     private static String requireThreadValue(String value, String message) {
