@@ -27,6 +27,7 @@ import server.demo.dto.OperationLogDetailDTO;
 import server.demo.dto.PagedReservationResponse;
 import server.demo.dto.ReservationChannelInfoDTO;
 import server.demo.dto.ReservationDTO;
+import server.demo.dto.ReservationHoverSummaryResponseDTO;
 import server.demo.dto.ReservationStatistics;
 import server.demo.entity.Channel;
 import server.demo.entity.Reservation;
@@ -38,8 +39,11 @@ import server.demo.enums.ChannelType;
 import server.demo.enums.RoomStatus;
 import server.demo.enums.OperationType;
 import server.demo.enums.ReservationStatus;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
 import server.demo.repository.ChannelRepository;
 import server.demo.repository.OrderBoxRepository;
+import server.demo.repository.PaymentRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypeRepository;
@@ -84,6 +88,12 @@ public class ReservationService {
 
     @Autowired
     private ReservationRepository reservationRepository;
+
+    @Autowired
+    private PaymentRepository paymentRepository;
+
+    @Autowired
+    private PermissionService permissionService;
 
     @Autowired
     private OrderBoxRepository orderBoxRepository;
@@ -167,6 +177,67 @@ public class ReservationService {
 
     private Clock effectiveClock() {
         return clock != null ? clock : Clock.systemUTC();
+    }
+
+    @Transactional(readOnly = true)
+    public ReservationHoverSummaryResponseDTO getHoverSummaries(List<Long> reservationIds) {
+        Long storeId = currentStoreId();
+        Long userId = currentUserId();
+        List<Long> uniqueIds = new ArrayList<>(new LinkedHashSet<>(reservationIds));
+
+        boolean enforcementEnabled = permissionService.isEnforcementEnabled();
+        boolean guestPhone = !enforcementEnabled || permissionService.hasPermission(
+                storeId, userId, PermissionModule.ORDER, PermissionAction.VIEW_ORDERS);
+        boolean financial = !enforcementEnabled || permissionService.hasPermission(
+                storeId, userId, PermissionModule.SENSITIVE, PermissionAction.VIEW_FINANCIAL_DATA);
+
+        PermissionService.RoomTypeScope roomTypeScope = enforcementEnabled
+                ? permissionService.resolveRoomTypeScope(
+                        storeId, userId, PermissionModule.ACCOMMODATION, PermissionAction.VIEW_ROOM_STATUS)
+                : PermissionService.RoomTypeScope.all();
+
+        List<Reservation> reservations = reservationRepository
+                .findAssignedByStoreIdAndIdInWithRoomType(storeId, uniqueIds);
+        Map<Long, Reservation> visibleReservations = reservations.stream()
+                .filter(reservation -> isVisibleInRoomTypeScope(reservation, roomTypeScope))
+                .collect(Collectors.toMap(Reservation::getId, reservation -> reservation));
+
+        Map<Long, BigDecimal> paymentTotals = new HashMap<>();
+        if (financial && !visibleReservations.isEmpty()) {
+            List<Long> visibleIds = uniqueIds.stream().filter(visibleReservations::containsKey).toList();
+            paymentRepository.sumAmountsByStoreIdAndReservationIds(storeId, visibleIds)
+                    .forEach(total -> paymentTotals.put(total.getReservationId(), total.getPaidAmount()));
+        }
+
+        List<ReservationHoverSummaryResponseDTO.Item> items = uniqueIds.stream()
+                .map(visibleReservations::get)
+                .filter(Objects::nonNull)
+                .map(reservation -> new ReservationHoverSummaryResponseDTO.Item(
+                        reservation.getId(),
+                        guestPhone ? reservation.getGuestPhone() : null,
+                        financial ? paymentTotals.getOrDefault(reservation.getId(), BigDecimal.ZERO) : null,
+                        reservation.getUpdatedAt() != null ? reservation.getUpdatedAt() : reservation.getCreatedAt()
+                ))
+                .toList();
+
+        return new ReservationHoverSummaryResponseDTO(
+                new ReservationHoverSummaryResponseDTO.Capabilities(guestPhone, financial),
+                items
+        );
+    }
+
+    private boolean isVisibleInRoomTypeScope(
+            Reservation reservation,
+            PermissionService.RoomTypeScope roomTypeScope
+    ) {
+        if (reservation == null || reservation.getRoom() == null || reservation.getRoom().getRoomType() == null) {
+            return false;
+        }
+        if (roomTypeScope.isAllRoomTypes()) {
+            return true;
+        }
+        Long roomTypeId = reservation.getRoom().getRoomType().getId();
+        return roomTypeId != null && roomTypeScope.getRoomTypeIds().contains(roomTypeId);
     }
 
     /**

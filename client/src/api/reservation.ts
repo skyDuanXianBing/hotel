@@ -113,6 +113,27 @@ export interface UpdateReservationSettlementStatusRequest {
   settled: boolean
 }
 
+export interface ReservationHoverSummaryCapabilities {
+  guestPhone: boolean
+  financial: boolean
+}
+
+export interface ReservationHoverSummaryRequest {
+  reservationIds: number[]
+}
+
+export interface ReservationHoverSummaryItem {
+  reservationId: number
+  phone?: string
+  paidAmount?: number
+  updatedAt: string
+}
+
+export interface ReservationHoverSummaryResponseDTO {
+  capabilities: ReservationHoverSummaryCapabilities
+  items: ReservationHoverSummaryItem[]
+}
+
 // 创建预订
 export const createReservation = async (
   data: CreateReservationRequest,
@@ -152,6 +173,17 @@ export const getReservationById = async (
   reservationId: number,
 ): Promise<ApiResponse<ReservationDTO>> => {
   return await request.get(`/reservations/${reservationId}`)
+}
+
+export const getReservationHoverSummaries = async (
+  reservationIds: number[],
+  signal?: AbortSignal,
+): Promise<ApiResponse<ReservationHoverSummaryResponseDTO>> => {
+  const data: ReservationHoverSummaryRequest = { reservationIds }
+  return await request.post('/reservations/hover-summaries', data, {
+    signal,
+    suppressErrorToast: true,
+  })
 }
 
 // 根据订单号获取预订

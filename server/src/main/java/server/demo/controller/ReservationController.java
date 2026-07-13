@@ -16,6 +16,8 @@ import server.demo.dto.CreateReservationRequest;
 import server.demo.dto.PagedReservationResponse;
 import server.demo.dto.ReservationChannelInfoDTO;
 import server.demo.dto.ReservationDTO;
+import server.demo.dto.ReservationHoverSummaryRequest;
+import server.demo.dto.ReservationHoverSummaryResponseDTO;
 import server.demo.dto.ReservationStatistics;
 import server.demo.dto.UpdateReservationSettlementStatusRequest;
 import server.demo.enums.PermissionAction;
@@ -58,6 +60,14 @@ public class ReservationController extends BaseStoreController {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("批量预订创建失败: " + e.getMessage()));
         }
+    }
+
+    @PostMapping("/hover-summaries")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.VIEW_ROOM_STATUS)
+    public ResponseEntity<ApiResponse<ReservationHoverSummaryResponseDTO>> getHoverSummaries(
+            @Valid @RequestBody ReservationHoverSummaryRequest request) {
+        ReservationHoverSummaryResponseDTO response = reservationService.getHoverSummaries(request.getReservationIds());
+        return ResponseEntity.ok(ApiResponse.success("获取悬停摘要成功", response));
     }
 
     @PostMapping("/{id}/check-in")

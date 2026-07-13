@@ -28,6 +28,7 @@ export interface ReservationInfoDTO {
   groupOrderNo?: string
   status?: string
   reservationStatus?: string
+  totalAmount?: number | null
   notes?: string
   remark?: string
   specialRequests?: string

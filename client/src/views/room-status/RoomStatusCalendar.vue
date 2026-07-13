@@ -631,10 +631,13 @@
         <div class="price-info">
           <span>{{
             t('roomStatus.hoverCard.totalOrderAmount', {
-              amount: hoverReservation?.totalAmount || '0.00',
+              amount: formatHoverTotalAmount(
+                hoverReservation?.totalAmount,
+                hoverReservation?.totalAmountKnown,
+              ),
             })
           }}</span>
-          <span class="received">{{
+          <span v-if="hoverPaidAmountText != null" class="received">{{
             t('roomStatus.hoverCard.paidAmount', { amount: hoverPaidAmountText })
           }}</span>
         </div>
@@ -2441,7 +2444,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onActivated, onBeforeUnmount, computed, watch, nextTick } from 'vue'
+import {
+  ref,
+  onMounted,
+  onActivated,
+  onDeactivated,
+  onBeforeUnmount,
+  computed,
+  watch,
+  nextTick,
+} from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -2466,18 +2478,22 @@ import {
 } from '@element-plus/icons-vue'
 import { useRoomStatusStore } from '@/stores/roomStatus'
 import { useUserStore } from '@/stores/user'
+import { useStoreStore } from '@/stores/store'
 import {
   createReservation,
   checkInReservation,
   cancelReservation,
   checkOutReservation,
   getReservationById,
+  getReservationHoverSummaries,
   getReservationChannelInfo,
   assignReservationRoom,
   updateReservation,
   searchReservations,
   type ReservationDTO,
   type ReservationChannelInfoDTO,
+  type ReservationHoverSummaryCapabilities,
+  type ReservationHoverSummaryItem,
 } from '@/api/reservation'
 import { closeRoomBlockouts, getRoomStatusCalendar, openRoomBlockouts } from '@/api/roomStatus'
 import type { CreateReservationRequest } from '@/api/reservation'
@@ -2543,11 +2559,20 @@ import {
 } from '@/api/suWebhookEvents'
 import RoomLockActions from './components/RoomLockActions.vue'
 import type { RoomLockOperationContext } from '@/api/roomLock'
+import {
+  HoverSummaryCache,
+  HoverSummaryRefreshGate,
+  chunkReservationIds,
+  didAllHoverSummaryBatchesSucceed,
+  normalizeReservationIds,
+  runWithConcurrency,
+} from './hoverSummaryCache'
 
 const router = useRouter()
 const route = useRoute()
 const roomStatusStore = useRoomStatusStore()
 const userStore = useUserStore()
+const storeStore = useStoreStore()
 const { t } = useI18n()
 const { batchDateSelectorLabelMap, closeRoomTypeLabelMap, weekdayShortMap } = useAccommodationI18n()
 
@@ -3325,11 +3350,75 @@ const showDirtyHover = ref(false)
 const hoverCardPosition = ref({ x: 0, y: 0 })
 const hoverReservation = ref<any>(null)
 const hoverDirtyRoomId = ref<number | null>(null)
-const hoverReservationRequestId = ref(0)
-const hoverTotalPayment = ref(0)
-const hoverPaidAmountText = computed(() => hoverTotalPayment.value.toFixed(2))
+const hoverTotalPayment = ref<number | null>(null)
+const hoverPaidAmountText = computed(() =>
+  hoverTotalPayment.value == null ? null : hoverTotalPayment.value.toFixed(2),
+)
 const hoverCardRef = ref<HTMLElement | null>(null)
 const hoverCardAnchorRect = ref<DOMRect | null>(null)
+const hoverSummaryCache = new HoverSummaryCache<ReservationHoverSummaryItem>(60_000)
+const hoverSummaryRefreshGate = new HoverSummaryRefreshGate(60_000, 5_000)
+const hoverSummaryCapabilities = ref<ReservationHoverSummaryCapabilities | null>(null)
+const hoverSummaryItemVersions = new Map<number, number>()
+const hoverSummaryPendingKeys = new Set<string>()
+let hoverSummaryWindowReservationIds: number[] = []
+let hoverSummaryFrameId: number | null = null
+let hoverSummaryScheduleToken = 0
+let hoverSummaryGeneration = 0
+let hoverSummaryAbortController: AbortController | null = null
+
+const getCurrentStoreId = () => Number(storeStore.currentStore?.id || 0)
+
+const cancelScheduledHoverSummaryPrefetch = () => {
+  hoverSummaryScheduleToken += 1
+  if (hoverSummaryFrameId != null) {
+    cancelAnimationFrame(hoverSummaryFrameId)
+    hoverSummaryFrameId = null
+  }
+}
+
+const beginHoverSummaryGeneration = () => {
+  cancelScheduledHoverSummaryPrefetch()
+  hoverSummaryGeneration += 1
+  hoverSummaryAbortController?.abort()
+  hoverSummaryAbortController = new AbortController()
+  hoverSummaryCache.clear()
+  hoverSummaryCapabilities.value = null
+  hoverSummaryItemVersions.clear()
+  hoverSummaryPendingKeys.clear()
+  hoverSummaryWindowReservationIds = []
+  hoverSummaryRefreshGate.reset(hoverSummaryGeneration)
+  hoverTotalPayment.value = null
+  hoverReservation.value = null
+  showHoverCard.value = false
+  return {
+    generation: hoverSummaryGeneration,
+    storeId: getCurrentStoreId(),
+    controller: hoverSummaryAbortController,
+  }
+}
+
+const stopHoverSummaryRequests = (clearCache = true) => {
+  cancelScheduledHoverSummaryPrefetch()
+  hoverSummaryGeneration += 1
+  hoverSummaryAbortController?.abort()
+  hoverSummaryAbortController = null
+  hoverSummaryCapabilities.value = null
+  hoverSummaryItemVersions.clear()
+  hoverSummaryPendingKeys.clear()
+  hoverSummaryWindowReservationIds = []
+  hoverSummaryRefreshGate.reset(hoverSummaryGeneration)
+  hoverTotalPayment.value = null
+  hoverReservation.value = null
+  showHoverCard.value = false
+  if (clearCache) hoverSummaryCache.clear()
+}
+
+const formatHoverTotalAmount = (amount: unknown, known: boolean | undefined) => {
+  if (known === false || amount == null || amount === '') return '--'
+  const normalized = Number(amount)
+  return Number.isFinite(normalized) ? normalized.toFixed(2) : '--'
+}
 
 // 停用房操作弹窗
 const showClosedRoomActions = ref(false)
@@ -4513,6 +4602,168 @@ const getReservationChannelBadgeStyle = (dailyStatus: DailyRoomStatus) => {
   }
 }
 
+const isCurrentHoverSummaryContext = (generation: number, storeId: number) =>
+  generation === hoverSummaryGeneration && storeId === getCurrentStoreId()
+
+const applyCachedSummaryToCurrentHover = () => {
+  const reservationId = Number(hoverReservation.value?.id || 0)
+  const storeId = getCurrentStoreId()
+  if (!reservationId || !storeId) {
+    hoverTotalPayment.value = null
+    return
+  }
+  const summary = hoverSummaryCache.get(storeId, reservationId, hoverSummaryGeneration)
+  if (!summary) {
+    hoverTotalPayment.value = null
+    if (hoverSummaryAbortController) {
+      scheduleWindowHoverSummaryPrefetch({
+        generation: hoverSummaryGeneration,
+        storeId,
+        controller: hoverSummaryAbortController,
+      })
+    }
+    return
+  }
+  if (
+    hoverSummaryCapabilities.value?.guestPhone &&
+    Object.prototype.hasOwnProperty.call(summary, 'phone')
+  ) {
+    hoverReservation.value = { ...hoverReservation.value, phone: summary.phone }
+  }
+  const paidAmount = summary.paidAmount
+  hoverTotalPayment.value =
+    hoverSummaryCapabilities.value?.financial &&
+    Object.prototype.hasOwnProperty.call(summary, 'paidAmount') &&
+    paidAmount != null &&
+    Number.isFinite(Number(paidAmount))
+      ? Number(paidAmount)
+      : null
+  void nextTick(() => adjustHoverCardPosition())
+}
+
+const prefetchHoverSummaries = (
+  reservationIds: number[],
+  context: { generation: number; storeId: number; controller: AbortController },
+  isWindowBatch = false,
+) => {
+  if (!context.storeId || !isCurrentHoverSummaryContext(context.generation, context.storeId)) return
+
+  const tasks = chunkReservationIds(reservationIds, 200).flatMap((chunk) => {
+    const reservationIdChunk = chunk.filter((reservationId) => {
+      const version = hoverSummaryItemVersions.get(reservationId) || 0
+      const pendingKey = `${context.generation}:${context.storeId}:${reservationId}:${version}`
+      if (hoverSummaryPendingKeys.has(pendingKey)) return false
+      hoverSummaryPendingKeys.add(pendingKey)
+      return true
+    })
+    if (reservationIdChunk.length === 0) return []
+    const itemVersions = new Map(
+      reservationIdChunk.map((id) => [id, hoverSummaryItemVersions.get(id) || 0]),
+    )
+    return [
+      async () => {
+        try {
+          const response = await getReservationHoverSummaries(
+            reservationIdChunk,
+            context.controller.signal,
+          )
+          if (
+            !response.success ||
+            !response.data ||
+            !isCurrentHoverSummaryContext(context.generation, context.storeId)
+          ) {
+            return false
+          }
+          hoverSummaryCapabilities.value = response.data.capabilities
+          const requestedIds = new Set(reservationIdChunk)
+          response.data.items.forEach((item) => {
+            const reservationId = Number(item.reservationId)
+            if (
+              !requestedIds.has(reservationId) ||
+              (hoverSummaryItemVersions.get(reservationId) || 0) !== itemVersions.get(reservationId)
+            ) {
+              return
+            }
+            hoverSummaryCache.set(context.storeId, reservationId, context.generation, item)
+          })
+          applyCachedSummaryToCurrentHover()
+          return true
+        } finally {
+          reservationIdChunk.forEach((reservationId) => {
+            const version = itemVersions.get(reservationId) || 0
+            hoverSummaryPendingKeys.delete(
+              `${context.generation}:${context.storeId}:${reservationId}:${version}`,
+            )
+          })
+        }
+      },
+    ]
+  })
+
+  void runWithConcurrency(tasks, 2).then((results) => {
+    if (!isCurrentHoverSummaryContext(context.generation, context.storeId)) return
+    if (
+      isWindowBatch &&
+      didAllHoverSummaryBatchesSucceed(results)
+    ) {
+      hoverSummaryRefreshGate.markSuccess(context.generation)
+    }
+    const failure = results.find((result) => result.status === 'rejected')
+    if (failure?.status === 'rejected' && !context.controller.signal.aborted) {
+      console.warn('批量加载房态悬停摘要失败，将等待受控窗口刷新:', failure.reason)
+    }
+  })
+}
+
+function scheduleWindowHoverSummaryPrefetch(context: {
+  generation: number
+  storeId: number
+  controller: AbortController
+}) {
+  if (
+    hoverSummaryWindowReservationIds.length === 0 ||
+    !isCurrentHoverSummaryContext(context.generation, context.storeId) ||
+    !hoverSummaryRefreshGate.canSchedule(context.generation)
+  ) {
+    return
+  }
+  hoverSummaryRefreshGate.markScheduled(context.generation)
+  const scheduleToken = ++hoverSummaryScheduleToken
+  void nextTick(() => {
+    if (
+      scheduleToken !== hoverSummaryScheduleToken ||
+      !isCurrentHoverSummaryContext(context.generation, context.storeId)
+    ) {
+      return
+    }
+    hoverSummaryFrameId = requestAnimationFrame(() => {
+      hoverSummaryFrameId = null
+      if (
+        scheduleToken !== hoverSummaryScheduleToken ||
+        !isCurrentHoverSummaryContext(context.generation, context.storeId)
+      ) {
+        return
+      }
+      prefetchHoverSummaries(hoverSummaryWindowReservationIds, context, true)
+    })
+  })
+}
+
+const refreshHoverSummary = (reservationId: number) => {
+  const storeId = getCurrentStoreId()
+  if (!storeId || !reservationId || !hoverSummaryAbortController) return
+  hoverSummaryItemVersions.set(reservationId, (hoverSummaryItemVersions.get(reservationId) || 0) + 1)
+  hoverSummaryCache.delete(storeId, reservationId)
+  if (Number(hoverReservation.value?.id || 0) === reservationId) {
+    hoverTotalPayment.value = null
+  }
+  prefetchHoverSummaries([reservationId], {
+    generation: hoverSummaryGeneration,
+    storeId,
+    controller: hoverSummaryAbortController,
+  })
+}
+
 const loadCalendarData = async () => {
   await loadSortOrderMaps()
 
@@ -4530,10 +4781,12 @@ const loadCalendarData = async () => {
 
 // 加载真实的房态日历数据
 const loadRoomStatusCalendarData = async () => {
+  const summaryContext = beginHoverSummaryGeneration()
   try {
     loading.value = true
 
     const response = await getRoomStatusCalendar(dateRange.value[0], dateRange.value[1])
+    if (!isCurrentHoverSummaryContext(summaryContext.generation, summaryContext.storeId)) return
     console.log('loadRoomStatusCalendarData - 后端API响应:', response)
     console.log('loadRoomStatusCalendarData - response.data.rooms:', response.data?.rooms)
 
@@ -4574,7 +4827,11 @@ const loadRoomStatusCalendarData = async () => {
                   notes: daily.reservation.notes || (daily.reservation as any).remark || '',
                   adults: 1,
                   children: 0,
-                  totalAmount: 0,
+                  totalAmount:
+                    daily.reservation.totalAmount == null
+                      ? 0
+                      : Number(daily.reservation.totalAmount),
+                  totalAmountKnown: daily.reservation.totalAmount != null,
                   status: resolveCalendarReservationStatus(daily) as ReservationStatus,
                 }
               : null,
@@ -4586,6 +4843,12 @@ const loadRoomStatusCalendarData = async () => {
       if (transformedData.rooms && transformedData.rooms.length > 0) {
         calendarData.value = transformedData
         applyCalendarRoomSorting()
+
+        const reservationIds = transformedData.rooms.flatMap((room) =>
+          room.dailyStatus.map((daily) => Number(daily.reservation?.id || 0)),
+        )
+        hoverSummaryWindowReservationIds = normalizeReservationIds(reservationIds)
+        scheduleWindowHoverSummaryPrefetch(summaryContext)
 
         // 同步后端落库的关房信息到 UI overlay（roomExtraStatus）
         transformedData.rooms.forEach((room) => {
@@ -5689,27 +5952,18 @@ const onCellHover = (
 
   // 显示预订信息卡片（悬停展示）
   if (dailyStatus.reservation) {
-    const reservationId = Number(dailyStatus.reservation.id || 0)
-    const requestId = hoverReservationRequestId.value + 1
-    hoverReservationRequestId.value = requestId
-    hoverTotalPayment.value = 0
+    hoverTotalPayment.value = null
 
     // 先显示基本信息
     hoverReservation.value = dailyStatus.reservation
+    applyCachedSummaryToCurrentHover()
     showHoverCard.value = true
     void nextTick(() => {
       adjustHoverCardPosition()
     })
 
-    // 异步获取完整的预订详情（如果有ID）
-    if (dailyStatus.reservation.id) {
-      void loadHoverReservationDetails(reservationId, requestId)
-    } else {
-      console.log('预订信息缺少ID，使用基本信息:', dailyStatus.reservation)
-    }
   } else {
-    hoverReservationRequestId.value += 1
-    hoverTotalPayment.value = 0
+    hoverTotalPayment.value = null
     hoverReservation.value = null
     showHoverCard.value = false
   }
@@ -5717,12 +5971,11 @@ const onCellHover = (
 
 // 隐藏悬停卡片
 const hideHoverCard = () => {
-  hoverReservationRequestId.value += 1
   showHoverCard.value = false
   showDirtyHover.value = false
   hoverReservation.value = null
   hoverDirtyRoomId.value = null
-  hoverTotalPayment.value = 0
+  hoverTotalPayment.value = null
   hoverCardAnchorRect.value = null
 }
 
@@ -5740,42 +5993,6 @@ const normalizeReservationDetail = (reservation: ReservationDTO) => ({
   roomTypeName: reservation.roomTypeName,
   notes: reservation.notes,
 })
-
-const loadHoverReservationDetails = async (reservationId: number, requestId: number) => {
-  if (!reservationId) return
-
-  try {
-    const response = await getReservationById(reservationId)
-    if (
-      requestId !== hoverReservationRequestId.value ||
-      Number(hoverReservation.value?.id || 0) !== reservationId
-    ) {
-      return
-    }
-
-    if (response.success && response.data) {
-      const reservationData = normalizeReservationDetail(response.data)
-      hoverReservation.value = { ...hoverReservation.value, ...reservationData }
-
-      void nextTick(() => {
-        adjustHoverCardPosition()
-      })
-
-      const paymentResponse = await getTotalPayment(reservationId)
-      if (
-        requestId === hoverReservationRequestId.value &&
-        Number(hoverReservation.value?.id || 0) === reservationId &&
-        paymentResponse.success
-      ) {
-        hoverTotalPayment.value = Number(paymentResponse.data || 0)
-      }
-    } else {
-      console.error('加载悬停预订详情失败:', response.message)
-    }
-  } catch (error: any) {
-    console.error('加载悬停预订详情异常:', error)
-  }
-}
 
 // 加载预订详情
 const loadReservationDetails = async (reservationId: number) => {
@@ -6252,10 +6469,11 @@ const submitPayment = async () => {
     ElMessage.warning(t('roomStatus.payment.messages.reservationMissing'))
     return
   }
+  const reservationId = Number(selectedReservation.value.id)
 
   try {
     const paymentData: PaymentDTO = {
-      reservationId: selectedReservation.value.id,
+      reservationId,
       type: paymentForm.value.type === 'payment' ? '收款' : '收押金',
       paymentMethod: paymentForm.value.paymentMethod,
       amount: paymentForm.value.amount,
@@ -6268,6 +6486,7 @@ const submitPayment = async () => {
     if (response.success) {
       ElMessage.success(t('roomStatus.payment.messages.success'))
       showPaymentSidebar.value = false
+      refreshHoverSummary(reservationId)
       // 刷新收款记录列表
       await loadConsumptionAndPaymentData()
       // 确保收款面板展开
@@ -6378,6 +6597,7 @@ const handleDeleteConsumption = async (id: number) => {
 
 // 删除收款记录
 const handleDeletePayment = async (id: number) => {
+  const reservationId = Number(selectedReservation.value?.id || 0)
   try {
     await ElMessageBox.confirm(
       t('roomStatus.payment.messages.deleteConfirm'),
@@ -6392,6 +6612,7 @@ const handleDeletePayment = async (id: number) => {
     const response = await deletePayment(id)
     if (response.success) {
       ElMessage.success(t('roomStatus.payment.messages.deleteSuccess'))
+      if (reservationId) refreshHoverSummary(reservationId)
       await loadConsumptionAndPaymentData()
     } else {
       ElMessage.error(response.message || t('roomStatus.payment.messages.deleteFailed'))
@@ -7790,6 +8011,15 @@ watch(visibleDateRange, (newRange, oldRange) => {
   void reloadCalendarForVisibleRange()
 })
 
+watch(
+  () => storeStore.currentStore?.id,
+  (newStoreId, oldStoreId) => {
+    if (newStoreId === oldStoreId) return
+    stopHoverSummaryRequests()
+    hideHoverCard()
+  },
+)
+
 // 生命周期
 onMounted(async () => {
   loadCellPriceDisplayPreferences()
@@ -7810,6 +8040,11 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('mouseup', handleWindowMouseUp)
+  stopHoverSummaryRequests()
+})
+
+onDeactivated(() => {
+  stopHoverSummaryRequests()
 })
 
 onActivated(async () => {

@@ -160,6 +160,7 @@ export interface Reservation {
   adults: number
   children: number
   totalAmount: number
+  totalAmountKnown?: boolean
   status: ReservationStatus
   notes?: string
   specialRequests?: string

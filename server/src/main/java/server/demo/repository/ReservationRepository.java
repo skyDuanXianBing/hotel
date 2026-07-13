@@ -126,6 +126,19 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
             @Param("id") Long id
     );
 
+    @Query("""
+            SELECT DISTINCT r
+            FROM Reservation r
+            JOIN FETCH r.room room
+            JOIN FETCH room.roomType
+            WHERE r.storeId = :storeId
+              AND r.id IN :reservationIds
+            """)
+    List<Reservation> findAssignedByStoreIdAndIdInWithRoomType(
+            @Param("storeId") Long storeId,
+            @Param("reservationIds") List<Long> reservationIds
+    );
+
     Optional<Reservation> findByStoreIdAndOrderNumber(Long storeId, String orderNumber);
 
     @Query("""
