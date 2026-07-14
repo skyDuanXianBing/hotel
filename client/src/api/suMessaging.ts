@@ -3,6 +3,7 @@ import request from '@/utils/request'
 const SU_MESSAGING_TIMEOUT_MS = 60_000
 const SU_MESSAGING_AI_DRAFT_TIMEOUT_MS = 60_000
 const SU_MESSAGING_TRANSLATION_TIMEOUT_MS = 60_000
+const SU_MESSAGING_TRANSLATION_SETTING_TIMEOUT_MS = 5_000
 
 export enum SuMessagingSenderType {
   GUEST = 'GUEST',
@@ -128,6 +129,19 @@ export interface SuMessagingUnreadSummary {
 export interface SuMessagingAiSetting {
   autoReplyEnabled: boolean
 }
+
+export type SuMessagingTranslationTargetLanguage = 'zh-CN' | 'en' | 'ja' | 'ko'
+
+export interface SuMessagingTranslationSetting {
+  enabled: boolean
+  targetLanguage: SuMessagingTranslationTargetLanguage
+  configured: boolean
+}
+
+export type SuMessagingTranslationSettingUpdate = Pick<
+  SuMessagingTranslationSetting,
+  'enabled' | 'targetLanguage'
+>
 
 export interface SuMessageTranslationRequest {
   targetLanguage: string
@@ -331,5 +345,23 @@ export const updateSuMessagingAiSetting = (data: SuMessagingAiSetting) => {
     url: '/su-messaging/ai-settings',
     method: 'put',
     data,
+  })
+}
+
+export const getSuMessagingTranslationSetting = () => {
+  return request<SuMessagingTranslationSetting>({
+    url: '/su-messaging/translation-settings',
+    method: 'get',
+    timeout: SU_MESSAGING_TRANSLATION_SETTING_TIMEOUT_MS,
+    suppressErrorToast: true,
+  })
+}
+
+export const updateSuMessagingTranslationSetting = (data: SuMessagingTranslationSettingUpdate) => {
+  return request<SuMessagingTranslationSetting>({
+    url: '/su-messaging/translation-settings',
+    method: 'put',
+    data,
+    suppressErrorToast: true,
   })
 }

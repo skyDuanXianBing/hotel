@@ -17,9 +17,19 @@
                 @click="refreshCurrentConversationMessages"
               />
             </el-tooltip>
-            <el-button text size="small" @click="translationDialogVisible = true">
-              {{ t('stage6.components.messagesPage.translate') }}
-            </el-button>
+            <el-tooltip
+              :content="t('stage6.components.messagesPage.translation.settingsTooltip')"
+              placement="bottom"
+            >
+              <el-button
+                text
+                circle
+                size="small"
+                :icon="Setting"
+                :aria-label="t('stage6.components.messagesPage.translation.settingsTooltip')"
+                @click="openTranslationSettings"
+              />
+            </el-tooltip>
           </div>
         </div>
 
@@ -427,7 +437,11 @@
               {{ t('stage6.components.messagesPage.translation.enableDescription') }}
             </div>
           </div>
-          <el-switch v-model="translationEnabled" />
+          <el-switch
+            v-model="translationSettingsDraft.enabled"
+            :active-text="t('stage6.components.messagesPage.translation.enabledStatus')"
+            :inactive-text="t('stage6.components.messagesPage.translation.disabledStatus')"
+          />
         </div>
 
         <div class="translation-setting-block">
@@ -437,7 +451,7 @@
           <div class="translation-setting-desc">
             {{ t('stage6.components.messagesPage.translation.defaultLanguageDescription') }}
           </div>
-          <el-select v-model="translationTargetLanguage" style="width: 260px">
+          <el-select v-model="translationSettingsDraft.targetLanguage" style="width: 260px">
             <el-option
               v-for="option in translationLanguageOptions"
               :key="option.value"
@@ -478,7 +492,7 @@
             {{
               aiDraftViewMode === 'system'
                 ? t('stage6.components.messagesPage.aiDraft.systemLanguageVersionTitle', {
-                    language: currentSystemLanguageLabel,
+                    language: currentTranslationLanguageLabel,
                   })
                 : t('stage6.components.messagesPage.aiDraft.initialDraft')
             }}
@@ -653,6 +667,7 @@ import {
   Picture,
   Refresh,
   Search,
+  Setting,
   User,
   WarningFilled,
 } from '@element-plus/icons-vue'
@@ -660,12 +675,14 @@ import { ElMessage } from 'element-plus'
 import {
   generateSuMessagingAiReplyDraft,
   getSuMessageAttachment,
+  getSuMessagingTranslationSetting,
   getSuThreadMessagesPage,
   getSuThreadsPage,
   sendSuThreadAttachment,
   sendSuThreadMessage,
   SuMessagingSenderType,
   translateSuThreadMessage,
+  updateSuMessagingTranslationSetting,
   type SuMessagingAiReplyDraftRecentMessage,
   type SuMessagingAiReplyDraftResponse,
   type SuMessagingMessageOrderStatus,
@@ -677,6 +694,7 @@ import {
   type SuMessagingThreadPageDTO,
   type SuMessagingThreadDTO,
   type SuMessagingChannelCode,
+  type SuMessagingTranslationSetting,
   type SuMessageTranslationResponse,
 } from '@/api/suMessaging'
 import { sendChatMessage } from '@/api/chat'
@@ -699,9 +717,18 @@ import {
   setCachedTranslation,
   type TranslationCacheScope,
 } from '@/utils/translationCache'
+import {
+  clearPendingLegacyMessageTranslationPreference,
+  normalizeMessageTranslationPreference,
+  persistMessageTranslationPreference,
+  readInitialMessageTranslationPreference,
+  resolveServerMessageTranslationPreference,
+  resolveMessageTranslationAiLanguageLabel,
+  type MessageTranslationLanguage,
+  type MessageTranslationPreference,
+} from '@/utils/messageTranslationPreference'
 import { useStoreStore } from '@/stores/store'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
-import { LANGUAGE_OPTIONS, getStoreOptionLabel } from '@/constants/storeOptions'
 import {
   diffYmdDays,
   getStoreDateKey as getStoreDateKeyByZone,
@@ -786,8 +813,6 @@ const AI_TRANSLATION_TIMEOUT_MS = 45_000
 const AI_ASSISTANT_TIMEOUT_MS = 60_000
 const INITIAL_MESSAGE_TRANSLATION_BATCH = 20
 const SCROLL_TRANSLATION_DEBOUNCE_MS = 220
-const TRANSLATION_SETTINGS_STORAGE_KEY = 'messages.translation.settings'
-const TRANSLATION_LANGUAGE_VALUES = ['zh-CN', 'en', 'ja', 'ko'] as const
 const THREAD_PAGE_SIZE = 30
 const MESSAGE_PAGE_LIMIT = 50
 const CHANNEL_AIRBNB_ID = 244
@@ -795,7 +820,6 @@ const CHANNEL_BOOKING_ID = 19
 const THREAD_SEARCH_DEBOUNCE_MS = 350
 const THREAD_SCROLL_BOTTOM_THRESHOLD = 80
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
-type TranslationLanguageValue = (typeof TRANSLATION_LANGUAGE_VALUES)[number]
 interface TranslationRunResult {
   attempted: number
   failed: number
@@ -804,6 +828,12 @@ interface TranslationRunResult {
 
 interface MessageTranslationOptions {
   notifyOnError?: boolean
+}
+
+interface MessageTranslationRequestContext {
+  targetLanguage: MessageTranslationLanguage
+  generation: number
+  cacheScope: TranslationCacheScope
 }
 
 const truncateText = (content: string, maxChars: number) => {
@@ -883,6 +913,7 @@ const aiContextSummary = ref('')
 const aiDraftReply = ref('')
 const aiDraftSystemLanguageVersion = ref('')
 const aiDraftSystemLanguageSource = ref('')
+const aiDraftSystemLanguageTarget = ref<MessageTranslationLanguage | ''>('')
 const isAiTranslatingDraft = ref(false)
 const aiPolishInstruction = ref('')
 const aiPolishHistory = ref<AiPolishItem[]>([])
@@ -905,7 +936,12 @@ const isApplyingQuickReply = ref(false)
 const translationDialogVisible = ref(false)
 const isApplyingTranslationSettings = ref(false)
 const translationEnabled = ref(false)
-const translationTargetLanguage = ref<TranslationLanguageValue>('zh-CN')
+const translationTargetLanguage = ref<MessageTranslationLanguage>('zh-CN')
+const translationSettingsReady = ref(false)
+const translationSettingsDraft = ref<MessageTranslationPreference>({
+  enabled: false,
+  targetLanguage: 'zh-CN',
+})
 const translatedMessageMap = ref<Record<string, string>>({})
 
 let socket: WebSocket | null = null
@@ -919,21 +955,17 @@ let threadRequestId = 0
 let shouldSkipNextSearchQueryWatch = false
 let shouldSkipNextThreadFilterWatch = false
 let aiDraftSystemLanguageRequestId = 0
+let messageTranslationGeneration = 0
+let translationSettingsRequestId = 0
+let pendingLegacyTranslationPreference: MessageTranslationPreference | null = null
 let attachmentLoadGeneration = 0
 let hasShownPersistentTranslationFallbackNotice = false
 let hasShownBackgroundTranslationFailureNotice = false
 const reservationIdCache = new Map<string, number | null>()
-const translationPendingKeys = new Set<string>()
+const translationPendingKeys = new Map<string, number>()
 const attachmentLoadPendingIds = new Set<string>()
 
-const DEFAULT_STORE_LANGUAGE = 'zh'
 const DEFAULT_STORE_TIME_ZONE = 'Asia/Shanghai'
-const STORE_LANGUAGE_AI_LABEL_MAP: Record<string, string> = {
-  zh: 'Simplified Chinese',
-  en: 'English',
-  ja: 'Japanese',
-  ko: 'Korean',
-}
 const GUEST_LANGUAGE_AI_LABEL_MAP: Record<string, string> = {
   zh: 'Simplified Chinese',
   en: 'English',
@@ -949,6 +981,12 @@ const translationLanguageOptions = computed(() => [
   { value: 'ja' as const, label: t('stage6.components.messagesPage.translation.languages.ja') },
   { value: 'ko' as const, label: t('stage6.components.messagesPage.translation.languages.ko') },
 ])
+
+const currentTranslationLanguageLabel = computed(
+  () =>
+    translationLanguageOptions.value.find((item) => item.value === translationTargetLanguage.value)
+      ?.label || t('stage6.components.messagesPage.translation.languages.zhCN'),
+)
 
 const weekdayLabels = computed(() => [
   t('stage6.components.messagesPage.date.weekdays.sun'),
@@ -1099,40 +1137,10 @@ const isThreadListBusy = computed(() => {
   return isLoadingThreads.value || isLoadingMoreThreads.value
 })
 
-const currentStoreLanguageCode = computed(() => {
-  const rawCode = (storeStore.currentStore?.language || DEFAULT_STORE_LANGUAGE).trim().toLowerCase()
-  if (rawCode.startsWith('zh')) {
-    return 'zh'
-  }
-  if (rawCode.startsWith('en')) {
-    return 'en'
-  }
-  if (rawCode.startsWith('ja')) {
-    return 'ja'
-  }
-  if (rawCode.startsWith('ko')) {
-    return 'ko'
-  }
-  return DEFAULT_STORE_LANGUAGE
-})
-
-const currentSystemLanguageLabel = computed(() => {
-  const raw =
-    getStoreOptionLabel(LANGUAGE_OPTIONS, currentStoreLanguageCode.value, t) ||
-    t('stage6.components.messagesPage.translation.languages.zhCN')
-  return (
-    raw.replace(/[（(].*?[）)]/g, '').trim() ||
-    t('stage6.components.messagesPage.translation.languages.zhCN')
-  )
-})
-
 const currentStoreTimeZone = computed(() => {
   const timezone = (storeStore.currentStore?.timezone || DEFAULT_STORE_TIME_ZONE).trim()
   return timezone || DEFAULT_STORE_TIME_ZONE
 })
-
-const resolveSystemLanguageAiLabel = () =>
-  STORE_LANGUAGE_AI_LABEL_MAP[currentStoreLanguageCode.value] || STORE_LANGUAGE_AI_LABEL_MAP.zh
 
 const detectTextLanguageCode = (text?: string) => {
   const normalized = (text || '').trim()
@@ -1269,49 +1277,113 @@ const threadEmptyStateText = computed(() => {
   return uiText('emptyConversations')
 })
 
-const loadTranslationSettings = () => {
-  const raw = localStorage.getItem(TRANSLATION_SETTINGS_STORAGE_KEY)
-  if (!raw) {
-    return
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as {
-      enabled?: boolean
-      targetLanguage?: TranslationLanguageValue
-    }
-    translationEnabled.value = Boolean(parsed.enabled)
-    clearTranslationCaches()
-    if (parsed.targetLanguage && TRANSLATION_LANGUAGE_VALUES.includes(parsed.targetLanguage)) {
-      translationTargetLanguage.value = parsed.targetLanguage
-    }
-  } catch (error) {
-    console.error('Failed to read translation settings:', error)
-  }
-}
-
-const persistTranslationSettings = () => {
-  localStorage.setItem(
-    TRANSLATION_SETTINGS_STORAGE_KEY,
-    JSON.stringify({
-      enabled: translationEnabled.value,
-      targetLanguage: translationTargetLanguage.value,
-    }),
-  )
+const clearMessageTranslationCache = () => {
+  messageTranslationGeneration += 1
+  translatedMessageMap.value = {}
+  translationPendingKeys.clear()
+  hasShownPersistentTranslationFallbackNotice = false
+  hasShownBackgroundTranslationFailureNotice = false
 }
 
 const clearTranslationCaches = () => {
-  translatedMessageMap.value = {}
-  translationPendingKeys.clear()
-  hasShownPersistentTranslationFallbackNotice = false
-  hasShownBackgroundTranslationFailureNotice = false
+  clearMessageTranslationCache()
 }
 
-const clearMessageTranslationCache = () => {
-  translatedMessageMap.value = {}
-  translationPendingKeys.clear()
-  hasShownPersistentTranslationFallbackNotice = false
-  hasShownBackgroundTranslationFailureNotice = false
+const invalidateAiStaffTranslation = () => {
+  aiDraftSystemLanguageRequestId += 1
+  isAiTranslatingDraft.value = false
+  aiDraftSystemLanguageVersion.value = ''
+  aiDraftSystemLanguageSource.value = ''
+  aiDraftSystemLanguageTarget.value = ''
+}
+
+const applyEffectiveTranslationPreference = (preference: MessageTranslationPreference) => {
+  translationEnabled.value = preference.enabled
+  translationTargetLanguage.value = preference.targetLanguage
+}
+
+const isAutomaticTranslationActive = () =>
+  translationSettingsReady.value && translationEnabled.value
+
+const refreshTranslationSettingsFromServer = async (
+  userId: number | null,
+  requestId: number,
+) => {
+  try {
+    const response =
+      (await getSuMessagingTranslationSetting()) as ApiResponse<SuMessagingTranslationSetting>
+    if (requestId !== translationSettingsRequestId) {
+      return
+    }
+    if (response.success === false || !response.data) {
+      throw new Error(
+        sanitizeUserFacingMessage(response.message) ||
+          t('stage6.components.messagesPage.translation.loadFailed'),
+      )
+    }
+
+    const serverResolution = resolveServerMessageTranslationPreference(
+      response.data,
+      pendingLegacyTranslationPreference,
+    )
+    const authoritativePreference = serverResolution.preference
+    const preferenceChanged =
+      authoritativePreference.enabled !== translationEnabled.value ||
+      authoritativePreference.targetLanguage !== translationTargetLanguage.value
+    pendingLegacyTranslationPreference = serverResolution.pendingLegacyPreference
+    applyEffectiveTranslationPreference(authoritativePreference)
+    persistMessageTranslationPreference(localStorage, userId, authoritativePreference)
+    if (response.data.configured) {
+      clearPendingLegacyMessageTranslationPreference(localStorage, userId)
+      if (translationDialogVisible.value) {
+        translationSettingsDraft.value = { ...authoritativePreference }
+      }
+    }
+    if (preferenceChanged) {
+      clearTranslationCaches()
+      invalidateAiStaffTranslation()
+      if (
+        aiDraftDialogVisible.value &&
+        aiDraftViewMode.value === 'system' &&
+        aiDraftReply.value.trim()
+      ) {
+        void ensureSystemLanguageDraftVersion()
+      }
+    }
+  } catch (error) {
+    if (requestId !== translationSettingsRequestId) {
+      return
+    }
+    console.warn('Failed to load server translation settings, using local preference:', error)
+    ElMessage.warning(t('stage6.components.messagesPage.translation.loadFallbackWarning'))
+  } finally {
+    if (requestId === translationSettingsRequestId) {
+      translationSettingsReady.value = true
+      if (isAutomaticTranslationActive()) {
+        void refreshTranslationsAfterPreferenceChange()
+      }
+    }
+  }
+}
+
+const initializeTranslationSettings = () => {
+  translationSettingsReady.value = false
+  const userId = getCurrentUserId()
+  const initialPreference = readInitialMessageTranslationPreference(localStorage, userId)
+  pendingLegacyTranslationPreference = initialPreference.pendingLegacyPreference
+  applyEffectiveTranslationPreference(initialPreference.preference)
+  const requestId = ++translationSettingsRequestId
+  void refreshTranslationSettingsFromServer(userId, requestId)
+}
+
+const openTranslationSettings = () => {
+  translationSettingsDraft.value = pendingLegacyTranslationPreference
+    ? { ...pendingLegacyTranslationPreference }
+    : {
+        enabled: translationEnabled.value,
+        targetLanguage: translationTargetLanguage.value,
+      }
+  translationDialogVisible.value = true
 }
 
 const clearActiveConversationDetails = () => {
@@ -1377,8 +1449,14 @@ const requestAiTranslationToLanguage = async (sourceText: string, targetLanguage
   return normalizeTranslatedText(response.data.reply)
 }
 
-const requestAiTranslation = async (sourceText: string) =>
-  requestAiTranslationToLanguage(sourceText, getTranslationLanguageLabel())
+const requestAiTranslation = async (
+  sourceText: string,
+  targetLanguage: MessageTranslationLanguage,
+) =>
+  requestAiTranslationToLanguage(
+    sourceText,
+    resolveMessageTranslationAiLanguageLabel(targetLanguage),
+  )
 
 const notifyPersistentTranslationFallback = (error: unknown) => {
   console.warn('Persistent message translation failed, using fallback translation:', error)
@@ -1413,7 +1491,10 @@ const canRequestPersistentMessageTranslation = (message: MessageItem) => {
   return Boolean(resolveMessageTranslationThreadId(message) && message.id > 0)
 }
 
-const requestPersistentMessageTranslation = async (message: MessageItem) => {
+const requestPersistentMessageTranslation = async (
+  message: MessageItem,
+  targetLanguage: MessageTranslationLanguage,
+) => {
   const threadId = resolveMessageTranslationThreadId(message)
   if (!threadId || message.id <= 0) {
     throw new Error(resolveTranslationFailureMessage())
@@ -1423,7 +1504,7 @@ const requestPersistentMessageTranslation = async (message: MessageItem) => {
     threadId,
     message.id,
     {
-      targetLanguage: translationTargetLanguage.value,
+      targetLanguage,
     },
     {
       timeoutMs: AI_TRANSLATION_TIMEOUT_MS,
@@ -1444,28 +1525,41 @@ const requestPersistentMessageTranslation = async (message: MessageItem) => {
 const syncSystemLanguageDraftVersion = async (guestFacingDraft: string) => {
   const trimmed = guestFacingDraft.trim()
   if (!trimmed) {
-    aiDraftSystemLanguageVersion.value = ''
-    aiDraftSystemLanguageSource.value = ''
+    invalidateAiStaffTranslation()
     return
   }
 
   const requestId = ++aiDraftSystemLanguageRequestId
+  const targetLanguage = translationTargetLanguage.value
   isAiTranslatingDraft.value = true
   try {
     aiDraftSystemLanguageVersion.value = ''
-    const translated = await requestAiTranslationToLanguage(trimmed, resolveSystemLanguageAiLabel())
-    if (requestId !== aiDraftSystemLanguageRequestId) {
+    aiDraftSystemLanguageSource.value = ''
+    aiDraftSystemLanguageTarget.value = ''
+    const translated = await requestAiTranslationToLanguage(
+      trimmed,
+      resolveMessageTranslationAiLanguageLabel(targetLanguage),
+    )
+    if (
+      requestId !== aiDraftSystemLanguageRequestId ||
+      targetLanguage !== translationTargetLanguage.value
+    ) {
       return
     }
     aiDraftSystemLanguageVersion.value = translated || trimmed
     aiDraftSystemLanguageSource.value = trimmed
+    aiDraftSystemLanguageTarget.value = targetLanguage
   } catch (error) {
-    if (requestId !== aiDraftSystemLanguageRequestId) {
+    if (
+      requestId !== aiDraftSystemLanguageRequestId ||
+      targetLanguage !== translationTargetLanguage.value
+    ) {
       return
     }
-    console.error('Failed to generate the system language version:', error)
+    console.error('Failed to generate the staff reference translation:', error)
     aiDraftSystemLanguageVersion.value = trimmed
     aiDraftSystemLanguageSource.value = trimmed
+    aiDraftSystemLanguageTarget.value = targetLanguage
   } finally {
     if (requestId === aiDraftSystemLanguageRequestId) {
       isAiTranslatingDraft.value = false
@@ -1476,12 +1570,15 @@ const syncSystemLanguageDraftVersion = async (guestFacingDraft: string) => {
 const ensureSystemLanguageDraftVersion = async () => {
   const trimmed = aiDraftReply.value.trim()
   if (!trimmed) {
-    aiDraftSystemLanguageVersion.value = ''
-    aiDraftSystemLanguageSource.value = ''
+    invalidateAiStaffTranslation()
     return
   }
 
-  if (aiDraftSystemLanguageSource.value === trimmed && aiDraftSystemLanguageVersion.value.trim()) {
+  if (
+    aiDraftSystemLanguageSource.value === trimmed &&
+    aiDraftSystemLanguageTarget.value === translationTargetLanguage.value &&
+    aiDraftSystemLanguageVersion.value.trim()
+  ) {
     return
   }
 
@@ -1499,35 +1596,50 @@ const handleAiDraftReplyInput = () => {
     return
   }
 
-  aiDraftSystemLanguageRequestId += 1
-  isAiTranslatingDraft.value = false
-  aiDraftSystemLanguageSource.value = ''
-  aiDraftSystemLanguageVersion.value = ''
+  invalidateAiStaffTranslation()
 }
 
-const setMessageTranslatedText = (message: MessageItem, sourceText: string, translated: string) => {
+const isMessageTranslationContextCurrent = (context: MessageTranslationRequestContext) =>
+  isAutomaticTranslationActive() &&
+  context.generation === messageTranslationGeneration &&
+  context.targetLanguage === translationTargetLanguage.value
+
+const setMessageTranslatedText = (
+  message: MessageItem,
+  sourceText: string,
+  translated: string,
+  context: MessageTranslationRequestContext,
+) => {
+  if (!isMessageTranslationContextCurrent(context)) {
+    return ''
+  }
+
   const normalizedTranslation = normalizeTranslatedText(translated)
   if (!normalizedTranslation) {
     return ''
   }
 
-  const key = getMessageTranslationKey(message)
+  const key = getMessageTranslationKey(message, context.targetLanguage)
   translatedMessageMap.value = {
     ...translatedMessageMap.value,
     [key]: normalizedTranslation,
   }
-  setCachedTranslation(getTranslationCacheScope(), sourceText, normalizedTranslation)
+  setCachedTranslation(context.cacheScope, sourceText, normalizedTranslation)
   return normalizedTranslation
 }
 
-const requestFallbackMessageTranslation = async (message: MessageItem, sourceText: string) => {
-  const cachedTranslation = getCachedTranslation(getTranslationCacheScope(), sourceText)
+const requestFallbackMessageTranslation = async (
+  message: MessageItem,
+  sourceText: string,
+  context: MessageTranslationRequestContext,
+) => {
+  const cachedTranslation = getCachedTranslation(context.cacheScope, sourceText)
   if (cachedTranslation) {
-    return setMessageTranslatedText(message, sourceText, cachedTranslation)
+    return setMessageTranslatedText(message, sourceText, cachedTranslation, context)
   }
 
-  const translated = await requestAiTranslation(sourceText)
-  return setMessageTranslatedText(message, sourceText, translated)
+  const translated = await requestAiTranslation(sourceText, context.targetLanguage)
+  return setMessageTranslatedText(message, sourceText, translated, context)
 }
 
 const ensureMessageTranslation = async (
@@ -1535,36 +1647,53 @@ const ensureMessageTranslation = async (
   options: MessageTranslationOptions = {},
 ): Promise<TranslationRunResult> => {
   const skippedResult = createTranslationRunResult()
-  if (!translationEnabled.value || !message.content.trim()) {
+  if (!isAutomaticTranslationActive() || !message.content.trim()) {
     return skippedResult
   }
 
-  const key = getMessageTranslationKey(message)
+  const context: MessageTranslationRequestContext = {
+    targetLanguage: translationTargetLanguage.value,
+    generation: messageTranslationGeneration,
+    cacheScope: getTranslationCacheScope(translationTargetLanguage.value),
+  }
+  const key = getMessageTranslationKey(message, context.targetLanguage)
   if (translatedMessageMap.value[key] || translationPendingKeys.has(key)) {
     return skippedResult
   }
 
   const sourceText = message.content.trim()
 
-  translationPendingKeys.add(key)
+  translationPendingKeys.set(key, context.generation)
   try {
     let translated = ''
     if (canRequestPersistentMessageTranslation(message)) {
       try {
-        translated = await requestPersistentMessageTranslation(message)
-        setMessageTranslatedText(message, sourceText, translated)
+        translated = await requestPersistentMessageTranslation(message, context.targetLanguage)
+        if (!isMessageTranslationContextCurrent(context)) {
+          return skippedResult
+        }
+        setMessageTranslatedText(message, sourceText, translated, context)
       } catch (error) {
+        if (!isMessageTranslationContextCurrent(context)) {
+          return skippedResult
+        }
         notifyPersistentTranslationFallback(error)
-        translated = await requestFallbackMessageTranslation(message, sourceText)
+        translated = await requestFallbackMessageTranslation(message, sourceText, context)
       }
     } else {
-      translated = await requestFallbackMessageTranslation(message, sourceText)
+      translated = await requestFallbackMessageTranslation(message, sourceText, context)
+    }
+    if (!isMessageTranslationContextCurrent(context)) {
+      return skippedResult
     }
     if (!translated) {
       throw new Error(resolveTranslationFailureMessage())
     }
     return { attempted: 1, failed: 0 }
   } catch (error) {
+    if (!isMessageTranslationContextCurrent(context)) {
+      return skippedResult
+    }
     console.error('Failed to translate message:', error)
     const errorMessage = resolveTranslationFailureMessage(error)
     if (options.notifyOnError !== false) {
@@ -1576,7 +1705,9 @@ const ensureMessageTranslation = async (
       errorMessage,
     }
   } finally {
-    translationPendingKeys.delete(key)
+    if (translationPendingKeys.get(key) === context.generation) {
+      translationPendingKeys.delete(key)
+    }
   }
 }
 
@@ -1598,7 +1729,7 @@ const translateMessagesSequentially = async (
 }
 
 const translateCurrentConversation = async (options: { stopOnError?: boolean } = {}) => {
-  if (!translationEnabled.value) {
+  if (!isAutomaticTranslationActive()) {
     return createTranslationRunResult()
   }
   const latestMessages = sortMessagesByTime(messages.value).slice(
@@ -1646,7 +1777,7 @@ const getVisibleMessagesInViewport = () => {
 }
 
 const translateVisibleMessages = async (options: { stopOnError?: boolean } = {}) => {
-  if (!translationEnabled.value) {
+  if (!isAutomaticTranslationActive()) {
     return createTranslationRunResult()
   }
   const visibleItems = getVisibleMessagesInViewport()
@@ -1674,7 +1805,7 @@ const handleMessagesScroll = () => {
     void loadOlderMessages()
   }
 
-  if (!translationEnabled.value) {
+  if (!isAutomaticTranslationActive()) {
     return
   }
   clearMessageScrollTranslateTimer()
@@ -1683,28 +1814,61 @@ const handleMessagesScroll = () => {
   }, SCROLL_TRANSLATION_DEBOUNCE_MS)
 }
 
+const refreshTranslationsAfterPreferenceChange = async () => {
+  try {
+    await translateCurrentConversation()
+    await nextTick()
+    await translateVisibleMessages()
+  } catch (error) {
+    console.error('Failed to refresh message translations after saving the preference:', error)
+  }
+}
+
 const applyTranslationSettings = async () => {
   isApplyingTranslationSettings.value = true
   try {
-    if (translationEnabled.value) {
-      clearTranslationCaches()
-      let translationResult = await translateCurrentConversation({ stopOnError: true })
-      await nextTick()
-      if (translationResult.failed === 0) {
-        translationResult = mergeTranslationRunResults(
-          translationResult,
-          await translateVisibleMessages({ stopOnError: true }),
-        )
-      }
-      if (translationResult.failed > 0) {
-        throw new Error(translationResult.errorMessage || resolveTranslationFailureMessage())
-      }
-    } else {
-      clearTranslationCaches()
+    const submittedPreference = normalizeMessageTranslationPreference(
+      translationSettingsDraft.value,
+    )
+    const response = (await updateSuMessagingTranslationSetting(
+      submittedPreference,
+    )) as ApiResponse<SuMessagingTranslationSetting>
+    if (response.success === false || !response.data) {
+      throw new Error(
+        sanitizeUserFacingMessage(response.message) ||
+          t('stage6.components.messagesPage.translation.saveFailed'),
+      )
     }
-    persistTranslationSettings()
+
+    const authoritativePreference = normalizeMessageTranslationPreference(response.data)
+    const wasSettingsReady = translationSettingsReady.value
+    const enabledChanged = authoritativePreference.enabled !== translationEnabled.value
+    const targetLanguageChanged =
+      authoritativePreference.targetLanguage !== translationTargetLanguage.value
+
+    applyEffectiveTranslationPreference(authoritativePreference)
+    translationSettingsRequestId += 1
+    translationSettingsReady.value = true
+    pendingLegacyTranslationPreference = null
+    clearPendingLegacyMessageTranslationPreference(localStorage, getCurrentUserId())
+    persistMessageTranslationPreference(localStorage, getCurrentUserId(), authoritativePreference)
     translationDialogVisible.value = false
     ElMessage.success(t('stage6.components.messagesPage.translation.applySuccess'))
+
+    if (enabledChanged || targetLanguageChanged) {
+      clearTranslationCaches()
+      invalidateAiStaffTranslation()
+      if (
+        aiDraftDialogVisible.value &&
+        aiDraftViewMode.value === 'system' &&
+        aiDraftReply.value.trim()
+      ) {
+        void ensureSystemLanguageDraftVersion()
+      }
+    }
+    if (isAutomaticTranslationActive() && (!wasSettingsReady || enabledChanged || targetLanguageChanged)) {
+      void refreshTranslationsAfterPreferenceChange()
+    }
   } catch (error) {
     console.error('Failed to apply translation settings:', error)
     ElMessage.error(
@@ -1814,12 +1978,11 @@ const getConversationOrderKindStyle = (conversation: SuMessagingThreadDTO) => {
   return (conversation.orderKind || 'UNKNOWN').toLowerCase().replace(/_/g, '-')
 }
 
-const getMessageTranslationKey = (message: MessageItem) =>
-  `message:${message.id}:${message.content}`
-
-const getTranslationLanguageLabel = () =>
-  translationLanguageOptions.value.find((item) => item.value === translationTargetLanguage.value)
-    ?.label || t('stage6.components.messagesPage.translation.languages.zhCN')
+const getMessageTranslationKey = (
+  message: MessageItem,
+  targetLanguage: MessageTranslationLanguage = translationTargetLanguage.value,
+) =>
+  `message:${targetLanguage}:${message.threadId || activeThreadId.value || 'unknown'}:${message.id}:${message.content}`
 
 const normalizeTranslatedText = (text: string) =>
   text
@@ -1836,7 +1999,7 @@ const getTranslatedMessageText = (message: MessageItem) =>
   translatedMessageMap.value[getMessageTranslationKey(message)] || ''
 
 const shouldShowTranslatedMessage = (message: MessageItem) => {
-  if (!translationEnabled.value) {
+  if (!isAutomaticTranslationActive()) {
     return false
   }
   const translated = getTranslatedMessageText(message)
@@ -2040,10 +2203,12 @@ const getCurrentUserId = () => {
   }
 }
 
-const getTranslationCacheScope = (): TranslationCacheScope => ({
+const getTranslationCacheScope = (
+  targetLanguage: MessageTranslationLanguage = translationTargetLanguage.value,
+): TranslationCacheScope => ({
   storeId: getCurrentStoreId(),
   userId: getCurrentUserId(),
-  targetLanguage: translationTargetLanguage.value,
+  targetLanguage,
 })
 
 const formatDateDividerLabel = (dateKey: string) => {
@@ -2291,7 +2456,7 @@ const loadThreadMessages = async (threadId: number, beforeMessageId?: number) =>
       updateThreadSummary(threadId, { unreadCount: 0 })
       await notificationCenterStore.refreshChatUnreadCount()
     }
-    if (translationEnabled.value) {
+    if (isAutomaticTranslationActive()) {
       void translateCurrentConversation()
     }
     if (isOlderPage) {
@@ -2299,7 +2464,7 @@ const loadThreadMessages = async (threadId: number, beforeMessageId?: number) =>
     } else {
       await scrollToBottom()
     }
-    if (translationEnabled.value) {
+    if (isAutomaticTranslationActive()) {
       await nextTick()
       void translateVisibleMessages()
     }
@@ -2436,10 +2601,7 @@ const openAiReplyAssistant = async () => {
   aiPolishInstruction.value = ''
   aiContextSummary.value = t('stage6.components.messagesPage.aiDraft.analyzingContext')
   aiDraftReply.value = ''
-  aiDraftSystemLanguageVersion.value = ''
-  aiDraftSystemLanguageSource.value = ''
-  aiDraftSystemLanguageRequestId += 1
-  isAiTranslatingDraft.value = false
+  invalidateAiStaffTranslation()
 
   try {
     const conversation = activeConversation.value
@@ -2489,8 +2651,7 @@ const openAiReplyAssistant = async () => {
     console.error('Failed to generate AI draft:', error)
     aiContextSummary.value = buildFallbackContextSummary()
     aiDraftReply.value = ''
-    aiDraftSystemLanguageVersion.value = ''
-    aiDraftSystemLanguageSource.value = ''
+    invalidateAiStaffTranslation()
     ElMessage.error(
       resolveAiErrorMessage(error, t('stage6.components.messagesPage.errors.aiDraftFailed')),
     )
@@ -2521,7 +2682,7 @@ const polishAiDraftReply = async () => {
       'You are a hotel guest reply editor.',
       'Improve the following draft reply for the guest.',
       `Return only the final guest-facing reply in ${guestLanguageLabel}.`,
-      `Do not switch to ${resolveSystemLanguageAiLabel()} unless the guest message is in that language.`,
+      `Do not switch to ${resolveMessageTranslationAiLanguageLabel(translationTargetLanguage.value)} unless the guest message is in that language.`,
       'Do not add explanations.',
       '',
       `Staff summary: ${aiContextSummary.value}`,
@@ -2555,10 +2716,7 @@ const polishAiDraftReply = async () => {
     const polished = response.data.reply.trim()
     aiDraftReply.value = polished
     aiDraftViewMode.value = 'draft'
-    aiDraftSystemLanguageRequestId += 1
-    isAiTranslatingDraft.value = false
-    aiDraftSystemLanguageSource.value = ''
-    aiDraftSystemLanguageVersion.value = ''
+    invalidateAiStaffTranslation()
     aiPolishHistory.value.push({
       role: 'assistant',
       content: polished,
@@ -2771,7 +2929,7 @@ const upsertMessage = (incoming: MessageItem) => {
     merged,
   ])
   loadMessageAttachments([incoming])
-  if (translationEnabled.value) {
+  if (isAutomaticTranslationActive()) {
     void ensureMessageTranslation(incoming)
   }
 }
@@ -3482,12 +3640,13 @@ watch(
 
 onMounted(() => {
   clearExpiredTranslationCache()
-  loadTranslationSettings()
+  initializeTranslationSettings()
   void initialize()
 })
 
 onUnmounted(() => {
   isDestroyed = true
+  translationSettingsRequestId += 1
   closeRealtimeSocket()
   clearMessageScrollTranslateTimer()
   clearThreadSearchTimer()

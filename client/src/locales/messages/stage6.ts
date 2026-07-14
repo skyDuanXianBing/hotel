@@ -354,8 +354,11 @@ export const stage6Messages = {
           },
           translation: {
             title: 'Message Translation',
+            settingsTooltip: 'Translation settings',
             enableTitle: 'Translate Messages',
             enableDescription: 'Enable automatic translation for conversation messages.',
+            enabledStatus: 'On',
+            disabledStatus: 'Off',
             defaultLanguageTitle: 'Default Language',
             defaultLanguageDescription: 'Messages will be translated into the language you select.',
             resultCacheDescription:
@@ -364,6 +367,9 @@ export const stage6Messages = {
             backendFallbackWarning:
               'Server translation cache is unavailable. Using local fallback translation for now.',
             saveFailed: 'Failed to save translation settings',
+            loadFailed: 'Failed to load translation settings',
+            loadFallbackWarning:
+              'Could not load server translation settings. Using the saved setting on this device.',
             languages: {
               zhCN: 'Simplified Chinese',
               en: 'English',
@@ -388,7 +394,7 @@ export const stage6Messages = {
             polishPlaceholder: 'Tell GPT how to revise this draft',
             generatePolished: 'Polish and fill draft',
             sendDraft: 'Send this draft',
-            generatingSystemVersion: 'Generating the system language version...',
+            generatingSystemVersion: 'Generating the staff reference translation...',
             analyzingContext: 'Analyzing conversation context...',
             generatingInitialDraft: 'Generating initial reply draft...',
             fallbackHeadline: 'The guest asked about check-in.',
@@ -987,14 +993,19 @@ export const stage6Messages = {
           },
           translation: {
             title: '消息翻译',
+            settingsTooltip: '翻译设置',
             enableTitle: '翻译消息',
             enableDescription: '为会话消息启用自动翻译',
+            enabledStatus: '已开启',
+            disabledStatus: '已关闭',
             defaultLanguageTitle: '选择默认语言',
             defaultLanguageDescription: '我们会把消息翻译成你选择的语言',
             resultCacheDescription: '译文会优先保存到后端，浏览器缓存仅用于加速重复显示。',
             applySuccess: '翻译设置已更新',
             backendFallbackWarning: '后端翻译缓存暂时不可用，已改用本地降级翻译。',
             saveFailed: '翻译设置保存失败',
+            loadFailed: '翻译设置加载失败',
+            loadFallbackWarning: '无法加载服务端翻译设置，已使用本设备保存的设置。',
             languages: {
               zhCN: '中文(简体)',
               en: 'English',
@@ -1009,7 +1020,7 @@ export const stage6Messages = {
             editDraft: '编辑草稿',
             viewSystemLanguage: '员工参考译文',
             initialDraftPlaceholder: 'AI 生成的草稿会显示在这里',
-            systemLanguageVersionTitle: '员工参考译文（仅供查看，实际发送内容以编辑草稿为准）',
+            systemLanguageVersionTitle: '员工参考译文（{language}）',
             systemLanguageVersionPlaceholder: '这里显示员工参考译文，便于你阅读理解',
             systemLanguageReferenceHint: '仅供查看，实际发送内容以编辑草稿为准',
             polishTitle: '继续优化草稿',
@@ -1018,7 +1029,7 @@ export const stage6Messages = {
             polishPlaceholder: '告诉 GPT 你想怎么改这版草稿',
             generatePolished: '润色并回填',
             sendDraft: '发送该草稿',
-            generatingSystemVersion: '正在生成系统语言版本...',
+            generatingSystemVersion: '正在生成员工参考译文...',
             analyzingContext: '正在分析会话上下文...',
             generatingInitialDraft: '正在生成初始回复草稿...',
             fallbackHeadline: '住客咨询了入住相关问题',
@@ -1609,14 +1620,19 @@ export const stage6Messages = {
           },
           translation: {
             title: '訊息翻譯',
+            settingsTooltip: '翻譯設定',
             enableTitle: '翻譯訊息',
             enableDescription: '為會話訊息啟用自動翻譯',
+            enabledStatus: '已開啟',
+            disabledStatus: '已關閉',
             defaultLanguageTitle: '選擇預設語言',
             defaultLanguageDescription: '我們會把訊息翻譯成你選擇的語言',
             resultCacheDescription: '譯文會優先儲存到後端，瀏覽器快取僅用於加速重複顯示。',
             applySuccess: '翻譯設定已更新',
             backendFallbackWarning: '後端翻譯快取暫時不可用，已改用本機降級翻譯。',
             saveFailed: '翻譯設定儲存失敗',
+            loadFailed: '翻譯設定載入失敗',
+            loadFallbackWarning: '無法載入伺服器翻譯設定，已使用此裝置儲存的設定。',
             languages: {
               zhCN: '中文(簡體)',
               en: 'English',
@@ -1640,7 +1656,7 @@ export const stage6Messages = {
             polishPlaceholder: '告訴 GPT 你想怎麼改這版草稿',
             generatePolished: '潤色並回填',
             sendDraft: '傳送該草稿',
-            generatingSystemVersion: '正在產生系統語言版本...',
+            generatingSystemVersion: '正在產生員工參考譯文...',
             analyzingContext: '正在分析會話上下文...',
             generatingInitialDraft: '正在產生初始回覆草稿...',
             fallbackHeadline: '住客諮詢了入住相關問題',
@@ -2231,8 +2247,11 @@ export const stage6Messages = {
           },
           translation: {
             title: 'メッセージ翻訳',
+            settingsTooltip: '翻訳設定',
             enableTitle: 'メッセージを翻訳',
             enableDescription: '会話メッセージの自動翻訳を有効にします',
+            enabledStatus: 'オン',
+            disabledStatus: 'オフ',
             defaultLanguageTitle: '既定の言語を選択',
             defaultLanguageDescription: '選択した言語にメッセージを翻訳します',
             resultCacheDescription:
@@ -2241,6 +2260,9 @@ export const stage6Messages = {
             backendFallbackWarning:
               'サーバー翻訳キャッシュを利用できません。一時的にローカルの代替翻訳を使用します。',
             saveFailed: '翻訳設定の保存に失敗しました',
+            loadFailed: '翻訳設定の読み込みに失敗しました',
+            loadFallbackWarning:
+              'サーバーの翻訳設定を読み込めなかったため、この端末に保存された設定を使用します。',
             languages: {
               zhCN: '簡体中国語',
               en: '英語',
@@ -2265,7 +2287,7 @@ export const stage6Messages = {
             polishPlaceholder: 'このドラフトをどう修正したいか GPT に伝えてください',
             generatePolished: '整えてドラフトに反映',
             sendDraft: 'このドラフトを送信',
-            generatingSystemVersion: 'システム言語版を生成中...',
+            generatingSystemVersion: 'スタッフ参照訳を生成中...',
             analyzingContext: '会話コンテキストを分析中...',
             generatingInitialDraft: '初期返信ドラフトを生成中...',
             fallbackHeadline: 'ゲストがチェックインについて問い合わせています',
