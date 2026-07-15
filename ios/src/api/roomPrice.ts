@@ -1,5 +1,5 @@
 import request from '@/utils/request'
-import type { ApiResponse } from '@/types/api'
+import type { ApiResponse, RequestConfig } from '@/types/api'
 
 export interface RoomPriceManagementDTO {
   id: number
@@ -90,7 +90,12 @@ export interface PriceChangeHistoryPageResponse {
   pageSize: number
 }
 
-export const getRoomPriceManagementData = (startDate: string, endDate: string, roomTypeId?: number) => {
+export const getRoomPriceManagementData = (
+  startDate: string,
+  endDate: string,
+  roomTypeId?: number,
+  options?: Pick<RequestConfig, 'suppressErrorStatuses'>,
+) => {
   const params: {
     startDate: string
     endDate: string
@@ -103,6 +108,7 @@ export const getRoomPriceManagementData = (startDate: string, endDate: string, r
 
   return request.get<ApiResponse<RoomPriceManagementDTO[]>>('/room-prices/management', {
     params,
+    ...options,
   })
 }
 

@@ -68,9 +68,9 @@ function resolveBrandPalette(item: ChannelViewModel): BrandPalette {
 
   if (code.includes('BOOKING') || name.includes('booking')) {
     return {
-      accent: '#2948a8',
-      soft: 'rgba(41, 72, 168, 0.12)',
-      border: 'rgba(41, 72, 168, 0.16)',
+      accent: '#0758ad',
+      soft: '#e7eef8',
+      border: '#dce5f1',
       buttonText: '#ffffff',
     }
   }
@@ -78,17 +78,17 @@ function resolveBrandPalette(item: ChannelViewModel): BrandPalette {
   if (code.includes('AIRBNB') || name.includes('airbnb')) {
     return {
       accent: '#ff5a5f',
-      soft: 'rgba(255, 90, 95, 0.12)',
-      border: 'rgba(255, 90, 95, 0.16)',
+      soft: '#ffe4e4',
+      border: '#ffd8d9',
       buttonText: '#ffffff',
     }
   }
 
   if (code.includes('AGODA') || name.includes('agoda')) {
     return {
-      accent: '#7d4bff',
-      soft: 'rgba(125, 75, 255, 0.11)',
-      border: 'rgba(125, 75, 255, 0.15)',
+      accent: '#c247b2',
+      soft: '#f4d8ef',
+      border: '#edcbe7',
       buttonText: '#ffffff',
     }
   }
@@ -234,26 +234,34 @@ const actionText = computed(() => {
 <style scoped>
 .channel-overview-card {
   margin: 0;
-  border-radius: 28px;
-  border: 1px solid var(--channel-brand-border, var(--app-border));
+  border: 1px solid rgba(217, 226, 239, 0.28);
+  border-radius: 5px;
   box-shadow: none;
-  background: rgba(255, 255, 255, 0.96);
+  background: #ffffff;
+  overflow: hidden;
 }
 
 .channel-overview-card__content {
+  --channel-logo-width: clamp(124px, 40vw, 152px);
+  --channel-column-gap: clamp(18px, 8.4vw, 34px);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
-  padding: 18px 18px 18px 16px;
+  grid-template-columns: var(--channel-logo-width) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) 24px;
+  column-gap: var(--channel-column-gap);
+  row-gap: 9px;
+  min-height: 102px;
+  padding: 18px 14px 20px;
 }
 
 .channel-overview-card__main {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 14px;
+  grid-template-columns: var(--channel-logo-width) minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--channel-column-gap);
   min-width: 0;
+  width: 100%;
   padding: 0;
   border: 0;
   background: transparent;
@@ -263,15 +271,14 @@ const actionText = computed(() => {
 
 .channel-overview-card__body {
   display: grid;
-  align-content: center;
+  align-content: start;
   min-width: 0;
+  padding-top: 4px;
 }
 
 .channel-overview-card__headline {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: block;
   align-items: center;
-  gap: 8px;
   min-width: 0;
 }
 
@@ -282,31 +289,28 @@ const actionText = computed(() => {
 
 .channel-overview-card__headline h3 {
   min-width: 0;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--app-heading);
+  color: #303030;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  line-height: 1.18;
+  line-height: 1.25;
   text-overflow: initial;
 }
 
 .channel-overview-card__summary {
-  margin-top: 6px;
-  color: var(--app-muted);
-  font-size: 13px;
-  line-height: 1.5;
+  display: none;
 }
 
 .channel-overview-card__logo-wrap {
-  width: 60px;
-  height: 60px;
-  border-radius: 20px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), var(--channel-brand-soft));
-  border: 1px solid var(--channel-brand-border, var(--app-border));
+  width: var(--channel-logo-width);
+  aspect-ratio: 3 / 2;
+  border: 1px solid #d9d9d9;
+  border-radius: 5px;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -315,34 +319,36 @@ const actionText = computed(() => {
 }
 
 .channel-overview-card__logo {
-  width: 44px;
-  height: 44px;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
 }
 
 .channel-overview-card__chips {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
+  flex-wrap: nowrap;
+  gap: 14px;
+  margin-top: 8px;
 }
 
 .channel-overview-card__chip {
-  padding: 4px 9px;
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 20px;
+  padding: 0 10px;
+  border-radius: 4px;
   background: var(--channel-brand-soft);
   color: var(--channel-brand-accent, var(--ion-color-primary));
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 20px;
+  white-space: nowrap;
 }
 
 .channel-overview-card__state {
-  flex-shrink: 0;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
+  display: none;
 }
 
 .channel-overview-card__state--ready {
@@ -356,50 +362,54 @@ const actionText = computed(() => {
 }
 
 .channel-overview-card__action {
-  flex-shrink: 0;
-  min-width: 72px;
+  grid-column: 2;
+  grid-row: 2;
+  z-index: 2;
+  width: 100%;
+  height: 24px;
+  min-width: 0;
+  min-height: 24px;
+  margin: 0;
   --background: var(--channel-brand-accent, var(--ion-color-primary));
   --color: var(--channel-brand-button-text, #ffffff);
   --box-shadow: none;
-  --border-radius: 18px;
-  --padding-start: 14px;
-  --padding-end: 14px;
+  --border-radius: 4px;
+  --padding-start: 8px;
+  --padding-end: 8px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
 .channel-overview-card__action--soft {
-  --background: var(--channel-brand-soft);
-  --color: var(--channel-brand-accent, var(--ion-color-primary));
+  --background: var(--channel-brand-accent, var(--ion-color-primary));
+  --color: var(--channel-brand-button-text, #ffffff);
 }
 
-.channel-overview-card__main:active .channel-overview-card__logo-wrap {
-  transform: scale(0.98);
+.channel-overview-card__main:active {
+  opacity: 0.88;
 }
 
 @media (max-width: 360px) {
   .channel-overview-card__content {
-    gap: 10px;
-    padding-right: 14px;
-  }
-
-  .channel-overview-card__logo-wrap {
-    width: 56px;
-    height: 56px;
-  }
-
-  .channel-overview-card__headline {
-    gap: 6px;
+    --channel-logo-width: clamp(118px, 40vw, 136px);
+    --channel-column-gap: 18px;
+    padding-right: 12px;
+    padding-left: 12px;
   }
 
   .channel-overview-card__headline h3 {
-    font-size: 17px;
+    font-size: 18px;
   }
 
-  .channel-overview-card__action {
-    min-width: 64px;
-    --padding-start: 12px;
-    --padding-end: 12px;
+  .channel-overview-card__chips {
+    gap: 6px;
+  }
+
+  .channel-overview-card__chip {
+    padding-right: 7px;
+    padding-left: 7px;
+    font-size: 11px;
   }
 }
 </style>

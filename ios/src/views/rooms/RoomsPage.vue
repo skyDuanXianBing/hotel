@@ -3,9 +3,7 @@
     <ion-header translucent class="rooms-header">
       <ion-toolbar class="rooms-header__toolbar">
         <div class="rooms-header__bar">
-          <h1 class="rooms-header__title">房态</h1>
-
-          <div class="rooms-header__actions">
+          <div class="rooms-header__actions rooms-header__actions--left">
             <button
               class="rooms-header__icon"
               type="button"
@@ -33,7 +31,11 @@
             >
               <ion-icon :icon="funnelOutline" />
             </button>
+          </div>
 
+          <h1 class="rooms-header__title">房态</h1>
+
+          <div class="rooms-header__actions rooms-header__actions--right">
             <button
               class="rooms-header__icon"
               type="button"
@@ -100,6 +102,7 @@
           :days="roomStatusStore.visibleDates"
           :groups="roomStatusStore.groupedVisibleRooms"
           :loading="roomStatusStore.loading"
+          :selected-date="roomStatusStore.selectedDate"
           :viewport-days="ROOM_STATUS_VIEWPORT_DAYS"
           @select-date="handleSelectDate"
           @select-reservation="openReservationDetail"
@@ -173,14 +176,20 @@
     <ion-modal
       class="rooms-picker-modal"
       :is-open="showRoomPickerModal"
-      :initial-breakpoint="0.985"
-      :breakpoints="[0, 0.985]"
       @didDismiss="showRoomPickerModal = false"
     >
-      <ion-header translucent class="rooms-sheet-header rooms-picker-header">
-        <ion-toolbar class="rooms-sheet-toolbar">
+      <ion-header class="rooms-picker-header">
+        <ion-toolbar class="rooms-picker-toolbar">
           <ion-title>选择房间新建订单</ion-title>
-          <ion-button slot="end" fill="clear" @click="showRoomPickerModal = false">关闭</ion-button>
+          <ion-button
+            slot="end"
+            fill="clear"
+            class="rooms-picker__close"
+            aria-label="关闭"
+            @click="showRoomPickerModal = false"
+          >
+            <ion-icon slot="icon-only" :icon="closeOutline" />
+          </ion-button>
         </ion-toolbar>
       </ion-header>
 
@@ -190,7 +199,7 @@
             <span class="rooms-picker__summary-pill rooms-picker__summary-pill--accent">
               {{ pickerDateLabel }}
             </span>
-            <span class="rooms-picker__summary-pill">{{ pickerRoomCount }} 间可选</span>
+            <span class="rooms-picker__summary-pill">{{ pickerRoomCount }}间可选</span>
           </header>
 
           <section
@@ -200,7 +209,7 @@
           >
             <div class="rooms-picker__group-header">
               <strong>{{ group.roomType }}</strong>
-              <span>{{ group.rooms.length }} 间</span>
+              <span>{{ group.rooms.length }}间</span>
             </div>
 
             <div class="rooms-picker__group-grid">
@@ -293,6 +302,7 @@ import {
   addOutline,
   chevronBackOutline,
   chevronForwardOutline,
+  closeOutline,
   funnelOutline,
   gridOutline,
   listOutline,
@@ -428,7 +438,10 @@ const todayDateKey = computed(() => {
 })
 
 const showTodayPill = computed(() => {
-  return roomStatusStore.selectedDate !== todayDateKey.value
+  return (
+    roomStatusStore.selectedDate !== todayDateKey.value ||
+    roomStatusStore.visibleFocusDate !== todayDateKey.value
+  )
 })
 
 const hasSearchKeyword = computed(() => searchKeyword.value.trim().length >= 2)
@@ -548,7 +561,7 @@ function formatPickerDateLabel(value: string) {
   return `${Number(month)}月${Number(day)}日 ${getBusinessDateWeekdayLabel(value, '周')}`
 }
 
-const pickerDateLabel = computed(() => formatPickerDateLabel(roomStatusStore.selectedDate))
+const pickerDateLabel = computed(() => formatPickerDateLabel(roomStatusStore.visibleFocusDate))
 
 const quickActionDescription = computed(() => {
   if (!selectedRoom.value) {
@@ -699,7 +712,8 @@ async function handleRefresh(event: CustomEvent) {
   try {
     await refreshPageDataOnEnter()
   } finally {
-    ;(event.detail as { complete: () => void }).complete()
+    const refresher = event.detail as { complete: () => void }
+    refresher.complete()
   }
 }
 
@@ -830,6 +844,7 @@ function handleFabClick() {
     showWarningToast('当前没有可选房间，请先配置房型与房间')
     return
   }
+
   showRoomPickerModal.value = true
 }
 
@@ -1216,66 +1231,82 @@ onIonViewWillEnter(async () => {
 
 <style scoped>
 .rooms-page {
-  --background:
-    radial-gradient(circle at top right, rgba(71, 122, 255, 0.12), transparent 26%),
-    linear-gradient(180deg, #f8fbff 0%, #f4f8ff 18%, #f6f9ff 100%);
+  --background: #ffffff;
 }
 
 .rooms-header {
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
+  background: #ffffff;
 }
 
 .rooms-header__toolbar {
-  --background: rgba(255, 255, 255, 0.82);
+  --background: #ffffff;
   --border-width: 0;
-  --min-height: 78px;
+  --min-height: 58px;
   padding-top: max(var(--app-safe-top), 0px);
 }
 
 .rooms-header__bar {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 16px 12px;
+  min-height: 50px;
+  gap: 8px;
+  padding: 8px 34px 8px 20px;
 }
 
 .rooms-header__title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -48%);
   padding: 0;
   margin: 0;
-  color: #121826;
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: -0.06em;
-  text-align: left;
+  color: #2b2b2b;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-align: center;
   line-height: 1;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .rooms-header__actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
   flex-shrink: 0;
+  min-width: 30px;
+}
+
+.rooms-header__actions--left {
+  justify-content: flex-start;
+}
+
+.rooms-header__actions--right {
+  justify-content: flex-end;
 }
 
 .rooms-header__icon {
   appearance: none;
-  border: 1px solid rgba(112, 138, 187, 0.12);
-  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid #eef0f3;
+  background: #ffffff;
   width: 34px;
   height: 34px;
-  border-radius: 12px;
+  border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #1a2437;
-  box-shadow: 0 8px 18px rgba(101, 128, 182, 0.08);
+  color: #4a4a4a;
+  box-shadow:
+    0 1px 2px rgba(20, 20, 20, 0.04),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9);
 }
 
 .rooms-header__icon:active {
   transform: translateY(1px);
-  background: rgba(243, 247, 255, 0.96);
+  background: #f7f7f7;
 }
 
 .rooms-header__icon[disabled] {
@@ -1284,17 +1315,19 @@ onIonViewWillEnter(async () => {
 }
 
 .rooms-header__icon ion-icon {
-  font-size: 17px;
+  font-size: 18px;
+  stroke-width: 2;
 }
 
 .rooms-search-panel {
-  padding: 0 14px 10px;
+  padding: 0 34px 10px;
+  background: #ffffff;
 }
 
 .rooms-search-panel__bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .rooms-search-panel__field {
@@ -1307,48 +1340,75 @@ onIonViewWillEnter(async () => {
   flex: 1;
   margin: 0;
   padding: 0;
-  --background: transparent;
-  --border-radius: 0;
+  height: 38px;
+  min-height: 38px;
+  --background: #f8f8f8;
+  --border-radius: 5px;
   --box-shadow: none;
-  --color: #10131a;
-  --icon-color: #c7ccd8;
-  --placeholder-color: #c7ccd8;
+  --color: #333333;
+  --icon-color: #8a8a8a;
+  --placeholder-color: #6f6f6f;
   --placeholder-opacity: 1;
-  --clear-button-color: #8a90a0;
+  --clear-button-color: #8a8a8a;
   --padding-start: 0;
   --padding-end: 0;
   --padding-top: 0;
   --padding-bottom: 0;
-  --cancel-button-color: #8c909b;
+  --cancel-button-color: #666666;
   border: 0;
-  border-radius: 0;
-  background: transparent;
+  border-radius: 5px;
+  background: #f8f8f8;
   box-shadow: none;
 }
 
 .rooms-searchbar :deep(.searchbar-input-container) {
-  border: 1px solid #eceff5;
-  border-radius: 22px;
-  background: #ffffff;
+  height: 38px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 5px;
+  background: #f8f8f8;
   box-shadow: none;
   overflow: hidden;
+}
+
+.rooms-searchbar :deep(.searchbar-input) {
+  height: 38px;
+  min-height: 38px;
+  padding-inline-start: 42px !important;
+  padding-inline-end: 12px !important;
+  color: #333333;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.rooms-searchbar :deep(.searchbar-search-icon) {
+  top: 50%;
+  left: 14px;
+  width: 20px;
+  height: 20px;
+  margin-top: 0;
+  transform: translateY(-50%);
+  color: #8a8a8a;
 }
 
 .rooms-search-panel__cancel {
   border: 0;
   background: transparent;
-  color: #8c909b;
+  color: #666666;
   font: inherit;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 400;
+  line-height: 38px;
+  white-space: nowrap;
 }
 
 .rooms-board {
   margin: 0;
-  border-top: 1px solid rgba(119, 145, 193, 0.08);
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid #e9e9e9;
+  background: #ffffff;
 }
 
 .rooms-notice {
@@ -1361,19 +1421,17 @@ onIonViewWillEnter(async () => {
 
 .rooms-search-popover {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 10px);
   left: 0;
   right: 0;
   z-index: 18;
   display: grid;
   gap: 8px;
   padding: 10px;
-  border: 1px solid rgba(112, 138, 187, 0.12);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 18px 36px rgba(45, 66, 105, 0.14);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid #ededed;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(20, 20, 20, 0.1);
 }
 
 .rooms-search-popover__header {
@@ -1381,8 +1439,9 @@ onIonViewWillEnter(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: var(--app-heading, #10233f);
+  color: #333333;
   font-size: 14px;
+  font-weight: 500;
 }
 
 .rooms-search-popover__list {
@@ -1395,7 +1454,7 @@ onIonViewWillEnter(async () => {
 
 .rooms-search-popover__hint {
   margin: 0;
-  color: var(--app-muted, #64748b);
+  color: #8a8a8a;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -1406,7 +1465,7 @@ onIonViewWillEnter(async () => {
 
 .rooms-search-popover__list::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: rgba(100, 116, 139, 0.28);
+  background: rgba(150, 150, 150, 0.32);
 }
 
 .rooms-search-popover__list::-webkit-scrollbar-track {
@@ -1415,7 +1474,8 @@ onIonViewWillEnter(async () => {
 
 .rooms-search-popover :deep(.reservation-card) {
   padding: 12px;
-  border-radius: 16px;
+  border: 1px solid #ededed;
+  border-radius: 8px;
   box-shadow: none;
 }
 
@@ -1429,7 +1489,7 @@ onIonViewWillEnter(async () => {
 }
 
 .rooms-search-popover :deep(.reservation-card:active) {
-  background: rgba(239, 244, 255, 0.98);
+  background: #f8f8f8;
 }
 
 .rooms-filter-actions {
@@ -1506,20 +1566,29 @@ onIonViewWillEnter(async () => {
 .rooms-fab :deep(ion-fab-button) {
   --background: linear-gradient(180deg, #4a85ff 0%, #2f6df2 100%);
   --box-shadow: 0 20px 40px rgba(52, 116, 246, 0.34);
-}
-
-.rooms-filter-modal,
-.rooms-picker-modal {
-  --border-radius: 30px 30px 0 0;
-  --box-shadow: 0 -24px 64px rgba(26, 36, 55, 0.18);
+  opacity: 0.71;
 }
 
 .rooms-filter-modal {
+  --border-radius: 30px 30px 0 0;
+  --box-shadow: 0 -24px 64px rgba(26, 36, 55, 0.18);
   --height: min(820px, 96vh);
 }
 
 .rooms-picker-modal {
-  --height: min(860px, 99.4vh);
+  --width: 100%;
+  --min-width: 100%;
+  --max-width: 100%;
+  --height: 100%;
+  --min-height: 100%;
+  --max-height: 100%;
+  --border-radius: 0;
+  --box-shadow: none;
+}
+
+.rooms-picker-modal::part(content) {
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .rooms-sheet-header {
@@ -1547,6 +1616,40 @@ onIonViewWillEnter(async () => {
   font-weight: 600;
 }
 
+.rooms-picker-header {
+  background: #ffffff;
+  box-shadow: 0 1px 6px rgba(57, 76, 108, 0.05);
+}
+
+.rooms-picker-toolbar {
+  --background: #ffffff;
+  --border-width: 0;
+  --min-height: 56px;
+  padding: 0 4px;
+}
+
+.rooms-picker-toolbar ion-title {
+  padding: 0 52px;
+  color: #2d2d2d;
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.rooms-picker__close {
+  width: 44px;
+  height: 44px;
+  margin: 0 2px 0 0;
+  --color: #858585;
+  --padding-start: 0;
+  --padding-end: 0;
+}
+
+.rooms-picker__close ion-icon {
+  font-size: 23px;
+}
+
 .rooms-filter-page {
   --padding-top: 14px;
   --padding-start: 16px;
@@ -1561,59 +1664,61 @@ onIonViewWillEnter(async () => {
 
 .rooms-picker-page {
   --background:
-    linear-gradient(180deg, rgba(248, 251, 255, 0.96) 0%, rgba(244, 248, 255, 0.98) 100%);
-  --padding-top: 8px;
-  --padding-start: 16px;
-  --padding-end: 16px;
+    linear-gradient(90deg, #eaf7ff 0%, #f5f8fd 52%, #f2f7ff 100%);
+  --padding-top: 10px;
+  --padding-start: 15px;
+  --padding-end: 15px;
   --padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 48px);
 }
 
 .rooms-picker-page::part(scroll) {
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 52px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 48px);
 }
 
 .rooms-picker {
   display: grid;
-  gap: 10px;
+  gap: 11px;
   min-height: 100%;
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
 }
 
 .rooms-picker__summary {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  padding: 0 2px 2px;
+  gap: 10px;
+  padding: 0 0 1px;
 }
 
 .rooms-picker__summary-pill {
   display: inline-flex;
   align-items: center;
-  min-height: 25px;
+  min-height: 28px;
   padding: 0 10px;
-  border: 1px solid rgba(124, 144, 184, 0.16);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.78);
-  color: #6b7890;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  border: 1px solid rgba(171, 187, 210, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #515151;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
 .rooms-picker__summary-pill--accent {
-  border-color: rgba(61, 120, 243, 0.14);
-  background: rgba(47, 109, 242, 0.08);
-  color: #2d65d2;
+  border-color: transparent;
+  background: #dbeaff;
+  color: #3d77b4;
 }
 
 .rooms-picker__group {
   display: grid;
-  gap: 7px;
-}
-
-.rooms-picker__group + .rooms-picker__group {
-  padding-top: 4px;
-  border-top: 1px solid rgba(124, 144, 184, 0.12);
+  gap: 14px;
+  padding: 18px 20px 19px;
+  border: 1px solid rgba(190, 204, 223, 0.12);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 3px 5px rgba(94, 116, 150, 0.06),
+    0 12px 20px -7px rgba(92, 116, 157, 0.22);
 }
 
 .rooms-picker__group-header {
@@ -1621,80 +1726,93 @@ onIonViewWillEnter(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 0 2px;
+  min-height: 28px;
 }
 
 .rooms-picker__group-header strong {
-  color: #16233c;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  min-width: 0;
+  color: #2e2e2e;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
 .rooms-picker__group-header span {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 39px;
+  min-height: 28px;
   padding: 0 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(124, 144, 184, 0.14);
-  background: rgba(255, 255, 255, 0.66);
-  color: #70819d;
-  font-size: 10px;
-  font-weight: 700;
+  border: 1px solid rgba(193, 202, 214, 0.24);
+  border-radius: 10px;
+  background: #ffffff;
+  color: #4e4e4e;
+  font-size: 13px;
+  font-weight: 400;
 }
 
 .rooms-picker__group-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  gap: 7px;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 132px));
+  gap: 10px;
 }
 
 .rooms-picker__room {
   appearance: none;
-  min-height: 72px;
-  padding: 10px 11px;
-  border: 1px solid rgba(118, 139, 181, 0.14);
-  border-radius: 16px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 255, 0.9));
-  box-shadow: 0 10px 18px rgba(83, 107, 152, 0.05);
+  width: 132px;
+  min-height: 76px;
+  padding: 11px 13px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: #f7f7f8;
+  box-shadow: none;
   display: grid;
-  gap: 7px;
+  align-content: center;
+  gap: 8px;
   text-align: left;
-  color: #15233e;
+  color: #2d2d2d;
   transition:
     transform 0.16s ease,
-    box-shadow 0.16s ease,
-    border-color 0.16s ease;
+    background-color 0.16s ease;
 }
 
 .rooms-picker__room:active {
   transform: translateY(1px);
-  border-color: rgba(63, 124, 255, 0.2);
-  box-shadow: 0 8px 16px rgba(83, 107, 152, 0.08);
+  background: #eeeeef;
 }
 
 .rooms-picker__room-top {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
 }
 
 .rooms-picker__room-number {
-  color: #15233e;
+  flex: 1;
+  min-width: 0;
+  color: #397bbb;
   font-size: 16px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rooms-picker__room-arrow {
-  color: #96a3ba;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
+  flex-shrink: 0;
+  margin-left: auto;
+  color: #666666;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.2;
 }
 
 .rooms-picker__room-bottom {
@@ -1705,28 +1823,29 @@ onIonViewWillEnter(async () => {
 .rooms-picker__room-state {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   width: fit-content;
-  min-height: 18px;
-  padding: 0 7px;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  background: rgba(241, 245, 252, 0.92);
-  color: #60728e;
-  font-size: 9px;
-  font-weight: 700;
+  min-width: 56px;
+  min-height: 23px;
+  padding: 0 9px;
+  border-radius: 6px;
+  border: 0;
+  background: #e7ebf1;
+  color: #68717c;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1;
 }
 
 .rooms-picker__room.is-available .rooms-picker__room-state {
-  border-color: rgba(47, 109, 242, 0.14);
-  background: rgba(47, 109, 242, 0.08);
-  color: #2f6df2;
+  background: #cafabc;
+  color: #4b9b3e;
 }
 
 .rooms-picker__room.is-occupied .rooms-picker__room-state,
 .rooms-picker__room.is-reserved .rooms-picker__room-state {
-  border-color: rgba(245, 158, 11, 0.16);
-  background: rgba(245, 158, 11, 0.08);
-  color: #b86b00;
+  background: #fed4d5;
+  color: #d9797e;
 }
 
 .rooms-picker__room.is-dirty .rooms-picker__room-state,
@@ -1734,9 +1853,8 @@ onIonViewWillEnter(async () => {
 .rooms-picker__room.is-out_of_order .rooms-picker__room-state,
 .rooms-picker__room.is-maintenance .rooms-picker__room-state,
 .rooms-picker__room.is-retain .rooms-picker__room-state {
-  border-color: rgba(225, 29, 72, 0.14);
-  background: rgba(225, 29, 72, 0.07);
-  color: #c2415a;
+  background: #ffe0e2;
+  color: #cb646d;
 }
 
 .rooms-picker__empty {
@@ -1762,7 +1880,16 @@ onIonViewWillEnter(async () => {
 
 @media (max-width: 374px) {
   .rooms-picker__group-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fill, minmax(122px, 122px));
+  }
+
+  .rooms-picker__room {
+    width: 122px;
+  }
+
+  .rooms-picker__group {
+    padding-right: 16px;
+    padding-left: 16px;
   }
 }
 </style>

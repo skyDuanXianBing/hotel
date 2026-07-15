@@ -26,6 +26,7 @@ export interface OrderFilterForm {
 export interface OrderOptionItem {
   label: string
   value: string
+  color?: string
 }
 
 export interface OrderSummaryCardItem {

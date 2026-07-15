@@ -1,11 +1,16 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar class="app-page-header__toolbar">
+      <ion-toolbar class="app-page-header__toolbar channel-detail-page__toolbar">
         <ion-buttons slot="start">
-          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.channels" />
+          <ion-back-button
+            class="app-page-header__back-btn channel-detail-page__back-btn"
+            :default-href="ROUTE_PATHS.channels"
+          />
         </ion-buttons>
-        <ion-title class="app-page-header__title">{{ pageTitle }}</ion-title>
+        <ion-title class="app-page-header__title channel-detail-page__toolbar-title">
+          {{ pageTitle }}
+        </ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -14,7 +19,7 @@
         <ion-refresher-content pulling-text="下拉刷新渠道详情" refreshing-spinner="crescent" />
       </ion-refresher>
 
-      <div v-if="channelView" class="mobile-stack">
+      <div v-if="channelView" class="mobile-stack channel-detail-page__stack">
         <section class="mobile-card channel-detail-page__header-card">
           <div class="channel-detail-page__brand">
             <div class="channel-detail-page__logo-wrap">
@@ -23,15 +28,13 @@
 
             <div class="channel-detail-page__brand-copy">
               <h1 class="channel-detail-page__title">{{ channelView.name }}</h1>
+              <div class="channel-detail-page__meta-row">
+                <span class="channel-detail-page__meta-pill" :class="statusToneClass">
+                  {{ channelView.statusLabel }}
+                </span>
+                <span class="channel-detail-page__meta-pill">更新 {{ channelView.lastStatusText }}</span>
+              </div>
             </div>
-          </div>
-
-          <div class="channel-detail-page__meta-row">
-            <span class="channel-detail-page__meta-pill" :class="statusToneClass">{{ channelView.statusLabel }}</span>
-            <span v-if="channelView.propertyId" class="channel-detail-page__meta-pill">
-              标识 {{ channelView.propertyId }}
-            </span>
-            <span class="channel-detail-page__meta-pill">更新 {{ channelView.lastStatusText }}</span>
           </div>
         </section>
 
@@ -555,38 +558,79 @@ onIonViewWillEnter(async () => {
 </script>
 
 <style scoped>
+.channel-detail-page__toolbar {
+  --background: #ffffff;
+  --min-height: 54px;
+}
+
+.channel-detail-page__back-btn {
+  --color: #717171;
+}
+
+.channel-detail-page__toolbar-title {
+  color: #303030;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
 .channel-detail-page {
-  --background: var(--ios-pms-bg-page-plain);
+  --background: #f3f7fd;
+  --padding-top: 8px;
+  --padding-start: 14px;
+  --padding-end: 14px;
+  --padding-bottom: calc(28px + var(--app-safe-bottom));
+}
+
+.channel-detail-page__stack {
+  gap: 10px;
 }
 
 .channel-detail-page__header-card,
 .channel-detail-page__section-card,
 .channel-detail-page__danger-card {
-  padding: 18px;
+  margin: 0;
+  border: 1px solid rgba(217, 226, 239, 0.28);
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.channel-detail-page__header-card {
+  --channel-detail-logo-width: clamp(100px, 29vw, 112px);
+  padding: 14px 15px;
+}
+
+.channel-detail-page__section-card {
+  padding: 0 15px;
+}
+
+.channel-detail-page__danger-card {
+  padding: 16px 15px;
 }
 
 .channel-detail-page__brand {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: var(--channel-detail-logo-width) minmax(0, 1fr);
   align-items: center;
-  gap: 14px;
+  gap: clamp(24px, 13vw, 50px);
 }
 
 .channel-detail-page__logo-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 62px;
-  height: 62px;
-  border-radius: 20px;
-  border: 1px solid var(--app-border);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 249, 255, 0.92));
+  width: var(--channel-detail-logo-width);
+  aspect-ratio: 3 / 2;
+  border: 1px solid #d9d9d9;
+  border-radius: 5px;
+  background: #ffffff;
   overflow: hidden;
 }
 
 .channel-detail-page__logo {
-  width: 44px;
-  height: 44px;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
 }
 
@@ -596,76 +640,125 @@ onIonViewWillEnter(async () => {
 
 .channel-detail-page__title {
   margin: 0;
-  color: var(--app-heading);
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  color: #303030;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.2;
 }
 
 .channel-detail-page__meta-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: 6px;
 }
 
 .channel-detail-page__meta-pill {
   display: inline-flex;
   align-items: center;
-  min-height: 30px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: rgba(115, 164, 255, 0.06);
-  color: var(--ios-pms-text-secondary);
+  min-height: 20px;
+  max-width: 100%;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: #f1f1f1;
+  color: #626262;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.channel-detail-page__meta-pill:last-child {
+  min-height: 24px;
+  line-height: 24px;
 }
 
 .channel-detail-page__meta-pill--ready {
-  background: rgba(23, 166, 115, 0.12);
-  color: #17815e;
+  background: #eaf9f2;
+  color: #44b686;
 }
 
 .channel-detail-page__meta-pill--partial {
-  background: rgba(255, 186, 56, 0.16);
-  color: #996515;
+  background: #fff3d8;
+  color: #a77119;
 }
 
 .channel-detail-page__meta-pill--idle {
-  background: rgba(115, 130, 157, 0.12);
-  color: #6c7992;
+  background: #eeeeee;
+  color: #777777;
 }
 
 .channel-detail-page__primary-action {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
-  padding: 16px 0;
+  align-items: start;
+  gap: 12px;
+  min-height: 88px;
+  padding: 15px 0 13px;
 }
 
 .channel-detail-page__primary-controls {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
+}
+
+.channel-detail-page__primary-controls ion-spinner {
+  width: 20px;
+  height: 20px;
+  margin-top: 6px;
+}
+
+.channel-detail-page__primary-controls ion-button {
+  height: 32px;
+  min-height: 32px;
+  margin: 0;
+  --background: #3478f6;
+  --border-radius: 8px;
+  --box-shadow: none;
+  --padding-start: 15px;
+  --padding-end: 15px;
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
 .channel-detail-page__primary-copy strong,
 .channel-detail-page__entry-copy strong {
   display: block;
   margin: 0;
-  color: var(--app-heading);
-  font-size: 16px;
-  font-weight: 700;
+  color: #303030;
+  font-size: 17px;
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+
+.channel-detail-page__primary-copy strong {
+  font-weight: 600;
+}
+
+.channel-detail-page__entry-copy strong {
+  font-weight: 550;
 }
 
 .channel-detail-page__primary-copy p,
 .channel-detail-page__entry-copy p {
-  margin: 6px 0 0;
-  color: var(--app-muted);
-  font-size: 13px;
-  line-height: 1.55;
+  margin: 4px 0 0;
+  color: #8b8b8b;
+  font-size: 14px;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+
+.channel-detail-page__primary-copy {
+  min-width: 0;
+}
+
+.channel-detail-page__primary-copy p {
+  max-width: 240px;
 }
 
 .channel-detail-page__entry-list {
@@ -675,11 +768,12 @@ onIonViewWillEnter(async () => {
 .channel-detail-page__entry,
 .channel-detail-page__danger-action {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 34px;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
   width: 100%;
-  padding: 16px 0;
+  min-height: 75px;
+  padding: 13px 0;
   border: 0;
   background: transparent;
   color: inherit;
@@ -688,11 +782,11 @@ onIonViewWillEnter(async () => {
 
 .channel-detail-page__entry-list .channel-detail-page__entry:first-child,
 .channel-detail-page__danger-action {
-  border-top: 1px solid var(--app-border);
+  border-top: 1px solid #dddddd;
 }
 
 .channel-detail-page__entry + .channel-detail-page__entry {
-  border-top: 1px solid var(--app-border);
+  border-top: 1px solid #dddddd;
 }
 
 .channel-detail-page__entry:disabled {
@@ -705,27 +799,74 @@ onIonViewWillEnter(async () => {
 }
 
 .channel-detail-page__entry-arrow {
-  color: var(--ios-pms-text-disabled);
-  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  color: #858585;
+  font-size: 34px;
+  font-weight: 300;
+  line-height: 1;
 }
 
 .channel-detail-page__danger-card {
-  background: rgba(255, 255, 255, 0.94);
+  background: #ffffff;
+}
+
+.channel-detail-page__danger-card .mobile-section-title {
+  margin-bottom: 4px;
+  color: #303030;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .channel-detail-page__danger-text {
   color: var(--ion-color-danger);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 400;
+  text-align: right;
 }
 
 @media (max-width: 360px) {
-  .channel-detail-page__primary-action {
-    grid-template-columns: minmax(0, 1fr);
+  .channel-detail-page {
+    --padding-start: 12px;
+    --padding-end: 12px;
   }
 
-  .channel-detail-page__primary-controls {
-    justify-content: flex-start;
+  .channel-detail-page__header-card {
+    --channel-detail-logo-width: 96px;
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .channel-detail-page__brand {
+    gap: 20px;
+  }
+
+  .channel-detail-page__title {
+    font-size: 20px;
+  }
+
+  .channel-detail-page__section-card,
+  .channel-detail-page__danger-card {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .channel-detail-page__primary-action {
+    gap: 8px;
+  }
+
+  .channel-detail-page__primary-copy strong,
+  .channel-detail-page__entry-copy strong {
+    font-size: 16px;
+  }
+
+  .channel-detail-page__primary-copy p,
+  .channel-detail-page__entry-copy p {
+    font-size: 13px;
   }
 }
 </style>

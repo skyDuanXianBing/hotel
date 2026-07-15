@@ -1,11 +1,14 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar class="app-page-header__toolbar">
+      <ion-toolbar class="app-page-header__toolbar channels-page__toolbar">
         <ion-buttons slot="start">
-          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.home" />
+          <ion-back-button
+            class="app-page-header__back-btn channels-page__back-btn"
+            :default-href="ROUTE_PATHS.home"
+          />
         </ion-buttons>
-        <ion-title class="app-page-header__title">渠道</ion-title>
+        <ion-title class="app-page-header__title channels-page__title">渠道</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -212,8 +215,27 @@ onIonViewWillEnter(async () => {
 </script>
 
 <style scoped>
+.channels-page__toolbar {
+  --background: #ffffff;
+  --min-height: 54px;
+}
+
+.channels-page__back-btn {
+  --color: #717171;
+}
+
+.channels-page__title {
+  color: #303030;
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
 .channels-page {
-  --padding-top: 16px;
+  --background: #f3f7fd;
+  --padding-top: 8px;
+  --padding-start: 14px;
+  --padding-end: 14px;
   --padding-bottom: calc(28px + var(--app-safe-bottom));
 }
 
@@ -231,7 +253,7 @@ onIonViewWillEnter(async () => {
 
 .channels-page__card-list {
   display: grid;
-  gap: 16px;
+  gap: 10px;
 }
 
 .channels-page__loading {

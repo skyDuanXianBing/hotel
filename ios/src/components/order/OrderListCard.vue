@@ -41,10 +41,19 @@
     </div>
 
     <div class="order-card__meta-strip">
-      <p class="order-card__meta-line">
-        <span class="order-card__meta-item">{{ channelName }}</span>
-        <span class="order-card__meta-item">{{ assignStatusText }}</span>
-        <span class="order-card__meta-item" :class="`is-${settlementColor}`">{{ settlementText }}</span>
+      <p class="order-card__badge-row">
+        <span
+          class="order-card__meta-badge order-card__meta-badge--channel"
+          :style="channelBadgeStyle"
+        >
+          {{ channelName }}
+        </span>
+        <span class="order-card__meta-badge" :class="`is-${assignStatusColor}`">
+          {{ assignStatusText }}
+        </span>
+        <span class="order-card__meta-badge" :class="`is-${settlementColor}`">
+          {{ settlementText }}
+        </span>
       </p>
       <p class="order-card__timestamp">{{ metaTimestamp }}</p>
     </div>
@@ -70,6 +79,7 @@ import {
   formatAmount,
   formatDateLabel,
   formatDateTime,
+  getAssignStatusColor,
   getAssignStatusText,
   getCheckinTypeText,
   getDisplayChannelOrderNumber,
@@ -82,6 +92,7 @@ import {
 const props = defineProps<{
   reservation: ReservationDTO
   activeTab: string
+  channelColor?: string
   orderBoxItem?: OrderBoxItem | null
 }>()
 
@@ -98,6 +109,10 @@ const statusColor = computed(() => getReservationStatusColor(props.reservation.s
 const settlementText = computed(() => getSettlementStatusText(props.reservation))
 const settlementColor = computed(() => getSettlementStatusColor(props.reservation))
 const assignStatusText = computed(() => getAssignStatusText(props.reservation))
+const assignStatusColor = computed(() => {
+  const color = getAssignStatusColor(props.reservation)
+  return color === 'warning' ? 'danger' : color
+})
 const channelOrderNumber = computed(() => getDisplayChannelOrderNumber(props.reservation))
 const amountText = computed(() => formatAmount(props.reservation.totalAmount ?? props.reservation.currentRoomPrice))
 const movedInAtText = computed(() => formatDateTime(props.orderBoxItem?.movedInAt))
@@ -180,17 +195,43 @@ const deletedRoomReasonText = computed(() => {
   return '房型或房间已删除，请核对异常订单。'
 })
 const showDeletedRoomExceptionBlock = computed(() => props.activeTab === 'deleted-rooms')
+
+const channelBadgeStyle = computed(() => ({
+  '--order-card-channel-color': resolveChannelBadgeColor(channelName.value, props.channelColor),
+}))
+
+function resolveChannelBadgeColor(channel: string, configuredColor?: string) {
+  const trimmedColor = (configuredColor || '').trim()
+  if (/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmedColor)) {
+    return trimmedColor
+  }
+
+  const normalizedChannel = channel.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (normalizedChannel.includes('airbnb')) {
+    return '#ff5a6d'
+  }
+  if (normalizedChannel.includes('tripcom') || normalizedChannel.includes('ctrip')) {
+    return '#2f5dff'
+  }
+  if (normalizedChannel.includes('agoda')) {
+    return '#ca28d9'
+  }
+  if (normalizedChannel.includes('booking')) {
+    return '#003b95'
+  }
+  return '#3474f6'
+}
 </script>
 
 <style scoped>
 .order-card {
   display: grid;
-  gap: var(--ios-pms-space-3);
-  padding: 16px;
-  border: 1px solid var(--ios-pms-border-soft);
-  border-radius: var(--ios-pms-radius-card-sm);
-  background: linear-gradient(180deg, var(--ios-pms-surface-strong) 0%, rgba(248, 251, 255, 0.92) 100%);
-  box-shadow: var(--ios-pms-shadow-card);
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(97, 124, 177, 0.06);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(77, 98, 145, 0.08);
   transition:
     border-color 0.18s ease,
     box-shadow 0.18s ease,
@@ -200,8 +241,8 @@ const showDeletedRoomExceptionBlock = computed(() => props.activeTab === 'delete
 
 .order-card:active {
   border-color: rgba(var(--ion-color-primary-rgb), 0.14);
-  background: linear-gradient(180deg, #ffffff 0%, rgba(243, 248, 255, 0.96) 100%);
-  box-shadow: 0 8px 20px rgba(77, 98, 145, 0.06);
+  background: #fbfdff;
+  box-shadow: 0 6px 16px rgba(77, 98, 145, 0.08);
   transform: translateY(1px);
 }
 
@@ -238,7 +279,7 @@ const showDeletedRoomExceptionBlock = computed(() => props.activeTab === 'delete
   font-size: 18px;
   font-weight: var(--ios-pms-weight-heavy);
   line-height: 1.2;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   word-break: break-word;
 }
 
@@ -255,34 +296,34 @@ const showDeletedRoomExceptionBlock = computed(() => props.activeTab === 'delete
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 26px;
-  padding: 0 10px;
-  border-radius: var(--ios-pms-radius-pill);
-  background: var(--ios-pms-primary-soft);
-  color: var(--ios-pms-primary-strong);
-  font-size: 12px;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 7px;
+  background: #e9f5ff;
+  color: #3474f6;
+  font-size: 11px;
   font-weight: var(--ios-pms-weight-bold);
   white-space: nowrap;
 }
 
 .order-card__status.is-success {
-  background: var(--app-success-soft);
-  color: var(--ion-color-success);
+  background: #e9fff7;
+  color: #15a779;
 }
 
 .order-card__status.is-warning {
-  background: var(--app-warning-soft);
-  color: var(--ion-color-warning);
+  background: #fff7e8;
+  color: #d18416;
 }
 
 .order-card__status.is-danger {
-  background: var(--app-danger-soft);
-  color: var(--ion-color-danger);
+  background: #fff0f2;
+  color: #e25161;
 }
 
 .order-card__status.is-medium {
-  background: rgba(116, 138, 185, 0.1);
-  color: var(--ios-pms-text-muted);
+  background: #eef2f7;
+  color: #74829a;
 }
 
 .order-card__more-btn {
@@ -291,10 +332,10 @@ const showDeletedRoomExceptionBlock = computed(() => props.activeTab === 'delete
   width: 28px;
   height: 28px;
   padding: 0;
-  border: 1px solid var(--ios-pms-border-faint);
+  border: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.78);
-  color: var(--ios-pms-text-muted);
+  background: transparent;
+  color: #a5adba;
   font: inherit;
 }
 
@@ -310,10 +351,10 @@ const showDeletedRoomExceptionBlock = computed(() => props.activeTab === 'delete
 .order-card__stay-band {
   display: grid;
   gap: 4px;
-  padding: 10px 12px;
-  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.08);
-  border-radius: 14px;
-  background: var(--ios-pms-primary-soft);
+  padding: 9px 12px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: #eef6ff;
 }
 
 .order-card__stay-label {
@@ -325,7 +366,7 @@ const showDeletedRoomExceptionBlock = computed(() => props.activeTab === 'delete
 
 .order-card__stay {
   color: var(--ios-pms-text-primary);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: var(--ios-pms-weight-bold);
   line-height: 1.35;
 }
@@ -340,7 +381,7 @@ const showDeletedRoomExceptionBlock = computed(() => props.activeTab === 'delete
 
 .order-card__room {
   color: var(--ios-pms-text-secondary);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: var(--ios-pms-weight-medium);
   line-height: 1.45;
   word-break: break-word;
@@ -351,7 +392,7 @@ const showDeletedRoomExceptionBlock = computed(() => props.activeTab === 'delete
   font-size: 22px;
   font-weight: var(--ios-pms-weight-heavy);
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 }
 
 .order-card__amount-row {
@@ -395,46 +436,65 @@ const showDeletedRoomExceptionBlock = computed(() => props.activeTab === 'delete
 .order-card__meta-strip {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
-  padding-top: 2px;
+  padding-top: 0;
 }
 
-.order-card__meta-line {
+.order-card__badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
   margin: 0;
-  color: var(--ios-pms-text-muted);
-  font-size: 12px;
-  line-height: 1.45;
   white-space: nowrap;
   overflow: hidden;
+}
+
+.order-card__meta-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 16px;
+  max-width: 88px;
+  padding: 0 6px;
+  border-radius: 3px;
+  background: #eef2f7;
+  color: #74829a;
+  font-size: 9px;
+  font-weight: var(--ios-pms-weight-bold);
+  line-height: 1;
+  overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.order-card__meta-item {
-  display: inline;
+.order-card__meta-badge--channel {
+  max-width: 96px;
+  background: var(--order-card-channel-color, #3474f6);
+  color: #ffffff;
 }
 
-.order-card__meta-item + .order-card__meta-item::before {
-  content: '·';
-  margin: 0 6px;
-  color: var(--ios-pms-text-disabled);
+.order-card__meta-badge.is-success {
+  background: #e9fff7;
+  color: #15a779;
 }
 
-.order-card__meta-item.is-success {
-  color: var(--ion-color-success);
+.order-card__meta-badge.is-warning {
+  background: #fff7e8;
+  color: #d18416;
 }
 
-.order-card__meta-item.is-warning {
-  color: var(--ion-color-warning);
+.order-card__meta-badge.is-danger {
+  background: #fff0f2;
+  color: #e25161;
 }
 
-.order-card__meta-item.is-danger {
-  color: var(--ion-color-danger);
-}
-
-.order-card__meta-item.is-medium {
-  color: var(--ios-pms-text-muted);
+.order-card__meta-badge.is-medium {
+  background: #eef2f7;
+  color: #74829a;
 }
 
 .order-card__support-line {
@@ -462,7 +522,7 @@ const showDeletedRoomExceptionBlock = computed(() => props.activeTab === 'delete
 }
 
 .order-card__timestamp {
-  color: var(--ios-pms-text-soft);
+  color: #a6afbd;
   font-size: 11px;
   line-height: 1.3;
   white-space: nowrap;

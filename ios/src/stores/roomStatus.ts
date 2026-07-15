@@ -10,6 +10,7 @@ import {
   type RoomStatusStatisticsDTO,
 } from '@/api/roomStatus'
 import { getAllRoomGroups, getGroupMembers } from '@/api/roomGroup'
+import { getRoomPriceManagementData } from '@/api/roomPrice'
 import { getAllRoomTypesWithRooms } from '@/api/roomType'
 import {
   getAllChannels,
@@ -22,6 +23,11 @@ import { getSortOrderMap } from '@/api/sortConfig'
 import { useUserStore } from '@/stores/user'
 import type { RoomGroupDTO, RoomGroupMemberDTO } from '@/types/settings'
 import { showSuccessToast } from '@/utils/notify'
+import {
+  buildRoomStatusDailyPricingMap,
+  getRoomStatusDailyPricing,
+  type RoomStatusDailyPricingMap,
+} from '@/utils/roomStatusPricing'
 import {
   getBusinessDateWeekdayIndex,
   getStoreTodayDate,
@@ -38,6 +44,7 @@ export interface RoomStatusDateItem {
   availableRooms: number
   isToday: boolean
   isSelected: boolean
+  isFocused: boolean
 }
 
 export interface RoomTimelineItem {
@@ -46,6 +53,7 @@ export interface RoomTimelineItem {
   businessState: RoomStatusBusinessState
   statusText: string
   isSelected: boolean
+  isFocused: boolean
   isToday: boolean
   isClosed: boolean
   isDirty: boolean
@@ -53,6 +61,7 @@ export interface RoomTimelineItem {
   closeRemark: string
   reservation: ReservationDTO | null
   price?: number
+  minStay?: number
 }
 
 export interface RoomStatusRoomItem {
@@ -109,6 +118,13 @@ const CALENDAR_RANGE_BUFFER_AFTER = 2
 const NATURAL_COMPARE_OPTIONS: Intl.CollatorOptions = {
   numeric: true,
   sensitivity: 'base',
+}
+
+interface CalendarWindowData {
+  rooms: CalendarRoomDataDTO[]
+  pricingMapPromise: Promise<RoomStatusDailyPricingMap>
+  pricingRequestId: number
+  targetWindowStartDate: string
 }
 
 const getTodayDateKey = () => getStoreTodayDate()
@@ -348,6 +364,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
   const userStore = useUserStore()
   const today = getTodayDateKey()
   const selectedDate = ref(today)
+  const browsingDate = ref(today)
   const windowStartDate = ref(addDays(today, -SELECTED_DATE_OFFSET))
   const calendarRooms = ref<CalendarRoomDataDTO[]>([])
   const statistics = ref<RoomStatusStatisticsDTO | null>(null)
@@ -364,12 +381,31 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
   const reservationAmountPending = new Map<number, Promise<void>>()
   const reservationAmountUnavailable = new Set<number>()
   let latestSearchRequestId = 0
+  let latestPricingRequestId = 0
   let hasInitializedRoomTypeSelection = false
   const roomTypeSortOrderMap = ref<Record<string, number>>({})
+  const roomTypeDailyPricingMap = ref<RoomStatusDailyPricingMap>({})
   const roomSortOrderMap = ref<Record<number, number>>({})
   const roomToGroupSortOrderMap = ref<Map<number, number>>(new Map())
   const sortContextUserId = ref(0)
   const sortContextLoaded = ref(false)
+
+  function isDateInVisibleWindow(date: string, targetWindowStartDate = windowStartDate.value) {
+    const lastVisibleDate = addDays(targetWindowStartDate, DATE_WINDOW_SIZE - 1)
+    return date >= targetWindowStartDate && date <= lastVisibleDate
+  }
+
+  const visibleFocusDate = computed(() => {
+    if (isDateInVisibleWindow(selectedDate.value)) {
+      return selectedDate.value
+    }
+
+    if (isDateInVisibleWindow(browsingDate.value)) {
+      return browsingDate.value
+    }
+
+    return windowStartDate.value
+  })
 
   const visibleDates = computed<RoomStatusDateItem[]>(() => {
     const items: RoomStatusDateItem[] = []
@@ -397,21 +433,22 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
         availableRooms,
         isToday: currentDate === currentToday,
         isSelected: currentDate === selectedDate.value,
+        isFocused: currentDate === visibleFocusDate.value,
       })
     }
 
     return items
   })
 
-  const visibleRange = computed(() => {
+  function getVisibleRangeForWindowStart(targetWindowStartDate: string) {
     return {
-      startDate: addDays(windowStartDate.value, -CALENDAR_RANGE_BUFFER_BEFORE),
+      startDate: addDays(targetWindowStartDate, -CALENDAR_RANGE_BUFFER_BEFORE),
       endDate: addDays(
-        windowStartDate.value,
+        targetWindowStartDate,
         DATE_WINDOW_SIZE - 1 + CALENDAR_RANGE_BUFFER_AFTER,
       ),
     }
-  })
+  }
 
   const getRoomGroupSortOrder = (roomId: number) => {
     return roomToGroupSortOrderMap.value.get(roomId) ?? DEFAULT_SORT_ORDER
@@ -423,6 +460,10 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
   const getRoomSortOrder = (roomId: number) => {
     return roomSortOrderMap.value[roomId] ?? DEFAULT_SORT_ORDER
+  }
+
+  const getRoomTypePricing = (roomTypeName: string, date: string) => {
+    return getRoomStatusDailyPricing(roomTypeDailyPricingMap.value, roomTypeName, date)
   }
 
   const compareCalendarRooms = (left: CalendarRoomDataDTO, right: CalendarRoomDataDTO) => {
@@ -477,9 +518,10 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
   const visibleRoomItems = computed<RoomStatusRoomItem[]>(() => {
     const items: RoomStatusRoomItem[] = []
+    const focusedDate = visibleFocusDate.value
 
     for (const room of filteredRooms.value) {
-      const focusedStatus = room.dailyStatus.find((item) => item.date === selectedDate.value)
+      const focusedStatus = room.dailyStatus.find((item) => item.date === focusedDate)
       if (!focusedStatus) {
         continue
       }
@@ -493,6 +535,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
         if (!dailyStatus) {
           continue
         }
+        const pricing = getRoomTypePricing(room.roomType, dateItem.date)
 
         timeline.push({
           date: dateItem.date,
@@ -500,12 +543,15 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
           businessState: getRoomBusinessState(dailyStatus),
           statusText: getRoomStatusText(dailyStatus),
           isSelected: dateItem.date === selectedDate.value,
+          isFocused: dateItem.date === focusedDate,
           isToday: dateItem.date === currentToday,
           isClosed: Boolean(dailyStatus.closed),
           isDirty: roomIsDirty,
           closeType: dailyStatus.closeType || '',
           closeRemark: dailyStatus.closeRemark || '',
           reservation: buildReservationModel(dailyStatus, reservationAmountCache.value),
+          price: pricing?.price,
+          minStay: pricing?.minStay,
         })
       }
 
@@ -513,7 +559,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
         roomId: room.roomId,
         roomNumber: room.roomNumber,
         roomType: room.roomType,
-        focusedDate: selectedDate.value,
+        focusedDate,
         focusedStatus: focusedStatus.status,
         focusedBusinessState: getRoomBusinessState(focusedStatus),
         focusedStatusText: getRoomStatusText(focusedStatus),
@@ -546,6 +592,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
   const roomTypeSummaries = computed<RoomTypeSummaryItem[]>(() => {
     const summaries: RoomTypeSummaryItem[] = []
+    const focusedDate = visibleFocusDate.value
 
     for (const roomType of roomTypes.value) {
       const typeRooms = calendarRooms.value.filter((room) => room.roomType === roomType)
@@ -555,7 +602,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       let dirtyRooms = 0
 
       for (const room of typeRooms) {
-        const dailyStatus = room.dailyStatus.find((item) => item.date === selectedDate.value)
+        const dailyStatus = room.dailyStatus.find((item) => item.date === focusedDate)
         if (!dailyStatus) {
           continue
         }
@@ -868,14 +915,87 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     }
   }
 
-  async function loadCalendar() {
-    const response = await getRoomStatusCalendar(visibleRange.value.startDate, visibleRange.value.endDate)
+  async function fetchCalendarRooms(targetWindowStartDate = windowStartDate.value) {
+    const targetRange = getVisibleRangeForWindowStart(targetWindowStartDate)
+    const response = await getRoomStatusCalendar(targetRange.startDate, targetRange.endDate)
     if (!response.success || !response.data) {
       throw new Error(response.message || '房态加载失败')
     }
 
-    calendarRooms.value = response.data.rooms
+    return response.data.rooms
+  }
+
+  async function fetchRoomStatusPricing(
+    targetWindowStartDate = windowStartDate.value,
+  ): Promise<RoomStatusDailyPricingMap> {
+    const targetRange = getVisibleRangeForWindowStart(targetWindowStartDate)
+
+    try {
+      const response = await getRoomPriceManagementData(
+        targetRange.startDate,
+        targetRange.endDate,
+        undefined,
+        { suppressErrorStatuses: [403] },
+      )
+
+      if (!response.success || !Array.isArray(response.data)) {
+        return {}
+      }
+
+      return buildRoomStatusDailyPricingMap(response.data)
+    } catch (error) {
+      console.warn('房态当日价格加载失败，已降级为状态展示', error)
+      return {}
+    }
+  }
+
+  async function fetchCalendarWindow(
+    targetWindowStartDate = windowStartDate.value,
+  ): Promise<CalendarWindowData> {
+    latestPricingRequestId += 1
+    const pricingRequestId = latestPricingRequestId
+    const pricingMapPromise = fetchRoomStatusPricing(targetWindowStartDate)
+
+    try {
+      const rooms = await fetchCalendarRooms(targetWindowStartDate)
+      return {
+        rooms,
+        pricingMapPromise,
+        pricingRequestId,
+        targetWindowStartDate,
+      }
+    } catch (error) {
+      if (pricingRequestId === latestPricingRequestId) {
+        latestPricingRequestId += 1
+      }
+      throw error
+    }
+  }
+
+  function applyCalendarWindow({
+    rooms,
+    pricingMapPromise,
+    pricingRequestId,
+    targetWindowStartDate,
+  }: CalendarWindowData) {
+    calendarRooms.value = rooms
+    roomTypeDailyPricingMap.value = {}
     syncRoomTypeSelection()
+
+    void pricingMapPromise.then((pricingMap) => {
+      if (
+        pricingRequestId !== latestPricingRequestId ||
+        targetWindowStartDate !== windowStartDate.value
+      ) {
+        return
+      }
+
+      roomTypeDailyPricingMap.value = pricingMap
+    })
+  }
+
+  async function loadCalendar() {
+    applyCalendarWindow(await fetchCalendarWindow())
   }
 
   async function loadStatistics() {
@@ -935,21 +1055,36 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     }
   }
 
-  function ensureDateInWindow(date: string) {
-    const visibleDateKeys = visibleDates.value.map((item) => item.date)
-    if (visibleDateKeys.includes(date)) {
-      return
+  function resolveWindowStartForDate(date: string) {
+    if (isDateInVisibleWindow(date)) {
+      return windowStartDate.value
     }
 
-    windowStartDate.value = addDays(date, -SELECTED_DATE_OFFSET)
+    return addDays(date, -SELECTED_DATE_OFFSET)
+  }
+
+  function resolveBrowsingDateForWindow(targetWindowStartDate: string) {
+    return addDays(
+      targetWindowStartDate,
+      Math.min(SELECTED_DATE_OFFSET, DATE_WINDOW_SIZE - 1),
+    )
   }
 
   async function setSelectedDate(date: string) {
+    const nextWindowStartDate = resolveWindowStartForDate(date)
+    const shouldMoveWindow = nextWindowStartDate !== windowStartDate.value
     selectedDate.value = date
-    ensureDateInWindow(date)
+    browsingDate.value = date
     summaryLoading.value = true
     try {
-      await Promise.all([loadCalendar(), loadStatistics()])
+      const calendarTask = shouldMoveWindow
+        ? fetchCalendarWindow(nextWindowStartDate)
+        : fetchCalendarWindow()
+      const [calendarWindow] = await Promise.all([calendarTask, loadStatistics()])
+      if (shouldMoveWindow) {
+        windowStartDate.value = nextWindowStartDate
+      }
+      applyCalendarWindow(calendarWindow)
       await hydrateMissingReservationAmounts(date)
     } finally {
       summaryLoading.value = false
@@ -957,14 +1092,23 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
   }
 
   async function shiftWindow(days: number) {
-    windowStartDate.value = addDays(windowStartDate.value, days)
-    selectedDate.value = addDays(selectedDate.value, days)
-    await refreshAll()
+    const nextWindowStartDate = addDays(windowStartDate.value, days)
+    loading.value = true
+    try {
+      const calendarWindow = await fetchCalendarWindow(nextWindowStartDate)
+      windowStartDate.value = nextWindowStartDate
+      browsingDate.value = resolveBrowsingDateForWindow(nextWindowStartDate)
+      applyCalendarWindow(calendarWindow)
+      await hydrateMissingReservationAmounts(visibleFocusDate.value)
+    } finally {
+      loading.value = false
+    }
   }
 
   async function goToday() {
     const currentToday = getTodayDateKey()
     selectedDate.value = currentToday
+    browsingDate.value = currentToday
     windowStartDate.value = addDays(currentToday, -SELECTED_DATE_OFFSET)
     await refreshAll()
   }
@@ -1121,7 +1265,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       return null
     }
 
-    const focusedDate = businessDate || selectedDate.value
+    const focusedDate = businessDate || visibleFocusDate.value
     const focusedStatus = room.dailyStatus.find((item) => item.date === focusedDate)
     if (!focusedStatus) {
       return null
@@ -1136,18 +1280,23 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       if (!dailyStatus) {
         continue
       }
+      const pricing = getRoomTypePricing(room.roomType, dateItem.date)
+
       timeline.push({
         date: dateItem.date,
         label: dateItem.label,
         businessState: getRoomBusinessState(dailyStatus),
         statusText: getRoomStatusText(dailyStatus),
-        isSelected: dateItem.date === focusedDate,
+        isSelected: dateItem.date === selectedDate.value,
+        isFocused: dateItem.date === focusedDate,
         isToday: dateItem.date === currentToday,
         isClosed: Boolean(dailyStatus.closed),
         isDirty: roomIsDirty,
         closeType: dailyStatus.closeType || '',
         closeRemark: dailyStatus.closeRemark || '',
         reservation: buildReservationModel(dailyStatus, reservationAmountCache.value),
+        price: pricing?.price,
+        minStay: pricing?.minStay,
       })
     }
 
@@ -1170,6 +1319,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
   return {
     selectedDate,
+    browsingDate,
     windowStartDate,
     calendarRooms,
     statistics,
@@ -1182,6 +1332,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     searching,
     actionLoading,
     visibleDates,
+    visibleFocusDate,
     roomTypes,
     visibleRoomItems,
     groupedVisibleRooms,
