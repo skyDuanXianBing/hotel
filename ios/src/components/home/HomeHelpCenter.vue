@@ -2,7 +2,7 @@
   <section class="help-section">
     <div class="help-section__header">
       <h2 class="help-section__title">帮助中心</h2>
-      <button type="button" class="help-section__more" @click="handleMore">全部 →</button>
+      <button type="button" class="help-section__more" @click="handleMore">全部</button>
     </div>
 
     <div class="help-list">
@@ -64,10 +64,10 @@ function handleMore() {
 
 <style scoped>
 .help-section {
-  padding: 18px 18px 14px;
+  padding: 18px 16px 22px;
   border: 1px solid var(--ios-pms-border-faint);
   border-radius: var(--ios-pms-radius-card);
-  background: var(--ios-pms-surface);
+  background: rgba(250, 252, 254, 0.7);
   box-shadow: var(--ios-pms-shadow-card);
 }
 
@@ -76,47 +76,48 @@ function handleMore() {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 14px;
 }
 
 .help-section__title {
   margin: 0;
   color: var(--ios-pms-text-primary);
-  font-size: var(--ios-pms-font-title-md-size);
-  font-weight: var(--ios-pms-weight-heavy);
-  letter-spacing: -0.03em;
+  font-size: 20px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
 }
 
 .help-section__more {
   display: inline-flex;
   align-items: center;
-  min-height: 30px;
-  padding: 0 13px;
-  border: 1px solid rgba(116, 163, 251, 0.08);
+  min-height: 28px;
+  padding: 0 11px;
+  border: none;
   border-radius: var(--ios-pms-radius-pill);
-  background: rgba(115, 164, 255, 0.06);
+  background: #eef5ff;
   color: var(--ios-pms-primary-strong);
   box-shadow: none;
   font: inherit;
-  font-size: var(--ios-pms-font-body-sm-size);
-  font-weight: var(--ios-pms-weight-bold);
+  font-size: 13px;
+  font-weight: 400;
 }
 
 .help-list {
   display: grid;
-  gap: 0;
+  gap: 8px;
 }
 
 .help-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   width: 100%;
-  padding: 14px 2px;
+  min-height: 72px;
+  padding: 11px 12px;
   border: none;
-  border-radius: 0;
-  background: transparent;
+  border-radius: 7px;
+  background: #f7f8fa;
   box-shadow: none;
   font: inherit;
   text-align: left;
@@ -126,28 +127,28 @@ function handleMore() {
 }
 
 .help-item + .help-item {
-  border-top: 1px solid var(--ios-pms-divider);
+  border-top: none;
 }
 
 .help-item:active {
-  background: rgba(79, 123, 217, 0.03);
+  background: #f0f4fb;
 }
 
 .help-item:focus-visible {
   outline: none;
-  background: rgba(79, 123, 217, 0.03);
+  background: #f0f4fb;
 }
 
 .help-item__icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   border: none;
-  border-radius: var(--ios-pms-radius-icon);
+  border-radius: 7px;
   box-shadow: none;
-  font-size: 18px;
+  font-size: 29px;
 }
 
 .help-item__icon--primary {
@@ -177,16 +178,16 @@ function handleMore() {
 .help-item__body strong {
   display: block;
   color: var(--ios-pms-text-primary);
-  font-size: var(--ios-pms-font-title-sm-size);
-  font-weight: var(--ios-pms-weight-heavy);
-  line-height: 1.25;
+  font-size: 15px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.3;
 }
 
 .help-item__body p {
-  margin: 3px 0 0;
+  margin: 4px 0 0;
   color: var(--ios-pms-text-muted);
-  font-size: var(--ios-pms-font-body-sm-size);
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -204,8 +205,8 @@ function handleMore() {
 }
 
 .help-item__arrow {
-  color: var(--ios-pms-text-disabled);
-  font-size: 15px;
+  color: #858585;
+  font-size: 26px;
 }
 
 @media (prefers-reduced-motion: reduce) {

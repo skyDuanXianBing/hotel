@@ -9,9 +9,12 @@
         @click="handleSelect(item)"
       >
         <div class="quick-item__icon-shell">
-          <div class="quick-item__icon" :class="`quick-item__icon--${item.tone}`">
-            <ion-icon :icon="item.icon" />
-          </div>
+          <img
+            class="quick-item__icon"
+            :src="item.iconSrc"
+            alt=""
+            draggable="false"
+          />
         </div>
         <span class="quick-item__label">{{ item.title }}</span>
       </button>
@@ -20,7 +23,6 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue'
 import type { HomeQuickActionItem } from '@/constants/homeQuickActions'
 
 interface Props {
@@ -40,27 +42,31 @@ const handleSelect = (item: HomeQuickActionItem) => {
 
 <style scoped>
 .quick-section {
-  padding: 14px 18px 12px;
+  padding: 11px 18px 10px;
   border: 1px solid var(--ios-pms-border-soft);
   border-radius: var(--ios-pms-radius-card);
-  background: var(--ios-pms-surface);
-  box-shadow: var(--ios-pms-shadow-card-strong);
+  background: rgba(250, 252, 254, 0.7);
+  box-shadow: var(--ios-pms-shadow-card);
 }
 
 .quick-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px 12px;
+  row-gap: 6px;
+  column-gap: 8px;
 }
 
 .quick-item {
   display: grid;
   justify-items: center;
-  gap: 5px;
+  align-content: center;
+  gap: 2px;
   width: 100%;
-  padding: 6px 6px 4px;
+  min-width: 0;
+  min-height: 56px;
+  padding: 2px 2px 1px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--ios-pms-radius-icon);
   background: transparent;
   box-shadow: none;
   font: inherit;
@@ -82,76 +88,52 @@ const handleSelect = (item: HomeQuickActionItem) => {
 .quick-item__icon-shell {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--ios-pms-radius-icon);
   background: transparent;
 }
 
 .quick-item__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  border: none;
-  border-radius: 14px;
-  box-shadow: none;
-  font-size: 22px;
-}
-
-.quick-item__icon--primary {
-  background: transparent;
-  color: var(--ion-color-primary);
-}
-
-.quick-item__icon--warning {
-  background: transparent;
-  color: var(--ion-color-warning);
-}
-
-.quick-item__icon--secondary {
-  background: transparent;
-  color: var(--ion-color-secondary);
-}
-
-.quick-item__icon--success {
-  background: transparent;
-  color: var(--ion-color-success);
+  display: block;
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .quick-item__label {
   color: var(--ios-pms-text-secondary);
-  font-size: var(--ios-pms-font-body-md-size);
-  font-weight: var(--ios-pms-weight-bold);
+  font-size: 14px;
+  font-weight: 400;
   text-align: center;
-  line-height: 1.15;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 @media (max-width: 374px) {
   .quick-grid {
-    gap: 7px 10px;
+    row-gap: 5px;
+    column-gap: 6px;
   }
 
   .quick-item {
-    padding-left: 4px;
-    padding-right: 4px;
-    padding-top: 5px;
-    padding-bottom: 3px;
+    min-height: 53px;
   }
 
-  .quick-item__icon-shell,
-  .quick-item__icon {
-    width: 38px;
-    height: 38px;
+  .quick-item__icon-shell {
+    width: 35px;
+    height: 35px;
   }
 
   .quick-item__icon {
-    font-size: 20px;
+    width: 31px;
+    height: 31px;
   }
 
   .quick-item__label {
-    font-size: 11px;
+    font-size: 12px;
   }
 }
 

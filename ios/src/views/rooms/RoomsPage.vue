@@ -1315,7 +1315,7 @@ onIonViewWillEnter(async () => {
 }
 
 .rooms-header__icon ion-icon {
-  font-size: 18px;
+  font-size: 15px;
   stroke-width: 2;
 }
 

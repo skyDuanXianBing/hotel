@@ -1484,7 +1484,7 @@ onMounted(async () => {
 .reservation-detail-hero__meta-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(104px, 0.75fr);
-  column-gap: 24px;
+  column-gap: 0;
   row-gap: 0;
   margin-top: 16px;
 }
@@ -1503,6 +1503,14 @@ onMounted(async () => {
   align-content: start;
   padding: 14px 6px 16px;
   border-top: 1px solid #dfe1e5;
+}
+
+.reservation-detail-hero__meta-item:nth-child(odd) {
+  padding-right: 18px;
+}
+
+.reservation-detail-hero__meta-item:nth-child(even) {
+  padding-left: 18px;
 }
 
 .reservation-detail-hero__meta-item > span,

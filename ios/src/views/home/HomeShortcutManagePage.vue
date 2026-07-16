@@ -32,9 +32,12 @@
                 <ion-icon :icon="removeOutline" />
               </span>
               <div class="shortcut-manage-item__icon-shell">
-                <div class="shortcut-manage-item__icon" :class="`shortcut-manage-item__icon--${item.tone}`">
-                  <ion-icon :icon="item.icon" />
-                </div>
+                <img
+                  class="shortcut-manage-item__icon"
+                  :src="item.iconSrc"
+                  alt=""
+                  draggable="false"
+                />
               </div>
               <span class="shortcut-manage-item__label">{{ item.title }}</span>
             </button>
@@ -59,9 +62,12 @@
                 <ion-icon :icon="addOutline" />
               </span>
               <div class="shortcut-manage-item__icon-shell">
-                <div class="shortcut-manage-item__icon" :class="`shortcut-manage-item__icon--${item.tone}`">
-                  <ion-icon :icon="item.icon" />
-                </div>
+                <img
+                  class="shortcut-manage-item__icon"
+                  :src="item.iconSrc"
+                  alt=""
+                  draggable="false"
+                />
               </div>
               <span class="shortcut-manage-item__label">{{ item.title }}</span>
             </button>
@@ -275,35 +281,18 @@ onBeforeRouteLeave(async () => {
 }
 
 .shortcut-manage-item__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  font-size: 28px;
-}
-
-.shortcut-manage-item__icon--primary {
-  color: var(--ion-color-primary);
-}
-
-.shortcut-manage-item__icon--warning {
-  color: var(--ion-color-warning);
-}
-
-.shortcut-manage-item__icon--secondary {
-  color: var(--ion-color-secondary);
-}
-
-.shortcut-manage-item__icon--success {
-  color: var(--ion-color-success);
+  display: block;
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .shortcut-manage-item__label {
   color: var(--ios-pms-text-secondary);
   font-size: 14px;
-  font-weight: var(--ios-pms-weight-bold);
+  font-weight: 400;
   line-height: 1.2;
   text-align: center;
 }
@@ -328,9 +317,8 @@ onBeforeRouteLeave(async () => {
   }
 
   .shortcut-manage-item__icon {
-    width: 42px;
-    height: 42px;
-    font-size: 24px;
+    width: 39px;
+    height: 39px;
   }
 
   .shortcut-manage-item__label {

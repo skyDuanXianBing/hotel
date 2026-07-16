@@ -1,7 +1,7 @@
 <template>
   <section class="occ-section">
     <div class="occ-section__header">
-      <h2 class="occ-section__title">近 7 天入住率</h2>
+      <h2 class="occ-section__title">近7天入住率</h2>
       <span class="occ-section__range">{{ dateRangeLabel }}</span>
     </div>
 
@@ -43,8 +43,8 @@
       <div class="occ-chart-shell">
         <div class="occ-chart">
           <div v-for="item in normalizedItems" :key="item.date" class="occ-bar">
-            <span class="occ-bar__rate">{{ formatRate(item.rate) }}</span>
             <div class="occ-bar__track">
+              <span class="occ-bar__rate">{{ formatRate(item.rate) }}</span>
               <div class="occ-bar__fill" :style="{ height: `${resolveBarHeight(item.rate)}%` }" />
             </div>
             <span class="occ-bar__date">{{ formatShortDate(item.date) }}</span>
@@ -162,11 +162,11 @@ const resolveBarHeight = (rate: number) => {
 
 <style scoped>
 .occ-section {
-  padding: 20px 18px;
-  border: 1px solid rgba(97, 124, 177, 0.08);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 12px 30px rgba(77, 98, 145, 0.08);
+  padding: 18px 16px 20px;
+  border: 1px solid var(--ios-pms-border-soft);
+  border-radius: var(--ios-pms-radius-card);
+  background: rgba(250, 252, 254, 0.7);
+  box-shadow: var(--ios-pms-shadow-card);
 }
 
 .occ-section__header {
@@ -174,143 +174,167 @@ const resolveBarHeight = (rate: number) => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .occ-section__title {
   margin: 0;
-  color: #16233b;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  color: var(--ios-pms-text-primary);
+  font-size: 20px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
 }
 
 .occ-section__range {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 0 12px;
-  border: 1px solid rgba(116, 163, 251, 0.1);
-  border-radius: 999px;
-  background: rgba(115, 164, 255, 0.08);
-  color: #3f7cff;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
-  font-size: 11px;
-  font-weight: 700;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ios-pms-text-muted);
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 400;
   white-space: nowrap;
 }
 
 .occ-overview {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.85fr);
-  gap: 10px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 18px;
 }
 
 .occ-lead {
-  display: grid;
-  gap: 8px;
-  padding: 14px;
-  border: 1px solid rgba(89, 125, 202, 0.1);
-  border-radius: 20px;
-  background: linear-gradient(180deg, rgba(239, 245, 255, 0.98), rgba(247, 250, 255, 0.94));
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 80px;
+  padding: 13px 14px 12px;
+  border: none;
+  border-radius: 7px;
+  background: linear-gradient(127deg, #007cfe 0%, #6eb5ff 100%);
 }
 
 .occ-lead__label {
-  color: #6f80a0;
-  font-size: 12px;
-  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  font-weight: 400;
 }
 
 .occ-lead__value {
-  color: #16233b;
-  font-size: 30px;
-  font-weight: 800;
+  color: #ffffff;
+  font-size: 23px;
+  font-weight: var(--ios-pms-weight-medium);
   line-height: 1;
-  letter-spacing: -0.05em;
+  letter-spacing: 0;
   font-variant-numeric: tabular-nums;
 }
 
 .occ-chips {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  display: contents;
 }
 
 .occ-chip {
-  padding: 12px;
-  border: 1px solid rgba(115, 139, 188, 0.1);
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 255, 0.96));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 80px;
+  padding: 13px 14px 12px;
+  border: none;
+  border-radius: 7px;
+  background: #f3f8fd;
+  box-shadow: none;
 }
 
 .occ-chip__label {
   display: block;
-  color: #73829d;
-  font-size: 11px;
-  font-weight: 700;
+  color: var(--ios-pms-text-muted);
+  font-size: 14px;
+  font-weight: 400;
 }
 
 .occ-chip__value {
   display: block;
-  margin-top: 8px;
-  color: #16233b;
-  font-size: 24px;
-  font-weight: 800;
+  margin-top: 6px;
+  color: var(--ios-pms-text-primary);
+  font-size: 23px;
+  font-weight: var(--ios-pms-weight-medium);
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 
 .occ-chart-shell {
-  padding: 14px 12px 10px;
-  border: 1px solid rgba(115, 139, 188, 0.1);
-  border-radius: 22px;
-  background: linear-gradient(180deg, rgba(247, 250, 255, 0.98), rgba(255, 255, 255, 0.96));
+  padding: 0;
+  border: 1px dashed #d9e1ee;
+  border-radius: 4px;
+  background:
+    linear-gradient(to bottom, transparent 49.5%, rgba(205, 215, 231, 0.62) 50%, transparent 50.5%),
+    #fbfcff;
+  overflow: hidden;
 }
 
 .occ-chart {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  align-items: end;
-  gap: 8px;
+  align-items: stretch;
+  gap: 7px;
+  height: 164px;
+  padding: 0 7px;
 }
 
 .occ-bar {
   display: grid;
+  grid-template-rows: minmax(0, 1fr) 24px;
   justify-items: center;
-  gap: 8px;
+  gap: 0;
+  min-width: 0;
 }
 
 .occ-bar__track {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  justify-content: flex-end;
   align-items: flex-end;
+  justify-self: stretch;
   width: 100%;
-  min-height: 124px;
-  padding: 12px 0 8px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(238, 244, 255, 0.96), rgba(248, 250, 255, 0.92));
+  min-height: 0;
+  padding: 7px 4px 0;
+  border-radius: 0 0 18px 18px;
+  background: rgba(239, 244, 252, 0.72);
+  box-sizing: border-box;
 }
 
 .occ-bar__fill {
-  width: 16px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #90cbff 0%, #4e82ff 100%);
-  box-shadow: 0 10px 18px rgba(78, 130, 255, 0.2);
+  align-self: stretch;
+  width: 100%;
+  max-height: calc(100% - 19px);
+  border-radius: 20px;
+  background: linear-gradient(180deg, #cce6ff 0%, #80baf2 48%, #5d9fe8 100%);
+  box-shadow: none;
   transition: height 0.3s ease;
 }
 
 .occ-bar__rate {
-  color: #16233b;
-  font-size: 11px;
-  font-weight: 700;
+  align-self: center;
+  flex-shrink: 0;
+  min-width: 0;
+  margin-bottom: 3px;
+  color: #697384;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .occ-bar__date {
-  color: #7d8ca7;
-  font-size: 10px;
+  align-self: center;
+  color: #5f6570;
+  font-size: 11px;
+  line-height: 24px;
+  white-space: nowrap;
 }
 
 .occ-empty {
@@ -328,55 +352,81 @@ const resolveBarHeight = (rate: number) => {
 
 .occ-skeleton__summary {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.85fr);
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .occ-skeleton__lead,
 .occ-skeleton__chip {
   margin: 0;
-  border-radius: 18px;
+  border-radius: 7px;
 }
 
 .occ-skeleton__lead {
-  height: 88px;
+  height: 80px;
 }
 
 .occ-skeleton__chips {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  display: contents;
 }
 
 .occ-skeleton__chip {
-  height: 88px;
+  height: 80px;
 }
 
 .occ-skeleton__chart {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 8px;
-  min-height: 124px;
+  gap: 7px;
+  min-height: 164px;
 }
 
 .occ-skeleton__bar {
-  border-radius: 18px;
+  border-radius: 0 0 18px 18px;
   overflow: hidden;
 }
 
 @media (max-width: 374px) {
-  .occ-overview,
-  .occ-skeleton__summary {
-    grid-template-columns: 1fr;
+  .occ-section {
+    padding-left: 14px;
+    padding-right: 14px;
   }
 
-  .occ-chart-shell {
-    padding-left: 10px;
-    padding-right: 10px;
+  .occ-lead,
+  .occ-chip {
+    min-height: 76px;
+    padding-left: 11px;
+    padding-right: 11px;
+  }
+
+  .occ-lead__label,
+  .occ-chip__label {
+    font-size: 13px;
+  }
+
+  .occ-lead__value,
+  .occ-chip__value {
+    font-size: 21px;
+  }
+
+  .occ-chart {
+    gap: 5px;
+    height: 156px;
+    padding-left: 5px;
+    padding-right: 5px;
   }
 
   .occ-bar__track {
-    min-height: 112px;
+    padding-left: 3px;
+    padding-right: 3px;
+  }
+
+  .occ-bar__rate {
+    font-size: 9px;
+  }
+
+  .occ-bar__date {
+    font-size: 10px;
   }
 }
 

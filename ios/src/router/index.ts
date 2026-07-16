@@ -29,11 +29,13 @@ const routes: RouteRecordRaw[] = [
   {
     path: ROUTE_PATHS.register,
     name: 'Register',
-    component: () => import('@/views/auth/RegisterPage.vue'),
-    meta: {
-      title: '注册',
-      publicOnly: true,
-    },
+    redirect: (to) => ({
+      path: ROUTE_PATHS.login,
+      query: {
+        ...to.query,
+        tab: 'register',
+      },
+    }),
   },
   {
     path: ROUTE_PATHS.forgotPassword,

@@ -65,10 +65,10 @@ const handleSelect = (item: HomeStatCardItem) => {
 
 <style scoped>
 .stats-section {
-  padding: 11px 14px 9px;
+  padding: 18px 16px 16px;
   border: 1px solid var(--ios-pms-border-soft);
-  border-radius: var(--ios-pms-radius-card-sm);
-  background: var(--ios-pms-surface);
+  border-radius: var(--ios-pms-radius-card);
+  background: rgba(250, 252, 254, 0.7);
   box-shadow: var(--ios-pms-shadow-card);
 }
 
@@ -76,38 +76,38 @@ const handleSelect = (item: HomeStatCardItem) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 7px;
+  margin-bottom: 9px;
 }
 
 .stats-section__title {
   margin: 0;
   color: var(--ios-pms-text-primary);
-  font-size: var(--ios-pms-font-title-sm-size);
-  font-weight: var(--ios-pms-weight-heavy);
-  letter-spacing: -0.03em;
+  font-size: 20px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
 }
 
 .stats-section__tag {
   display: inline-flex;
   align-items: center;
-  min-height: 16px;
+  min-height: 20px;
   padding: 0;
   border: none;
   border-radius: 0;
   background: transparent;
   color: var(--ios-pms-text-soft);
   box-shadow: none;
-  font-size: var(--ios-pms-font-date-size);
-  font-weight: var(--ios-pms-weight-medium);
-  letter-spacing: 0.05em;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  row-gap: 12px;
+  row-gap: 6px;
   column-gap: 0;
-  padding: 6px 2px 2px;
+  padding: 2px 0 0;
 }
 
 .stats-card,
@@ -122,8 +122,8 @@ const handleSelect = (item: HomeStatCardItem) => {
   justify-content: center;
   align-items: center;
   width: 100%;
-  min-height: 64px;
-  padding: 6px 4px;
+  min-height: 61px;
+  padding: 5px 2px;
   appearance: none;
   overflow: visible;
   background: transparent;
@@ -168,9 +168,9 @@ const handleSelect = (item: HomeStatCardItem) => {
 .stats-card__title {
   display: block;
   color: var(--ios-pms-text-muted);
-  font-size: var(--ios-pms-font-body-sm-size);
-  font-weight: 600;
-  line-height: 1.3;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.25;
   text-align: center;
 }
 
@@ -184,14 +184,14 @@ const handleSelect = (item: HomeStatCardItem) => {
   justify-content: center;
   gap: 0;
   margin-top: 0;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
 }
 
 .stats-card__value {
   color: var(--ios-pms-text-primary);
-  font-size: var(--ios-pms-font-metric-lg-size);
-  font-weight: var(--ios-pms-weight-heavy);
-  letter-spacing: -0.05em;
+  font-size: 22px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
@@ -217,8 +217,8 @@ const handleSelect = (item: HomeStatCardItem) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 64px;
-  padding: 6px 4px;
+  min-height: 61px;
+  padding: 5px 2px;
   background: transparent;
   box-shadow: none;
 }
@@ -244,11 +244,15 @@ const handleSelect = (item: HomeStatCardItem) => {
 
   .stats-card,
   .stats-skeleton {
-    min-height: 58px;
+    min-height: 57px;
   }
 
   .stats-card__value {
-    font-size: 22px;
+    font-size: 21px;
+  }
+
+  .stats-card__title {
+    font-size: 13px;
   }
 }
 
