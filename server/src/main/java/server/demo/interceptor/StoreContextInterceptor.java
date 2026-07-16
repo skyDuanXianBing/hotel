@@ -75,7 +75,7 @@ public class StoreContextInterceptor implements HandlerInterceptor {
         request.setAttribute("storeId", storeId);
 
         // 方案A：第一次收到带 X-Store-Id 的 StoreScoped 请求时自动预热渠道价格（仅当未来区间内还没有任何 channel_prices 时才生成）
-        if (!"OPTIONS".equalsIgnoreCase(request.getMethod())) {
+        if (storeScoped.warmupChannelPrices() && !"OPTIONS".equalsIgnoreCase(request.getMethod())) {
             try {
                 channelPriceWarmupService.warmupIfNeeded(storeId);
             } catch (Exception ex) {

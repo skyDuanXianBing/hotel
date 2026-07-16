@@ -9,6 +9,8 @@
     "build": "tsc && vite build",
     "start": "node dist/index.js",
     "verify:local-e2e": "tsx src/scripts/verify-local-e2e.ts",
+    "generate:managed-operation-e2e": "tsx src/scripts/managed-operation-generate.ts",
+    "test:managed-operation-fixture": "tsx --test src/scripts/managed-operation-fixture.test.ts",
     "verify:channel-mapping": "tsx src/scripts/verify-channel-mapping.ts",
     "verify:channel-mapping-price-settings": "tsx src/scripts/verify-channel-mapping-price-settings.ts"
   },

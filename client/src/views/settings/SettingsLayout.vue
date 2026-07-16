@@ -117,6 +117,12 @@ const menuItems: MenuItem[] = [
         path: '/settings/finance/note-settings',
         requiredPermissions: storeSettingsPermission,
       },
+      {
+        key: 'managed-operation-settlement',
+        label: 'managedOperation.title',
+        path: '/settings/finance/managed-operation-settlement',
+        requiredPermissions: storeSettingsPermission,
+      },
     ],
   },
   {

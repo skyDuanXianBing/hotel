@@ -371,6 +371,12 @@ const router = createRouter({
               component: () => import('@/views/settings/finance/NoteSettings.vue'),
               meta: { title: 'Record Settings', requiresAuth: true },
             },
+            {
+              path: 'finance/managed-operation-settlement',
+              name: 'ManagedOperationSettlement',
+              component: () => import('@/views/settings/finance/ManagedOperationSettlement.vue'),
+              meta: { title: 'Managed Operation Settlement', requiresAuth: true },
+            },
             // Account management
             {
               path: 'account/account-list',
@@ -683,6 +689,7 @@ const routePermissionConfig = new Map<
   ['Automation', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['PaymentMethods', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['NoteSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['ManagedOperationSettlement', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['AccountList', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS }] }],
   ['RoleManagement', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS }] }],
 ])
@@ -735,6 +742,7 @@ const routeTitleKeyByName = new Map<string, string>([
   ['Automation', 'routeTitles.frontDeskAutomation'],
   ['PaymentMethods', 'routeTitles.paymentMethods'],
   ['NoteSettings', 'routeTitles.recordSettings'],
+  ['ManagedOperationSettlement', 'routeTitles.managedOperationSettlement'],
   ['AccountList', 'routeTitles.accountList'],
   ['RoleManagement', 'routeTitles.roleManagement'],
   ['ChannelListSettings', 'routeTitles.channelManagement'],
