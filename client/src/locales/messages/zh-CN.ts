@@ -7,6 +7,7 @@ import { settingsMessages } from './settings'
 import { settingsStage4Messages } from './settingsStage4'
 import { stage5Messages } from './stage5'
 import { stage6Messages } from './stage6'
+import { managedOperationSettlementMessages } from './managedOperationSettlement'
 
 const zhCN = mergeLocaleMessages(
   {
@@ -183,6 +184,7 @@ const zhCN = mergeLocaleMessages(
   settingsStage4Messages['zh-CN'],
   stage5Messages['zh-CN'],
   stage6Messages['zh-CN'],
+  managedOperationSettlementMessages['zh-CN'],
   {
     routeTitles: {
       checkinRegistration: '入住登记',

@@ -236,6 +236,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
            FROM Reservation r
            LEFT JOIN FETCH r.room room
            LEFT JOIN FETCH room.roomType
+           LEFT JOIN FETCH r.channel
            WHERE r.storeId = :storeId
              AND (
                  r.externalBookingKey IN :lookupKeys
@@ -247,6 +248,23 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     List<Reservation> findByStoreIdAndAnyBookingKeyInWithRoomType(
            @Param("storeId") Long storeId,
            @Param("lookupKeys") List<String> lookupKeys
+    );
+
+    @Query("""
+           SELECT DISTINCT r
+           FROM Reservation r
+           LEFT JOIN FETCH r.room room
+           LEFT JOIN FETCH room.roomType
+           LEFT JOIN FETCH r.channel
+           WHERE r.storeId = :storeId
+             AND r.checkOutDate >= :startDate
+             AND r.checkOutDate < :endExclusive
+           ORDER BY r.createdAt DESC
+           """)
+    List<Reservation> findByStoreIdAndCheckOutMonthWithRoomTypeAndChannel(
+           @Param("storeId") Long storeId,
+           @Param("startDate") LocalDate startDate,
+           @Param("endExclusive") LocalDate endExclusive
     );
 
     @Query("""

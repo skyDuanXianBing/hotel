@@ -7,6 +7,7 @@ import { settingsMessages } from './settings'
 import { settingsStage4Messages } from './settingsStage4'
 import { stage5Messages } from './stage5'
 import { stage6Messages } from './stage6'
+import { managedOperationSettlementMessages } from './managedOperationSettlement'
 
 const ja = mergeLocaleMessages(
   {
@@ -185,6 +186,7 @@ const ja = mergeLocaleMessages(
   settingsStage4Messages.ja,
   stage5Messages.ja,
   stage6Messages.ja,
+  managedOperationSettlementMessages.ja,
   {
     routeTitles: {
       checkinRegistration: 'チェックイン登録',
