@@ -2,7 +2,9 @@ import { describe, expect, test } from 'vitest'
 import type { RoomPriceManagementDTO } from '@/api/roomPrice'
 import {
   buildRoomStatusDailyPricingMap,
+  formatRoomStatusPrice,
   getRoomStatusDailyPricing,
+  normalizeRoomStatusPriceSource,
 } from '@/utils/roomStatusPricing'
 
 const buildRecord = (
@@ -20,29 +22,73 @@ const buildRecord = (
 })
 
 describe('room status daily pricing', () => {
-  test('uses the lowest open price for a room type and date', () => {
-    const pricingMap = buildRoomStatusDailyPricingMap([
-      buildRecord({ id: 1, pricePlanId: 100, price: 420, minStay: 2 }),
-      buildRecord({ id: 2, pricePlanId: 101, price: 360, minStay: 1 }),
-      buildRecord({ id: 3, pricePlanId: 102, price: 320, closeRoom: true, minStay: 3 }),
-    ])
+  test('matches the default source by room type id and date without aggregating plan prices', () => {
+    const pricingMap = buildRoomStatusDailyPricingMap(
+      [
+        buildRecord({ id: 1, pricePlanId: 100, price: 420, minStay: 2 }),
+        buildRecord({ id: 2, pricePlanId: 101, price: 360, minStay: 1 }),
+        buildRecord({ id: 3, pricePlanId: undefined, price: 320, closeRoom: true, minStay: 3 }),
+      ],
+      'default',
+    )
 
-    expect(getRoomStatusDailyPricing(pricingMap, '标准大床房', '2026-07-16')).toEqual({
-      price: 360,
+    expect(getRoomStatusDailyPricing(pricingMap, 10, '2026-07-16', 'default')).toEqual({
+      price: 320,
+      minStay: 3,
+    })
+  })
+
+  test('matches an explicit price plan and defaults missing min stay to one', () => {
+    const pricingMap = buildRoomStatusDailyPricingMap(
+      [
+        buildRecord({ pricePlanId: undefined, price: 298, minStay: 2 }),
+        buildRecord({ id: 2, pricePlanId: 100, price: 420 }),
+        buildRecord({ id: 3, pricePlanId: 101, price: 360, minStay: 2 }),
+      ],
+      'plan:100',
+    )
+
+    expect(getRoomStatusDailyPricing(pricingMap, 10, '2026-07-16', 'plan:100')).toEqual({
+      price: 420,
       minStay: 1,
     })
   })
 
-  test('keeps an unbound room type price and ignores invalid prices', () => {
-    const pricingMap = buildRoomStatusDailyPricingMap([
-      buildRecord({ pricePlanId: undefined, price: 298, minStay: 2 }),
-      buildRecord({ id: 2, price: 0 }),
-      buildRecord({ id: 3, price: Number.NaN }),
-    ])
+  test('isolates room types with the same name by room type id', () => {
+    const pricingMap = buildRoomStatusDailyPricingMap(
+      [
+        buildRecord({ id: 1, roomTypeId: 10, price: 288.5 }),
+        buildRecord({ id: 2, roomTypeId: 20, price: 388.75 }),
+      ],
+      'default',
+    )
 
-    expect(getRoomStatusDailyPricing(pricingMap, '标准大床房', '2026-07-16')).toEqual({
-      price: 298,
-      minStay: 2,
+    expect(getRoomStatusDailyPricing(pricingMap, 10, '2026-07-16', 'default')?.price).toBe(
+      288.5,
+    )
+    expect(getRoomStatusDailyPricing(pricingMap, 20, '2026-07-16', 'default')?.price).toBe(
+      388.75,
+    )
+  })
+
+  test('formats a positive price with two decimal places', () => {
+    expect(formatRoomStatusPrice(288)).toBe('¥288.00')
+    expect(formatRoomStatusPrice(288.5)).toBe('¥288.50')
+    expect(formatRoomStatusPrice(288.567)).toBe('¥288.57')
+    expect(formatRoomStatusPrice(0)).toBe('')
+  })
+
+  test('falls back to the room type default price only for the default source', () => {
+    expect(getRoomStatusDailyPricing({}, 10, '2026-07-16', 'default', 288)).toEqual({
+      price: 288,
+      minStay: 1,
     })
+    expect(getRoomStatusDailyPricing({}, 10, '2026-07-16', 'plan:100', 288)).toBeUndefined()
+  })
+
+  test('rejects invalid persisted source values', () => {
+    expect(normalizeRoomStatusPriceSource('plan:100')).toBe('plan:100')
+    expect(normalizeRoomStatusPriceSource('plan:0')).toBe('default')
+    expect(normalizeRoomStatusPriceSource('lowest')).toBe('default')
   })
 })

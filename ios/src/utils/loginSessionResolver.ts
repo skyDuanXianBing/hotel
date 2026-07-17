@@ -1,5 +1,11 @@
 import { ROUTE_PATHS } from '@/router/guards'
-import type { CleanerDTO, CleanerSessionUser, LoginResponse, LoginTarget } from '@/types/auth'
+import type {
+  CleanerContextDTO,
+  CleanerDTO,
+  CleanerSessionUser,
+  LoginResponse,
+  LoginTarget,
+} from '@/types/auth'
 import type { StoreDTO } from '@/types/store'
 import { clearAutoLoginCredentials } from '@/utils/autoLogin'
 import { clearCleanerSession, saveCleanerSession } from '@/utils/cleanerSession'
@@ -16,6 +22,8 @@ import {
 
 const LOGIN_TARGET_PMS: LoginTarget = 'PMS'
 const LOGIN_TARGET_CLEANER: LoginTarget = 'CLEANER'
+const INVALID_LOGIN_TARGET_MESSAGE = '登录响应缺少有效登录目标'
+const UNAVAILABLE_LOGIN_TARGET_MESSAGE = '当前账号无法进入所选工作台'
 
 interface ApplyUnifiedLoginOptions {
   resetPmsCurrentStore?: boolean
@@ -40,6 +48,70 @@ const normalizeRequiredText = (value: unknown) => {
   }
 
   return value.trim()
+}
+
+const isLoginTarget = (value: unknown): value is LoginTarget => {
+  return value === LOGIN_TARGET_PMS || value === LOGIN_TARGET_CLEANER
+}
+
+export const normalizePreferredLoginTarget = (value: unknown): LoginTarget | undefined => {
+  const normalized = String(value ?? '').trim().toUpperCase()
+  return isLoginTarget(normalized) ? normalized : undefined
+}
+
+export const normalizeAvailableLoginTargets = (payload: LoginResponse): LoginTarget[] => {
+  const availableTargets = Array.isArray(payload.availableLoginTargets)
+    ? payload.availableLoginTargets.filter(isLoginTarget)
+    : []
+  const fallbackTargets = isLoginTarget(payload.loginTarget) ? [payload.loginTarget] : []
+
+  return Array.from(new Set(availableTargets.length ? availableTargets : fallbackTargets))
+}
+
+const isMatchingCleanerContext = (context: CleanerContextDTO) => {
+  return (
+    isPositiveNumber(context.cleanerId) &&
+    isPositiveNumber(context.storeId) &&
+    context.cleaner?.id === context.cleanerId &&
+    context.cleaner?.storeId === context.storeId &&
+    context.cleaner?.isActive === true &&
+    context.store?.id === context.storeId
+  )
+}
+
+export const selectLoginTargetFromAuthorizedResponse = (
+  payload: LoginResponse,
+  target: LoginTarget,
+): LoginResponse => {
+  const availableTargets = normalizeAvailableLoginTargets(payload)
+
+  if (!availableTargets.includes(target)) {
+    throw new Error(UNAVAILABLE_LOGIN_TARGET_MESSAGE)
+  }
+
+  if (target === LOGIN_TARGET_PMS) {
+    return {
+      ...payload,
+      loginTarget: LOGIN_TARGET_PMS,
+      cleaner: null,
+      currentStore: null,
+      targetStoreId: null,
+    }
+  }
+
+  const cleanerContext = payload.cleanerContexts?.find(isMatchingCleanerContext)
+
+  if (!cleanerContext) {
+    throw new Error('登录响应缺少可用的保洁工作台信息')
+  }
+
+  return {
+    ...payload,
+    loginTarget: LOGIN_TARGET_CLEANER,
+    cleaner: cleanerContext.cleaner,
+    currentStore: cleanerContext.store,
+    targetStoreId: cleanerContext.storeId,
+  }
 }
 
 const assertValidToken = (token: unknown) => {
@@ -194,7 +266,7 @@ export const applyUnifiedLoginResponse = (
       return applyCleanerLoginResponse(payload)
     }
 
-    throw new Error('登录响应缺少有效登录目标')
+    throw new Error(INVALID_LOGIN_TARGET_MESSAGE)
   } catch (error) {
     clearAllLoginSessions()
     throw error

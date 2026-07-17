@@ -125,11 +125,11 @@ describe('RegisterPage', () => {
     })
 
     expect(wrapper.text()).toContain('邮箱')
-    expect(wrapper.text()).toContain('品牌名或姓名')
     expect(wrapper.text()).toContain('邮箱验证码')
     expect(wrapper.text()).toContain('密码')
     expect(wrapper.text()).toContain('确认密码')
     expect(wrapper.text()).toContain('我已阅读并同意用户协议和隐私协议')
+    expect(wrapper.text()).not.toContain('品牌名或姓名')
     expect(wrapper.text()).not.toContain('继续')
     expect(wrapper.find<HTMLInputElement>('input[placeholder="请输入邮箱"]').element.value).toBe(
       'owner@example.com',
@@ -150,7 +150,6 @@ describe('RegisterPage', () => {
       email: 'owner@example.com',
       type: 'register',
     })
-    expect(wrapper.text()).toContain('品牌名或姓名')
     expect(notifyMocks.showSuccessToast).toHaveBeenCalledWith('验证码已发送，请查收邮箱')
   })
 
@@ -191,21 +190,20 @@ describe('RegisterPage', () => {
 
     await registerButton.trigger('click')
 
-    expect(notifyMocks.showWarningToast).toHaveBeenCalledWith('请输入品牌名或姓名')
+    expect(notifyMocks.showWarningToast).toHaveBeenCalledWith('请输入 6 位邮箱验证码')
     expect(apiMocks.register).not.toHaveBeenCalled()
   })
 
-  test('keeps displayName frontend-only until the backend registration DTO supports it', async () => {
+  test('submits the Web-aligned payload and preserves the original password', async () => {
     const wrapper = mount(RegisterPage, {
       props: {
         initialEmail: 'owner@example.com',
       },
     })
 
-    await wrapper.find('input[placeholder="请输入品牌名或姓名"]').setValue('THE HOST HUB')
     await wrapper.find('input[placeholder="请输入邮箱验证码"]').setValue('123456')
-    await wrapper.find('input[placeholder="字母或数字，8~16位"]').setValue('password8')
-    await wrapper.find('input[placeholder="请再次输入密码"]').setValue('password8')
+    await wrapper.find('input[placeholder="请输入 6-20 位密码"]').setValue(' 123456 ')
+    await wrapper.find('input[placeholder="请再次输入密码"]').setValue(' 123456 ')
     await wrapper.find('input[type="checkbox"]').setValue(true)
     await findButtonByText(wrapper, '注册').trigger('click')
     await flushPromises()
@@ -213,8 +211,42 @@ describe('RegisterPage', () => {
     expect(apiMocks.register).toHaveBeenCalledWith({
       email: 'owner@example.com',
       verificationCode: '123456',
-      password: 'password8',
+      password: ' 123456 ',
     })
     expect(wrapper.emitted('registered')).toEqual([['owner@example.com']])
+  })
+
+  test('accepts a 6 character password and rejects passwords longer than 20 characters', async () => {
+    const wrapper = mount(RegisterPage, {
+      props: {
+        initialEmail: 'owner@example.com',
+      },
+    })
+
+    await wrapper.find('input[placeholder="请输入邮箱验证码"]').setValue('123456')
+    await wrapper.find('input[type="checkbox"]').setValue(true)
+
+    await wrapper.find('input[placeholder="请输入 6-20 位密码"]').setValue('123456')
+    await wrapper.find('input[placeholder="请再次输入密码"]').setValue('123456')
+    await findButtonByText(wrapper, '注册').trigger('click')
+    await flushPromises()
+
+    expect(apiMocks.register).toHaveBeenCalledWith({
+      email: 'owner@example.com',
+      verificationCode: '123456',
+      password: '123456',
+    })
+
+    apiMocks.register.mockClear()
+    await wrapper.find('input[placeholder="请输入邮箱验证码"]').setValue('123456')
+    await wrapper.find('input[placeholder="请输入 6-20 位密码"]').setValue('123456789012345678901')
+    await wrapper
+      .find('input[placeholder="请再次输入密码"]')
+      .setValue('123456789012345678901')
+    await wrapper.find('input[type="checkbox"]').setValue(true)
+    await findButtonByText(wrapper, '注册').trigger('click')
+
+    expect(notifyMocks.showWarningToast).toHaveBeenCalledWith('密码需为 6-20 位')
+    expect(apiMocks.register).not.toHaveBeenCalled()
   })
 })

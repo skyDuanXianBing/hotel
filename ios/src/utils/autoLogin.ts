@@ -1,3 +1,4 @@
+import type { LoginTarget } from '@/types/auth'
 import { readStoredValue, removeStoredValue, writeStoredValue } from '@/utils/storage'
 
 const AUTO_LOGIN_STORAGE_KEY = 'adminAutoLogin'
@@ -11,6 +12,7 @@ const AUTO_LOGIN_MAX_IDLE_MS = 24 * 60 * 60 * 1000
 interface AutoLoginCredentialsPayload {
   email: string
   password: string
+  preferredLoginTarget?: LoginTarget
 }
 
 interface StoredAutoLoginEnvelope {
@@ -26,6 +28,7 @@ interface SaveAutoLoginCredentialsParams {
   email: string
   password: string
   token: string
+  preferredLoginTarget?: LoginTarget
 }
 
 const textEncoder = new TextEncoder()
@@ -66,6 +69,10 @@ const decodeBase64Url = (value: string) => {
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/')
   const paddingLength = (4 - (normalized.length % 4)) % 4
   return `${normalized}${'='.repeat(paddingLength)}`
+}
+
+const isLoginTarget = (value: unknown): value is LoginTarget => {
+  return value === 'PMS' || value === 'CLEANER'
 }
 
 const getAutoLoginKey = async () => {
@@ -109,6 +116,9 @@ const decryptCredentials = async (envelope: StoredAutoLoginEnvelope) => {
   return {
     email,
     password,
+    ...(isLoginTarget(payload.preferredLoginTarget)
+      ? { preferredLoginTarget: payload.preferredLoginTarget }
+      : {}),
   }
 }
 
@@ -201,6 +211,7 @@ export const saveAutoLoginCredentials = async ({
   email,
   password,
   token,
+  preferredLoginTarget,
 }: SaveAutoLoginCredentialsParams) => {
   const normalizedEmail = email.trim()
 
@@ -213,6 +224,7 @@ export const saveAutoLoginCredentials = async ({
   const encrypted = await encryptCredentials({
     email: normalizedEmail,
     password,
+    ...(isLoginTarget(preferredLoginTarget) ? { preferredLoginTarget } : {}),
   })
 
   writeAutoLoginEnvelope({

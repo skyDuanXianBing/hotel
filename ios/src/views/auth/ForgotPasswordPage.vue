@@ -20,45 +20,6 @@
             </div>
 
             <div class="auth-field">
-              <p class="auth-field-label">验证码</p>
-              <div class="auth-captcha-row">
-                <ion-item class="auth-item auth-item--captcha">
-                  <ion-input
-                    v-model="form.graphicCaptcha"
-                    :maxlength="GRAPHIC_CAPTCHA_LENGTH"
-                    autocomplete="off"
-                    autocapitalize="characters"
-                    placeholder="请输入图形验证码"
-                    type="text"
-                  />
-                </ion-item>
-
-                <button
-                  class="auth-captcha-preview auth-captcha-preview--standalone"
-                  type="button"
-                  aria-label="刷新图形验证码"
-                  @click="refreshGraphicCaptcha"
-                >
-                  <span class="auth-captcha-preview__bg" />
-                  <span class="auth-captcha-line auth-captcha-line--one" />
-                  <span class="auth-captcha-line auth-captcha-line--two" />
-                  <span class="auth-captcha-dot auth-captcha-dot--one" />
-                  <span class="auth-captcha-dot auth-captcha-dot--two" />
-                  <span class="auth-captcha-dot auth-captcha-dot--three" />
-                  <span class="auth-captcha-chars">
-                    <span
-                      v-for="(char, index) in graphicCaptchaChars"
-                      :key="`${char}-${index}`"
-                      class="auth-captcha-char"
-                    >
-                      {{ char }}
-                    </span>
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            <div class="auth-field">
               <p class="auth-field-label">邮箱验证码</p>
               <div class="auth-code-row">
                 <ion-item class="auth-item auth-item--code">
@@ -90,7 +51,7 @@
                 <ion-input
                   v-model="form.newPassword"
                   autocomplete="new-password"
-                  placeholder="新密码（8-16位字母和数字的组合）"
+                  placeholder="请输入 6-20 位新密码"
                   type="password"
                 />
               </ion-item>
@@ -147,8 +108,6 @@ const PASSWORD_MIN_LENGTH = 6
 const PASSWORD_MAX_LENGTH = 20
 const VERIFICATION_CODE_LENGTH = 6
 const VERIFICATION_CODE_SECONDS = 60
-const GRAPHIC_CAPTCHA_LENGTH = 4
-const GRAPHIC_CAPTCHA_POOL = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const router = useRouter()
@@ -157,10 +116,8 @@ const route = useRoute()
 const countdown = ref(0)
 const submitting = ref(false)
 const isSendingCode = ref(false)
-const graphicCaptchaSeed = ref(Date.now())
 const form = reactive({
   email: '',
-  graphicCaptcha: '',
   verificationCode: '',
   newPassword: '',
   confirmPassword: '',
@@ -175,20 +132,6 @@ const sendCodeButtonLabel = computed(() => {
 
   return '发送验证码'
 })
-
-const graphicCaptchaValue = computed(() => {
-  const chars: string[] = []
-  let seed = graphicCaptchaSeed.value
-
-  for (let index = 0; index < GRAPHIC_CAPTCHA_LENGTH; index += 1) {
-    seed = (seed * 9301 + 49297) % 233280
-    chars.push(GRAPHIC_CAPTCHA_POOL[Math.floor((seed / 233280) * GRAPHIC_CAPTCHA_POOL.length)])
-  }
-
-  return chars.join('')
-})
-
-const graphicCaptchaChars = computed(() => graphicCaptchaValue.value.split(''))
 
 const resolveErrorMessage = (error: unknown, fallbackMessage: string) => {
   if (error instanceof Error && error.message) {
@@ -223,29 +166,6 @@ const startCountdown = () => {
 }
 
 const normalizeEmail = () => form.email.trim()
-
-const refreshGraphicCaptcha = () => {
-  graphicCaptchaSeed.value = Date.now() + Math.floor(Math.random() * 1000)
-  form.graphicCaptcha = ''
-}
-
-const validateGraphicCaptcha = () => {
-  const inputValue = form.graphicCaptcha.trim().toLowerCase()
-  const expectedValue = graphicCaptchaValue.value.toLowerCase()
-
-  if (!inputValue) {
-    showWarningToast('请输入图形验证码')
-    return false
-  }
-
-  if (inputValue !== expectedValue) {
-    showWarningToast('图形验证码不正确，请重新输入')
-    refreshGraphicCaptcha()
-    return false
-  }
-
-  return true
-}
 
 const applyEmailPrefill = (emailQuery: unknown) => {
   if (typeof emailQuery !== 'string') {
@@ -303,8 +223,8 @@ const validateEmail = () => {
 const validateResetPasswordForm = (): ResetPasswordRequest | null => {
   const email = validateEmail()
   const verificationCode = form.verificationCode.trim()
-  const newPassword = form.newPassword.trim()
-  const confirmPassword = form.confirmPassword.trim()
+  const newPassword = form.newPassword
+  const confirmPassword = form.confirmPassword
 
   if (!email) {
     return null
@@ -358,7 +278,7 @@ const handleSendVerificationCode = async () => {
   }
 
   const email = validateEmail()
-  if (!email || !validateGraphicCaptcha()) {
+  if (!email) {
     return
   }
 
@@ -376,13 +296,11 @@ const handleSendVerificationCode = async () => {
     }
 
     showSuccessToast('验证码已发送，请查收邮箱')
-    refreshGraphicCaptcha()
     startCountdown()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showErrorToast(resolveErrorMessage(error, '验证码发送失败'))
     }
-    refreshGraphicCaptcha()
   } finally {
     isSendingCode.value = false
   }

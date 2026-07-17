@@ -28,6 +28,7 @@ export interface DailyRoomStatusDTO {
 export interface CalendarRoomDataDTO {
   roomId: number
   roomNumber: string
+  roomTypeId: number
   roomType: string
   dailyStatus: DailyRoomStatusDTO[]
 }

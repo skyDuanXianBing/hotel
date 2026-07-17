@@ -17,20 +17,6 @@
       </div>
 
       <div class="auth-field">
-        <p class="auth-field-label">品牌名或姓名</p>
-        <ion-item :class="['auth-item', { 'auth-item--focused': focusedField === 'displayName' }]">
-          <ion-input
-            v-model="form.displayName"
-            autocomplete="name"
-            placeholder="请输入品牌名或姓名"
-            type="text"
-            @ionBlur="handleInputBlur('displayName')"
-            @ionFocus="handleInputFocus('displayName')"
-          />
-        </ion-item>
-      </div>
-
-      <div class="auth-field">
         <p class="auth-field-label">邮箱验证码</p>
         <div class="auth-code-row">
           <ion-item
@@ -69,7 +55,7 @@
           <ion-input
             v-model="form.password"
             autocomplete="new-password"
-            placeholder="字母或数字，8~16位"
+            placeholder="请输入 6-20 位密码"
             type="password"
             @ionBlur="handleInputBlur('password')"
             @ionFocus="handleInputFocus('password')"
@@ -122,15 +108,14 @@ import type { RegisterRequest } from '@/types/auth'
 import { showErrorToast, showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
-const PASSWORD_MIN_LENGTH = 8
-const PASSWORD_MAX_LENGTH = 16
+const PASSWORD_MIN_LENGTH = 6
+const PASSWORD_MAX_LENGTH = 20
 const VERIFICATION_CODE_LENGTH = 6
 const VERIFICATION_CODE_SECONDS = 60
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 type FocusedField =
   | 'email'
-  | 'displayName'
   | 'verificationCode'
   | 'password'
   | 'confirmPassword'
@@ -158,7 +143,6 @@ let registerCodeCountdownTimer: ReturnType<typeof setInterval> | null = null
 
 const form = reactive({
   email: '',
-  displayName: '',
   verificationCode: '',
   password: '',
   confirmPassword: '',
@@ -245,15 +229,10 @@ const validateEmail = (emailValue: string) => {
 const validateRegisterPayload = (): RegisterRequest | null => {
   const email = validateEmail(form.email)
   const verificationCode = form.verificationCode.trim()
-  const password = form.password.trim()
-  const confirmPassword = form.confirmPassword.trim()
+  const password = form.password
+  const confirmPassword = form.confirmPassword
 
   if (!email) {
-    return null
-  }
-
-  if (!form.displayName.trim()) {
-    showWarningToast('请输入品牌名或姓名')
     return null
   }
 
@@ -282,7 +261,6 @@ const validateRegisterPayload = (): RegisterRequest | null => {
     return null
   }
 
-  // TODO(auth-registration): Send displayName after the backend register DTO can persist it.
   return {
     email,
     verificationCode,
@@ -347,7 +325,6 @@ const handleSubmitRegister = async () => {
     showSuccessToast('注册成功，请登录')
     emit('registered', payload.email)
 
-    form.displayName = ''
     form.verificationCode = ''
     form.password = ''
     form.confirmPassword = ''

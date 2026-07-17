@@ -11,6 +11,7 @@ import {
 } from '@/api/roomStatus'
 import { getAllRoomGroups, getGroupMembers } from '@/api/roomGroup'
 import { getRoomPriceManagementData } from '@/api/roomPrice'
+import { getPricePlansByRoomType } from '@/api/pricePlan'
 import { getAllRoomTypesWithRooms } from '@/api/roomType'
 import {
   getAllChannels,
@@ -26,7 +27,9 @@ import { showSuccessToast } from '@/utils/notify'
 import {
   buildRoomStatusDailyPricingMap,
   getRoomStatusDailyPricing,
+  normalizeRoomStatusPriceSource,
   type RoomStatusDailyPricingMap,
+  type RoomStatusPriceSource,
 } from '@/utils/roomStatusPricing'
 import {
   getBusinessDateWeekdayIndex,
@@ -67,6 +70,7 @@ export interface RoomTimelineItem {
 export interface RoomStatusRoomItem {
   roomId: number
   roomNumber: string
+  roomTypeId: number
   roomType: string
   focusedDate: string
   focusedStatus: string
@@ -97,6 +101,11 @@ export interface SummaryCardItem {
   tone: 'primary' | 'success' | 'warning' | 'danger'
 }
 
+export interface RoomStatusPriceSourceOption {
+  value: RoomStatusPriceSource
+  label: string
+}
+
 export type RoomStatusBusinessState =
   | 'available'
   | 'occupied'
@@ -115,6 +124,8 @@ const DATE_WINDOW_SIZE = 14
 const SELECTED_DATE_OFFSET = 5
 const CALENDAR_RANGE_BUFFER_BEFORE = 2
 const CALENDAR_RANGE_BUFFER_AFTER = 2
+export const ROOM_STATUS_PRICE_VISIBLE_STORAGE_KEY = 'ios-room-status.show-cell-price'
+export const ROOM_STATUS_PRICE_SOURCE_STORAGE_KEY = 'ios-room-status.cell-price-source'
 const NATURAL_COMPARE_OPTIONS: Intl.CollatorOptions = {
   numeric: true,
   sensitivity: 'base',
@@ -125,6 +136,30 @@ interface CalendarWindowData {
   pricingMapPromise: Promise<RoomStatusDailyPricingMap>
   pricingRequestId: number
   targetWindowStartDate: string
+}
+
+const readStoredPriceVisibility = () => {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  return window.localStorage.getItem(ROOM_STATUS_PRICE_VISIBLE_STORAGE_KEY) === 'true'
+}
+
+const readStoredPriceSource = () => {
+  if (typeof window === 'undefined') {
+    return 'default' as RoomStatusPriceSource
+  }
+
+  return normalizeRoomStatusPriceSource(
+    window.localStorage.getItem(ROOM_STATUS_PRICE_SOURCE_STORAGE_KEY),
+  )
+}
+
+const persistPricePreference = (key: string, value: string) => {
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(key, value)
+  }
 }
 
 const getTodayDateKey = () => getStoreTodayDate()
@@ -385,6 +420,13 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
   let hasInitializedRoomTypeSelection = false
   const roomTypeSortOrderMap = ref<Record<string, number>>({})
   const roomTypeDailyPricingMap = ref<RoomStatusDailyPricingMap>({})
+  const roomTypeDefaultPriceMap = ref<Record<number, number>>({})
+  const showCellPrice = ref(readStoredPriceVisibility())
+  const cellPriceSource = ref<RoomStatusPriceSource>(readStoredPriceSource())
+  const mappedPricePlanOptions = ref<RoomStatusPriceSourceOption[]>([])
+  const pricePlanOptionsLoading = ref(false)
+  let loadedPricePlanRoomTypeSignature = ''
+  let pricePlanOptionsGeneration = 0
   const roomSortOrderMap = ref<Record<number, number>>({})
   const roomToGroupSortOrderMap = ref<Map<number, number>>(new Map())
   const sortContextUserId = ref(0)
@@ -462,8 +504,40 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     return roomSortOrderMap.value[roomId] ?? DEFAULT_SORT_ORDER
   }
 
-  const getRoomTypePricing = (roomTypeName: string, date: string) => {
-    return getRoomStatusDailyPricing(roomTypeDailyPricingMap.value, roomTypeName, date)
+  const priceSourceOptions = computed<RoomStatusPriceSourceOption[]>(() => {
+    const options: RoomStatusPriceSourceOption[] = [
+      {
+        value: 'default',
+        label: '房型默认价',
+      },
+      ...mappedPricePlanOptions.value,
+    ]
+
+    if (
+      cellPriceSource.value !== 'default' &&
+      !options.some((item) => item.value === cellPriceSource.value)
+    ) {
+      options.push({
+        value: cellPriceSource.value,
+        label: `价盘 ${cellPriceSource.value.slice('plan:'.length)}`,
+      })
+    }
+
+    return options
+  })
+
+  const getRoomTypePricing = (roomTypeId: number, date: string) => {
+    if (!showCellPrice.value) {
+      return undefined
+    }
+
+    return getRoomStatusDailyPricing(
+      roomTypeDailyPricingMap.value,
+      roomTypeId,
+      date,
+      cellPriceSource.value,
+      roomTypeDefaultPriceMap.value[roomTypeId],
+    )
   }
 
   const compareCalendarRooms = (left: CalendarRoomDataDTO, right: CalendarRoomDataDTO) => {
@@ -535,12 +609,17 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
         if (!dailyStatus) {
           continue
         }
-        const pricing = getRoomTypePricing(room.roomType, dateItem.date)
+        const businessState = getRoomBusinessState(dailyStatus)
+        const reservation = buildReservationModel(dailyStatus, reservationAmountCache.value)
+        const pricing =
+          businessState === 'available' && !dailyStatus.closed && !reservation
+            ? getRoomTypePricing(room.roomTypeId, dateItem.date)
+            : undefined
 
         timeline.push({
           date: dateItem.date,
           label: dateItem.label,
-          businessState: getRoomBusinessState(dailyStatus),
+          businessState,
           statusText: getRoomStatusText(dailyStatus),
           isSelected: dateItem.date === selectedDate.value,
           isFocused: dateItem.date === focusedDate,
@@ -549,7 +628,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
           isDirty: roomIsDirty,
           closeType: dailyStatus.closeType || '',
           closeRemark: dailyStatus.closeRemark || '',
-          reservation: buildReservationModel(dailyStatus, reservationAmountCache.value),
+          reservation,
           price: pricing?.price,
           minStay: pricing?.minStay,
         })
@@ -558,6 +637,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       items.push({
         roomId: room.roomId,
         roomNumber: room.roomNumber,
+        roomTypeId: room.roomTypeId,
         roomType: room.roomType,
         focusedDate,
         focusedStatus: focusedStatus.status,
@@ -789,6 +869,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
   function resetSortContext() {
     roomTypeSortOrderMap.value = {}
+    roomTypeDefaultPriceMap.value = {}
     roomSortOrderMap.value = {}
     roomToGroupSortOrderMap.value = new Map()
   }
@@ -851,10 +932,21 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
         roomTypesResult.value.success &&
         Array.isArray(roomTypesResult.value.data)
       ) {
+        const nextRoomTypeDefaultPriceMap: Record<number, number> = {}
+
         for (const roomType of roomTypesResult.value.data) {
           nextRoomTypeSortOrderMap[roomType.name] =
             rawRoomTypeSortOrderMap[roomType.id] ?? DEFAULT_SORT_ORDER
+
+          const defaultPrice = Number(roomType.defaultPrice)
+          if (Number.isFinite(defaultPrice) && defaultPrice > 0) {
+            nextRoomTypeDefaultPriceMap[roomType.id] = defaultPrice
+          }
         }
+
+        roomTypeDefaultPriceMap.value = nextRoomTypeDefaultPriceMap
+      } else {
+        roomTypeDefaultPriceMap.value = {}
       }
 
       roomTypeSortOrderMap.value = nextRoomTypeSortOrderMap
@@ -927,6 +1019,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
   async function fetchRoomStatusPricing(
     targetWindowStartDate = windowStartDate.value,
+    source = cellPriceSource.value,
   ): Promise<RoomStatusDailyPricingMap> {
     const targetRange = getVisibleRangeForWindowStart(targetWindowStartDate)
 
@@ -942,7 +1035,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
         return {}
       }
 
-      return buildRoomStatusDailyPricingMap(response.data)
+      return buildRoomStatusDailyPricingMap(response.data, source)
     } catch (error) {
       console.warn('房态当日价格加载失败，已降级为状态展示', error)
       return {}
@@ -954,7 +1047,9 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
   ): Promise<CalendarWindowData> {
     latestPricingRequestId += 1
     const pricingRequestId = latestPricingRequestId
-    const pricingMapPromise = fetchRoomStatusPricing(targetWindowStartDate)
+    const pricingMapPromise = showCellPrice.value
+      ? fetchRoomStatusPricing(targetWindowStartDate, cellPriceSource.value)
+      : Promise.resolve({})
 
     try {
       const rooms = await fetchCalendarRooms(targetWindowStartDate)
@@ -982,6 +1077,15 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     roomTypeDailyPricingMap.value = {}
     syncRoomTypeSelection()
 
+    if (showCellPrice.value) {
+      void ensurePricePlanOptions()
+    }
+
+    if (showCellPrice.value && pricingRequestId !== latestPricingRequestId) {
+      void reloadVisiblePricing()
+      return
+    }
+
     void pricingMapPromise.then((pricingMap) => {
       if (
         pricingRequestId !== latestPricingRequestId ||
@@ -992,6 +1096,156 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
       roomTypeDailyPricingMap.value = pricingMap
     })
+  }
+
+  function getCalendarRoomTypeIds() {
+    return Array.from(
+      new Set(
+        calendarRooms.value
+          .map((room) => Number(room.roomTypeId))
+          .filter((roomTypeId) => Number.isInteger(roomTypeId) && roomTypeId > 0),
+      ),
+    ).sort((left, right) => left - right)
+  }
+
+  async function ensurePricePlanOptions(force = false) {
+    const roomTypeIds = getCalendarRoomTypeIds()
+    const roomTypeSignature = roomTypeIds.join(',')
+
+    if (roomTypeIds.length === 0) {
+      pricePlanOptionsGeneration += 1
+      mappedPricePlanOptions.value = []
+      loadedPricePlanRoomTypeSignature = ''
+      pricePlanOptionsLoading.value = false
+      return
+    }
+
+    if (!force && loadedPricePlanRoomTypeSignature === roomTypeSignature) {
+      return
+    }
+
+    pricePlanOptionsGeneration += 1
+    const generation = pricePlanOptionsGeneration
+    if (loadedPricePlanRoomTypeSignature !== roomTypeSignature) {
+      mappedPricePlanOptions.value = []
+      loadedPricePlanRoomTypeSignature = ''
+    }
+    pricePlanOptionsLoading.value = true
+
+    try {
+      const responses = await Promise.allSettled(
+        roomTypeIds.map((roomTypeId) => getPricePlansByRoomType(roomTypeId)),
+      )
+
+      if (
+        generation !== pricePlanOptionsGeneration ||
+        roomTypeSignature !== getCalendarRoomTypeIds().join(',')
+      ) {
+        return
+      }
+
+      const planNames = new Map<number, string>()
+      let successfulResponseCount = 0
+
+      for (const response of responses) {
+        if (
+          response.status !== 'fulfilled' ||
+          !response.value.success ||
+          !Array.isArray(response.value.data)
+        ) {
+          continue
+        }
+
+        successfulResponseCount += 1
+
+        for (const relation of response.value.data) {
+          const pricePlanId = Number(relation.pricePlanId ?? relation.pricePlan?.id)
+          if (!Number.isInteger(pricePlanId) || pricePlanId <= 0) {
+            continue
+          }
+
+          planNames.set(
+            pricePlanId,
+            relation.pricePlan?.name?.trim() || `价盘 ${pricePlanId}`,
+          )
+        }
+      }
+
+      if (successfulResponseCount === 0) {
+        loadedPricePlanRoomTypeSignature = ''
+        return
+      }
+
+      mappedPricePlanOptions.value = Array.from(planNames.entries())
+        .sort((left, right) => left[1].localeCompare(right[1], 'zh-CN'))
+        .map(([pricePlanId, label]) => ({
+          value: `plan:${pricePlanId}` as RoomStatusPriceSource,
+          label,
+        }))
+      loadedPricePlanRoomTypeSignature =
+        successfulResponseCount === responses.length ? roomTypeSignature : ''
+    } catch (error) {
+      console.warn('房态价盘选项加载失败', error)
+    } finally {
+      if (generation === pricePlanOptionsGeneration) {
+        pricePlanOptionsLoading.value = false
+      }
+    }
+  }
+
+  async function reloadVisiblePricing() {
+    latestPricingRequestId += 1
+    const pricingRequestId = latestPricingRequestId
+    const targetWindowStartDate = windowStartDate.value
+    const source = cellPriceSource.value
+    roomTypeDailyPricingMap.value = {}
+
+    if (!showCellPrice.value) {
+      return
+    }
+
+    const pricingMap = await fetchRoomStatusPricing(targetWindowStartDate, source)
+    if (
+      pricingRequestId !== latestPricingRequestId ||
+      targetWindowStartDate !== windowStartDate.value ||
+      source !== cellPriceSource.value ||
+      !showCellPrice.value
+    ) {
+      return
+    }
+
+    roomTypeDailyPricingMap.value = pricingMap
+  }
+
+  async function setShowCellPrice(visible: boolean) {
+    if (showCellPrice.value === visible) {
+      return
+    }
+
+    showCellPrice.value = visible
+    persistPricePreference(ROOM_STATUS_PRICE_VISIBLE_STORAGE_KEY, String(visible))
+    latestPricingRequestId += 1
+    roomTypeDailyPricingMap.value = {}
+
+    if (!visible) {
+      return
+    }
+
+    await Promise.all([ensurePricePlanOptions(), reloadVisiblePricing()])
+  }
+
+  async function setCellPriceSource(source: RoomStatusPriceSource) {
+    const normalizedSource = normalizeRoomStatusPriceSource(source)
+    if (cellPriceSource.value === normalizedSource) {
+      return
+    }
+
+    cellPriceSource.value = normalizedSource
+    persistPricePreference(ROOM_STATUS_PRICE_SOURCE_STORAGE_KEY, normalizedSource)
+
+    if (showCellPrice.value) {
+      await reloadVisiblePricing()
+    }
   }
 
   async function loadCalendar() {
@@ -1280,12 +1534,17 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       if (!dailyStatus) {
         continue
       }
-      const pricing = getRoomTypePricing(room.roomType, dateItem.date)
+      const businessState = getRoomBusinessState(dailyStatus)
+      const reservation = buildReservationModel(dailyStatus, reservationAmountCache.value)
+      const pricing =
+        businessState === 'available' && !dailyStatus.closed && !reservation
+          ? getRoomTypePricing(room.roomTypeId, dateItem.date)
+          : undefined
 
       timeline.push({
         date: dateItem.date,
         label: dateItem.label,
-        businessState: getRoomBusinessState(dailyStatus),
+        businessState,
         statusText: getRoomStatusText(dailyStatus),
         isSelected: dateItem.date === selectedDate.value,
         isFocused: dateItem.date === focusedDate,
@@ -1294,7 +1553,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
         isDirty: roomIsDirty,
         closeType: dailyStatus.closeType || '',
         closeRemark: dailyStatus.closeRemark || '',
-        reservation: buildReservationModel(dailyStatus, reservationAmountCache.value),
+        reservation,
         price: pricing?.price,
         minStay: pricing?.minStay,
       })
@@ -1303,6 +1562,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     return {
       roomId: room.roomId,
       roomNumber: room.roomNumber,
+      roomTypeId: room.roomTypeId,
       roomType: room.roomType,
       focusedDate,
       focusedStatus: focusedStatus.status,
@@ -1331,6 +1591,10 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     summaryLoading,
     searching,
     actionLoading,
+    showCellPrice,
+    cellPriceSource,
+    priceSourceOptions,
+    pricePlanOptionsLoading,
     visibleDates,
     visibleFocusDate,
     roomTypes,
@@ -1346,6 +1610,8 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     toggleRoomType,
     resetRoomTypeFilter,
     setSelectedRoomTypes,
+    setShowCellPrice,
+    setCellPriceSource,
     runSearch,
     clearSearchResults,
     toggleDirty,

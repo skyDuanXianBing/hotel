@@ -13,7 +13,7 @@
             <p class="auth-panel__subtitle">
               请输入发送至
               <strong>{{ email }}</strong>
-              的6位验证码，有效期10分钟，如未收到，请尝试重新获取验证码
+              的6位验证码，如未收到，请尝试重新获取验证码
             </p>
           </div>
 
@@ -52,6 +52,14 @@
           </ion-button>
         </main>
       </div>
+
+      <WorkspaceSelectionModal
+        :open="workspaceSelectionOpen"
+        :targets="pendingLoginTargets"
+        :loading="submitting"
+        @dismiss="handleWorkspaceDismiss"
+        @select="handleWorkspaceSelect"
+      />
     </ion-content>
   </ion-page>
 </template>
@@ -67,10 +75,17 @@ import { ROUTE_PATHS } from '@/router/guards'
 import { useAuthStore } from '@/stores/auth'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
+import type { LoginResponse, LoginTarget } from '@/types/auth'
 import { clearAutoLoginCredentials } from '@/utils/autoLogin'
-import { applyUnifiedLoginResponse } from '@/utils/loginSessionResolver'
+import {
+  applyUnifiedLoginResponse,
+  normalizeAvailableLoginTargets,
+  normalizePreferredLoginTarget,
+  selectLoginTargetFromAuthorizedResponse,
+} from '@/utils/loginSessionResolver'
 import { showErrorToast, showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
+import WorkspaceSelectionModal from './WorkspaceSelectionModal.vue'
 
 const CODE_LENGTH = 6
 const RESEND_SECONDS = 60
@@ -82,12 +97,19 @@ const userStore = useUserStore()
 const storeStore = useStoreStore()
 
 const email = computed(() => String(route.query.email ?? '').trim())
+const rememberMe = computed(() => route.query.rememberMe === '1')
+const routePreferredTarget = computed(() => {
+  return normalizePreferredLoginTarget(route.query.workspace)
+})
 const verificationDigits = ref<string[]>(Array.from({ length: CODE_LENGTH }, () => ''))
 const digitInputRefs = ref<Array<HTMLInputElement | null>>(Array.from({ length: CODE_LENGTH }, () => null))
 const activeIndex = ref(0)
 const submitting = ref(false)
 const resending = ref(false)
 const resendCountdown = ref(RESEND_SECONDS)
+const workspaceSelectionOpen = ref(false)
+const pendingLoginTargets = ref<LoginTarget[]>([])
+const pendingLoginResponse = ref<LoginResponse | null>(null)
 
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
@@ -129,6 +151,12 @@ const clearVerificationDigits = () => {
   verificationDigits.value = Array.from({ length: CODE_LENGTH }, () => '')
 }
 
+const clearPendingWorkspaceSelection = () => {
+  workspaceSelectionOpen.value = false
+  pendingLoginTargets.value = []
+  pendingLoginResponse.value = null
+}
+
 const startResendCountdown = () => {
   if (countdownTimer) {
     clearInterval(countdownTimer)
@@ -165,6 +193,52 @@ const validateEmail = () => {
   return true
 }
 
+const finishCodeLogin = async (responseData: LoginResponse) => {
+  clearAutoLoginCredentials()
+  const sessionResult = applyUnifiedLoginResponse(responseData, {
+    resetPmsCurrentStore: true,
+  })
+  hydrateRuntimeStores()
+  clearPendingWorkspaceSelection()
+
+  if (sessionResult.target === 'CLEANER') {
+    showSuccessToast('登录成功')
+  } else {
+    showSuccessToast('登录成功，请选择门店')
+  }
+
+  await router.replace(sessionResult.redirectPath)
+}
+
+const handleWorkspaceDismiss = () => {
+  if (submitting.value) {
+    return
+  }
+
+  clearPendingWorkspaceSelection()
+}
+
+const handleWorkspaceSelect = async (target: LoginTarget) => {
+  const responseData = pendingLoginResponse.value
+
+  if (!responseData || submitting.value) {
+    return
+  }
+
+  submitting.value = true
+
+  try {
+    const selectedResponse = selectLoginTargetFromAuthorizedResponse(responseData, target)
+    await finishCodeLogin(selectedResponse)
+  } catch (error) {
+    if (!isHandledRequestError(error)) {
+      showErrorToast(error instanceof Error ? error.message : '登录失败')
+    }
+  } finally {
+    submitting.value = false
+  }
+}
+
 const handleBack = async () => {
   if (window.history.length > 1) {
     await router.back()
@@ -173,7 +247,10 @@ const handleBack = async () => {
 
   await router.replace({
     path: ROUTE_PATHS.login,
-    query: email.value ? { email: email.value } : undefined,
+    query: {
+      ...(email.value ? { email: email.value } : {}),
+      ...(routePreferredTarget.value ? { workspace: routePreferredTarget.value } : {}),
+    },
   })
 }
 
@@ -205,7 +282,8 @@ const trySubmitLogin = async () => {
     const response = await loginByCode({
       email: email.value,
       verificationCode: verificationCode.value,
-      rememberMe: true,
+      rememberMe: rememberMe.value,
+      preferredLoginTarget: routePreferredTarget.value,
     })
 
     if (!response.success || !response.data) {
@@ -215,19 +293,16 @@ const trySubmitLogin = async () => {
       return
     }
 
-    clearAutoLoginCredentials()
-    const sessionResult = applyUnifiedLoginResponse(response.data, {
-      resetPmsCurrentStore: true,
-    })
-    hydrateRuntimeStores()
+    const availableTargets = normalizeAvailableLoginTargets(response.data)
 
-    if (sessionResult.target === 'CLEANER') {
-      showSuccessToast('登录成功')
-    } else {
-      showSuccessToast('登录成功，请选择门店')
+    if (!routePreferredTarget.value && availableTargets.length > 1) {
+      pendingLoginTargets.value = availableTargets
+      pendingLoginResponse.value = response.data
+      workspaceSelectionOpen.value = true
+      return
     }
 
-    await router.replace(sessionResult.redirectPath)
+    await finishCodeLogin(response.data)
   } catch (error) {
     clearVerificationDigits()
     await focusInput(0)

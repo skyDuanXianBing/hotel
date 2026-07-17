@@ -170,6 +170,9 @@ const performSilentUnifiedLogin = async (redirectAfterSuccess: boolean) => {
       email: credentials.email,
       password: credentials.password,
       rememberMe: true,
+      ...(credentials.preferredLoginTarget
+        ? { preferredLoginTarget: credentials.preferredLoginTarget }
+        : {}),
     }
 
     try {
@@ -208,6 +211,7 @@ const performSilentUnifiedLogin = async (redirectAfterSuccess: boolean) => {
           email: credentials.email,
           password: credentials.password,
           token: response.data.token,
+          preferredLoginTarget: response.data.loginTarget,
         })
       } catch {
         clearAutoLoginCredentials()

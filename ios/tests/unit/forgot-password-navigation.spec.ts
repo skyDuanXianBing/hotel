@@ -7,6 +7,17 @@ const routerMocks = vi.hoisted(() => ({
   replace: vi.fn(),
 }))
 
+const apiMocks = vi.hoisted(() => ({
+  resetPassword: vi.fn(),
+  sendVerificationCode: vi.fn(),
+}))
+
+const notifyMocks = vi.hoisted(() => ({
+  showErrorToast: vi.fn(),
+  showSuccessToast: vi.fn(),
+  showWarningToast: vi.fn(),
+}))
+
 vi.mock('@ionic/vue', async () => {
   const { defineComponent, h } = await import('vue')
 
@@ -19,10 +30,34 @@ vi.mock('@ionic/vue', async () => {
       },
     })
 
+  const IonInput = defineComponent({
+    name: 'IonInput',
+    inheritAttrs: false,
+    props: {
+      maxlength: [Number, String],
+      modelValue: {
+        type: [String, Number],
+        default: '',
+      },
+    },
+    emits: ['update:modelValue'],
+    setup(props, { attrs, emit }) {
+      return () =>
+        h('input', {
+          ...attrs,
+          maxlength: props.maxlength,
+          value: props.modelValue,
+          onInput: (event: Event) => {
+            emit('update:modelValue', (event.target as HTMLInputElement).value)
+          },
+        })
+    },
+  })
+
   return {
     IonButton: createStub('IonButton', 'button'),
     IonContent: createStub('IonContent'),
-    IonInput: createStub('IonInput', 'input'),
+    IonInput,
     IonItem: createStub('IonItem'),
     IonList: createStub('IonList'),
     IonPage: createStub('IonPage'),
@@ -40,8 +75,8 @@ vi.mock('vue-router', () => ({
 }))
 
 vi.mock('@/api/auth', () => ({
-  resetPassword: vi.fn(),
-  sendVerificationCode: vi.fn(),
+  resetPassword: apiMocks.resetPassword,
+  sendVerificationCode: apiMocks.sendVerificationCode,
 }))
 
 vi.mock('@/router/guards', () => ({
@@ -51,9 +86,9 @@ vi.mock('@/router/guards', () => ({
 }))
 
 vi.mock('@/utils/notify', () => ({
-  showErrorToast: vi.fn(),
-  showSuccessToast: vi.fn(),
-  showWarningToast: vi.fn(),
+  showErrorToast: notifyMocks.showErrorToast,
+  showSuccessToast: notifyMocks.showSuccessToast,
+  showWarningToast: notifyMocks.showWarningToast,
 }))
 
 vi.mock('@/utils/request', () => ({
@@ -72,6 +107,8 @@ describe('ForgotPasswordPage back navigation', () => {
     vi.clearAllMocks()
     routerMocks.back.mockResolvedValue(undefined)
     routerMocks.replace.mockResolvedValue(undefined)
+    apiMocks.resetPassword.mockResolvedValue({ success: true })
+    apiMocks.sendVerificationCode.mockResolvedValue({ success: true })
   })
 
   test('uses router back so Ionic plays the backward transition', async () => {
@@ -98,6 +135,44 @@ describe('ForgotPasswordPage back navigation', () => {
       query: {
         email: 'owner@example.com',
       },
+    })
+  })
+
+  test('removes the local graphic captcha and sends reset code with email only', async () => {
+    const wrapper = mount(ForgotPasswordPage)
+
+    expect(wrapper.text()).not.toContain('图形验证码')
+    expect(wrapper.find('input[placeholder="请输入图形验证码"]').exists()).toBe(false)
+
+    const sendButton = wrapper.findAll('button').find((button) => button.text() === '发送验证码')
+    expect(sendButton).toBeDefined()
+
+    await sendButton!.trigger('click')
+    await flushPromises()
+
+    expect(apiMocks.sendVerificationCode).toHaveBeenCalledWith({
+      email: 'owner@example.com',
+      type: 'reset_password',
+    })
+  })
+
+  test('submits a 6-20 character reset password without trimming it', async () => {
+    const wrapper = mount(ForgotPasswordPage)
+
+    await wrapper.find('input[placeholder="请输入验证码"]').setValue('123456')
+    await wrapper.find('input[placeholder="请输入 6-20 位新密码"]').setValue(' 123456 ')
+    await wrapper.find('input[placeholder="再次输入新密码"]').setValue(' 123456 ')
+
+    const submitButton = wrapper.findAll('button').find((button) => button.text() === '确认')
+    expect(submitButton).toBeDefined()
+
+    await submitButton!.trigger('click')
+    await flushPromises()
+
+    expect(apiMocks.resetPassword).toHaveBeenCalledWith({
+      email: 'owner@example.com',
+      verificationCode: '123456',
+      newPassword: ' 123456 ',
     })
   })
 })

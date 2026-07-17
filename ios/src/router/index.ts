@@ -97,7 +97,10 @@ const routes: RouteRecordRaw[] = [
     name: 'CleanerLogin',
     redirect: (to) => ({
       path: ROUTE_PATHS.login,
-      query: to.query,
+      query: {
+        ...to.query,
+        workspace: 'CLEANER',
+      },
     }),
   },
   {

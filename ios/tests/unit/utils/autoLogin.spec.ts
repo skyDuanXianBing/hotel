@@ -42,6 +42,26 @@ describe('autoLogin', () => {
     })
   })
 
+  it('persists the selected workspace for silent reauthentication', async () => {
+    const now = Date.now()
+    const token = createFakeJwt(Math.floor((now + 60_000) / 1000))
+
+    await saveAutoLoginCredentials({
+      email: 'cleaner@example.com',
+      password: 'password123',
+      token,
+      preferredLoginTarget: 'CLEANER',
+    })
+
+    const credentials = await loadRenewableAutoLoginCredentials(now + 1_000)
+
+    expect(credentials).toEqual({
+      email: 'cleaner@example.com',
+      password: 'password123',
+      preferredLoginTarget: 'CLEANER',
+    })
+  })
+
   it('clears credentials after auto login window expires', async () => {
     const now = Date.now()
     const token = createFakeJwt(Math.floor((now + 60_000) / 1000))

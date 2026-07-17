@@ -278,7 +278,7 @@ describe('cleaner session routing', () => {
   test('stops a stale admin route request when silent reauth restores a cleaner target', async () => {
     const adminStore = buildStore({ id: 1, name: '前台门店' })
     const expiringAdminToken = createFakeJwt(Date.now() + 1_000)
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const requestUrl = String(input)
 
       if (requestUrl.includes('/auth/login/password')) {
@@ -312,6 +312,7 @@ describe('cleaner session routing', () => {
       email: 'member@example.com',
       password: 'password123',
       token: expiringAdminToken,
+      preferredLoginTarget: 'CLEANER',
     })
     await router.push(ROUTE_PATHS.home)
 
@@ -327,6 +328,12 @@ describe('cleaner session routing', () => {
     expect((caughtError as Error).message).toBe('登录身份已更新，请重新打开页面')
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(String(fetchMock.mock.calls[0][0])).toContain('/auth/login/password')
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
+      email: 'member@example.com',
+      password: 'password123',
+      rememberMe: true,
+      preferredLoginTarget: 'CLEANER',
+    })
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/rooms'))).toBe(false)
     expect(router.currentRoute.value.path).toBe(ROUTE_PATHS.cleanerDashboard)
   })

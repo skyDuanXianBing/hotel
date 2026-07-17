@@ -2,6 +2,7 @@ package server.demo.dto.auth;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 /**
  * 发送验证码请求DTO
@@ -13,6 +14,7 @@ public class SendVerificationCodeRequest {
     private String email;
 
     @NotBlank(message = "类型不能为空")
+    @Pattern(regexp = "^(login|register|reset_password)$", message = "验证码类型不正确")
     private String type; // login, register, reset_password
 
     public SendVerificationCodeRequest() {

@@ -1,5 +1,37 @@
 <template>
   <section class="room-calendar" :class="{ 'is-loading': loading }">
+    <div class="room-calendar__pricing-toolbar">
+      <button
+        class="room-calendar__price-toggle"
+        :class="{ 'is-active': roomStatusStore.showCellPrice }"
+        type="button"
+        :aria-pressed="roomStatusStore.showCellPrice"
+        @click="handleTogglePrice"
+      >
+        <ion-icon :icon="pricetagOutline" aria-hidden="true" />
+        <span>{{ roomStatusStore.showCellPrice ? '隐藏房价' : '显示房价' }}</span>
+      </button>
+
+      <label v-if="roomStatusStore.showCellPrice" class="room-calendar__price-source">
+        <span class="room-calendar__price-source-label">价格来源</span>
+        <select
+          class="room-calendar__price-source-select"
+          :value="roomStatusStore.cellPriceSource"
+          :disabled="roomStatusStore.pricePlanOptionsLoading"
+          aria-label="房态价格来源"
+          @change="handlePriceSourceChange"
+        >
+          <option
+            v-for="option in roomStatusStore.priceSourceOptions"
+            :key="option.value"
+            :value="option.value"
+          >
+            {{ option.label }}
+          </option>
+        </select>
+      </label>
+    </div>
+
     <div class="room-calendar__sticky-header">
       <div
         ref="headerScrollContainer"
@@ -194,7 +226,7 @@
                 >
                   {{ getEmptyCellLabel(cell.item) }}
                   <span
-                    v-if="isAvailableCell(cell.item)"
+                    v-if="hasPositivePrice(cell.item)"
                     class="room-calendar__cell-meta"
                   >
                     <ion-icon :icon="moonOutline" aria-hidden="true" />
@@ -212,14 +244,24 @@
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue'
-import { caretDownOutline, moonOutline, notificationsOutline } from 'ionicons/icons'
+import {
+  caretDownOutline,
+  moonOutline,
+  notificationsOutline,
+  pricetagOutline,
+} from 'ionicons/icons'
 import { computed, nextTick, ref, watch } from 'vue'
 import type {
   RoomStatusDateItem,
   RoomStatusRoomItem,
   RoomTimelineItem,
 } from '@/stores/roomStatus'
+import { useRoomStatusStore } from '@/stores/roomStatus'
 import type { ReservationDTO } from '@/api/reservation'
+import {
+  formatRoomStatusPrice,
+  type RoomStatusPriceSource,
+} from '@/utils/roomStatusPricing'
 import { getStoreTodayDate, shiftBusinessDate } from '@/utils/storeBusinessDate'
 
 interface RoomStatusRoomGroup {
@@ -250,6 +292,7 @@ type RowCell =
 const ROOM_COLUMN_WIDTH = 96
 const DAY_MIN_WIDTH = 68
 const LOAD_NEXT_WINDOW_THRESHOLD_PX = DAY_MIN_WIDTH
+const roomStatusStore = useRoomStatusStore()
 
 const props = withDefaults(
   defineProps<{
@@ -491,6 +534,19 @@ function handleDateInputChange(event: Event) {
   emit('select-date', target.value)
 }
 
+function handleTogglePrice() {
+  void roomStatusStore.setShowCellPrice(!roomStatusStore.showCellPrice)
+}
+
+function handlePriceSourceChange(event: Event) {
+  const target = event.target as HTMLSelectElement | null
+  if (!target) {
+    return
+  }
+
+  void roomStatusStore.setCellPriceSource(target.value as RoomStatusPriceSource)
+}
+
 function buildRowCells(timeline: RoomTimelineItem[]): RowCell[] {
   const cells: RowCell[] = []
   let index = 0
@@ -690,17 +746,20 @@ function isAvailableCell(item: RoomTimelineItem) {
   return item.businessState === 'available'
 }
 
-function formatPrice(price?: number) {
-  if (price === undefined || price === null || !Number.isFinite(price)) {
-    return ''
-  }
-  const roundedPrice = Math.round(price)
-  return `¥${roundedPrice}`
+function hasPositivePrice(item: RoomTimelineItem) {
+  return (
+    isAvailableCell(item) &&
+    !item.reservation &&
+    !item.isClosed &&
+    typeof item.price === 'number' &&
+    Number.isFinite(item.price) &&
+    item.price > 0
+  )
 }
 
 function getEmptyCellLabel(item: RoomTimelineItem) {
   if (item.businessState === 'available') {
-    return formatPrice(item.price) || item.statusText
+    return formatRoomStatusPrice(item.price) || item.statusText
   }
   if (item.businessState === 'maintenance') {
     return '维修'
@@ -767,6 +826,72 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 
 .room-calendar.is-loading {
   opacity: 0.96;
+}
+
+.room-calendar__pricing-toolbar {
+  min-height: 44px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  border-bottom: 1px solid #e7e8eb;
+  background: #ffffff;
+}
+
+.room-calendar__price-toggle {
+  min-height: 32px;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid #d9dde5;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.room-calendar__price-toggle.is-active {
+  border-color: #b8d2ff;
+  background: #eef6ff;
+  color: #287fc5;
+}
+
+.room-calendar__price-toggle ion-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.room-calendar__price-source {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.room-calendar__price-source-label {
+  color: #6b7280;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.room-calendar__price-source-select {
+  max-width: 148px;
+  min-height: 32px;
+  padding: 0 28px 0 9px;
+  border: 1px solid #d9dde5;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #333333;
+  font-size: 13px;
+}
+
+.room-calendar__price-source-select:focus-visible,
+.room-calendar__price-toggle:focus-visible {
+  outline: 2px solid #8bb7ff;
+  outline-offset: 2px;
 }
 
 .room-calendar__sticky-header {

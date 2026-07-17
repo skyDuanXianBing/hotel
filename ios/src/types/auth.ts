@@ -26,15 +26,24 @@ export interface LoginByPasswordRequest {
   email: string
   password: string
   rememberMe?: boolean
+  preferredLoginTarget?: LoginTarget
 }
 
 export interface LoginByCodeRequest {
   email: string
   verificationCode: string
   rememberMe?: boolean
+  preferredLoginTarget?: LoginTarget
 }
 
 export type LoginTarget = 'PMS' | 'CLEANER'
+
+export interface CleanerContextDTO {
+  cleanerId: number
+  storeId: number
+  cleaner: CleanerDTO
+  store: StoreDTO
+}
 
 export interface LoginResponse {
   token: string
@@ -44,6 +53,8 @@ export interface LoginResponse {
   cleaner?: CleanerDTO | null
   currentStore?: StoreDTO | null
   targetStoreId?: number | null
+  cleanerContexts?: CleanerContextDTO[]
+  availableLoginTargets?: LoginTarget[]
 }
 
 export interface CleanerDTO {
