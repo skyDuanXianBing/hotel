@@ -8,9 +8,10 @@ import server.demo.dto.ManagedOperationDtos;
 import server.demo.entity.ManagedOperationSettings;
 import server.demo.exception.ManagedOperationValidationException;
 
+import java.awt.Font;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.awt.Font;
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -25,6 +26,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import javax.swing.text.MutableAttributeSet;
+import javax.swing.text.html.HTML;
+import javax.swing.text.html.HTMLEditorKit;
+import javax.swing.text.html.parser.ParserDelegator;
 
 @Service
 public class ManagedOperationPdfService {
@@ -77,7 +82,7 @@ public class ManagedOperationPdfService {
     }
 
     private byte[] render(String html) {
-        Path font = resolveCjkFont();
+        Path font = resolveCjkFont(html);
         if (font == null) {
             throw new ManagedOperationValidationException(
                     "服务器未配置可用的 CJK 字体，已拒绝生成可能乱码的 PDF");
@@ -151,13 +156,20 @@ public class ManagedOperationPdfService {
         StringBuilder html = pageStart("portrait", title);
         html.append("<div class='banner'>").append(title).append("</div>")
                 .append("<div class='docmeta'>No. ").append(escape(number)).append("<br/>").append(escape(date)).append("</div>")
-                .append("<div class='party owner'><strong>").append(escape(settings.getOwnerCompanyName())).append(" 御中</strong><br/>")
-                .append(escape(settings.getOwnerContactName())).append("<br/>〒").append(escape(settings.getOwnerPostalCode()))
-                .append("<br/>").append(escape(settings.getOwnerAddress())).append("</div>")
+                .append("<div class='party owner'><strong>").append(escape(settings.getOwnerCompanyName()));
+        if (settings.getOwnerContactName() == null || settings.getOwnerContactName().isBlank()) {
+            html.append(" 御中");
+        }
+        html.append("</strong>");
+        if (settings.getOwnerContactName() != null && !settings.getOwnerContactName().isBlank()) {
+            html.append("<br/>").append(escape(settings.getOwnerContactName()));
+        }
+        appendPostalAndAddress(html, settings.getOwnerPostalCode(), settings.getOwnerAddress());
+        html.append("</div>")
                 .append("<div class='amount'>合計金額　¥").append(yen(s.invoiceTotalGross())).append("（税込）</div>")
-                .append("<div class='party issuer'><strong>").append(escape(settings.getIssuerCompanyName())).append("</strong><br/>〒")
-                .append(escape(settings.getIssuerPostalCode())).append("<br/>").append(escape(settings.getIssuerAddress()))
-                .append("<br/>登録番号: ").append(escape(settings.getIssuerRegistrationNumber()))
+                .append("<div class='party issuer'><strong>").append(escape(settings.getIssuerCompanyName())).append("</strong>");
+        appendPostalAndAddress(html, settings.getIssuerPostalCode(), settings.getIssuerAddress());
+        html.append("<br/>登録番号: ").append(escape(settings.getIssuerRegistrationNumber()))
                 .append("<br/>TEL: ").append(escape(settings.getIssuerPhone())).append("<br/>").append(escape(settings.getIssuerEmail()));
         String stamp = stampDataUri(storeId, settings.getStampStorageKey());
         if (!stamp.isBlank()) html.append("<img class='stamp' src='").append(stamp).append("'/>");
@@ -216,7 +228,17 @@ public class ManagedOperationPdfService {
         return note == null || note.isBlank() ? "" : "<div class='note'><strong>備考</strong><br/>" + escape(note) + "</div>";
     }
 
-    private Path resolveCjkFont() {
+    private static void appendPostalAndAddress(StringBuilder html, String postalCode, String address) {
+        if (postalCode != null && !postalCode.isBlank()) {
+            html.append("<br/>〒").append(escape(postalCode));
+        }
+        if (address != null && !address.isBlank()) {
+            html.append("<br/>").append(escape(address));
+        }
+    }
+
+    private Path resolveCjkFont(String html) {
+        String requiredCharacters = requiredVisibleCharacters(html);
         List<String> candidates = new ArrayList<>();
         if (configuredFontPaths != null) {
             for (String path : configuredFontPaths.replace(';', ',').split(",")) {
@@ -235,7 +257,8 @@ public class ManagedOperationPdfService {
         for (String candidate : candidates) {
             try {
                 Path path = Path.of(candidate).toAbsolutePath().normalize();
-                if (Files.isRegularFile(path) && Files.isReadable(path) && isEmbeddableCjk(path)) return path;
+                if (Files.isRegularFile(path) && Files.isReadable(path)
+                        && isEmbeddableCjk(path, requiredCharacters)) return path;
             } catch (Exception ignored) {}
         }
         return null;
@@ -245,15 +268,54 @@ public class ManagedOperationPdfService {
         return fontKind(font) != FontKind.CFF;
     }
 
-    private static boolean isEmbeddableCjk(Path font) {
+    private static boolean isEmbeddableCjk(Path font, String requiredCharacters) {
         if (fontKind(font) == FontKind.TTC_CFF) return false;
         try {
             Font[] fonts = Font.createFonts(font.toFile());
             for (Font candidate : fonts) {
-                if (candidate.canDisplayUpTo("精算書請求書領収書宿泊者管理費房东运营发票") < 0) return true;
+                if (candidate.canDisplayUpTo(requiredCharacters) < 0) return true;
             }
         } catch (Exception ignored) {}
         return false;
+    }
+
+    static String requiredVisibleCharacters(String html) {
+        StringBuilder visibleText = new StringBuilder();
+        try {
+            new ParserDelegator().parse(new StringReader(html), new HTMLEditorKit.ParserCallback() {
+                private int hiddenDepth;
+
+                @Override
+                public void handleStartTag(HTML.Tag tag, MutableAttributeSet attributes, int position) {
+                    if (isNonVisibleTag(tag)) hiddenDepth++;
+                }
+
+                @Override
+                public void handleEndTag(HTML.Tag tag, int position) {
+                    if (isNonVisibleTag(tag) && hiddenDepth > 0) hiddenDepth--;
+                }
+
+                @Override
+                public void handleText(char[] data, int position) {
+                    if (hiddenDepth == 0) visibleText.append(data);
+                }
+            }, true);
+        } catch (IOException ex) {
+            throw new IllegalStateException("HTML 可见文本解析失败", ex);
+        }
+
+        StringBuilder requiredCharacters = new StringBuilder();
+        visibleText.codePoints()
+                .filter(codePoint -> !Character.isWhitespace(codePoint)
+                        && !Character.isSpaceChar(codePoint)
+                        && !Character.isISOControl(codePoint))
+                .distinct()
+                .forEach(requiredCharacters::appendCodePoint);
+        return requiredCharacters.toString();
+    }
+
+    private static boolean isNonVisibleTag(HTML.Tag tag) {
+        return tag == HTML.Tag.HEAD || tag == HTML.Tag.STYLE || tag == HTML.Tag.SCRIPT;
     }
 
     private static FontKind fontKind(Path font) {

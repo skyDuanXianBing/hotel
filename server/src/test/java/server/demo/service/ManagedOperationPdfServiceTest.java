@@ -19,6 +19,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -52,6 +53,13 @@ class ManagedOperationPdfServiceTest {
                     assertTrue(height > width);
                     assertTrue(text.contains(entry.name().contains("請求書") ? "請求書" : "領収書"));
                     assertTrue(text.contains("たんぽぽ株式会社 管理手数料"));
+                    assertTrue(text.contains("Tanpopo株式会社"));
+                    assertTrue(text.contains("平山 様"));
+                    assertTrue(text.contains("登録番号"));
+                    assertTrue(text.contains("税抜"));
+                    assertFalse(text.contains("#"));
+                    assertFalse(text.contains("Tanpopo株式会社 御中"));
+                    assertFalse(text.lines().anyMatch(line -> line.strip().equals("〒")));
                     assertTrue(text.contains(entry.name().contains("請求書")
                             ? "下記の通りご請求申し上げます。"
                             : "下記の金額、正に領収いたしました。"));
@@ -76,6 +84,44 @@ class ManagedOperationPdfServiceTest {
                 () -> service.export(1L, "settlement", result));
     }
 
+    @Test
+    void fontCoverageText_shouldContainOnlyVisibleNonWhitespaceCharacters() {
+        String required = ManagedOperationPdfService.requiredVisibleCharacters("""
+                <!DOCTYPE html><html><head><title>非表示タイトル</title>
+                <style>.様 { content: '録抜'; color: #fff; }</style></head>
+                <body><div>平山&nbsp;様</div><div>登録番号</div><div>税抜</div>
+                <div>利用者入力: &amp;lt;</div>
+                <img data-probe='𰻞' src='data:image/png;base64,🫠'/></body></html>
+                """);
+
+        assertTrue(required.contains("平山様"));
+        assertTrue(required.contains("登録番号"));
+        assertTrue(required.contains("税抜"));
+        assertTrue(required.contains("&lt;"));
+        assertFalse(required.contains("<"));
+        assertFalse(required.contains("𰻞"));
+        assertFalse(required.contains("🫠"));
+        assertFalse(required.contains("非表示タイトル"));
+        assertFalse(required.contains("color"));
+        assertFalse(required.codePoints().anyMatch(codePoint -> Character.isWhitespace(codePoint)
+                || Character.isSpaceChar(codePoint) || Character.isISOControl(codePoint)));
+    }
+
+    @Test
+    void unsupportedVisibleCharacter_shouldRejectPdfInsteadOfRenderingReplacementGlyph() {
+        ManagedOperationPdfService service = new ManagedOperationPdfService(
+                "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+                new ManagedOperationPrivateStampStorage(tempDir.toString()));
+        ManagedOperationSettlementService.CalculationResult result = fixture();
+        result.settings().setOwnerContactName("平山 様 🫠");
+
+        server.demo.exception.ManagedOperationValidationException error = assertThrows(
+                server.demo.exception.ManagedOperationValidationException.class,
+                () -> service.export(1L, "invoice", result));
+
+        assertTrue(error.getMessage().contains("已拒绝生成可能乱码的 PDF"));
+    }
+
     private static ManagedOperationSettlementService.CalculationResult fixture() {
         ManagedOperationSettings settings = new ManagedOperationSettings();
         settings.setPropertyName("たんぽぽ株式会社");
@@ -83,12 +129,12 @@ class ManagedOperationPdfServiceTest {
         settings.setTaxRate(new BigDecimal("0.10"));
         settings.setCleaningFeeGross(new BigDecimal("8000"));
         settings.setRegistrationFeeNet(new BigDecimal("2000"));
-        settings.setOwnerCompanyName("房東株式会社");
-        settings.setOwnerContactName("山田 太郎");
+        settings.setOwnerCompanyName("Tanpopo株式会社");
+        settings.setOwnerContactName("平山 様");
         settings.setOwnerPostalCode("100-0001");
         settings.setOwnerAddress("東京都千代田区");
         settings.setIssuerCompanyName("運営株式会社");
-        settings.setIssuerPostalCode("115-0001");
+        settings.setIssuerPostalCode("");
         settings.setIssuerAddress("東京都北区");
         settings.setIssuerRegistrationNumber("T1234567890123");
         settings.setIssuerPhone("03-0000-0000");
