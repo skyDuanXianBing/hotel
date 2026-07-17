@@ -47,6 +47,7 @@
           </div>
         </section>
 
+        <div class="orders-page__content-bg">
         <section class="orders-filter-row">
           <div class="orders-filter-row__scroll">
             <button
@@ -140,6 +141,7 @@
               :reservation="item.reservation"
               :active-tab="activeTab"
               :order-box-item="item.orderBoxItem"
+              :channel-color="item.channelColor"
               @open-detail="openReservationDetail(item.reservation.id)"
               @assign-room="openAssignRoom(item.reservation)"
               @open-actions="presentReservationActions(item.reservation, item.orderBoxItem)"
@@ -165,6 +167,7 @@
             {{ loadingMore ? '加载中...' : '加载更多订单' }}
           </ion-button>
         </section>
+        </div>
       </div>
 
       <ion-infinite-scroll v-if="usePagedEndpoint && hasMore" @ionInfinite="handleInfiniteLoad">
@@ -409,13 +412,11 @@ const roomTypeFilterLabel = computed(() => {
     return '房间'
   }
   const firstMatched = roomTypeOptions.value.find((item) => item.value === filters.value.roomType[0])
-  const matched = firstMatched
   const firstLabel = firstMatched?.label || filters.value.roomType[0] || '房间'
   if (filters.value.roomType.length === 1) {
     return firstLabel
   }
   return `${firstLabel} +${filters.value.roomType.length - 1}`
-  return matched?.label || '房间'
 })
 
 const channelFilterLabel = computed(() => {
@@ -428,7 +429,6 @@ const channelFilterLabel = computed(() => {
     return firstLabel
   }
   return `${firstLabel} +${filters.value.channel.length - 1}`
-  return matched?.label || '渠道'
 })
 
 const statusFilterLabel = computed(() => {
@@ -464,12 +464,24 @@ const checkinTypeFilterLabel = computed(() => {
   return '正常入住'
 })
 
+const channelColorMap = computed(() => {
+  const result = new Map<string, string>()
+  for (const item of channelOptions.value) {
+    const name = normalizeChannelLookupValue(item.value)
+    if (name && item.color) {
+      result.set(name, item.color)
+    }
+  }
+  return result
+})
+
 const orderCards = computed(() => {
   if (activeTab.value === 'order-box') {
     return orderBoxItems.value.map((item) => ({
       key: `order-box-${item.id}`,
       reservation: item.reservation,
       orderBoxItem: item,
+      channelColor: resolveReservationChannelColor(item.reservation),
     }))
   }
 
@@ -477,8 +489,17 @@ const orderCards = computed(() => {
     key: `reservation-${item.id}`,
     reservation: item,
     orderBoxItem: null,
+    channelColor: resolveReservationChannelColor(item),
   }))
 })
+
+function normalizeChannelLookupValue(value?: string) {
+  return (value || '').trim().toLowerCase()
+}
+
+function resolveReservationChannelColor(reservation: ReservationDTO) {
+  return channelColorMap.value.get(normalizeChannelLookupValue(reservation.channelName)) || ''
+}
 
 function resolveWarningMessage(error: unknown, fallbackMessage: string) {
   if (error instanceof Error && error.message) {
@@ -682,6 +703,7 @@ async function loadFilterOptions(force = false) {
     .map((item) => ({
       label: item.name,
       value: item.name,
+      color: item.color,
     }))
 
   roomTypeOptions.value = roomTypeResponse.data
@@ -1446,6 +1468,8 @@ onIonViewWillEnter(async () => {
 .orders-page {
   display: block;
   --background: #ffffff;
+  --padding-start: 0;
+  --padding-end: 0;
 }
 
 .orders-page :deep(ion-header) {
@@ -1485,10 +1509,18 @@ onIonViewWillEnter(async () => {
 .orders-page__shell {
   display: flex;
   flex-direction: column;
-  gap: 12px;
   min-height: 100%;
+  padding: 10px 0 0;
+  background: #ffffff;
+}
+
+.orders-page__content-bg {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
   padding: 10px 0 32px;
-  background: linear-gradient(180deg, #ffffff 0%, #fcfcfe 100%);
+  background: var(--ios-pms-bg-page);
 }
 
 .orders-search-panel {
@@ -1556,8 +1588,12 @@ onIonViewWillEnter(async () => {
   top: 0;
   bottom: 0;
   width: var(--orders-strip-fade-width);
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0), #ffffff 78%);
+  background: linear-gradient(90deg, rgba(247, 250, 255, 0), #f7faff 78%);
   pointer-events: none;
+}
+
+.orders-tabs-strip::after {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), #ffffff 78%);
 }
 
 .orders-tabs-strip__scroll,
@@ -1634,7 +1670,7 @@ onIonViewWillEnter(async () => {
 
 .orders-list-section {
   flex: 1;
-  padding: 2px 14px 40px;
+  padding: 0 10px 40px;
 }
 
 .orders-list-header {
@@ -1701,7 +1737,7 @@ onIonViewWillEnter(async () => {
 
 .orders-list {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .orders-notice-text {

@@ -593,8 +593,41 @@ ion-header::after {
 }
 
 ion-toolbar {
-  --padding-start: 10px;
-  --padding-end: 10px;
+  --padding-start: 14px;
+  --padding-end: 14px;
+  --min-height: 56px;
+}
+
+ion-toolbar ion-buttons[slot='end'] {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  height: 56px;
+  margin: 0;
+}
+
+.app-page-header__title {
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.app-page-header__text-btn {
+  --color: #686868;
+  align-self: stretch;
+  height: 56px;
+  min-height: 56px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.app-page-header__text-btn::part(native) {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  min-height: 56px;
 }
 
 .mobile-toolbar-title {
@@ -606,9 +639,9 @@ ion-toolbar {
 
 .home-shell {
   position: relative;
-  --home-section-gap: 8px;
+  --home-section-gap: 14px;
   padding:
-    6px
+    14px
     0
     calc(var(--ion-safe-area-bottom, 0px) + 24px);
 }
@@ -629,16 +662,12 @@ ion-toolbar {
   overflow: hidden;
   border: 1px solid var(--ios-pms-border-soft);
   border-radius: var(--ios-pms-radius-card-sm);
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(250, 252, 254, 0.7);
   box-shadow: var(--ios-pms-shadow-card);
 }
 
 .home-surface::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0));
-  pointer-events: none;
+  display: none;
 }
 
 .home-surface--hero::after {
@@ -646,40 +675,47 @@ ion-toolbar {
 }
 
 .home-hero {
-  padding: 12px 14px 10px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 255, 0.94));
+  box-sizing: border-box;
+  min-height: 120px;
+  padding: 20px 16px 18px;
+  background: rgba(250, 252, 254, 0.7);
 }
 
 .home-hero__row {
   position: relative;
   z-index: 1;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 8px;
 }
 
 .home-hero__content {
-  flex: 1;
+  display: contents;
   min-width: 0;
 }
 
 .home-hero__name {
+  grid-column: 1;
+  grid-row: 1;
   margin: 0;
   color: var(--ios-pms-text-primary);
   font-size: var(--ios-pms-font-title-lg-size);
-  font-weight: var(--ios-pms-weight-heavy);
-  line-height: 1.1;
-  letter-spacing: -0.05em;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.2;
+  letter-spacing: 0;
 }
 
 .home-hero__hint {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
   max-width: none;
-  margin: 5px 0 0;
+  margin: 14px 0 0;
   color: var(--ios-pms-text-muted);
-  font-size: var(--ios-pms-font-body-sm-size);
-  font-weight: 500;
-  line-height: 1.35;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.55;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -689,7 +725,10 @@ ion-toolbar {
 .home-hero__date {
   position: relative;
   z-index: 1;
-  flex-shrink: 0;
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  justify-self: end;
   margin-left: 4px;
   padding: 0;
   border: none;
@@ -697,9 +736,9 @@ ion-toolbar {
   background: transparent;
   color: var(--ios-pms-text-soft);
   box-shadow: none;
-  font-size: var(--ios-pms-font-date-size);
-  font-weight: var(--ios-pms-weight-bold);
-  letter-spacing: 0.08em;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
   white-space: nowrap;
 }
 
@@ -712,9 +751,9 @@ ion-toolbar {
   border-radius: 0;
   background: transparent;
   color: #9a772d;
-  font-size: var(--ios-pms-font-date-size);
-  font-weight: 600;
-  line-height: 1.25;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
 .home-section {
@@ -724,15 +763,26 @@ ion-toolbar {
 
 @media (max-width: 374px) {
   .home-shell {
-    --home-section-gap: 8px;
+    --home-section-gap: 12px;
+    padding-top: 12px;
   }
 
   .home-hero {
-    padding: 11px 12px 9px;
+    min-height: 112px;
+    padding: 18px 14px 16px;
   }
 
   .home-hero__name {
     font-size: 19px;
+  }
+
+  .home-hero__hint {
+    margin-top: 11px;
+    font-size: 13px;
+  }
+
+  .home-hero__date {
+    font-size: 12px;
   }
 }
 </style>

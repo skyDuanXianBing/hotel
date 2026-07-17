@@ -3,7 +3,11 @@
     <ion-header translucent>
       <ion-toolbar class="app-page-header__toolbar">
         <ion-buttons slot="start">
-          <ion-back-button class="app-page-header__back-btn" :default-href="defaultBackHref" />
+          <ion-back-button
+            class="app-page-header__back-btn"
+            text="返回"
+            :default-href="defaultBackHref"
+          />
         </ion-buttons>
         <ion-title class="app-page-header__title">{{ pageTitle }}</ion-title>
       </ion-toolbar>
@@ -17,14 +21,17 @@
       <section class="mobile-hero reservation-detail-hero" v-if="reservation">
         <div class="reservation-detail-hero__topline">
           <p class="mobile-note reservation-detail-hero__eyebrow">订单详情</p>
-          <span class="mobile-chip reservation-detail-hero__status">{{ statusText }}</span>
+          <span :class="['mobile-chip', 'reservation-detail-hero__status', `is-${statusColor}`]">
+            {{ statusText }}
+          </span>
         </div>
 
         <div class="reservation-detail-hero__headline-row">
           <div class="reservation-detail-hero__headline-copy">
             <h1 class="mobile-title">{{ reservation.guestName }}</h1>
             <p class="mobile-subtitle reservation-detail-hero__orderline">
-              {{ reservation.orderNumber }} · {{ reservation.channelName || '自来客' }}
+              <span>{{ reservation.orderNumber }}</span>
+              <span>{{ reservation.channelName || '自来客' }}</span>
             </p>
           </div>
 
@@ -56,7 +63,10 @@
           </div>
           <div class="reservation-detail-hero__meta-item">
             <span>入住人数</span>
-            <strong>{{ reservation.adults || 1 }} 成人 · {{ reservation.children || 0 }} 儿童</strong>
+            <strong class="reservation-detail-hero__guest-count">
+              <span>{{ reservation.adults || 1 }}成人</span>
+              <span>{{ reservation.children || 0 }}儿童</span>
+            </strong>
           </div>
         </div>
 
@@ -144,13 +154,13 @@
                   <strong>{{ reservation.checkOutDate }}</strong>
                 </div>
                 <div class="detail-fact-list__row">
-                  <span>成人 / 儿童</span>
-                  <strong>{{ reservation.adults || 1 }} / {{ reservation.children || 0 }}</strong>
+                  <span>人数</span>
+                  <strong>{{ reservation.adults || 1 }}成人/{{ reservation.children || 0 }}儿童</strong>
                 </div>
               </div>
             </article>
 
-            <article class="detail-section">
+            <article class="detail-section detail-record-section">
               <div class="detail-section__head">
                 <h3>消费记录</h3>
                 <span v-if="consumptions.length > 0" class="detail-section__meta">{{ consumptions.length }} 条</span>
@@ -172,10 +182,10 @@
                   </div>
                 </div>
               </div>
-              <p v-else class="mobile-note">暂无消费记录。</p>
+              <p v-else class="mobile-note">暂无消费记录</p>
             </article>
 
-            <article class="detail-section">
+            <article class="detail-section detail-record-section">
               <div class="detail-section__head">
                 <h3>收款记录</h3>
                 <span v-if="payments.length > 0" class="detail-section__meta">{{ payments.length }} 条</span>
@@ -201,16 +211,21 @@
                   </div>
                 </div>
               </div>
-              <p v-else class="mobile-note">暂无收款记录。</p>
+              <p v-else class="mobile-note">暂无收款记录</p>
             </article>
 
             <article class="detail-section detail-reminder-card">
               <div class="detail-reminder-card__header">
                 <div>
                   <h3>订单提醒</h3>
-                  <p>{{ orderReminderDescription }}</p>
+                  <p v-if="orderReminderNotice">{{ orderReminderNotice }}</p>
+                  <p v-else-if="orderReminderCount > 0" class="detail-reminder-card__description">
+                    <span>有</span>
+                    <span class="detail-reminder-card__count">{{ orderReminderCount }}</span>
+                    <span>条未读订单提醒待处理</span>
+                  </p>
+                  <p v-else>暂无提醒</p>
                 </div>
-                <strong class="detail-reminder-card__count">{{ orderReminderCountText }}</strong>
               </div>
 
               <div class="detail-reminder-card__actions">
@@ -327,7 +342,7 @@ import BookingFormModal, { type BookingFormSubmitPayload } from '@/components/ro
 import CancelReservationModal from '@/components/room-status/CancelReservationModal.vue'
 import {
   formatAmount,
-  formatDateTime,
+  getReservationStatusColor,
   getReservationStatusText,
   getOrderTabLabel,
   type OrderTabValue,
@@ -429,10 +444,11 @@ const pageTitle = computed(() => {
   if (!reservation.value) {
     return '订单详情'
   }
-  return `${reservation.value.guestName} · 订单详情`
+  return `${reservation.value.guestName} 订单`
 })
 
 const statusText = computed(() => getReservationStatusText(reservation.value?.status))
+const statusColor = computed(() => getReservationStatusColor(reservation.value?.status))
 const reservationNotesText = computed(() => {
   const notes = reservation.value?.notes?.trim()
   if (notes) {
@@ -466,7 +482,6 @@ const isOrderContext = computed(() => {
   }
   return defaultBackHref.value.includes(ROUTE_PATHS.orders)
 })
-const orderBoxMovedInAtText = computed(() => formatDateTime(orderBoxItem.value?.movedInAt))
 const linkedMessageThreadLabel = computed(() => {
   if (!linkedMessageThread.value) {
     return ''
@@ -499,19 +514,6 @@ const linkedMessageThreadMeta = computed(() => {
 const totalAmountText = computed(() => formatAmount(reservation.value?.totalAmount))
 const totalConsumptionText = computed(() => formatAmount(totalConsumption.value))
 const totalPaymentText = computed(() => formatAmount(totalPayment.value))
-const orderReminderCountText = computed(() => `${orderReminderCount.value} 条`)
-const orderReminderDescription = computed(() => {
-  if (orderReminderNotice.value) {
-    return orderReminderNotice.value
-  }
-
-  if (orderReminderCount.value > 0) {
-    return `有 ${orderReminderCount.value} 条未读订单提醒待处理`
-  }
-
-  return '暂无提醒'
-})
-
 const remainingPayment = computed(() => {
   return Number(reservation.value?.totalAmount ?? 0) - Number(totalPayment.value || 0) - Number(totalConsumption.value || 0)
 })
@@ -1328,80 +1330,163 @@ onMounted(async () => {
 
 <style scoped>
 .reservation-detail-page {
-  --background: var(--ios-pms-bg-page-plain);
+  --background: #f1f7ff;
+  --padding-top: 14px;
+  --padding-bottom: calc(32px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+.app-page-header__toolbar {
+  --min-height: 52px;
+  --padding-start: 4px;
+  --padding-end: 8px;
+}
+
+.app-page-header__title {
+  color: #333333;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.app-page-header__back-btn {
+  --color: #777777;
+  font-size: 16px;
+  font-weight: 400;
 }
 
 .reservation-detail-page .mobile-stack {
-  gap: var(--ios-pms-space-3);
+  gap: 12px;
 }
 
 .reservation-detail-hero {
-  margin-bottom: var(--ios-pms-space-3);
-  background: var(--ios-pms-surface-strong);
+  margin-bottom: 12px;
+  padding: 18px;
+  border: 1px solid rgba(198, 207, 218, 0.2);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(58, 78, 104, 0.08);
 }
 
 .reservation-detail-hero::before {
   display: none;
 }
 
-.reservation-detail-hero__topline,
-.detail-section__head,
-.log-item__head,
-.detail-reminder-card__header {
+.reservation-detail-hero__topline {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--ios-pms-space-3);
+  gap: 12px;
 }
 
 .reservation-detail-hero__eyebrow {
-  color: var(--ios-pms-primary);
-  font-weight: var(--ios-pms-weight-bold);
+  color: #303236;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .reservation-detail-hero__status {
   flex-shrink: 0;
+  min-height: 28px;
+  padding: 0 12px;
+  border: 0;
+  background: #f0f5ff;
+  color: #2874ff;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.reservation-detail-hero__status.is-danger {
+  background: #ffe9e9;
+  color: #ff2d2d;
+}
+
+.reservation-detail-hero__status.is-success {
+  background: #eaf8f2;
+  color: #4fbb91;
+}
+
+.reservation-detail-hero__status.is-warning {
+  background: #fff4df;
+  color: #d68a24;
+}
+
+.reservation-detail-hero__status.is-medium {
+  background: #f0f1f3;
+  color: #7b7f86;
 }
 
 .reservation-detail-hero__headline-row {
   display: block;
+  margin-top: 14px;
 }
 
 .reservation-detail-hero__headline-copy {
   min-width: 0;
+  width: 78%;
+  max-width: 280px;
+}
+
+.reservation-detail-hero .mobile-title {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: #292b2f;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .reservation-detail-hero__orderline {
-  margin-top: var(--ios-pms-space-2);
+  display: block;
+  margin-top: 16px;
+  color: #a1a3a7;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.reservation-detail-hero__orderline span {
+  display: inline;
+  overflow-wrap: anywhere;
+}
+
+.reservation-detail-hero__orderline span + span {
+  margin-left: 4px;
 }
 
 .reservation-detail-hero__message-entry {
   display: flex;
   justify-content: flex-end;
-  margin-top: var(--ios-pms-space-3);
+  margin-top: 12px;
 }
 
 .reservation-detail-hero__message-button {
   margin: 0;
-  --border-radius: var(--ios-pms-radius-xl);
-  --border-color: rgba(137, 174, 255, 0.38);
-  --background: rgba(255, 255, 255, 0.7);
-  --padding-start: 12px;
-  --padding-end: 12px;
-  --padding-top: 4px;
-  --padding-bottom: 4px;
-  min-height: 32px;
-  color: var(--ios-pms-primary);
-  font-size: 12px;
-  font-weight: var(--ios-pms-weight-bold);
-  backdrop-filter: blur(12px);
+  --border-radius: 7px;
+  --border-color: #d8e6ff;
+  --background: #f2f6ff;
+  --background-hover: #ebf2ff;
+  --background-activated: #e5eeff;
+  --color: #2d74ff;
+  --padding-start: 11px;
+  --padding-end: 11px;
+  min-height: 30px;
+  color: #2d74ff;
+  font-size: 13px;
+  font-weight: 400;
 }
 
 .reservation-detail-hero__meta-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--ios-pms-space-3);
-  margin-top: var(--ios-pms-space-5);
+  grid-template-columns: minmax(0, 1.25fr) minmax(104px, 0.75fr);
+  column-gap: 0;
+  row-gap: 0;
+  margin-top: 16px;
 }
 
 .reservation-detail-hero__meta-item,
@@ -1411,22 +1496,32 @@ onMounted(async () => {
 .detail-key-item {
   min-width: 0;
   display: grid;
-  gap: var(--ios-pms-space-1);
+  gap: 4px;
 }
 
 .reservation-detail-hero__meta-item {
-  padding-top: var(--ios-pms-space-3);
-  border-top: 1px solid var(--ios-pms-divider);
+  align-content: start;
+  padding: 14px 6px 16px;
+  border-top: 1px solid #dfe1e5;
 }
 
-.reservation-detail-hero__meta-item span,
+.reservation-detail-hero__meta-item:nth-child(odd) {
+  padding-right: 18px;
+}
+
+.reservation-detail-hero__meta-item:nth-child(even) {
+  padding-left: 18px;
+}
+
+.reservation-detail-hero__meta-item > span,
 .detail-summary-card__hero span,
 .detail-summary-card__metric span,
 .detail-key-item span,
 .detail-note-row span,
 .detail-definition-list__label {
-  color: var(--ios-pms-text-soft);
-  font-size: var(--ios-pms-font-body-sm-size);
+  color: #777a80;
+  font-size: 13px;
+  font-weight: 400;
   line-height: 1.4;
 }
 
@@ -1435,14 +1530,37 @@ onMounted(async () => {
 .detail-summary-card__metric strong,
 .detail-key-item strong,
 .detail-definition-list__value {
-  color: var(--ios-pms-text-secondary);
-  font-size: var(--ios-pms-font-title-sm-size);
-  font-weight: var(--ios-pms-weight-bold);
-  line-height: 1.4;
+  color: #35373b;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.reservation-detail-hero__guest-count {
+  display: grid;
+  gap: 0;
+}
+
+.reservation-detail-hero__guest-count span {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
 }
 
 .reservation-detail-hero__chips {
-  margin-top: var(--ios-pms-space-4);
+  margin-top: 0;
+}
+
+.reservation-detail-hero__chips .mobile-chip {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 0;
+  background: #f1f5ff;
+  color: #3277ff;
+  font-size: 13px;
+  font-weight: 400;
 }
 
 .detail-reminder-card__header > div,
@@ -1452,23 +1570,60 @@ onMounted(async () => {
 }
 
 .reservation-detail-panel {
-  padding: var(--ios-pms-space-4);
+  padding: 16px;
+  border: 1px solid rgba(198, 207, 218, 0.18);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(58, 78, 104, 0.08);
 }
 
 .detail-actions__busy {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: var(--ios-pms-space-2);
+  margin-bottom: 8px;
 }
 
 .detail-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--ios-pms-space-2);
+  gap: 10px;
+}
+
+.detail-actions ion-button {
+  min-height: 48px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 400;
 }
 
 .detail-actions__primary {
   grid-column: 1 / -1;
+  --border-radius: 10px;
+  --box-shadow: none;
+}
+
+.detail-actions__primary[color='success'] {
+  --background: #58bb92;
+  --background-hover: #50b189;
+  --background-activated: #49a781;
+  --color: #ffffff;
+}
+
+.detail-actions__primary[color='warning'] {
+  --background: #e4a144;
+  --background-hover: #d9993f;
+  --background-activated: #cf9039;
+  --color: #ffffff;
+}
+
+.detail-actions__secondary {
+  --border-radius: 10px;
+  --border-color: #d6d8dc;
+  --background: #ffffff;
+  --background-hover: #f7f7f8;
+  --background-activated: #f2f2f3;
+  --color: #383a3e;
+  --box-shadow: none;
 }
 
 .detail-actions__secondary--solo {
@@ -1476,30 +1631,70 @@ onMounted(async () => {
 }
 
 .reservation-detail-content {
-  overflow: hidden;
+  overflow: visible;
+  margin-top: 20px;
   padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .reservation-detail-content__segment {
-  padding: var(--ios-pms-space-4) var(--ios-pms-space-5) 0;
+  min-height: 42px;
+  margin: 0 0 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.reservation-detail-content__segment ion-segment-button {
+  --border-radius: 999px;
+  --color: #111111;
+  --color-checked: #ffffff;
+  --indicator-color: #303030;
+  --indicator-box-shadow: none;
+  min-height: 42px;
+  font-size: 16px;
+  font-weight: 500;
+  text-transform: none;
+}
+
+.reservation-detail-content__segment ion-segment-button::part(indicator-background) {
+  border-radius: 999px;
 }
 
 .reservation-detail-content__body {
   display: grid;
   gap: 0;
-  padding: var(--ios-pms-space-2) var(--ios-pms-space-5) var(--ios-pms-space-5);
+  padding: 18px 18px 22px;
+  border: 1px solid rgba(198, 207, 218, 0.18);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(58, 78, 104, 0.08);
 }
 
 .reservation-detail-content__body--detail {
-  padding-top: var(--ios-pms-space-3);
+  padding-top: 18px;
 }
 
 .detail-section {
-  padding: var(--ios-pms-space-4) 0;
+  min-width: 0;
+  padding: 18px 0;
+}
+
+.detail-section:first-child {
+  padding-top: 2px;
+}
+
+.detail-section:last-child {
+  padding-bottom: 0;
 }
 
 .detail-section + .detail-section {
-  border-top: 1px solid var(--ios-pms-divider);
+  border-top: 1px solid #dfe1e5;
 }
 
 .detail-summary-card,
@@ -1515,7 +1710,11 @@ onMounted(async () => {
 }
 
 .detail-section__head {
-  margin-bottom: var(--ios-pms-space-3);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
 .detail-section__head h2,
@@ -1527,82 +1726,95 @@ onMounted(async () => {
 
 .detail-section__head h2,
 .detail-section__head h3 {
-  color: var(--ios-pms-text-primary);
-  font-size: var(--ios-pms-font-title-md-size);
-  font-weight: var(--ios-pms-weight-bold);
+  color: #111111;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 .detail-section__meta {
   flex-shrink: 0;
-  color: var(--ios-pms-text-soft);
-  font-size: var(--ios-pms-font-body-sm-size);
-  font-weight: var(--ios-pms-weight-bold);
+  color: #8c8f94;
+  font-size: 13px;
+  font-weight: 400;
   line-height: 1.4;
   white-space: nowrap;
 }
 
 .detail-section--timeline {
-  padding-top: var(--ios-pms-space-5);
+  padding-top: 4px;
 }
 
 .detail-summary-card {
-  gap: var(--ios-pms-space-4);
+  gap: 0;
 }
 
 .detail-summary-card__hero {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--ios-pms-space-3);
-  padding-bottom: var(--ios-pms-space-3);
-  border-bottom: 1px solid var(--ios-pms-divider);
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(112px, 0.75fr);
+  align-items: end;
+  gap: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #dfe1e5;
 }
 
 .detail-summary-card__hero-side {
-  text-align: right;
+  justify-self: end;
+  text-align: left;
 }
 
 .detail-summary-card__amount {
-  color: var(--ios-pms-text-primary);
-  font-size: var(--ios-pms-font-metric-lg-size);
-  font-weight: var(--ios-pms-weight-heavy);
-  letter-spacing: -0.03em;
-  line-height: 1;
+  color: #2e3034;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 .detail-summary-card__metrics {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0;
+  gap: 18px;
+  padding-top: 16px;
 }
 
 .detail-summary-card__metric + .detail-summary-card__metric {
-  padding-left: var(--ios-pms-space-3);
-  margin-left: var(--ios-pms-space-3);
-  border-left: 1px solid var(--ios-pms-divider);
+  padding-left: 18px;
+  margin-left: 0;
+  border-left: 0;
 }
 
 .detail-fact-list__row {
   display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
+  grid-template-columns: 74px minmax(0, 1fr);
   align-items: start;
-  gap: var(--ios-pms-space-3);
-  padding: var(--ios-pms-space-3) 0;
+  gap: 12px;
+  padding: 7px 0;
 }
 
 .detail-fact-list__row + .detail-fact-list__row {
-  border-top: 1px solid var(--ios-pms-divider);
+  border-top: 0;
+}
+
+.detail-fact-list__row > span {
+  color: #7b7d82;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 .detail-fact-list__row strong {
-  color: var(--ios-pms-text-secondary);
-  font-size: var(--ios-pms-font-title-sm-size);
-  font-weight: var(--ios-pms-weight-bold);
-  line-height: 1.45;
+  min-width: 0;
+  color: #383a3e;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .detail-fact-list__row p {
   margin: 0;
-  color: var(--ios-pms-text-muted);
+  color: #777a80;
   font-size: 13px;
   line-height: 1.6;
 }
@@ -1611,19 +1823,19 @@ onMounted(async () => {
 .detail-list__actions {
   display: flex;
   justify-content: space-between;
-  gap: var(--ios-pms-space-3);
+  gap: 12px;
 }
 
 .detail-list__item,
 .log-item,
 .detail-definition-list__row {
-  padding: var(--ios-pms-space-3) 0;
+  padding: 12px 0;
 }
 
 .detail-list__item + .detail-list__item,
 .log-item + .log-item,
 .detail-definition-list__row + .detail-definition-list__row {
-  border-top: 1px solid var(--ios-pms-divider);
+  border-top: 1px solid #dfe1e5;
 }
 
 .detail-list__item {
@@ -1632,10 +1844,11 @@ onMounted(async () => {
 
 .detail-list__main strong {
   display: block;
-  color: var(--ios-pms-text-secondary);
-  font-size: var(--ios-pms-font-title-sm-size);
-  font-weight: var(--ios-pms-weight-heavy);
-  line-height: 1.35;
+  color: #383a3e;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .detail-list__main p,
@@ -1643,14 +1856,14 @@ onMounted(async () => {
 .log-item p,
 .log-item__details p,
 .detail-reminder-card p {
-  color: var(--ios-pms-text-muted);
+  color: #777a80;
   font-size: 13px;
   line-height: 1.6;
 }
 
 .detail-list__main p,
 .detail-list__meta {
-  margin: var(--ios-pms-space-1) 0 0;
+  margin: 4px 0 0;
 }
 
 .detail-list__meta {
@@ -1667,30 +1880,86 @@ onMounted(async () => {
 }
 
 .detail-list__amount {
-  color: var(--ios-pms-text-primary);
-  font-size: var(--ios-pms-font-title-sm-size);
-  font-weight: var(--ios-pms-weight-heavy);
+  color: #303236;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.detail-record-section .detail-section__head {
+  margin-bottom: 2px;
+}
+
+.detail-record-section .detail-section__head h3 {
+  color: #7b7d82;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.detail-record-section > .mobile-note {
+  margin: 0;
+  color: #383a3e;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 .detail-reminder-card {
-  gap: var(--ios-pms-space-3);
+  gap: 16px;
 }
 
 .detail-reminder-card__header {
-  align-items: center;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.detail-reminder-card__header h3 {
+  margin: 0;
+  color: #111111;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.detail-reminder-card__header p {
+  margin: 4px 0 0;
+  color: #383a3e;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.detail-reminder-card__description {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
 }
 
 .detail-reminder-card__count {
-  flex-shrink: 0;
-  color: var(--ios-pms-primary);
-  font-size: var(--ios-pms-font-metric-md-size);
-  font-weight: var(--ios-pms-weight-heavy);
+  color: #ff2626;
+  font-size: inherit;
+  font-weight: 400;
   white-space: nowrap;
 }
 
 .detail-reminder-card__actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.detail-reminder-card__actions ion-button {
+  margin: 0;
+  --border-radius: 7px;
+  --border-color: #d8e6ff;
+  --background: #f2f6ff;
+  --background-hover: #ebf2ff;
+  --background-activated: #e5eeff;
+  --color: #2d74ff;
+  min-height: 32px;
+  font-size: 13px;
+  font-weight: 400;
 }
 
 .detail-log-list {
@@ -1705,17 +1974,17 @@ onMounted(async () => {
   top: 8px;
   bottom: 8px;
   width: 1px;
-  background: linear-gradient(180deg, rgba(52, 116, 246, 0.2), var(--ios-pms-divider));
+  background: linear-gradient(180deg, rgba(52, 116, 246, 0.2), #dfe1e5);
 }
 
 .log-item {
   position: relative;
-  padding: 0 0 0 var(--ios-pms-space-5);
+  padding: 0 0 0 18px;
 }
 
 .log-item + .log-item {
-  margin-top: var(--ios-pms-space-4);
-  padding-top: var(--ios-pms-space-4);
+  margin-top: 14px;
+  padding-top: 14px;
   border-top: none;
 }
 
@@ -1732,14 +2001,17 @@ onMounted(async () => {
 }
 
 .log-item__head {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .log-item__head strong {
-  color: var(--ios-pms-text-primary);
-  font-size: var(--ios-pms-font-title-sm-size);
-  font-weight: var(--ios-pms-weight-heavy);
-  line-height: 1.35;
+  color: #303236;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.45;
 }
 
 .log-item__head .mobile-note {
@@ -1747,25 +2019,25 @@ onMounted(async () => {
   align-items: center;
   min-height: 22px;
   padding: 0 8px;
-  border: 1px solid var(--ios-pms-border-faint);
-  border-radius: var(--ios-pms-radius-pill);
-  background: var(--ios-pms-surface-muted);
+  border: 1px solid #e8e9ec;
+  border-radius: 999px;
+  background: #f8f9fb;
   flex-shrink: 0;
   white-space: nowrap;
-  color: var(--ios-pms-text-soft);
-  font-size: var(--ios-pms-font-note-size);
+  color: #8c8f94;
+  font-size: 10px;
 }
 
 .log-item__details {
-  padding-top: var(--ios-pms-space-2);
-  gap: var(--ios-pms-space-1);
+  padding-top: 8px;
+  gap: 4px;
 }
 
 .detail-definition-list__row {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
+  grid-template-columns: 82px minmax(0, 1fr);
   align-items: start;
-  gap: var(--ios-pms-space-3);
+  gap: 12px;
 }
 
 .detail-linked-thread {
@@ -1773,65 +2045,54 @@ onMounted(async () => {
 }
 
 .detail-linked-thread .mobile-note {
-  margin: var(--ios-pms-space-1) 0 0;
-  color: var(--ios-pms-text-muted);
+  margin: 4px 0 0;
+  color: #777a80;
   font-size: 13px;
   line-height: 1.6;
 }
 
 .detail-definition-list__value {
-  word-break: break-word;
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 
 .is-danger {
-  color: var(--ion-color-danger);
+  color: #ff1717;
 }
 
 .is-success {
-  color: var(--ion-color-success);
+  color: #4fbb91;
 }
 
-@media (max-width: 374px) {
-  .reservation-detail-hero__meta-grid,
-  .detail-summary-card__metrics,
-  .detail-actions {
-    grid-template-columns: 1fr;
+@media (max-width: 339px) {
+  .reservation-detail-content__body {
+    padding-right: 16px;
+    padding-left: 16px;
   }
 
-  .reservation-detail-hero__headline-row,
-  .reservation-detail-hero__topline,
-  .detail-summary-card__hero,
-  .detail-list__item,
-  .detail-reminder-card__header,
-  .log-item__head {
+  .detail-summary-card__hero {
     grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .detail-summary-card__hero-side {
+    justify-self: start;
+  }
+
+  .detail-list__item,
+  .log-item__head {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .reservation-detail-hero__message-entry {
-    justify-content: flex-start;
-  }
-
-  .detail-list__actions,
-  .detail-reminder-card__actions {
+  .detail-list__actions {
     justify-items: start;
     justify-content: flex-start;
     text-align: left;
   }
 
   .log-item {
-    padding-left: var(--ios-pms-space-4);
-  }
-
-  .detail-definition-list__row {
-    grid-template-columns: 1fr;
-    gap: var(--ios-pms-space-1);
-  }
-
-  .detail-fact-list__row {
-    grid-template-columns: 1fr;
-    gap: var(--ios-pms-space-1);
+    padding-left: 14px;
   }
 }
 </style>

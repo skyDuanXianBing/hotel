@@ -1,53 +1,59 @@
 <template>
   <div class="door-locks-page" v-loading="pageLoading">
-    <header class="page-header">
-      <div>
-        <h1>{{ t('settings.doorLocks.title') }}</h1>
-        <p>{{ t('settings.doorLocks.subtitle') }}</p>
-      </div>
-      <div class="header-actions">
-        <el-tag v-if="currentStoreName" type="info" effect="plain">
-          {{ t('settings.doorLocks.currentStore', { name: currentStoreName }) }}
-        </el-tag>
-        <el-button :icon="Refresh" :loading="pageLoading" @click="handleReload">
-          {{ t('settings.doorLocks.actions.reload') }}
-        </el-button>
-      </div>
-    </header>
+    <section class="door-locks-overview">
+      <header class="page-header">
+        <el-tabs
+          v-model="activeProvider"
+          class="provider-tabs"
+          @tab-change="handleProviderTabChange"
+        >
+          <el-tab-pane
+            v-for="provider in providerOptions"
+            :key="provider.value"
+            :name="provider.value"
+          >
+            <template #label>
+              <span class="provider-tab-label">
+                {{ t(provider.labelKey) }}（{{ getIntegrationStatusLabel(provider.value) }}）
+              </span>
+            </template>
+          </el-tab-pane>
+        </el-tabs>
 
-    <el-alert
-      v-if="!currentStoreId"
-      :title="t('settings.doorLocks.noStoreSelected')"
-      type="warning"
-      show-icon
-      :closable="false"
-      class="page-alert"
-    />
-    <el-alert
-      v-if="errorMessage"
-      :title="errorMessage"
-      type="error"
-      show-icon
-      class="page-alert"
-      @close="clearErrorMessage"
-    />
+        <div class="header-actions">
+          <el-tag v-if="currentStoreName" type="info" effect="plain">
+            {{ t('settings.doorLocks.currentStore', { name: currentStoreName }) }}
+          </el-tag>
+          <el-button :icon="Refresh" :loading="pageLoading" @click="handleReload">
+            {{ t('settings.doorLocks.actions.reload') }}
+          </el-button>
+        </div>
+      </header>
 
-    <el-tabs v-model="activeProvider" class="provider-tabs" @tab-change="handleProviderTabChange">
-      <el-tab-pane
-        v-for="provider in providerOptions"
-        :key="provider.value"
-        :name="provider.value"
-      >
-        <template #label>
-          <span class="provider-tab-label">
-            <span>{{ t(provider.labelKey) }}</span>
-            <el-tag size="small" :type="getIntegrationTagType(provider.value)" effect="plain">
-              {{ getIntegrationStatusLabel(provider.value) }}
-            </el-tag>
-          </span>
-        </template>
-      </el-tab-pane>
-    </el-tabs>
+      <div class="page-description">
+        <el-icon class="page-description-icon" aria-hidden="true">
+          <WarningFilled />
+        </el-icon>
+        <span>{{ t('settings.doorLocks.subtitle') }}</span>
+      </div>
+
+      <el-alert
+        v-if="!currentStoreId"
+        :title="t('settings.doorLocks.noStoreSelected')"
+        type="warning"
+        show-icon
+        :closable="false"
+        class="page-alert"
+      />
+      <el-alert
+        v-if="errorMessage"
+        :title="errorMessage"
+        type="error"
+        show-icon
+        class="page-alert"
+        @close="clearErrorMessage"
+      />
+    </section>
 
     <section class="door-lock-section">
       <div class="section-header">
@@ -309,21 +315,6 @@
         </div>
       </div>
 
-      <el-alert
-        :title="t('settings.doorLocks.hints.roomIdBinding')"
-        type="info"
-        show-icon
-        :closable="false"
-        class="section-alert"
-      />
-      <el-alert
-        :title="t('settings.doorLocks.hints.roleDeviceReuse')"
-        type="warning"
-        show-icon
-        :closable="false"
-        class="section-alert"
-      />
-
       <el-table
         :data="filteredRooms"
         border
@@ -440,7 +431,7 @@
 </template>
 
 <script setup lang="ts">
-import { Connection, Link, Refresh } from '@element-plus/icons-vue'
+import { Connection, Link, Refresh, WarningFilled } from '@element-plus/icons-vue'
 import { useDoorLockSettings } from './door-locks/useDoorLockSettings'
 
 const {
@@ -485,7 +476,6 @@ const {
   handleRoomTypeChange,
   handleClearRoomTypeFilter,
   handleReload,
-  getIntegrationTagType,
   getIntegrationStatusLabel,
   getDeviceKey,
   getDeviceDisplayName,
@@ -518,25 +508,22 @@ const {
   background: #f6f8fb;
 }
 
+.door-locks-overview {
+  padding: 22px 24px 0;
+  margin-bottom: 16px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(31, 41, 55, 0.04);
+}
+
 .page-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.page-header h1 {
-  margin: 0;
-  color: #1f2937;
-  font-size: 24px;
-  font-weight: 600;
-}
-
-.page-header p {
-  margin: 8px 0 0;
-  color: #667085;
-  font-size: 14px;
+  gap: 24px;
+  margin-bottom: 12px;
 }
 
 .header-actions {
@@ -547,18 +534,109 @@ const {
   flex-wrap: wrap;
 }
 
+.header-actions :deep(.el-tag) {
+  max-width: 320px;
+  height: 28px;
+  padding: 0 11px;
+  overflow: hidden;
+  border-color: #e4e7ed;
+  border-radius: 4px;
+  color: #606266;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-actions :deep(.el-button) {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
 .page-alert {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
+}
+
+.page-description {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  margin: 0 0 14px;
+  color: #737373;
+  font-size: 14px;
+  line-height: 1.5;
+  background: #f2f2f2;
+  border: 1px solid #6b6b6b;
+  border-radius: 6px;
+}
+
+.page-description-icon {
+  flex: 0 0 auto;
+  color: #737373;
+  font-size: 18px;
 }
 
 .provider-tabs {
-  margin-bottom: 12px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.provider-tabs :deep(.el-tabs__header) {
+  margin: 0;
+}
+
+.provider-tabs :deep(.el-tabs__nav-wrap::after),
+.provider-tabs :deep(.el-tabs__active-bar) {
+  display: none;
+}
+
+.provider-tabs :deep(.el-tabs__nav-scroll) {
+  display: flex;
+}
+
+.provider-tabs :deep(.el-tabs__nav) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  float: none;
+  background: #e7e7e7;
+  border-radius: 999px;
+}
+
+.provider-tabs :deep(.el-tabs__item) {
+  height: 30px;
+  padding: 0 14px !important;
+  border-radius: 999px;
+  color: #222222;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 30px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.provider-tabs :deep(.el-tabs__item:hover) {
+  background: #f2f2f2;
+  color: #111111;
+}
+
+.provider-tabs :deep(.el-tabs__item.is-active),
+.provider-tabs :deep(.el-tabs__item.is-active:hover) {
+  background: #111111;
+  color: #ffffff;
+}
+
+.provider-tabs :deep(.el-tabs__content) {
+  display: none;
 }
 
 .provider-tab-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  white-space: nowrap;
 }
 
 .door-lock-section {
@@ -653,10 +731,6 @@ const {
   min-width: 220px;
 }
 
-.section-alert {
-  margin-bottom: 10px;
-}
-
 .data-table {
   width: 100%;
 }
@@ -745,6 +819,10 @@ const {
 }
 
 @media (max-width: 900px) {
+  .door-locks-overview {
+    padding: 18px 18px 0;
+  }
+
   .page-header,
   .section-header {
     flex-direction: column;
@@ -753,6 +831,10 @@ const {
   .header-actions,
   .binding-toolbar {
     width: 100%;
+  }
+
+  .header-actions {
+    justify-content: flex-start;
   }
 
   .form-grid {

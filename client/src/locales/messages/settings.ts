@@ -201,8 +201,6 @@ export const settingsMessages = {
         hints: {
           saveBeforeTest: 'Save this provider configuration before testing or syncing devices.',
           deviceReuse: 'A device already bound to another room cannot be selected here.',
-          roleDeviceReuse: 'Devices already bound or selected by another room cannot be reused here.',
-          roomIdBinding: 'Bindings are saved by roomId. Room type only filters this table.',
           ttLockRefresh: 'Refresh TTLock tokens after updating OAuth credentials.',
           sameRoomSameDeviceAllowed: 'The same device can fill both roles only when it supports both lock/unlock and passcode.',
           missingControlDevice: 'Without a lock/unlock device, lock, unlock, and status refresh are unavailable on the room status page.',
@@ -998,8 +996,6 @@ export const settingsMessages = {
         hints: {
           saveBeforeTest: '请先保存当前供应商配置，再进行连接测试或同步设备。',
           deviceReuse: '已绑定到其他房间的设备不可在此选择。',
-          roleDeviceReuse: '已被其他房间绑定或选中的设备不可在此复用。',
-          roomIdBinding: '绑定按 roomId 保存，房型仅用于筛选当前表格。',
           ttLockRefresh: '更新 TTLock OAuth 凭证后可刷新 token。',
           sameRoomSameDeviceAllowed: '同一设备只有同时支持开锁/上锁和密码能力时，才能承担两个角色。',
           missingControlDevice: '未选择开锁/上锁设备时，房态页开锁、上锁和状态刷新不可用。',
@@ -1794,8 +1790,6 @@ export const settingsMessages = {
         hints: {
           saveBeforeTest: '請先保存當前供應商配置，再進行連線測試或同步設備。',
           deviceReuse: '已綁定到其他房間的設備不可在此選擇。',
-          roleDeviceReuse: '已被其他房間綁定或選中的設備不可在此複用。',
-          roomIdBinding: '綁定按 roomId 保存，房型僅用於篩選當前表格。',
           ttLockRefresh: '更新 TTLock OAuth 憑證後可刷新 token。',
           sameRoomSameDeviceAllowed: '同一設備只有同時支援開鎖/上鎖和密碼能力時，才能承擔兩個角色。',
           missingControlDevice: '未選擇開鎖/上鎖設備時，房態頁開鎖、上鎖和狀態刷新不可用。',
@@ -2590,8 +2584,6 @@ export const settingsMessages = {
         hints: {
           saveBeforeTest: '接続テストまたはデバイス同期の前に、このプロバイダー設定を保存してください。',
           deviceReuse: '別の客室に紐付け済みのデバイスは選択できません。',
-          roleDeviceReuse: '別の客室に紐付け済み、または選択済みのデバイスは再利用できません。',
-          roomIdBinding: '紐付けは roomId で保存されます。客室タイプはこの表の絞り込みのみです。',
           ttLockRefresh: 'TTLock OAuth 認証情報を更新した後に token を更新できます。',
           sameRoomSameDeviceAllowed: '同じデバイスを両方の役割に使えるのは、施錠/解錠と暗証番号の両方に対応している場合だけです。',
           missingControlDevice: '施錠/解錠デバイスが未選択の場合、客室状況画面で施錠、解錠、状態更新を利用できません。',

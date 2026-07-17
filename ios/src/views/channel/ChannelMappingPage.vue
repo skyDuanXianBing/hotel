@@ -3,7 +3,7 @@
     <ion-header translucent>
       <ion-toolbar class="app-page-header__toolbar">
         <ion-buttons slot="start">
-          <ion-back-button class="app-page-header__back-btn" :default-href="defaultBackHref" />
+          <ion-back-button class="app-page-header__back-btn" :default-href="defaultBackHref" text="返回" />
         </ion-buttons>
         <ion-title class="app-page-header__title">{{ pageTitle }}</ion-title>
       </ion-toolbar>
@@ -14,22 +14,22 @@
         <ion-refresher-content pulling-text="下拉刷新映射数据" refreshing-spinner="crescent" />
       </ion-refresher>
 
-      <section v-if="channelView" class="mobile-hero channel-mapping-hero">
-        <h1 class="mobile-title">{{ channelView.name }}</h1>
-        <div class="mobile-chip-row">
-          <span class="mobile-chip channel-mapping-hero__chip channel-mapping-hero__chip--status">
-            {{ channelView.statusLabel }}
-          </span>
-          <span class="mobile-chip channel-mapping-hero__chip channel-mapping-hero__chip--metric">
-            分组 {{ mappingGroups.length }}
-          </span>
-          <span class="mobile-chip channel-mapping-hero__chip channel-mapping-hero__chip--metric">
-            价盘 {{ totalRatePlanCount }}
-          </span>
-        </div>
-      </section>
+      <div v-if="channelView" class="channel-mapping-page__cards">
+        <section class="mobile-hero channel-mapping-hero">
+          <h1 class="mobile-title">{{ channelView.name }}</h1>
+          <div class="mobile-chip-row">
+            <span class="mobile-chip channel-mapping-hero__chip channel-mapping-hero__chip--status">
+              {{ channelView.statusLabel }}
+            </span>
+            <span class="mobile-chip channel-mapping-hero__chip channel-mapping-hero__chip--metric">
+              分组 {{ mappingGroups.length }}
+            </span>
+            <span class="mobile-chip channel-mapping-hero__chip channel-mapping-hero__chip--metric">
+              价盘 {{ totalRatePlanCount }}
+            </span>
+          </div>
+        </section>
 
-      <div v-if="channelView" class="mobile-stack">
         <section class="mobile-card channel-mapping-page__toolbar-card">
           <div class="channel-mapping-page__toolbar">
             <div class="channel-mapping-page__toolbar-main">
@@ -65,26 +65,29 @@
               </ion-segment-button>
             </ion-segment>
 
-            <ion-item v-if="hotelOptions.length > 1" class="channel-mapping-page__filter-item">
+            <div v-if="hotelOptions.length > 0" class="channel-mapping-page__filter-item">
+              <span class="channel-mapping-page__filter-label">{{ groupLabel }}</span>
+              <span class="channel-mapping-page__filter-value">{{ selectedHotelLabel }}</span>
+              <span class="channel-mapping-page__filter-chevron" aria-hidden="true"></span>
               <ion-select
+                class="channel-mapping-page__filter-select"
                 :value="selectedHotelKey"
+                aria-label="选择分组"
                 interface="action-sheet"
-                :label="groupLabel"
-                label-placement="stacked"
                 @ionChange="handleHotelChange"
               >
                 <ion-select-option value="all">全部分组</ion-select-option>
                 <ion-select-option v-for="item in hotelOptions" :key="item" :value="item">
                   {{ item }}
                 </ion-select-option>
-                </ion-select>
-            </ion-item>
+              </ion-select>
+            </div>
           </div>
 
           <p v-if="combinedNotice" class="mobile-note channel-mapping-page__warning">{{ combinedNotice }}</p>
         </section>
 
-        <section class="mobile-card channel-mapping-page__list-card">
+        <section class="channel-mapping-page__list-card">
           <div v-if="filteredGroups.length > 0" class="mobile-list channel-mapping-page__group-list">
             <article v-for="group in filteredGroups" :key="group.id" class="channel-mapping-page__group-card">
               <button
@@ -93,7 +96,7 @@
                 @click="toggleGroupExpansion(group.hotelKey)"
               >
                 <div class="channel-mapping-page__group-header">
-                  <div>
+                  <div class="channel-mapping-page__group-copy">
                     <h3>{{ group.title }}</h3>
                     <p>{{ groupLabel }}标识：{{ group.hotelKey }}</p>
                   </div>
@@ -274,7 +277,6 @@ import {
   IonButtons,
   IonContent,
   IonHeader,
-  IonItem,
   IonLabel,
   IonModal,
   IonPage,
@@ -393,7 +395,7 @@ const pageTitle = computed(() => {
   if (!channelView.value) {
     return '映射详情'
   }
-  return `${channelView.value.name} · 映射`
+  return `${channelView.value.name} 映射`
 })
 
 const groupLabel = computed(() => getChannelGroupLabel(channel.value?.code))
@@ -408,6 +410,13 @@ const hotelOptions = computed(() => {
     result.push(group.hotelKey)
   }
   return result
+})
+
+const selectedHotelLabel = computed(() => {
+  if (selectedHotelKey.value === 'all') {
+    return '全部分组'
+  }
+  return selectedHotelKey.value
 })
 
 const filteredGroups = computed(() => {
@@ -693,9 +702,6 @@ async function loadMappingPage() {
 
     const availableHotelKeys = new Set(mappingGroups.value.map((item) => item.hotelKey))
     expandedGroupKeys.value = expandedGroupKeys.value.filter((item) => availableHotelKeys.has(item))
-    if (expandedGroupKeys.value.length === 0 && mappingGroups.value.length === 1) {
-      expandedGroupKeys.value = [mappingGroups.value[0].hotelKey]
-    }
   } finally {
     loading.value = false
   }
@@ -867,72 +873,77 @@ onIonViewWillEnter(async () => {
 
 <style scoped>
 .channel-mapping-page {
-  --background: linear-gradient(180deg, #eef3fb 0%, #f4f7fc 18%, #f8fafd 100%);
+  --background: linear-gradient(180deg, #edf8ff 0%, #f3f9ff 54%, #f8fbff 100%);
+  --padding-top: 10px;
+  --padding-start: 22px;
+  --padding-end: 20px;
+  --padding-bottom: calc(26px + var(--app-safe-bottom));
+}
+
+.channel-mapping-page__cards,
+.channel-mapping-page__group-list {
+  display: grid;
+  gap: 10px;
 }
 
 .channel-mapping-hero {
-  padding: 20px 20px 18px;
-  border-color: rgba(110, 131, 171, 0.1);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(251, 253, 255, 0.84));
-  box-shadow: 0 16px 28px rgba(22, 38, 70, 0.035);
+  padding: 18px 20px 16px;
+  border: 0;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(118, 155, 196, 0.06);
 }
 
 .channel-mapping-hero::before {
-  background: linear-gradient(135deg, rgba(62, 98, 175, 0.08), transparent 62%);
+  display: none;
 }
 
 .channel-mapping-hero .mobile-title {
-  font-size: 24px;
-  letter-spacing: -0.04em;
+  color: #30323a;
+  font-size: 27px;
+  line-height: 1.1;
+  letter-spacing: 0;
 }
 
 .channel-mapping-hero .mobile-chip-row {
-  gap: 10px;
-  margin-top: 16px;
+  gap: 9px;
+  margin-top: 10px;
 }
 
 .channel-mapping-hero__chip {
-  min-height: 28px;
+  min-height: 29px;
   padding: 0 12px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
-  backdrop-filter: blur(10px);
+  letter-spacing: 0;
 }
 
 .channel-mapping-hero__chip--status {
-  border-color: rgba(64, 101, 181, 0.14);
-  background: rgba(64, 101, 181, 0.08);
-  color: #3558a6;
+  border-color: transparent;
+  background: #edf6ff;
+  color: #2c73c8;
+  box-shadow: 0 4px 12px rgba(44, 115, 200, 0.09);
 }
 
 .channel-mapping-hero__chip--metric {
-  border-color: rgba(117, 136, 173, 0.1);
-  background: rgba(247, 249, 252, 0.94);
-  color: #60708d;
-}
-
-.channel-mapping-page__toolbar-card,
-.channel-mapping-page__list-card {
-  border-color: rgba(112, 130, 166, 0.1);
-  box-shadow: 0 14px 26px rgba(22, 38, 70, 0.035);
+  border-color: #dfe3e8;
+  background: #ffffff;
+  color: #727985;
 }
 
 .channel-mapping-page__toolbar-card {
   position: relative;
   overflow: hidden;
-  padding: 16px;
-  border-radius: 20px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(249, 252, 255, 0.92));
+  padding: 20px 18px 30px;
+  border: 1px solid rgba(222, 233, 244, 0.78);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 12px 28px rgba(114, 151, 190, 0.1);
 }
 
 .channel-mapping-page__toolbar-card::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 52px;
-  background: linear-gradient(90deg, rgba(68, 103, 180, 0.06), transparent 72%);
-  pointer-events: none;
+  display: none;
 }
 
 .channel-mapping-page__toolbar-card > * {
@@ -942,7 +953,6 @@ onIonViewWillEnter(async () => {
 
 .channel-mapping-page__toolbar,
 .channel-mapping-page__filters,
-.channel-mapping-page__group-list,
 .channel-mapping-page__plans,
 .channel-mapping-page__editor-stack,
 .channel-mapping-page__editor-plan-list {
@@ -951,7 +961,7 @@ onIonViewWillEnter(async () => {
 }
 
 .channel-mapping-page__toolbar {
-  gap: 14px;
+  gap: 12px;
 }
 
 .channel-mapping-page__toolbar-main strong,
@@ -966,7 +976,8 @@ onIonViewWillEnter(async () => {
 .channel-mapping-page__toolbar-main strong {
   display: block;
   font-size: 20px;
-  letter-spacing: -0.03em;
+  line-height: 1.25;
+  letter-spacing: 0;
 }
 
 .channel-mapping-page__toolbar-main p,
@@ -975,23 +986,25 @@ onIonViewWillEnter(async () => {
 .channel-mapping-page__editor-plan-item p,
 .channel-mapping-page__editor-hero p,
 .channel-mapping-page__group-ids {
-  margin: 6px 0 0;
+  margin: 5px 0 0;
   color: var(--app-muted);
   font-size: 13px;
   line-height: 1.6;
 }
 
 .channel-mapping-page__toolbar-main p {
-  color: var(--ios-pms-text-soft);
-  font-size: 12px;
+  color: #9aa3ad;
+  font-size: 14px;
+  line-height: 1.35;
 }
 
 .channel-mapping-page__toolbar-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 9px;
+  margin-top: 2px;
 }
 
 .channel-mapping-page__toolbar-actions ion-spinner {
@@ -999,49 +1012,158 @@ onIonViewWillEnter(async () => {
   transform: scale(0.82);
 }
 
+.channel-mapping-page__action-primary,
+.channel-mapping-page__action-secondary,
+.channel-mapping-page__management-actions ion-button {
+  height: 37px;
+  min-height: 37px;
+  margin: 0;
+  --border-radius: 9px;
+  --padding-start: 13px;
+  --padding-end: 13px;
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+.channel-mapping-page__action-primary::part(native),
+.channel-mapping-page__action-secondary::part(native),
+.channel-mapping-page__management-actions ion-button::part(native) {
+  min-height: 37px;
+}
+
 .channel-mapping-page__action-primary {
-  --background: #234ebd;
-  --background-activated: #2046aa;
-  --background-hover: #2046aa;
-  --box-shadow: 0 10px 20px rgba(35, 78, 189, 0.18);
-  --padding-start: 16px;
-  --padding-end: 16px;
+  min-width: 102px;
+  --background: #1777ff;
+  --background-activated: #1269e5;
+  --background-hover: #1269e5;
+  --box-shadow: 0 8px 16px rgba(23, 119, 255, 0.18);
 }
 
 .channel-mapping-page__action-secondary {
-  --background: rgba(255, 255, 255, 0.72);
-  --border-color: rgba(71, 101, 163, 0.18);
-  --color: #3f609b;
-  --padding-start: 14px;
-  --padding-end: 14px;
+  min-width: 76px;
+  --background: #ffffff;
+  --border-color: #d9e2ee;
+  --color: #236ad8;
+  --box-shadow: none;
 }
 
 .channel-mapping-page__filters {
-  gap: 10px;
-  margin-top: 4px;
+  gap: 20px;
+  margin-top: 12px;
 }
 
 .channel-mapping-page__filter-segment {
-  padding: 3px;
-  border-color: rgba(111, 130, 168, 0.12);
-  border-radius: 16px;
-  background: rgba(236, 241, 249, 0.88);
+  height: 36px;
+  padding: 0;
+  border: 1px solid #eceef2;
+  border-radius: 18px;
+  background: #ffffff;
+  overflow: hidden;
 }
 
 .channel-mapping-page__filter-segment ion-segment-button {
-  --border-radius: 13px;
-  --indicator-color: rgba(86, 116, 173, 0.16);
-  min-height: 38px;
-  font-size: 12px;
+  --border-radius: 18px;
+  --color: #111318;
+  --color-checked: #ffffff;
+  --indicator-box-shadow: none;
+  --indicator-color: #303030;
+  min-height: 36px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.channel-mapping-page__filter-segment ion-segment-button::part(native) {
+  min-height: 36px;
+  padding: 0;
+}
+
+.channel-mapping-page__filter-segment ion-segment-button::part(indicator-background) {
+  border-radius: 18px;
+  background: #303030;
 }
 
 .channel-mapping-page__filter-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) 74px;
+  align-items: center;
+  min-height: 77px;
+  padding: 0 17px 0 18px;
   margin: 0;
-  border: 1px solid rgba(112, 130, 166, 0.11);
-  border-radius: 16px;
-  background: rgba(252, 253, 255, 0.84);
-  --padding-start: 4px;
-  --inner-padding-end: 4px;
+  border: 1px solid #e7e9ed;
+  border-radius: 9px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.channel-mapping-page__filter-label {
+  grid-column: 1;
+  margin: 0;
+  color: #666d78;
+  font-size: 16px;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.channel-mapping-page__filter-value {
+  grid-column: 2;
+  justify-self: center;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: #555c67;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.channel-mapping-page__filter-chevron {
+  position: relative;
+  grid-column: 3;
+  justify-self: end;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+}
+
+.channel-mapping-page__filter-chevron::before,
+.channel-mapping-page__filter-chevron::after {
+  content: '';
+  position: absolute;
+  right: 5px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid #8c949f;
+  border-bottom: 2px solid #8c949f;
+}
+
+.channel-mapping-page__filter-chevron::before {
+  top: calc(50% - 13px);
+  transform: rotate(225deg);
+}
+
+.channel-mapping-page__filter-chevron::after {
+  top: calc(50% + 1px);
+  transform: rotate(45deg);
+}
+
+.channel-mapping-page__filter-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  min-height: 100%;
+  --padding-start: 0;
+  --padding-end: 0;
+  opacity: 0;
+}
+
+.channel-mapping-page__filter-select::part(icon) {
+  display: none;
 }
 
 .channel-mapping-page__warning {
@@ -1058,11 +1180,11 @@ onIonViewWillEnter(async () => {
 .channel-mapping-page__group-card,
 .channel-mapping-page__plan-item,
 .channel-mapping-page__editor-plan-item {
-  padding: 16px;
-  border-radius: 20px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(249, 251, 254, 0.94));
-  border: 1px solid rgba(112, 130, 166, 0.11);
-  box-shadow: 0 12px 24px rgba(22, 38, 70, 0.035);
+  padding: 19px 18px 20px;
+  border: 1px solid rgba(222, 233, 244, 0.78);
+  border-radius: 21px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 12px 28px rgba(114, 151, 190, 0.1);
 }
 
 .channel-mapping-page__group-toggle {
@@ -1079,38 +1201,59 @@ onIonViewWillEnter(async () => {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+}
+
+.channel-mapping-page__group-copy {
+  min-width: 0;
+  padding-top: 1px;
 }
 
 .channel-mapping-page__group-header-side {
   display: inline-flex;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-start;
+  flex: 0 0 auto;
+  gap: 6px;
 }
 
 .channel-mapping-page__group-arrow {
-  color: var(--ios-pms-text-disabled);
-  font-size: 20px;
-  line-height: 1;
+  color: #8d949e;
+  font-size: 26px;
+  line-height: 32px;
   transition: transform 0.18s ease;
 }
 
 .channel-mapping-page__group-header ion-badge,
 .channel-mapping-page__plan-header ion-badge {
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border-radius: 11px;
+  font-size: 14px;
   font-weight: 700;
+}
+
+.channel-mapping-page__group-header ion-badge {
+  min-width: 78px;
+  min-height: 32px;
+}
+
+.channel-mapping-page__plan-header ion-badge {
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 .channel-mapping-page__group-header h3 {
   font-size: 16px;
-  letter-spacing: -0.02em;
+  line-height: 1.32;
+  letter-spacing: 0;
 }
 
 .channel-mapping-page__group-header p {
-  color: var(--ios-pms-text-soft);
-  font-size: 12px;
+  color: #98a0ab;
+  font-size: 14px;
+  line-height: 1.35;
 }
 
 .channel-mapping-page__group-arrow--expanded {
@@ -1121,20 +1264,20 @@ onIonViewWillEnter(async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 14px;
+  margin-top: 20px;
 }
 
 .channel-mapping-page__group-meta span {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border: 1px solid rgba(117, 136, 173, 0.09);
+  min-height: 29px;
+  padding: 0 11px;
+  border: 1px solid #dfe3e8;
   border-radius: 999px;
-  background: rgba(245, 248, 252, 0.92);
-  color: #61718d;
-  font-size: 11px;
-  font-weight: 600;
+  background: #ffffff;
+  color: #59626f;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .channel-mapping-page__draft-badge {
@@ -1146,7 +1289,7 @@ onIonViewWillEnter(async () => {
 
 .channel-mapping-page__group-details,
 .channel-mapping-page__management-actions {
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 .channel-mapping-page__group-details {
@@ -1158,14 +1301,29 @@ onIonViewWillEnter(async () => {
 .channel-mapping-page__editor-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 9px;
 }
 
-.channel-mapping-page__management-actions ion-button,
 .channel-mapping-page__editor-actions ion-button {
   min-height: 34px;
   --border-radius: 12px;
   font-size: 12px;
+}
+
+.channel-mapping-page__management-actions ion-button:first-child {
+  min-width: 105px;
+  --background: #ffffff;
+  --border-color: #d9e2ee;
+  --color: #236ad8;
+  --box-shadow: none;
+}
+
+.channel-mapping-page__management-actions ion-button:last-child {
+  min-width: 91px;
+  --background: #1777ff;
+  --background-activated: #1269e5;
+  --background-hover: #1269e5;
+  --box-shadow: 0 8px 16px rgba(23, 119, 255, 0.18);
 }
 
 .channel-mapping-page__group-ids {

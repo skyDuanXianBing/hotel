@@ -54,66 +54,84 @@ const textareaValue = computed({
 
 <style scoped>
 .memo-section {
-  padding: 20px 18px;
-  border: 1px solid rgba(97, 124, 177, 0.08);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 12px 30px rgba(77, 98, 145, 0.08);
+  padding: 18px 16px 20px;
+  border: 1px solid var(--ios-pms-border-soft);
+  border-radius: var(--ios-pms-radius-card);
+  background: rgba(250, 252, 254, 0.7);
+  box-shadow: var(--ios-pms-shadow-card);
 }
 
 .memo-section__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
 .memo-section__title {
   margin: 0;
-  color: #16233b;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  color: var(--ios-pms-text-primary);
+  font-size: 20px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
 }
 
 .memo-status {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 0 12px;
-  border: 1px solid rgba(116, 163, 251, 0.1);
-  border-radius: 999px;
-  background: rgba(115, 164, 255, 0.08);
-  color: #8c98b1;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
-  font-size: 11px;
-  font-weight: 700;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ios-pms-text-soft);
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 400;
 }
 
 .memo-status--saving {
-  background: rgba(115, 164, 255, 0.14);
+  background: transparent;
   color: #3f7cff;
+}
+
+.memo-status::before {
+  content: '（';
+}
+
+.memo-status::after {
+  content: '）';
 }
 
 .memo-editor,
 .memo-skeleton {
-  padding: 12px;
-  border: 1px solid rgba(115, 139, 188, 0.1);
-  border-radius: 20px;
-  background: linear-gradient(180deg, rgba(248, 250, 255, 0.98), rgba(255, 255, 255, 0.94));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  padding: 0;
+  border: 1px solid rgba(116, 138, 185, 0.06);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 2px 10px rgba(77, 98, 145, 0.035);
+  overflow: hidden;
 }
 
 .memo-textarea {
-  --background: transparent;
+  --background: #ffffff;
   --border-radius: 16px;
   --border-color: transparent;
-  --padding-start: 4px;
-  --padding-end: 4px;
-  min-height: 120px;
-  color: #16233b;
-  font-size: 14px;
+  --border-width: 0;
+  --highlight-color-focused: transparent;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --padding-top: 15px;
+  --padding-bottom: 15px;
+  min-height: 144px;
+  color: var(--ios-pms-text-primary);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.memo-textarea::part(native) {
+  border: none;
+  box-shadow: none;
 }
 
 .memo-skeleton__line {

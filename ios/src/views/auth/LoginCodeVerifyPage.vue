@@ -1,15 +1,16 @@
 <template>
   <ion-page>
-    <ion-content fullscreen class="mobile-page auth-page">
-      <div class="mobile-stack">
-        <section class="mobile-card auth-card">
-          <button class="auth-back-button" type="button" @click="handleBack">
-            <span class="auth-back-button__icon">‹</span>
-          </button>
+    <ion-content fullscreen class="auth-page">
+      <div class="auth-shell">
+        <AuthBrandHeader />
 
-          <div class="auth-card__header">
-            <h2 class="mobile-section-title">验证邮箱</h2>
-            <p class="mobile-note auth-card__subtitle">
+        <main class="auth-panel auth-panel--standalone">
+          <div class="auth-panel__heading">
+            <button class="auth-back-title" type="button" @click="handleBack">
+              <ion-icon :icon="chevronBackOutline" aria-hidden="true" />
+              验证邮箱
+            </button>
+            <p class="auth-panel__subtitle">
               请输入发送至
               <strong>{{ email }}</strong>
               的6位验证码，有效期10分钟，如未收到，请尝试重新获取验证码
@@ -49,17 +50,19 @@
             <ion-spinner v-if="resending" name="crescent" />
             <span v-else>{{ resendButtonText }}</span>
           </ion-button>
-        </section>
+        </main>
       </div>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { IonButton, IonContent, IonPage, IonSpinner, onIonViewDidEnter } from '@ionic/vue'
+import { IonButton, IonContent, IonIcon, IonPage, IonSpinner, onIonViewDidEnter } from '@ionic/vue'
+import { chevronBackOutline } from 'ionicons/icons'
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { loginByCode, sendVerificationCode } from '@/api/auth'
+import AuthBrandHeader from '@/components/auth/AuthBrandHeader.vue'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useAuthStore } from '@/stores/auth'
 import { useStoreStore } from '@/stores/store'
@@ -361,197 +364,3 @@ onBeforeUnmount(() => {
   stopResendCountdown()
 })
 </script>
-
-<style scoped>
-.auth-page {
-  --auth-control-radius: 13px;
-  --background: #fcfcfc;
-  --padding-top: calc(38px + var(--app-safe-top));
-  --padding-bottom: calc(28px + var(--app-safe-bottom));
-  --padding-start: 24px;
-  --padding-end: 24px;
-  color: #1f2128;
-}
-
-.mobile-stack {
-  min-height: calc(100vh - var(--app-safe-top) - var(--app-safe-bottom) - 72px);
-  overflow: hidden;
-}
-
-.auth-card {
-  width: 100%;
-  max-width: 560px;
-  margin: 0;
-  padding: 74px 0 0;
-  border-radius: 0;
-  box-shadow: none;
-  background: transparent;
-  border: 0;
-  min-height: calc(100vh - var(--app-safe-top) - var(--app-safe-bottom) - 74px);
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  overflow: hidden;
-}
-
-.auth-back-button {
-  position: absolute;
-  top: 4px;
-  left: -2px;
-  width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: #1f2128;
-}
-
-.auth-back-button__icon {
-  font-size: 48px;
-  line-height: 1;
-  transform: translateY(-2px);
-}
-
-.auth-card__header {
-  margin: 82px 0 56px;
-}
-
-.mobile-section-title {
-  margin: 0;
-  color: #1f2128;
-  font-size: clamp(35px, 11.2vw, 55px);
-  font-weight: 600;
-  line-height: 1.08;
-  letter-spacing: -0.03em;
-}
-
-.auth-card__subtitle {
-  margin: 30px 0 0;
-  color: #8f949e;
-  font-size: clamp(19px, 5.6vw, 24px);
-  line-height: 1.5;
-}
-
-.auth-card__subtitle strong {
-  color: #1f2128;
-  font-weight: 700;
-}
-
-.verify-code-row {
-  display: flex;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.verify-code-input {
-  flex: 1 1 0;
-  width: 0;
-  min-width: 0;
-  aspect-ratio: 1 / 1;
-  min-height: 48px;
-  border: 2px solid #eef2f5;
-  border-radius: 13px;
-  background: #ffffff;
-  box-shadow: 0 2px 8px rgba(31, 33, 40, 0.02);
-  color: #1f2128;
-  text-align: center;
-  font-size: clamp(20px, 6.8vw, 30px);
-  font-weight: 600;
-  line-height: 1;
-  padding: 0;
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
-  caret-color: transparent;
-}
-
-.verify-code-input--active {
-  border-color: #3484ea;
-  box-shadow: none;
-}
-
-.verify-code-input--filled {
-  color: #1f2128;
-}
-
-.resend-button {
-  margin-top: 46px;
-  min-height: clamp(54px, 13.5vw, 64px);
-  font-size: clamp(21px, 5.8vw, 24px);
-  font-weight: 400;
-  letter-spacing: 0;
-  --border-radius: 13px;
-  --background: #3484ea;
-  --background-activated: #2e77d4;
-  --background-focused: #2e77d4;
-  --background-hover: #2e77d4;
-  --box-shadow: none;
-  --color: #ffffff;
-}
-
-.resend-button--disabled {
-  --background: #f9f9f9;
-  --background-activated: #f9f9f9;
-  --background-focused: #f9f9f9;
-  --background-hover: #f9f9f9;
-  --color: #c6c9d1;
-  --border-color: #dde5e8;
-  --border-style: solid;
-  --border-width: 2px;
-  opacity: 1;
-}
-
-:deep(.resend-button--disabled.button-disabled) {
-  opacity: 1;
-}
-
-:deep(.resend-button--disabled.button-disabled .button-native) {
-  opacity: 1;
-  color: #c6c9d1;
-  background: #f9f9f9;
-  border-color: #dde5e8;
-}
-
-@media (min-width: 768px) {
-  .auth-page {
-    --padding-top: calc(78px + var(--app-safe-top));
-    --padding-start: 56px;
-    --padding-end: 56px;
-  }
-
-  .auth-card {
-    margin: 0 auto;
-  }
-
-  .verify-code-row {
-    gap: 14px;
-  }
-}
-
-@media (max-width: 480px) {
-  .auth-card {
-    padding-top: 52px;
-  }
-
-  .auth-card__header {
-    margin-top: 62px;
-    margin-bottom: 42px;
-  }
-
-  .auth-card__subtitle {
-    margin-top: 22px;
-  }
-
-  .verify-code-row {
-    gap: 8px;
-  }
-
-  .resend-button {
-    margin-top: 40px;
-  }
-}
-</style>

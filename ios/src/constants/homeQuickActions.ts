@@ -1,16 +1,3 @@
-import {
-  barChartOutline,
-  bedOutline,
-  chatbubblesOutline,
-  clipboardOutline,
-  gitNetworkOutline,
-  notificationsOutline,
-  optionsOutline,
-  personCircleOutline,
-  receiptOutline,
-  settingsOutline,
-  walletOutline,
-} from 'ionicons/icons'
 import { ROUTE_PATHS } from '@/router/guards'
 
 export type HomeQuickActionTone = 'primary' | 'warning' | 'secondary' | 'success'
@@ -19,7 +6,7 @@ export interface HomeQuickActionItem {
   key: string
   title: string
   description: string
-  icon: string
+  iconSrc: string
   tone: HomeQuickActionTone
 }
 
@@ -36,7 +23,7 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
     key: 'orders',
     title: '订单',
     description: '快速进入订单页，继续处理预抵、预离与待处理订单。',
-    icon: receiptOutline,
+    iconSrc: '/home-shortcuts/orders.png',
     tone: 'warning',
     path: ROUTE_PATHS.orders,
     defaultVisible: true,
@@ -45,7 +32,7 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
     key: 'rooms',
     title: '房态',
     description: '查看今日可售与房间状态，衔接房态核心操作。',
-    icon: bedOutline,
+    iconSrc: '/home-shortcuts/rooms.png',
     tone: 'primary',
     path: ROUTE_PATHS.rooms,
     defaultVisible: true,
@@ -54,7 +41,7 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
     key: 'channels',
     title: '渠道',
     description: '跳到渠道管理，查看连接、映射和后续操作入口。',
-    icon: gitNetworkOutline,
+    iconSrc: '/home-shortcuts/channels.png',
     tone: 'secondary',
     path: ROUTE_PATHS.channels,
     defaultVisible: true,
@@ -63,7 +50,7 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
     key: 'statistics',
     title: '统计',
     description: '进入统计工作台，查看经营概况、报表和数据中心。',
-    icon: barChartOutline,
+    iconSrc: '/home-shortcuts/statistics.png',
     tone: 'primary',
     path: ROUTE_PATHS.statistics,
     defaultVisible: true,
@@ -72,7 +59,7 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
     key: 'reviews',
     title: '审查',
     description: '进入审查列表，处理入住登记与审核相关任务。',
-    icon: clipboardOutline,
+    iconSrc: '/home-shortcuts/reviews.png',
     tone: 'secondary',
     path: ROUTE_PATHS.reviews,
     defaultVisible: true,
@@ -81,7 +68,7 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
     key: 'messages',
     title: '消息',
     description: '查看住客会话、未读消息与待处理聊天。',
-    icon: chatbubblesOutline,
+    iconSrc: '/home-shortcuts/messages.png',
     tone: 'primary',
     path: ROUTE_PATHS.messages,
     defaultVisible: true,
@@ -90,7 +77,7 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
     key: 'system-notifications',
     title: '系统通知',
     description: '查看系统、保洁与任务相关通知。',
-    icon: notificationsOutline,
+    iconSrc: '/home-shortcuts/system-notifications.png',
     tone: 'warning',
     path: ROUTE_PATHS.systemNotifications,
     defaultVisible: true,
@@ -99,7 +86,7 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
     key: 'order-notifications',
     title: '订单通知',
     description: '集中处理订单类提醒与未读通知。',
-    icon: receiptOutline,
+    iconSrc: '/home-shortcuts/order-notifications.png',
     tone: 'secondary',
     path: ROUTE_PATHS.orderNotifications,
     defaultVisible: true,
@@ -108,7 +95,7 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
     key: 'wallet',
     title: '钱包',
     description: '查看余额、流水、提现记录与认证说明。',
-    icon: walletOutline,
+    iconSrc: '/home-shortcuts/wallet.png',
     tone: 'success',
     path: ROUTE_PATHS.wallet,
     defaultVisible: true,
@@ -117,7 +104,7 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
     key: 'profile',
     title: '个人中心',
     description: '更新昵称、头像、性别并修改密码。',
-    icon: personCircleOutline,
+    iconSrc: '/home-shortcuts/profile.png',
     tone: 'primary',
     path: ROUTE_PATHS.profile,
     defaultVisible: true,
@@ -126,7 +113,7 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
     key: 'settings',
     title: '设置',
     description: '继续进入门店、账户与业务配置的移动端入口。',
-    icon: settingsOutline,
+    iconSrc: '/home-shortcuts/settings.png',
     tone: 'success',
     path: ROUTE_PATHS.settings,
     defaultVisible: true,
@@ -137,7 +124,7 @@ export const HOME_QUICK_ACTION_CUSTOMIZE_ITEM: HomeQuickActionItem = {
   key: HOME_QUICK_ACTION_CUSTOMIZE_KEY,
   title: '定制',
   description: '个性化调整首页快捷方式的显示与隐藏。',
-  icon: optionsOutline,
+  iconSrc: '/home-shortcuts/customize.png',
   tone: 'secondary',
 }
 

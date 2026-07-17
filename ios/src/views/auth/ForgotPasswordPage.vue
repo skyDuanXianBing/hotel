@@ -1,141 +1,143 @@
 <template>
   <ion-page>
-    <ion-header translucent class="forgot-password-header">
-      <ion-toolbar class="forgot-password-toolbar app-page-header__toolbar">
-        <ion-buttons slot="start">
-          <ion-back-button class="forgot-password-back app-page-header__back-btn" :default-href="ROUTE_PATHS.login" text="" />
-        </ion-buttons>
-        <ion-title class="forgot-password-toolbar__title app-page-header__title">忘记密码</ion-title>
-      </ion-toolbar>
-    </ion-header>
+    <ion-content fullscreen class="auth-page">
+      <div class="auth-shell">
+        <AuthBrandHeader back-label="找回密码" @select-back="handleBackToLogin" />
 
-    <ion-content :scroll-y="false" fullscreen class="mobile-page auth-page forgot-password-page">
-      <section class="forgot-password-layout">
-        <div class="forgot-password-heading">
-          <h1 class="forgot-password-title">找回密码</h1>
-        </div>
-
-        <ion-list lines="none" class="auth-list forgot-password-form">
-          <div class="auth-field">
-            <p class="auth-field-label">邮箱</p>
-            <ion-item class="auth-item">
-              <ion-input
-                v-model="form.email"
-                autocomplete="email"
-                inputmode="email"
-                placeholder="邮箱"
-                type="email"
-              />
-            </ion-item>
-          </div>
-
-          <div class="auth-field">
-            <p class="auth-field-label">验证码</p>
-            <div class="auth-captcha-row">
-              <ion-item class="auth-item auth-item--captcha">
-                <ion-input autocomplete="off" placeholder="图片验证码" type="text" />
-              </ion-item>
-
-              <button class="auth-captcha-preview auth-captcha-preview--static" type="button" aria-label="图形验证码">
-                <span class="auth-captcha-preview__bg" />
-                <span class="auth-captcha-line auth-captcha-line--one" />
-                <span class="auth-captcha-line auth-captcha-line--two" />
-                <span class="auth-captcha-dot auth-captcha-dot--one" />
-                <span class="auth-captcha-dot auth-captcha-dot--two" />
-                <span class="auth-captcha-dot auth-captcha-dot--three" />
-                <span class="auth-captcha-chars">
-                  <span class="auth-captcha-char auth-captcha-char--m">m</span>
-                  <span class="auth-captcha-char auth-captcha-char--a">a</span>
-                  <span class="auth-captcha-char auth-captcha-char--s">s</span>
-                  <span class="auth-captcha-char auth-captcha-char--h">H</span>
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <div class="auth-field">
-            <p class="auth-field-label">收到的验证码</p>
-            <div class="auth-code-row">
-              <ion-item class="auth-item auth-item--code">
+        <main class="auth-panel auth-panel--forgot">
+          <ion-list lines="none" class="auth-list">
+            <div class="auth-field">
+              <p class="auth-field-label">邮箱</p>
+              <ion-item class="auth-item">
                 <ion-input
-                  v-model="form.verificationCode"
-                  autocomplete="one-time-code"
-                  inputmode="numeric"
-                  :maxlength="VERIFICATION_CODE_LENGTH"
-                  placeholder="输入验证码"
-                  type="text"
+                  v-model="form.email"
+                  autocomplete="email"
+                  inputmode="email"
+                  placeholder="请输入邮箱"
+                  type="email"
                 />
               </ion-item>
-
-              <ion-button
-                class="auth-code-button"
-                fill="outline"
-                :disabled="isSendingCode || countdown > 0"
-                @click="handleSendVerificationCode"
-              >
-                <ion-spinner v-if="isSendingCode" name="crescent" />
-                <span v-else>{{ sendCodeButtonLabel }}</span>
-              </ion-button>
             </div>
-          </div>
 
-          <div class="auth-field">
-            <p class="auth-field-label">新密码</p>
-            <ion-item class="auth-item">
-              <ion-input
-                v-model="form.newPassword"
-                autocomplete="new-password"
-                placeholder="新密码（8--16位字母和数字组合）"
-                type="password"
-              />
-            </ion-item>
-          </div>
+            <div class="auth-field">
+              <p class="auth-field-label">验证码</p>
+              <div class="auth-captcha-row">
+                <ion-item class="auth-item auth-item--captcha">
+                  <ion-input
+                    v-model="form.graphicCaptcha"
+                    :maxlength="GRAPHIC_CAPTCHA_LENGTH"
+                    autocomplete="off"
+                    autocapitalize="characters"
+                    placeholder="请输入图形验证码"
+                    type="text"
+                  />
+                </ion-item>
 
-          <div class="auth-field auth-field--last">
-            <p class="auth-field-label">确认密码</p>
-            <ion-item class="auth-item">
-              <ion-input
-                v-model="form.confirmPassword"
-                autocomplete="new-password"
-                placeholder="再次输入新密码"
-                type="password"
-              />
-            </ion-item>
-          </div>
-        </ion-list>
+                <button
+                  class="auth-captcha-preview auth-captcha-preview--standalone"
+                  type="button"
+                  aria-label="刷新图形验证码"
+                  @click="refreshGraphicCaptcha"
+                >
+                  <span class="auth-captcha-preview__bg" />
+                  <span class="auth-captcha-line auth-captcha-line--one" />
+                  <span class="auth-captcha-line auth-captcha-line--two" />
+                  <span class="auth-captcha-dot auth-captcha-dot--one" />
+                  <span class="auth-captcha-dot auth-captcha-dot--two" />
+                  <span class="auth-captcha-dot auth-captcha-dot--three" />
+                  <span class="auth-captcha-chars">
+                    <span
+                      v-for="(char, index) in graphicCaptchaChars"
+                      :key="`${char}-${index}`"
+                      class="auth-captcha-char"
+                    >
+                      {{ char }}
+                    </span>
+                  </span>
+                </button>
+              </div>
+            </div>
 
-        <ion-button
-          expand="block"
-          class="auth-submit-button"
-          :disabled="submitting"
-          @click="handleResetPassword"
-        >
-          <ion-spinner v-if="submitting" name="crescent" />
-          <span v-else>确认</span>
-        </ion-button>
-      </section>
+            <div class="auth-field">
+              <p class="auth-field-label">邮箱验证码</p>
+              <div class="auth-code-row">
+                <ion-item class="auth-item auth-item--code">
+                  <ion-input
+                    v-model="form.verificationCode"
+                    autocomplete="one-time-code"
+                    inputmode="numeric"
+                    :maxlength="VERIFICATION_CODE_LENGTH"
+                    placeholder="请输入验证码"
+                    type="text"
+                  />
+                </ion-item>
+
+                <ion-button
+                  class="auth-code-action"
+                  fill="outline"
+                  :disabled="isSendingCode || countdown > 0"
+                  @click="handleSendVerificationCode"
+                >
+                  <ion-spinner v-if="isSendingCode" name="crescent" />
+                  <span v-else>{{ sendCodeButtonLabel }}</span>
+                </ion-button>
+              </div>
+            </div>
+
+            <div class="auth-field">
+              <p class="auth-field-label">新密码</p>
+              <ion-item class="auth-item">
+                <ion-input
+                  v-model="form.newPassword"
+                  autocomplete="new-password"
+                  placeholder="新密码（8-16位字母和数字的组合）"
+                  type="password"
+                />
+              </ion-item>
+            </div>
+
+            <div class="auth-field auth-field--last">
+              <p class="auth-field-label">确认密码</p>
+              <ion-item class="auth-item">
+                <ion-input
+                  v-model="form.confirmPassword"
+                  autocomplete="new-password"
+                  placeholder="再次输入新密码"
+                  type="password"
+                />
+              </ion-item>
+            </div>
+          </ion-list>
+
+          <ion-button
+            expand="block"
+            class="auth-primary-button"
+            :disabled="submitting"
+            @click="handleResetPassword"
+          >
+            <ion-spinner v-if="submitting" name="crescent" />
+            <span v-else>确认</span>
+          </ion-button>
+        </main>
+      </div>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
 import {
-  IonBackButton,
   IonButton,
-  IonButtons,
   IonContent,
-  IonHeader,
   IonInput,
   IonItem,
   IonList,
   IonPage,
   IonSpinner,
-  IonTitle,
-  IonToolbar,
 } from '@ionic/vue'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { resetPassword, sendVerificationCode } from '@/api/auth'
+import AuthBrandHeader from '@/components/auth/AuthBrandHeader.vue'
 import { ROUTE_PATHS } from '@/router/guards'
 import type { ResetPasswordRequest } from '@/types/auth'
 import { showErrorToast, showSuccessToast, showWarningToast } from '@/utils/notify'
@@ -145,6 +147,8 @@ const PASSWORD_MIN_LENGTH = 6
 const PASSWORD_MAX_LENGTH = 20
 const VERIFICATION_CODE_LENGTH = 6
 const VERIFICATION_CODE_SECONDS = 60
+const GRAPHIC_CAPTCHA_LENGTH = 4
+const GRAPHIC_CAPTCHA_POOL = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const router = useRouter()
@@ -153,8 +157,10 @@ const route = useRoute()
 const countdown = ref(0)
 const submitting = ref(false)
 const isSendingCode = ref(false)
+const graphicCaptchaSeed = ref(Date.now())
 const form = reactive({
   email: '',
+  graphicCaptcha: '',
   verificationCode: '',
   newPassword: '',
   confirmPassword: '',
@@ -169,6 +175,20 @@ const sendCodeButtonLabel = computed(() => {
 
   return '发送验证码'
 })
+
+const graphicCaptchaValue = computed(() => {
+  const chars: string[] = []
+  let seed = graphicCaptchaSeed.value
+
+  for (let index = 0; index < GRAPHIC_CAPTCHA_LENGTH; index += 1) {
+    seed = (seed * 9301 + 49297) % 233280
+    chars.push(GRAPHIC_CAPTCHA_POOL[Math.floor((seed / 233280) * GRAPHIC_CAPTCHA_POOL.length)])
+  }
+
+  return chars.join('')
+})
+
+const graphicCaptchaChars = computed(() => graphicCaptchaValue.value.split(''))
 
 const resolveErrorMessage = (error: unknown, fallbackMessage: string) => {
   if (error instanceof Error && error.message) {
@@ -204,6 +224,29 @@ const startCountdown = () => {
 
 const normalizeEmail = () => form.email.trim()
 
+const refreshGraphicCaptcha = () => {
+  graphicCaptchaSeed.value = Date.now() + Math.floor(Math.random() * 1000)
+  form.graphicCaptcha = ''
+}
+
+const validateGraphicCaptcha = () => {
+  const inputValue = form.graphicCaptcha.trim().toLowerCase()
+  const expectedValue = graphicCaptchaValue.value.toLowerCase()
+
+  if (!inputValue) {
+    showWarningToast('请输入图形验证码')
+    return false
+  }
+
+  if (inputValue !== expectedValue) {
+    showWarningToast('图形验证码不正确，请重新输入')
+    refreshGraphicCaptcha()
+    return false
+  }
+
+  return true
+}
+
 const applyEmailPrefill = (emailQuery: unknown) => {
   if (typeof emailQuery !== 'string') {
     return
@@ -230,6 +273,15 @@ const buildLoginRouteLocation = () => {
       email,
     },
   }
+}
+
+const handleBackToLogin = async () => {
+  if (window.history.length > 1) {
+    await router.back()
+    return
+  }
+
+  await router.replace(buildLoginRouteLocation())
 }
 
 const validateEmail = () => {
@@ -306,7 +358,7 @@ const handleSendVerificationCode = async () => {
   }
 
   const email = validateEmail()
-  if (!email) {
+  if (!email || !validateGraphicCaptcha()) {
     return
   }
 
@@ -324,11 +376,13 @@ const handleSendVerificationCode = async () => {
     }
 
     showSuccessToast('验证码已发送，请查收邮箱')
+    refreshGraphicCaptcha()
     startCountdown()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showErrorToast(resolveErrorMessage(error, '验证码发送失败'))
     }
+    refreshGraphicCaptcha()
   } finally {
     isSendingCode.value = false
   }
@@ -379,344 +433,3 @@ onBeforeUnmount(() => {
   clearCountdownTimer()
 })
 </script>
-
-<style scoped>
-.forgot-password-header,
-.forgot-password-toolbar {
-  --background: #ffffff;
-  --border-color: transparent;
-  --min-height: 52px;
-  box-shadow: none;
-  background: #ffffff;
-}
-
-.forgot-password-toolbar__title {
-  opacity: 0;
-}
-
-.forgot-password-back {
-  --color: #1f2128;
-  --icon-font-size: 28px;
-  --padding-start: 0;
-  --padding-end: 0;
-  margin-left: 10px;
-}
-
-.auth-page {
-  --background: #ffffff;
-}
-
-.forgot-password-page {
-  /* ion-header translucent + fullscreen already offsets the iOS safe-area top */
-  --padding-top: 4px;
-  --padding-bottom: calc(20px + var(--app-safe-bottom));
-  --padding-start: 24px;
-  --padding-end: 24px;
-  overflow: hidden;
-}
-
-.forgot-password-layout {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.forgot-password-heading {
-  padding-top: 18px;
-  margin-bottom: calc(var(--ios-pms-space-5) + var(--ios-pms-space-5));
-}
-
-.forgot-password-title {
-  margin: 0;
-  color: #1f2128;
-  font-size: clamp(34px, 10vw, 54px);
-  font-weight: 400;
-  line-height: 1.08;
-  letter-spacing: 0;
-}
-
-.auth-list {
-  margin: 0;
-  background: transparent;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.auth-field {
-  margin-bottom: 0;
-}
-
-.auth-field-label {
-  margin: 0 0 10px 2px;
-  color: #666b74;
-  font-size: clamp(16px, 4.9vw, 19px);
-  font-weight: 400;
-  line-height: 1.32;
-}
-
-.auth-item {
-  --auth-input-height: clamp(54px, 13.5vw, 64px);
-  --background: #fcfcfc;
-  --border-radius: 18px;
-  --padding-start: 20px;
-  --padding-end: 20px;
-  --inner-padding-end: 0;
-  --inner-padding-top: 0;
-  --inner-padding-bottom: 5px;
-  --highlight-height: 0;
-  --min-height: var(--auth-input-height);
-  height: var(--auth-input-height);
-  min-height: var(--auth-input-height);
-  margin: 0;
-  border: 2px solid #dde1e6;
-  border-radius: 18px;
-  box-shadow: none;
-}
-
-.auth-item::part(native) {
-  min-height: var(--auth-input-height);
-  height: var(--auth-input-height);
-  padding-top: 0;
-  padding-bottom: 0;
-  display: flex;
-  align-items: center;
-}
-
-.auth-captcha-row,
-.auth-code-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 126px;
-  gap: 14px;
-  align-items: stretch;
-}
-
-.auth-item--captcha,
-.auth-item--code {
-  min-width: 0;
-}
-
-.auth-captcha-preview {
-  position: relative;
-  overflow: hidden;
-  min-height: clamp(54px, 13.5vw, 64px);
-  border: 0;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #efe7ff 0%, #e3edff 54%, #f5ebff 100%);
-  padding: 0 12px;
-}
-
-.auth-captcha-preview__bg {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 16% 22%, rgba(255, 255, 255, 0.95) 0, rgba(255, 255, 255, 0) 18%),
-    radial-gradient(circle at 84% 26%, rgba(206, 192, 255, 0.58) 0, rgba(206, 192, 255, 0) 28%),
-    radial-gradient(circle at 66% 78%, rgba(190, 228, 255, 0.5) 0, rgba(190, 228, 255, 0) 24%);
-}
-
-.auth-captcha-chars {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 100%;
-  font-size: 28px;
-  font-weight: 600;
-  letter-spacing: 2px;
-}
-
-.auth-captcha-char {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
-}
-
-.auth-captcha-char--m {
-  color: #b01778;
-  transform: rotate(-12deg) translateY(1px);
-}
-
-.auth-captcha-char--a {
-  color: #cd4c42;
-  transform: rotate(-6deg) translateY(3px);
-}
-
-.auth-captcha-char--s {
-  color: #94403e;
-  transform: rotate(8deg) translateY(5px);
-}
-
-.auth-captcha-char--h {
-  color: #4f3c33;
-  transform: rotate(13deg) translateY(-1px);
-}
-
-.auth-captcha-line,
-.auth-captcha-dot {
-  position: absolute;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.auth-captcha-line {
-  height: 2px;
-  border-radius: 999px;
-}
-
-.auth-captcha-line--one {
-  left: 8%;
-  top: 32%;
-  width: 78%;
-  transform: rotate(14deg);
-  background: rgba(121, 92, 188, 0.32);
-}
-
-.auth-captcha-line--two {
-  left: 20%;
-  top: 64%;
-  width: 64%;
-  transform: rotate(-18deg);
-  background: rgba(74, 126, 215, 0.28);
-}
-
-.auth-captcha-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-}
-
-.auth-captcha-dot--one {
-  left: 14%;
-  top: 70%;
-  background: rgba(230, 152, 207, 0.62);
-}
-
-.auth-captcha-dot--two {
-  left: 48%;
-  top: 20%;
-  background: rgba(255, 220, 126, 0.7);
-}
-
-.auth-captcha-dot--three {
-  right: 14%;
-  top: 74%;
-  background: rgba(153, 208, 255, 0.72);
-}
-
-.auth-code-button {
-  margin: 0;
-  min-height: clamp(54px, 13.5vw, 64px);
-  font-size: clamp(14px, 4vw, 16px);
-  font-weight: 400;
-  letter-spacing: 0;
-  white-space: nowrap;
-  --border-radius: 18px;
-  --border-color: #dde1e6;
-  --border-style: solid;
-  --border-width: 2px;
-  --background: #ffffff;
-  --background-activated: #ffffff;
-  --background-hover: #ffffff;
-  --background-focused: #ffffff;
-  --color: #1f2128;
-  --box-shadow: none;
-}
-
-.auth-submit-button {
-  margin-top: 36px;
-  min-height: clamp(58px, 14.5vw, 68px);
-  font-size: clamp(22px, 6vw, 26px);
-  font-weight: 400;
-  letter-spacing: 0;
-  --border-radius: 20px;
-  --background: #3484ea;
-  --background-activated: #2e77d4;
-  --background-focused: #2e77d4;
-  --background-hover: #2e77d4;
-  --box-shadow: 0 8px 18px rgba(52, 132, 234, 0.2);
-  --color: #ffffff;
-}
-
-:deep(.auth-item ion-input) {
-  width: 100%;
-  height: 100%;
-  min-height: 100%;
-  display: flex;
-  align-items: center;
-  --padding-top: 0;
-  --padding-bottom: 0;
-  --placeholder-color: #c4c8cf;
-  --placeholder-opacity: 1;
-  --placeholder-font-size: clamp(14px, 4.2vw, 17px);
-}
-
-:deep(.auth-item ion-input::part(native)) {
-  height: auto;
-  min-height: 0;
-  line-height: 1.2;
-}
-
-:deep(.auth-item .input-wrapper),
-:deep(.auth-item .native-wrapper) {
-  height: 100%;
-  min-height: 100%;
-  display: flex;
-  align-items: center;
-}
-
-:deep(.auth-item .native-input),
-:deep(.auth-item input) {
-  color: #1f2128;
-  font-size: clamp(16px, 5.1vw, 20px);
-  font-weight: 400;
-  height: auto;
-  min-height: 0;
-  box-sizing: border-box;
-  margin: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  line-height: 1.2;
-}
-
-:deep(.auth-item input::placeholder),
-:deep(.auth-item .native-input::placeholder) {
-  font-size: clamp(14px, 4.2vw, 17px);
-}
-
-:deep(.auth-code-button.button-disabled) {
-  opacity: 1;
-}
-
-:deep(.auth-code-button.button-disabled .button-native) {
-  opacity: 1;
-  color: #b7bcc6;
-  background: #ffffff;
-  border-color: #dde1e6;
-}
-
-:deep(.auth-submit-button .button-native),
-:deep(.auth-code-button .button-native) {
-  border-radius: inherit;
-}
-
-:deep(.auth-code-button .button-native) {
-  white-space: nowrap;
-  font-size: clamp(14px, 4vw, 16px);
-}
-
-@media (min-width: 768px) {
-  .forgot-password-page {
-    --padding-start: 40px;
-    --padding-end: 40px;
-  }
-
-  .forgot-password-layout {
-    max-width: 640px;
-    margin: 0 auto;
-  }
-}
-</style>
