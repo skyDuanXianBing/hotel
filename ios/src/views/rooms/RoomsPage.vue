@@ -1241,18 +1241,19 @@ onIonViewWillEnter(async () => {
 .rooms-header__toolbar {
   --background: #ffffff;
   --border-width: 0;
-  --min-height: 58px;
+  --min-height: 48px;
   padding-top: max(var(--app-safe-top), 0px);
 }
 
 .rooms-header__bar {
   position: relative;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 50px;
-  gap: 8px;
-  padding: 8px 34px 8px 20px;
+  min-height: 48px;
+  gap: 6px;
+  padding: 5px 14px;
 }
 
 .rooms-header__title {
@@ -1263,7 +1264,7 @@ onIonViewWillEnter(async () => {
   padding: 0;
   margin: 0;
   color: var(--ios-pms-header-title-color);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 500;
   letter-spacing: 0;
   text-align: center;
@@ -1275,9 +1276,9 @@ onIonViewWillEnter(async () => {
 .rooms-header__actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 5px;
   flex-shrink: 0;
-  min-width: 30px;
+  min-width: 27px;
 }
 
 .rooms-header__actions--left {
@@ -1290,10 +1291,12 @@ onIonViewWillEnter(async () => {
 
 .rooms-header__icon {
   appearance: none;
+  box-sizing: border-box;
   border: 1px solid #eef0f3;
   background: #ffffff;
-  width: 34px;
-  height: 34px;
+  width: 27px;
+  height: 27px;
+  padding: 0;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
@@ -1315,7 +1318,7 @@ onIonViewWillEnter(async () => {
 }
 
 .rooms-header__icon ion-icon {
-  font-size: 15px;
+  font-size: 13px;
   stroke-width: 2;
 }
 

@@ -247,8 +247,8 @@ type RowCell =
       truncatedEnd: boolean
     }
 
-const ROOM_COLUMN_WIDTH = 96
-const DAY_MIN_WIDTH = 68
+const ROOM_COLUMN_WIDTH = 58
+const DAY_MIN_WIDTH = 63
 const LOAD_NEXT_WINDOW_THRESHOLD_PX = DAY_MIN_WIDTH
 
 const props = withDefaults(
@@ -807,11 +807,15 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 .room-calendar__row {
   display: grid;
   align-items: stretch;
+  box-sizing: border-box;
   background: #ffffff;
   border-bottom: 1px solid #e7e8eb;
 }
 
 .room-calendar__row--header {
+  height: 70px;
+  min-height: 70px;
+  max-height: 70px;
   background: #ffffff;
   border-bottom: 1px solid #e4e5e8;
   box-shadow: none;
@@ -822,22 +826,33 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 }
 
 .room-calendar__row--group {
-  min-height: 62px;
+  height: 24px;
+  min-height: 24px;
+  max-height: 24px;
   background: #ffffff;
+}
+
+.room-calendar__row:not(.room-calendar__row--header):not(.room-calendar__row--group) {
+  height: 48px;
+  min-height: 48px;
+  max-height: 48px;
 }
 
 .room-calendar__corner {
   position: sticky;
   left: 0;
   z-index: 10;
+  box-sizing: border-box;
   border: none;
   border-right: 1px solid #e4e5e8;
-  min-height: 96px;
-  padding: 0 8px;
+  height: 70px;
+  min-height: 70px;
+  max-height: 70px;
+  padding: 0 3px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
   background: #ffffff;
   box-shadow: none;
 }
@@ -853,7 +868,7 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 
 .room-calendar__corner-date {
   color: #333333;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 400;
   letter-spacing: 0;
   line-height: 1;
@@ -862,41 +877,44 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 
 .room-calendar__corner-caret {
   flex-shrink: 0;
-  font-size: 14px;
+  font-size: 10px;
   color: #333333;
 }
 
 .room-calendar__day {
   appearance: none;
+  box-sizing: border-box;
   border: none;
   border-right: 1px solid #e4e5e8;
   background: transparent;
   color: #333333;
-  padding: 10px 4px 12px;
+  height: 70px;
+  min-height: 70px;
+  max-height: 70px;
+  padding: 4px 2px;
   display: grid;
   align-items: center;
   justify-items: center;
-  gap: 8px;
-  min-height: 96px;
+  gap: 3px;
 }
 
 .room-calendar__day-number {
   position: relative;
-  width: 34px;
-  height: 34px;
+  width: 25px;
+  height: 25px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   background: #f5f6fb;
   color: #333333;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 1;
   box-shadow: none;
 }
 
 .room-calendar__day-weekday {
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 400;
   color: #333333;
   line-height: 1;
@@ -906,12 +924,12 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 27px;
-  padding: 0 9px;
+  min-height: 16px;
+  padding: 0 4px;
   border-radius: 999px;
   background: #f5f6fb;
   color: #333333;
-  font-size: 15px;
+  font-size: 11px;
   font-weight: 400;
 }
 
@@ -982,7 +1000,10 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   display: flex;
   align-items: center;
   gap: 0;
-  padding: 0 8px 0 10px;
+  height: 24px;
+  min-height: 24px;
+  max-height: 24px;
+  padding: 0 4px 0 5px;
   border-left: 2px solid #1096d8;
   border-right: 1px solid #e4e5e8;
   background: #ffffff;
@@ -996,12 +1017,12 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 .room-calendar__group-label-text {
   min-width: 0;
   max-width: 100%;
-  font-size: 14px;
+  font-size: 10px;
   font-weight: 400;
-  line-height: 1.35;
+  line-height: 1.05;
   color: #1096d8;
   overflow: hidden;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1009,12 +1030,15 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 }
 
 .room-calendar__group-cell {
+  box-sizing: border-box;
   display: grid;
   place-items: center;
-  min-height: 62px;
+  height: 24px;
+  min-height: 24px;
+  max-height: 24px;
   border-right: 1px solid #e4e5e8;
   color: #333333;
-  font-size: 16px;
+  font-size: 12px;
   font-weight: 400;
 }
 
@@ -1036,16 +1060,19 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   position: sticky;
   left: 0;
   z-index: 4;
+  box-sizing: border-box;
   min-width: 0;
   background: #ffffff;
   border: none;
   border-right: 1px solid #e4e5e8;
-  padding: 8px 8px 8px 12px;
+  height: 48px;
+  min-height: 48px;
+  max-height: 48px;
+  padding: 4px 4px 4px 6px;
   display: grid;
   align-content: center;
   justify-items: start;
-  gap: 4px;
-  min-height: 72px;
+  gap: 2px;
   color: #333333;
   box-shadow: none;
 }
@@ -1068,16 +1095,13 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 
 .room-calendar__room-number {
   max-width: 100%;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 400;
   line-height: 1.2;
   letter-spacing: 0;
   overflow: hidden;
-  overflow-wrap: anywhere;
   text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
 }
 
 .room-calendar__room-flags {
@@ -1092,12 +1116,12 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 15px;
-  padding: 0 5px;
+  min-height: 12px;
+  padding: 0 3px;
   border-radius: 999px;
   background: rgba(239, 68, 68, 0.12);
   color: #d53535;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   line-height: 1;
 }
@@ -1113,20 +1137,23 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 }
 
 .room-calendar__room-flag {
-  font-size: 11px;
+  font-size: 9px;
   color: #f59e0b;
 }
 
 .room-calendar__cell,
 .room-calendar__reservation {
   appearance: none;
+  box-sizing: border-box;
   min-width: 0;
   border: none;
   border-right: 1px solid #e4e5e8;
   background: #ffffff;
   color: #333333;
-  min-height: 72px;
-  padding: 6px;
+  height: 48px;
+  min-height: 48px;
+  max-height: 48px;
+  padding: 2px;
   display: flex;
   align-items: center;
   text-align: left;
@@ -1135,7 +1162,7 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 .room-calendar__cell {
   justify-content: center;
   color: #333333;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 400;
   background: #ffffff;
 }
@@ -1157,7 +1184,7 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 
 .room-calendar__cell.is-available {
   color: #399018;
-  font-size: 15px;
+  font-size: 12px;
   background: #f0ffea;
 }
 
@@ -1176,14 +1203,14 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 }
 
 .room-calendar__cell-content {
-  line-height: 1.25;
+  line-height: 1.1;
   white-space: normal;
 }
 
 .room-calendar__cell-content--available {
   display: grid;
   justify-items: center;
-  gap: 4px;
+  gap: 2px;
   color: #639a49;
   line-height: 1.1;
 }
@@ -1194,14 +1221,14 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   justify-content: center;
   gap: 4px;
   color: #639a49;
-  font-size: 14px;
+  font-size: 10px;
   line-height: 1;
 }
 
 .room-calendar__cell-meta ion-icon {
-  width: 14px;
-  height: 14px;
-  font-size: 14px;
+  width: 10px;
+  height: 10px;
+  font-size: 10px;
 }
 
 .room-calendar__reservation {
@@ -1209,9 +1236,12 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
-  gap: 5px;
-  margin: 4px 0 4px 0;
-  padding: 6px 10px 6px 11px;
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  gap: 1px;
+  margin: 2px 0;
+  padding: 2px 5px 2px 6px;
   background: var(--reservation-bg, #ead9c6);
   color: var(--reservation-text, #ffffff);
   overflow: hidden;
@@ -1220,8 +1250,8 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 }
 
 .room-calendar__reservation.is-compact-span {
-  gap: 4px;
-  padding: 6px 5px;
+  gap: 1px;
+  padding: 2px 4px;
 }
 
 .room-calendar__reservation::after {
@@ -1314,23 +1344,21 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   position: relative;
   z-index: 1;
   width: 100%;
-  font-size: 16px;
+  font-size: 11px;
   font-weight: 400;
-  line-height: 1.18;
+  line-height: 12px;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  display: block;
+  white-space: nowrap;
 }
 
 .room-calendar__reservation.is-compact-span .room-calendar__reservation-guest {
   display: block;
   white-space: nowrap;
-  -webkit-line-clamp: unset;
-  font-size: 13px;
-  line-height: 1.15;
+  font-size: 10px;
+  line-height: 11px;
 }
 
 .room-calendar__reservation-channel {
@@ -1339,12 +1367,13 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  min-height: 24px;
-  padding: 0 10px;
-  border-radius: 5px;
+  min-height: 12px;
+  height: 12px;
+  padding: 0 4px;
+  border-radius: 3px;
   background: var(--reservation-pill-bg, rgba(255, 255, 255, 0.28));
   color: rgba(255, 255, 255, 0.96);
-  font-size: 14px;
+  font-size: 9px;
   font-weight: 400;
   line-height: 1;
   max-width: 100%;
@@ -1354,10 +1383,11 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 }
 
 .room-calendar__reservation.is-compact-span .room-calendar__reservation-channel {
-  min-height: 18px;
-  padding: 0 5px;
-  border-radius: 4px;
-  font-size: 10px;
+  min-height: 12px;
+  height: 12px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 8px;
   max-width: 100%;
 }
 
@@ -1367,23 +1397,24 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  min-height: 24px;
-  padding: 0 10px;
-  border-radius: 5px;
+  min-height: 12px;
+  height: 12px;
+  padding: 0 4px;
+  border-radius: 3px;
   background: rgba(255, 255, 255, 0.34);
   color: rgba(255, 255, 255, 0.92);
-  font-size: 14px;
+  font-size: 9px;
   font-weight: 400;
   line-height: 1;
 }
 
 .room-calendar__reservation-note-dot {
   position: absolute;
-  right: 5px;
-  bottom: 5px;
+  right: 3px;
+  bottom: 3px;
   z-index: 2;
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.24);
