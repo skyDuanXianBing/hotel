@@ -15,7 +15,7 @@
       </ion-refresher>
 
       <div class="home-shell">
-        <section class="home-hero home-surface home-surface--hero">
+        <section class="home-hero home-surface home-surface--hero mobile-dashboard-surface">
           <div class="home-hero__row">
             <div class="home-hero__content">
               <h1 class="home-hero__name">{{ storeName }}</h1>
@@ -581,7 +581,7 @@ onIonViewWillEnter(async () => {
 <style scoped>
 .home-page {
   display: block;
-  --background: var(--ios-pms-bg-page);
+  --background: var(--ios-pms-dashboard-page-background);
 }
 
 ion-header {
@@ -592,42 +592,17 @@ ion-header::after {
   display: none;
 }
 
-ion-toolbar {
-  --padding-start: 14px;
-  --padding-end: 14px;
-  --min-height: 56px;
-}
-
-ion-toolbar ion-buttons[slot='end'] {
-  align-self: stretch;
-  display: flex;
-  align-items: center;
-  height: 56px;
-  margin: 0;
-}
-
 .app-page-header__title {
-  font-size: 22px;
+  font-size: var(--ios-pms-font-title-xl-size);
   font-weight: 500;
-  letter-spacing: 0;
+  letter-spacing: -0.04em;
 }
 
 .app-page-header__text-btn {
-  --color: #686868;
-  align-self: stretch;
-  height: 56px;
-  min-height: 56px;
-  margin: 0;
-  font-size: 16px;
+  --color: var(--ios-pms-header-control-color);
+  font-size: var(--ios-pms-font-body-md-size);
   font-weight: 400;
-  letter-spacing: 0;
-}
-
-.app-page-header__text-btn::part(native) {
-  display: flex;
-  align-items: center;
-  height: 100%;
-  min-height: 56px;
+  letter-spacing: -0.01em;
 }
 
 .mobile-toolbar-title {
@@ -660,10 +635,7 @@ ion-toolbar ion-buttons[slot='end'] {
 .home-surface {
   position: relative;
   overflow: hidden;
-  border: 1px solid var(--ios-pms-border-soft);
   border-radius: var(--ios-pms-radius-card-sm);
-  background: rgba(250, 252, 254, 0.7);
-  box-shadow: var(--ios-pms-shadow-card);
 }
 
 .home-surface::before {
@@ -678,7 +650,6 @@ ion-toolbar ion-buttons[slot='end'] {
   box-sizing: border-box;
   min-height: 120px;
   padding: 20px 16px 18px;
-  background: rgba(250, 252, 254, 0.7);
 }
 
 .home-hero__row {

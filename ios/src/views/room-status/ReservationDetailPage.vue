@@ -1344,14 +1344,14 @@ onMounted(async () => {
 }
 
 .app-page-header__title {
-  color: #333333;
+  color: var(--ios-pms-header-title-color);
   font-size: 18px;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0;
 }
 
 .app-page-header__back-btn {
-  --color: #777777;
+  --color: var(--ios-pms-header-control-color);
   font-size: 16px;
   font-weight: 400;
 }

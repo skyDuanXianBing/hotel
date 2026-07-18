@@ -221,11 +221,11 @@ onIonViewWillEnter(async () => {
 }
 
 .channels-page__back-btn {
-  --color: #717171;
+  --color: var(--ios-pms-header-control-color);
 }
 
 .channels-page__title {
-  color: #303030;
+  color: var(--ios-pms-header-title-color);
   font-size: 21px;
   font-weight: 500;
   letter-spacing: 0;

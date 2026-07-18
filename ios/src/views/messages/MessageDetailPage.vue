@@ -22,7 +22,11 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content ref="contentRef" fullscreen class="mobile-page message-detail-page">
+    <ion-content
+      ref="contentRef"
+      fullscreen
+      class="mobile-page message-detail-page"
+    >
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
         <ion-refresher-content pulling-text="下拉刷新会话" refreshing-spinner="crescent" />
       </ion-refresher>
@@ -32,15 +36,38 @@
         <span>{{ loadNotice || '同步中...' }}</span>
       </div>
 
-      <section v-if="messages.length > 0" class="message-thread-stream">
+      <section
+        v-if="messages.length > 0"
+        ref="messageStreamRef"
+        class="message-thread-stream"
+      >
         <article
           v-for="message in messages"
           :key="message.id"
+          v-memo="[
+            translationEnabled,
+            message.id,
+            message.content,
+            message.timestamp,
+            message.deliveryStatus,
+            getTranslatedMessageText(message),
+            shouldShowTranslationPending(message),
+            activeThreadAvatarVars,
+          ]"
+          :data-message-id="message.id"
           class="message-row"
           :class="message.senderType === MessageSenderType.STAFF ? 'is-staff' : 'is-guest'"
         >
-          <div class="message-row__avatar" aria-hidden="true">
-            {{ resolveMessageAvatarLabel(message) }}
+          <div
+            class="message-row__avatar"
+            :style="
+              message.senderType === MessageSenderType.STAFF
+                ? undefined
+                : activeThreadAvatarVars
+            "
+            aria-hidden="true"
+          >
+            <span>{{ resolveMessageAvatarLabel(message) }}</span>
           </div>
           <div class="message-row__body">
             <div class="message-bubble">
@@ -68,6 +95,15 @@
               <ion-spinner name="crescent" />
               <span>正在翻译...</span>
             </div>
+            <button
+              v-else-if="shouldShowTranslationAction(message)"
+              type="button"
+              class="message-translation-action"
+              @click.stop="handleTranslateMessage(message)"
+            >
+              <ion-icon :icon="languageOutline" />
+              翻译
+            </button>
             <div class="message-row__meta">
               <span>{{ formatDateTime(message.timestamp) }}</span>
               <span v-if="message.deliveryStatus === 'FAILED'" class="message-row__failed">发送失败</span>
@@ -112,118 +148,132 @@
           </ion-button>
         </div>
       </div>
-
-      <ion-modal class="message-ai-modal" :is-open="aiDraftOpen" @didDismiss="handleDismissAiDraft">
-        <ion-header translucent class="message-ai-modal__header">
-          <ion-toolbar class="message-ai-modal__toolbar">
-            <ion-title>AI 回复草稿</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="handleDismissAiDraft">关闭</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-
-        <ion-content class="mobile-page message-draft-modal-page message-ai-modal__page">
-          <section class="mobile-card message-draft-card message-ai-sheet">
-            <label class="message-editor-card__field message-ai-field">
-              <span>上下文摘要</span>
-              <ion-textarea class="message-ai-textarea message-ai-textarea--readonly" :value="aiContextSummary" :rows="4" fill="outline" readonly />
-            </label>
-
-            <label class="message-editor-card__field message-ai-field">
-              <span>补充要求</span>
-              <ion-textarea
-                v-model="aiInstruction"
-                :rows="3"
-                class="message-ai-textarea"
-                fill="outline"
-                placeholder="例如：更礼貌、加入入住步骤、简短一些"
-              />
-            </label>
-
-            <label class="message-editor-card__field message-ai-field">
-              <span>回复草稿</span>
-              <ion-textarea v-model="aiDraft" :rows="8" fill="outline" placeholder="AI 草稿会显示在这里" />
-            </label>
-
-            <div class="message-editor-card__actions">
-              <ion-button class="message-ai-button message-ai-button--secondary" fill="outline" :disabled="draftLoading" @click="handleGenerateAiDraft">
-                {{ draftLoading ? '生成中...' : '重新生成' }}
-              </ion-button>
-              <ion-button
-                class="message-ai-button message-ai-button--secondary"
-                fill="outline"
-                :disabled="draftLoading || !aiDraft.trim()"
-                @click="handleOpenAiPolish"
-              >
-                继续优化
-              </ion-button>
-              <ion-button
-                class="message-ai-button message-ai-button--secondary"
-                fill="outline"
-                :disabled="draftLoading || !aiDraft.trim()"
-                @click="handleUseAiDraft"
-              >
-                回填输入框
-              </ion-button>
-              <ion-button class="message-ai-button message-ai-button--primary" :disabled="draftLoading || !aiDraft.trim()" @click="handleSendAiDraft">
-                发送草稿
-              </ion-button>
-            </div>
-          </section>
-        </ion-content>
-      </ion-modal>
-
-      <ion-modal class="message-ai-modal" :is-open="aiPolishOpen" @didDismiss="handleDismissAiPolish">
-        <ion-header translucent class="message-ai-modal__header">
-          <ion-toolbar class="message-ai-modal__toolbar">
-            <ion-title>继续优化 AI 草稿</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="handleDismissAiPolish">完成</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-
-        <ion-content class="mobile-page message-draft-modal-page message-ai-modal__page">
-          <section class="mobile-card message-draft-card message-ai-sheet">
-            <div class="message-ai-sheet__intro">
-              <h2 class="mobile-section-title">优化历史</h2>
-              <p class="mobile-note">保留本轮优化指令与 AI 返回结果，方便继续微调。</p>
-            </div>
-
-            <div v-if="aiPolishHistory.length > 0" class="ai-polish-history-list">
-              <article
-                v-for="(item, index) in aiPolishHistory"
-                :key="`${item.role}-${index}`"
-                :class="item.role === 'user' ? 'ai-polish-history-item is-user' : 'ai-polish-history-item is-assistant'"
-              >
-                <strong>{{ item.role === 'user' ? '你' : 'AI' }}</strong>
-                <p>{{ item.content }}</p>
-              </article>
-            </div>
-            <p v-else class="mobile-note">输入你希望优化的方向，例如更礼貌、更简短或增加入住步骤说明。</p>
-
-            <label class="message-editor-card__field message-ai-field">
-              <span>优化要求</span>
-              <ion-textarea
-                v-model="aiPolishInstruction"
-                :rows="4"
-                class="message-ai-textarea"
-                fill="outline"
-                placeholder="告诉 AI 你希望怎样改写当前草稿"
-              />
-            </label>
-
-            <div class="message-editor-card__actions">
-              <ion-button fill="outline" :disabled="aiPolishLoading" @click="handleDismissAiPolish">关闭</ion-button>
-              <ion-button :disabled="aiPolishLoading || !aiPolishInstruction.trim()" @click="handlePolishAiDraft">
-                {{ aiPolishLoading ? '优化中...' : '生成改进版并回填' }}
-              </ion-button>
-            </div>
-          </section>
-        </ion-content>
-      </ion-modal>
     </ion-content>
+
+    <ion-modal
+      class="message-ai-modal"
+      :is-open="aiDraftOpen"
+      @didDismiss="handleDismissAiDraft"
+    >
+      <ion-header translucent class="message-ai-page__header">
+        <ion-toolbar class="message-ai-page__toolbar">
+          <ion-buttons slot="start">
+            <ion-button
+              class="message-ai-page__back"
+              fill="clear"
+              aria-label="返回对话"
+              @click="handleDismissAiDraft"
+            >
+              <ion-icon :icon="chevronBackOutline" />
+              <span>返回</span>
+            </ion-button>
+          </ion-buttons>
+          <ion-title>AI回复草稿</ion-title>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="mobile-page mobile-page--dashboard message-ai-page">
+        <div class="message-ai-page-shell">
+          <section class="message-ai-page-card">
+            <section class="message-ai-section message-ai-section--draft">
+              <h2 class="message-ai-section__title">
+                {{
+                  isAiDraftTranslationView
+                    ? `员工参考译文(${aiDraftTranslationLanguageLabel})`
+                    : '初始回复草稿（可直接编辑）'
+                }}
+              </h2>
+
+              <div class="message-ai-input-frame message-ai-textarea-shell">
+                <ion-textarea
+                  v-if="!isAiDraftTranslationView"
+                  v-model="aiDraft"
+                  :rows="8"
+                  class="message-ai-textarea message-ai-textarea--draft"
+                  :placeholder="draftLoading ? 'AI 正在生成回复草稿...' : 'AI 草稿会显示在这里'"
+                />
+                <ion-textarea
+                  v-else
+                  :value="aiDraftTranslation"
+                  :rows="8"
+                  class="message-ai-textarea message-ai-textarea--draft message-ai-textarea--translation"
+                  readonly
+                />
+                <div v-if="draftLoading" class="message-ai-textarea-shell__loading">
+                  <ion-spinner name="crescent" />
+                  <span>正在生成...</span>
+                </div>
+              </div>
+
+              <div class="message-ai-section__actions">
+                <ion-button
+                  class="message-ai-action-button"
+                  :class="{ 'message-ai-action-button--return': isAiDraftTranslationView }"
+                  :disabled="
+                    draftLoading ||
+                    aiPolishLoading ||
+                    aiDraftTranslationLoading ||
+                    !aiDraft.trim()
+                  "
+                  @click="handleToggleAiDraftTranslation"
+                >
+                  {{
+                    aiDraftTranslationLoading
+                      ? '翻译中...'
+                      : isAiDraftTranslationView
+                        ? '返回'
+                        : '翻译'
+                  }}
+                </ion-button>
+              </div>
+            </section>
+
+            <section class="message-ai-section message-ai-section--instruction">
+              <h2 class="message-ai-section__title">补充要求</h2>
+              <p class="message-ai-section__description">
+                输入你想优化的方向，例如：更礼貌、加入入住步骤、简约
+              </p>
+
+              <div class="message-ai-input-frame">
+                <ion-textarea
+                  v-model="aiInstruction"
+                  :rows="3"
+                  class="message-ai-textarea message-ai-textarea--instruction"
+                  placeholder="告诉GPT你想怎么修改"
+                />
+              </div>
+
+              <div class="message-ai-section__actions">
+                <ion-button
+                  class="message-ai-action-button"
+                  :disabled="
+                    draftLoading ||
+                    aiPolishLoading ||
+                    aiDraftTranslationLoading ||
+                    !aiDraft.trim() ||
+                    !aiInstruction.trim()
+                  "
+                  @click="handlePolishAiDraft"
+                >
+                  {{ aiPolishLoading ? '润色中...' : '润色并重新生成' }}
+                </ion-button>
+              </div>
+            </section>
+
+            <ion-button
+              class="message-ai-fill-button"
+              expand="block"
+              :disabled="
+                draftLoading || aiPolishLoading || aiDraftTranslationLoading || !aiDraft.trim()
+              "
+              @click="handleUseAiDraft"
+            >
+              回填到对话框
+            </ion-button>
+          </section>
+        </div>
+      </ion-content>
+    </ion-modal>
   </ion-page>
 </template>
 
@@ -234,6 +284,7 @@ import {
   IonButtons,
   IonContent,
   IonHeader,
+  IonIcon,
   IonModal,
   IonPage,
   IonRefresher,
@@ -245,6 +296,7 @@ import {
   onIonViewWillEnter,
   onIonViewWillLeave,
 } from '@ionic/vue'
+import { chevronBackOutline, languageOutline } from 'ionicons/icons'
 import { computed, nextTick, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -254,34 +306,47 @@ import {
   pollThreadMessages,
   sendAiChatMessage,
   sendThreadMessage,
+  translateThreadMessage,
 } from '@/api/message'
 import { getReservationsWithFilters, type ReservationDTO } from '@/api/reservation'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import type { MessageDTO, MessageThreadDTO } from '@/types/message'
 import { MessageSenderType } from '@/types/message'
+import { createAsyncTaskQueue } from '@/utils/asyncTaskQueue'
+import {
+  getCachedMessageTranslation,
+  setCachedMessageTranslation,
+  type MessageTranslationCacheScope,
+} from '@/utils/messageTranslationCache'
 import { isHandledRequestError } from '@/utils/request'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import {
   loadMessageTranslationSettings,
+  normalizeTranslatedText,
   requestAiMessageTranslation,
+  resolveMessageTranslationLanguageLabel,
   type MessageTranslationLanguageValue,
 } from '@/utils/messageTranslation'
+import {
+  resolveMessageThreadAvatarLabel,
+  resolveMessageThreadAvatarVars,
+} from '@/utils/messageThreadPresentation'
+import { getStoredCurrentStoreId, getStoredUser } from '@/utils/storage'
 import {
   compareStoreDateTimes,
   formatStoreDateTime,
 } from '@/utils/storeBusinessDate'
 
 const MESSAGE_POLL_INTERVAL = 8000
-const INITIAL_TRANSLATION_BATCH_SIZE = 20
-
-interface AiPolishHistoryItem {
-  role: 'user' | 'assistant'
-  content: string
-}
+const INITIAL_TRANSLATION_BATCH_SIZE = 6
+const VISIBLE_TRANSLATION_LIMIT = 8
+const MESSAGE_TRANSLATION_SETTLE_MS = 180
+const MESSAGE_TRANSLATION_TIMEOUT_MS = 45000
 
 interface IonContentScrollTarget {
   scrollToBottom(duration?: number): Promise<void>
+  getScrollElement?(): Promise<HTMLElement>
 }
 
 interface IonTextareaFocusTarget {
@@ -309,6 +374,10 @@ const route = useRoute()
 const router = useRouter()
 const notificationCenterStore = useNotificationCenterStore()
 
+function resolveRouteThreadId() {
+  return Number(route.params.threadId || 0)
+}
+
 const loading = ref(false)
 const sending = ref(false)
 const draftLoading = ref(false)
@@ -322,21 +391,30 @@ const aiDraft = ref('')
 const aiContextSummary = ref('')
 const aiInstruction = ref('')
 const aiSessionId = ref('')
-const aiPolishOpen = ref(false)
 const aiPolishLoading = ref(false)
-const aiPolishInstruction = ref('')
-const aiPolishHistory = ref<AiPolishHistoryItem[]>([])
+const aiDraftTranslationLoading = ref(false)
+const aiDraftTranslation = ref('')
+const aiDraftTranslationSource = ref('')
+const aiDraftTranslationTarget = ref<MessageTranslationLanguageValue | null>(null)
+const isAiDraftTranslationView = ref(false)
 const translationEnabled = ref(false)
 const translationTargetLanguage = ref<MessageTranslationLanguageValue>('zh-CN')
 const translatedMessageMap = ref<Record<string, string>>({})
 const translationPendingMap = ref<Record<string, boolean>>({})
+const translationFailedMap = ref<Record<string, boolean>>({})
 const contentRef = ref<unknown>(null)
 const composerTextareaRef = ref<unknown>(null)
+const messageStreamRef = ref<HTMLElement | null>(null)
+const messageTranslationQueue = createAsyncTaskQueue(2)
+const visibleMessageIds = new Set<number>()
 
 let pollTimer = 0
 let pageRequestToken = 0
+let messageTranslationObserver: IntersectionObserver | null = null
+let messageTranslationTimer = 0
+let messagePageActive = false
 
-const threadId = computed(() => Number(route.params.threadId || 0))
+const threadId = ref(resolveRouteThreadId())
 const defaultBackHref = computed(() => {
   const routeBackHref = route.query.defaultHref
   if (typeof routeBackHref === 'string' && routeBackHref) {
@@ -393,6 +471,16 @@ const threadTitle = computed(() => {
 })
 
 const reservationMatched = computed(() => reservationId.value !== null)
+const activeThreadAvatarVars = computed(() => {
+  if (!activeThread.value) {
+    return undefined
+  }
+
+  return resolveMessageThreadAvatarVars(activeThread.value)
+})
+const aiDraftTranslationLanguageLabel = computed(() =>
+  resolveMessageTranslationLanguageLabel(translationTargetLanguage.value),
+)
 
 const headerCaption = computed(() => {
   if (!activeThread.value) {
@@ -539,6 +627,10 @@ function resolveMessageAvatarLabel(message: MessageDTO) {
     return resolveAvatarCharacter(message.senderName || '店', '店')
   }
 
+  if (activeThread.value) {
+    return resolveMessageThreadAvatarLabel(activeThread.value)
+  }
+
   return resolveAvatarCharacter(resolveSenderLabel(message), '客')
 }
 
@@ -676,16 +768,18 @@ function syncTranslationSettingsFromStorage() {
 
   if (shouldClearCaches) {
     clearTranslationCaches()
+    clearAiDraftTranslation()
   }
 }
 
 function clearTranslationCaches() {
+  stopMessageTranslations()
   translatedMessageMap.value = {}
-  translationPendingMap.value = {}
+  translationFailedMap.value = {}
 }
 
 function getMessageTranslationKey(message: MessageDTO) {
-  return `message:${message.id}:${message.content}`
+  return `message:${message.id}:${translationTargetLanguage.value}:${message.content}`
 }
 
 function getTranslatedMessageText(message: MessageDTO) {
@@ -694,16 +788,11 @@ function getTranslatedMessageText(message: MessageDTO) {
 
 function markTranslationPending(key: string, pending: boolean) {
   if (pending) {
-    translationPendingMap.value = {
-      ...translationPendingMap.value,
-      [key]: true,
-    }
+    translationPendingMap.value[key] = true
     return
   }
 
-  const nextMap = { ...translationPendingMap.value }
-  delete nextMap[key]
-  translationPendingMap.value = nextMap
+  delete translationPendingMap.value[key]
 }
 
 function shouldShowTranslatedMessage(message: MessageDTO) {
@@ -724,51 +813,257 @@ function shouldShowTranslationPending(message: MessageDTO) {
   return Boolean(translationPendingMap.value[key] && !getTranslatedMessageText(message))
 }
 
-function requestAiTranslation(sourceText: string) {
-  return requestAiMessageTranslation(sourceText, translationTargetLanguage.value)
+function shouldShowTranslationAction(message: MessageDTO) {
+  const key = getMessageTranslationKey(message)
+  return Boolean(
+    translationEnabled.value &&
+      message.content.trim() &&
+      !getTranslatedMessageText(message) &&
+      !shouldShowTranslationPending(message) &&
+      (message.senderType === MessageSenderType.STAFF || translationFailedMap.value[key]),
+  )
 }
 
-async function ensureMessageTranslation(message: MessageDTO) {
-  if (!translationEnabled.value || !message.content.trim()) {
+function getTranslationCacheScope(): MessageTranslationCacheScope {
+  return {
+    storeId: getStoredCurrentStoreId(),
+    userId: getStoredUser()?.id,
+    targetLanguage: translationTargetLanguage.value,
+  }
+}
+
+async function requestMessageTranslation(message: MessageDTO, signal: AbortSignal) {
+  if (MESSAGE_API_MOCK_ENABLED) {
+    return requestAiMessageTranslation(message.content, translationTargetLanguage.value, {
+      signal,
+      suppressErrorToast: true,
+    })
+  }
+
+  const messageThreadId = message.threadId || threadId.value
+  const response = await translateThreadMessage(
+    messageThreadId,
+    message.id,
+    {
+      targetLanguage: translationTargetLanguage.value,
+    },
+    {
+      timeoutMs: MESSAGE_TRANSLATION_TIMEOUT_MS,
+      signal,
+      suppressErrorToast: true,
+    },
+  )
+  const translatedText = normalizeTranslatedText(response.data?.translatedContent || '')
+  if (!response.success || !translatedText) {
+    throw new Error(response.message || '翻译消息失败')
+  }
+  return translatedText
+}
+
+async function isConversationNearBottom() {
+  const scrollTarget = resolveContentScrollTarget()
+  if (!scrollTarget?.getScrollElement) {
+    return false
+  }
+
+  try {
+    const scrollElement = await scrollTarget.getScrollElement()
+    return (
+      scrollElement.scrollHeight - scrollElement.scrollTop - scrollElement.clientHeight <= 96
+    )
+  } catch {
+    return false
+  }
+}
+
+async function applyMessageTranslation(message: MessageDTO, translatedText: string) {
+  const normalizedTranslation = translatedText.trim()
+  if (!normalizedTranslation) {
     return
   }
 
   const key = getMessageTranslationKey(message)
-  if (translatedMessageMap.value[key] || translationPendingMap.value[key]) {
+  const shouldPinToBottom = await isConversationNearBottom()
+  if (
+    !messagePageActive ||
+    !translationEnabled.value ||
+    key !== getMessageTranslationKey(message)
+  ) {
     return
   }
 
-  markTranslationPending(key, true)
-  try {
-    const translated = await requestAiTranslation(message.content)
-    if (!translationEnabled.value) {
-      return
-    }
+  translatedMessageMap.value[key] = normalizedTranslation
+  setCachedMessageTranslation(
+    getTranslationCacheScope(),
+    message.content,
+    normalizedTranslation,
+  )
 
-    translatedMessageMap.value = {
-      ...translatedMessageMap.value,
-      [key]: translated,
-    }
-  } catch (error) {
-    console.error('翻译消息失败:', error)
-  } finally {
-    markTranslationPending(key, false)
+  if (shouldPinToBottom) {
+    await scrollToConversationBottom()
   }
 }
 
-async function translateMessagesSequentially(items: MessageDTO[]) {
-  for (const message of items) {
-    await ensureMessageTranslation(message)
-  }
+interface EnsureMessageTranslationOptions {
+  manual?: boolean
+  priority?: number
 }
 
-async function translateCurrentConversation() {
-  if (!translationEnabled.value) {
+function ensureMessageTranslation(
+  message: MessageDTO,
+  options: EnsureMessageTranslationOptions = {},
+) {
+  const sourceText = message.content.trim()
+  if (
+    !messagePageActive ||
+    !translationEnabled.value ||
+    !sourceText ||
+    (!options.manual && message.senderType !== MessageSenderType.GUEST)
+  ) {
     return
   }
 
-  const latestMessages = sortMessages(messages.value).slice(-INITIAL_TRANSLATION_BATCH_SIZE)
-  await translateMessagesSequentially(latestMessages)
+  const key = getMessageTranslationKey(message)
+  if (translatedMessageMap.value[key] || messageTranslationQueue.has(key)) {
+    return
+  }
+  delete translationFailedMap.value[key]
+
+  const cachedTranslation = getCachedMessageTranslation(getTranslationCacheScope(), sourceText)
+  if (cachedTranslation) {
+    void applyMessageTranslation(message, cachedTranslation)
+    return
+  }
+
+  const enqueued = messageTranslationQueue.enqueue({
+    key,
+    priority: options.priority,
+    run: (signal) => requestMessageTranslation(message, signal),
+    onSuccess: (translatedText) => {
+      delete translationFailedMap.value[key]
+      void applyMessageTranslation(message, translatedText).finally(() => {
+        markTranslationPending(key, false)
+      })
+    },
+    onError: (error) => {
+      markTranslationPending(key, false)
+      translationFailedMap.value[key] = true
+      console.error('翻译消息失败:', error)
+      if (options.manual) {
+        showWarningToast(resolveWarningMessage(error, '翻译消息失败'))
+      }
+    },
+  })
+  if (enqueued) {
+    markTranslationPending(key, true)
+  }
+}
+
+function translateMessages(items: MessageDTO[], priority = 0) {
+  for (let index = 0; index < items.length; index += 1) {
+    ensureMessageTranslation(items[index], {
+      priority: priority + index,
+    })
+  }
+}
+
+function translateCurrentConversation() {
+  if (!messagePageActive || !translationEnabled.value) {
+    return
+  }
+
+  const latestGuestMessages = sortMessages(messages.value)
+    .filter((message) => message.senderType === MessageSenderType.GUEST)
+    .slice(-INITIAL_TRANSLATION_BATCH_SIZE)
+  translateMessages(latestGuestMessages, 100)
+}
+
+function clearMessageTranslationTimer() {
+  if (messageTranslationTimer) {
+    window.clearTimeout(messageTranslationTimer)
+    messageTranslationTimer = 0
+  }
+}
+
+function translateVisibleMessages() {
+  if (!messagePageActive || !translationEnabled.value) {
+    return
+  }
+
+  const visibleGuestMessages = messages.value
+    .filter(
+      (message) =>
+        message.senderType === MessageSenderType.GUEST && visibleMessageIds.has(message.id),
+    )
+    .slice(-VISIBLE_TRANSLATION_LIMIT)
+  translateMessages(visibleGuestMessages, 200)
+}
+
+function scheduleVisibleMessageTranslations() {
+  clearMessageTranslationTimer()
+  if (!messagePageActive || !translationEnabled.value) {
+    return
+  }
+
+  messageTranslationTimer = window.setTimeout(() => {
+    messageTranslationTimer = 0
+    translateVisibleMessages()
+  }, MESSAGE_TRANSLATION_SETTLE_MS)
+}
+
+function refreshMessageTranslationObserver() {
+  messageTranslationObserver?.disconnect()
+  visibleMessageIds.clear()
+
+  if (!messagePageActive || !messageStreamRef.value) {
+    return
+  }
+
+  if (typeof IntersectionObserver === 'undefined') {
+    translateCurrentConversation()
+    return
+  }
+
+  if (!messageTranslationObserver) {
+    messageTranslationObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const messageId = Number((entry.target as HTMLElement).dataset.messageId)
+          if (!Number.isInteger(messageId)) {
+            continue
+          }
+          if (entry.isIntersecting) {
+            visibleMessageIds.add(messageId)
+          } else {
+            visibleMessageIds.delete(messageId)
+          }
+        }
+        scheduleVisibleMessageTranslations()
+      },
+      {
+        threshold: 0.35,
+      },
+    )
+  }
+
+  const messageElements =
+    messageStreamRef.value.querySelectorAll<HTMLElement>('.message-row[data-message-id]')
+  messageElements.forEach((element) => messageTranslationObserver?.observe(element))
+}
+
+function stopMessageTranslations() {
+  clearMessageTranslationTimer()
+  messageTranslationQueue.cancelAll()
+  messageTranslationObserver?.disconnect()
+  visibleMessageIds.clear()
+  translationPendingMap.value = {}
+}
+
+function handleTranslateMessage(message: MessageDTO) {
+  ensureMessageTranslation(message, {
+    manual: true,
+    priority: 500,
+  })
 }
 
 function getLatestTimestamp() {
@@ -822,10 +1117,6 @@ async function loadMessages(expectedThreadId: number, requestToken?: number) {
   }
 
   messages.value = sortMessages(response.data)
-  if (translationEnabled.value) {
-    clearTranslationCaches()
-    void translateCurrentConversation()
-  }
   return true
 }
 
@@ -938,7 +1229,10 @@ function startPolling(expectedThreadId: number, requestToken: number) {
 
       messages.value = sortMessages(existing)
       if (translationEnabled.value && newMessages.length > 0) {
-        void translateMessagesSequentially(newMessages)
+        translateMessages(
+          newMessages.filter((message) => message.senderType === MessageSenderType.GUEST),
+          300,
+        )
       }
       const nextThreads = await loadThreads(requestToken, expectedThreadId)
       if (!nextThreads || !isActivePageRequest(requestToken, expectedThreadId)) {
@@ -946,6 +1240,8 @@ function startPolling(expectedThreadId: number, requestToken: number) {
       }
 
       await scrollToConversationBottom(180)
+      await nextTick()
+      refreshMessageTranslationObserver()
       if (!activeThread.value) {
         stopPolling()
       }
@@ -966,6 +1262,7 @@ async function loadPage() {
   }
 
   stopPolling()
+  stopMessageTranslations()
   loading.value = true
   loadNotice.value = ''
 
@@ -988,6 +1285,9 @@ async function loadPage() {
 
     startPolling(currentThreadId, requestToken)
     await scrollToConversationBottom()
+    await nextTick()
+    refreshMessageTranslationObserver()
+    translateCurrentConversation()
   } catch (error) {
     if (!isActivePageRequest(requestToken, currentThreadId)) {
       return
@@ -1021,11 +1321,10 @@ async function handleSendMessage() {
 
     composerValue.value = ''
     messages.value = sortMessages([...messages.value, response.data])
-    if (translationEnabled.value) {
-      void ensureMessageTranslation(response.data)
-    }
     await loadThreads()
     await scrollToConversationBottom(180)
+    await nextTick()
+    refreshMessageTranslationObserver()
     showSuccessToast('消息已发送')
   } catch (error) {
     if (!isHandledRequestError(error)) {
@@ -1088,6 +1387,7 @@ async function handleGenerateAiDraft() {
     const parsed = parseAiDraft(response.data.reply)
     aiContextSummary.value = parsed.contextSummary || '已根据最近会话生成上下文摘要。'
     aiDraft.value = parsed.draftReply
+    clearAiDraftTranslation()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, '生成 AI 草稿失败'))
@@ -1098,6 +1398,7 @@ async function handleGenerateAiDraft() {
 }
 
 async function handleOpenAiDraft() {
+  isAiDraftTranslationView.value = false
   aiDraftOpen.value = true
   if (!aiDraft.value.trim()) {
     await handleGenerateAiDraft()
@@ -1107,41 +1408,66 @@ async function handleOpenAiDraft() {
 function handleUseAiDraft() {
   composerValue.value = aiDraft.value.trim()
   aiDraftOpen.value = false
-  aiPolishOpen.value = false
-}
-
-async function handleSendAiDraft() {
-  const draft = aiDraft.value.trim()
-  if (!draft) {
-    return
-  }
-
-  composerValue.value = draft
-  aiDraftOpen.value = false
-  aiPolishOpen.value = false
-  await handleSendMessage()
 }
 
 function handleDismissAiDraft() {
   aiDraftOpen.value = false
-  aiPolishOpen.value = false
+  isAiDraftTranslationView.value = false
 }
 
-function handleOpenAiPolish() {
-  if (!aiDraft.value.trim()) {
-    showWarningToast('请先生成 AI 草稿')
+function clearAiDraftTranslation() {
+  aiDraftTranslation.value = ''
+  aiDraftTranslationSource.value = ''
+  aiDraftTranslationTarget.value = null
+  isAiDraftTranslationView.value = false
+}
+
+async function handleToggleAiDraftTranslation() {
+  if (isAiDraftTranslationView.value) {
+    isAiDraftTranslationView.value = false
     return
   }
 
-  aiPolishOpen.value = true
-}
+  const draft = aiDraft.value.trim()
+  if (!draft) {
+    showWarningToast('当前没有可翻译的草稿')
+    return
+  }
 
-function handleDismissAiPolish() {
-  aiPolishOpen.value = false
+  if (
+    aiDraftTranslation.value &&
+    aiDraftTranslationSource.value === draft &&
+    aiDraftTranslationTarget.value === translationTargetLanguage.value
+  ) {
+    isAiDraftTranslationView.value = true
+    return
+  }
+
+  aiDraftTranslationLoading.value = true
+  try {
+    const translatedDraft = await requestAiMessageTranslation(
+      draft,
+      translationTargetLanguage.value,
+    )
+    if (!translatedDraft) {
+      throw new Error('翻译结果为空，请重试')
+    }
+
+    aiDraftTranslation.value = translatedDraft
+    aiDraftTranslationSource.value = draft
+    aiDraftTranslationTarget.value = translationTargetLanguage.value
+    isAiDraftTranslationView.value = true
+  } catch (error) {
+    if (!isHandledRequestError(error)) {
+      showWarningToast(resolveWarningMessage(error, '翻译草稿失败'))
+    }
+  } finally {
+    aiDraftTranslationLoading.value = false
+  }
 }
 
 async function handlePolishAiDraft() {
-  const instruction = aiPolishInstruction.value.trim()
+  const instruction = aiInstruction.value.trim()
   if (!instruction) {
     showWarningToast('请输入优化要求')
     return
@@ -1153,10 +1479,6 @@ async function handlePolishAiDraft() {
   }
 
   aiPolishLoading.value = true
-  aiPolishHistory.value.push({
-    role: 'user',
-    content: instruction,
-  })
 
   try {
     const promptLines = [
@@ -1182,11 +1504,7 @@ async function handlePolishAiDraft() {
 
     aiSessionId.value = response.data.sessionId || aiSessionId.value
     aiDraft.value = response.data.reply.trim()
-    aiPolishHistory.value.push({
-      role: 'assistant',
-      content: aiDraft.value,
-    })
-    aiPolishInstruction.value = ''
+    clearAiDraftTranslation()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, '优化 AI 草稿失败'))
@@ -1205,18 +1523,25 @@ async function handleRefresh(event: CustomEvent) {
 }
 
 onIonViewWillEnter(async () => {
+  threadId.value = resolveRouteThreadId()
+  messagePageActive = true
   syncTranslationSettingsFromStorage()
   await loadPage()
 })
 
 onIonViewWillLeave(() => {
+  messagePageActive = false
   invalidatePageRequests()
   stopPolling()
+  stopMessageTranslations()
 })
 
 onUnmounted(() => {
+  messagePageActive = false
   invalidatePageRequests()
   stopPolling()
+  stopMessageTranslations()
+  messageTranslationObserver = null
 })
 </script>
 
@@ -1227,7 +1552,7 @@ onUnmounted(() => {
   --padding-start: 0;
   --padding-end: 0;
   --padding-bottom: 90px;
-  --background: linear-gradient(180deg, #f7f8fa 0%, #f1f3f6 100%);
+  --background: var(--ios-pms-dashboard-page-background);
 }
 
 ion-header {
@@ -1246,11 +1571,11 @@ ion-header::after {
 }
 
 .message-detail-header__back {
-  --color: #1b2330;
+  --color: var(--ios-pms-header-control-color);
 }
 
 .message-detail-header__title {
-  color: #1b2330;
+  color: var(--ios-pms-header-title-color);
   text-align: center;
 }
 
@@ -1264,7 +1589,7 @@ ion-header::after {
 
 .message-detail-header__title span {
   font-size: 17px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.03em;
 }
 
@@ -1277,7 +1602,7 @@ ion-header::after {
 }
 
 .message-detail-header__action {
-  --color: #536074;
+  --color: var(--ios-pms-header-control-color);
   --padding-start: 8px;
   --padding-end: 8px;
   font-size: 14px;
@@ -1320,26 +1645,43 @@ ion-header::after {
 }
 
 .message-row__avatar {
+  position: relative;
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
   color: #ffffff;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.03em;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.message-row__avatar::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 50%;
+}
+
+.message-row__avatar span {
+  position: relative;
+  z-index: 1;
 }
 
 .message-row.is-guest .message-row__avatar {
-  background: linear-gradient(180deg, #84e1d0 0%, #3bc1a8 100%);
+  background: linear-gradient(
+    180deg,
+    var(--thread-avatar-start, #8dbdff),
+    var(--thread-avatar-end, #4a98ff)
+  );
 }
 
 .message-row.is-staff .message-row__avatar {
-  background: linear-gradient(180deg, #b4d786 0%, #8acb51 100%);
-  color: #17301a;
+  background: linear-gradient(180deg, #6ee522 0%, #42c900 100%);
 }
 
 .message-row__body {
@@ -1441,6 +1783,34 @@ ion-header::after {
   height: 13px;
 }
 
+.message-translation-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  min-height: 28px;
+  padding: 0 6px 0 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.message-translation-action ion-icon {
+  font-size: 15px;
+}
+
+.message-translation-action:active {
+  background: rgba(102, 112, 133, 0.08);
+}
+
+.message-row.is-staff .message-translation-action {
+  align-self: flex-end;
+}
+
 .message-row__meta {
   display: flex;
   align-items: center;
@@ -1485,7 +1855,12 @@ ion-header::after {
   right: 0;
   bottom: 0;
   padding: 10px 12px 12px;
-  background: linear-gradient(180deg, rgba(241, 243, 246, 0) 0%, rgba(241, 243, 246, 0.94) 28%, #f1f3f6 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(247, 250, 255, 0) 0%,
+    rgba(247, 250, 255, 0.94) 28%,
+    var(--ios-pms-bg-page-plain) 100%
+  );
 }
 
 .message-composer__closed-tip {
@@ -1498,49 +1873,54 @@ ion-header::after {
 .message-composer__bar {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 8px;
+  gap: 10px;
   align-items: flex-end;
-  padding: 8px;
-  border: 1px solid rgba(218, 223, 232, 0.9);
-  border-radius: 26px;
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
 }
 
 .message-composer__ai,
 .message-composer__send {
   margin: 0;
-  min-height: 40px;
+  min-height: 44px;
+  height: 44px;
   font-size: 14px;
   font-weight: 700;
 }
 
 .message-composer__ai {
-  --color: #2f6bff;
-  --background: #eef3ff;
-  --border-radius: 18px;
-  min-width: 48px;
+  --background: #2f9cff;
+  --background-activated: #2189ec;
+  --background-hover: #2f9cff;
+  --box-shadow: none;
+  --color: #ffffff;
+  --padding-start: 0;
+  --padding-end: 0;
+  --border-radius: 50%;
+  width: 44px;
+  min-width: 44px;
 }
 
 .message-composer__input {
   min-width: 0;
-  padding: 0 2px;
-  border-radius: 20px;
-  background: #f5f7fa;
+  min-height: 44px;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(68, 91, 132, 0.06);
   overflow: hidden;
 }
 
 .message-composer__textarea {
   margin: 0;
+  min-height: 44px;
   --composer-textarea-max-height: 136px;
-  --background: transparent;
+  --background: #ffffff;
   --padding-start: 12px;
   --padding-end: 12px;
-  --padding-top: 10px;
-  --padding-bottom: 10px;
+  --padding-top: 11px;
+  --padding-bottom: 11px;
   --color: #182231;
   --placeholder-color: #a0a8b6;
+  font-size: 15px;
+  line-height: 22px;
 }
 
 .message-composer__textarea :deep(.textarea-wrapper),
@@ -1585,9 +1965,14 @@ ion-header::after {
 }
 
 .message-composer__send {
-  --background: #95ec69;
-  --color: #16311a;
-  --border-radius: 18px;
+  --background: #31c85c;
+  --background-activated: #29af4f;
+  --background-hover: #31c85c;
+  --box-shadow: none;
+  --color: #ffffff;
+  --border-radius: 11px;
+  --padding-start: 14px;
+  --padding-end: 14px;
   min-width: 64px;
 }
 
@@ -1596,214 +1981,268 @@ ion-header::after {
 }
 
 ion-modal.message-ai-modal {
-  --border-radius: 30px 30px 0 0;
-  --backdrop-opacity: 0.24;
-  --box-shadow: 0 -28px 56px rgba(15, 23, 42, 0.2);
+  --width: 100%;
+  --height: 100%;
+  --border-radius: 0;
+  --background: var(--ios-pms-dashboard-page-background);
 }
 
-.message-ai-modal__header {
-  backdrop-filter: blur(16px);
+.message-ai-page__header {
+  backdrop-filter: blur(14px);
 }
 
-.message-ai-modal__toolbar {
-  --background: rgba(248, 249, 251, 0.94);
+.message-ai-page__toolbar {
+  --background: rgba(255, 255, 255, 0.94);
   --border-width: 0;
-  --padding-start: 10px;
-  --padding-end: 10px;
+  --padding-start: 2px;
+  --padding-end: 2px;
 }
 
-.message-ai-modal__toolbar ion-title {
-  padding: 4px 0 2px;
-  color: #1b2330;
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+.message-ai-page__toolbar ion-title {
+  color: var(--ios-pms-header-title-color);
+  font-size: var(--ios-pms-font-title-xl-size);
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
-.message-ai-modal__toolbar ion-button {
-  --color: #536074;
-  --padding-start: 10px;
-  --padding-end: 10px;
-  font-size: 14px;
-  font-weight: 600;
+.message-ai-page__back {
+  --color: var(--ios-pms-header-control-color);
+  --padding-start: 4px;
+  --padding-end: 8px;
+  min-width: 72px;
+  margin: 0;
+  font-size: var(--ios-pms-font-title-md-size);
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
-.message-draft-modal-page,
-.message-ai-modal__page {
-  --background: linear-gradient(180deg, #f7f8fa 0%, #f1f3f6 100%);
-  --padding-top: 18px;
-  --padding-bottom: calc(28px + var(--app-safe-bottom));
-  --padding-start: 16px;
-  --padding-end: 16px;
+.message-ai-page__back::part(native) {
+  background: transparent;
+  box-shadow: none;
 }
 
-.message-draft-card,
-.message-ai-sheet {
+.message-ai-page__back ion-icon {
+  margin-right: 1px;
+  font-size: 24px;
+}
+
+.message-ai-page {
+  --background: var(--ios-pms-dashboard-page-background);
+  --padding-top: var(--ios-pms-space-5);
+  --padding-bottom: var(--ios-pms-space-6);
+  --padding-start: var(--ios-pms-space-4);
+  --padding-end: var(--ios-pms-space-4);
+}
+
+.message-ai-page-shell {
+  width: min(100%, 640px);
+  margin: 0 auto;
+}
+
+.message-ai-page-card {
   display: grid;
-  gap: 16px;
+  gap: var(--ios-pms-space-3);
+  padding: var(--ios-pms-space-5);
+  border: 1px solid var(--ios-pms-border-soft);
+  border-radius: var(--ios-pms-radius-card);
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: var(--ios-pms-shadow-card-strong);
+  backdrop-filter: blur(18px);
 }
 
-.message-ai-sheet {
-  padding: 18px;
-  border: 1px solid rgba(218, 223, 232, 0.92);
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(22px);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.1);
-}
-
-.message-ai-sheet__intro {
+.message-ai-section {
   display: grid;
-  gap: 6px;
-  padding: 2px 2px 4px;
+  gap: var(--ios-pms-space-3);
+  padding: var(--ios-pms-space-5);
+  border: 1px solid var(--ios-pms-border-soft);
+  border-radius: var(--ios-pms-radius-card);
+  background: var(--ios-pms-surface-strong);
+  box-shadow: var(--ios-pms-shadow-card);
 }
 
-.message-ai-sheet__intro h2,
-.message-ai-sheet__intro p {
+.message-ai-section__title,
+.message-ai-section__description {
   margin: 0;
 }
 
-.message-ai-sheet__intro p {
-  color: #8b95a5;
-  line-height: 1.55;
+.message-ai-section__title {
+  min-width: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-title-md-size);
+  font-weight: 400;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
-.message-editor-card__actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+.message-ai-section__description {
+  margin-top: calc(var(--ios-pms-space-2) * -1);
+  color: var(--ios-pms-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-.message-editor-card__field {
-  display: grid;
-  gap: 8px;
+.message-ai-textarea-shell {
+  position: relative;
+  min-width: 0;
 }
 
-.message-ai-field {
-  gap: 10px;
-  padding: 12px 14px 14px;
-  border: 1px solid rgba(224, 229, 237, 0.96);
-  border-radius: 22px;
-  background: linear-gradient(180deg, rgba(249, 250, 252, 0.98), rgba(242, 245, 248, 0.92));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+.message-ai-input-frame {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #c8c8ce;
+  border-radius: 12px;
+  background: #ffffff;
+  transition: border-color 160ms ease;
 }
 
-.message-editor-card__field span {
-  color: #556173;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.message-ai-field :deep(.textarea-wrapper) {
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(219, 224, 232, 0.96);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+.message-ai-input-frame:focus-within {
+  border-color: #9fa7b3;
 }
 
 .message-ai-textarea {
   margin: 0;
   --background: transparent;
-  --padding-start: 12px;
-  --padding-end: 12px;
-  --padding-top: 10px;
-  --padding-bottom: 10px;
-  --color: #1b2330;
-  --placeholder-color: #a0a8b6;
+  --border-width: 0;
+  --color: var(--ios-pms-text-primary);
+  --highlight-color-focused: transparent;
+  --padding-start: var(--ios-pms-space-3);
+  --padding-end: var(--ios-pms-space-3);
+  --padding-top: var(--ios-pms-space-3);
+  --padding-bottom: var(--ios-pms-space-3);
+  --placeholder-color: var(--ios-pms-text-disabled);
+  --placeholder-opacity: 1;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
-.message-ai-textarea :deep(.native-textarea) {
-  min-height: 70px;
-  line-height: 1.6;
-}
-
-.message-ai-textarea--readonly {
-  --color: #667488;
+.message-ai-textarea--draft {
+  --color: #666666;
 }
 
 .message-ai-textarea--draft :deep(.native-textarea) {
-  min-height: 172px;
-  font-size: 15px;
+  min-height: 176px;
+  color: #666666;
+  line-height: 1.5;
 }
 
-.message-ai-sheet .message-ai-field:nth-of-type(3) :deep(.native-textarea) {
-  min-height: 172px;
-  font-size: 15px;
+.message-ai-textarea--instruction :deep(.native-textarea) {
+  min-height: 82px;
+  line-height: 1.5;
 }
 
-.message-editor-card__actions ion-button,
-.message-ai-button {
+.message-ai-textarea--translation {
+  --background: #f8fafc;
+  --color: #666666;
+}
+
+.message-ai-textarea-shell__loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ios-pms-space-2);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--ios-pms-text-muted);
+  font-size: 13px;
+  backdrop-filter: blur(4px);
+}
+
+.message-ai-textarea-shell__loading ion-spinner {
+  width: 18px;
+  height: 18px;
+}
+
+.message-ai-section__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.message-ai-action-button {
+  --background: #0088ff;
+  --background-activated: #0077e6;
+  --background-hover: #0088ff;
+  --border-radius: 8px;
+  --box-shadow: none;
+  --color: #ffffff;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  width: auto;
+  min-width: 0;
+  min-height: 30px;
+  height: 30px;
   margin: 0;
-  min-height: 44px;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
-.message-ai-button--secondary,
-.message-editor-card__actions ion-button:not([class*='message-ai-button']):first-child {
-  --color: #536074;
-  --border-color: rgba(191, 201, 216, 0.96);
-  --background: rgba(255, 255, 255, 0.8);
-  --border-radius: 18px;
+.message-ai-action-button::part(native) {
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
+  box-shadow: none;
 }
 
-.message-ai-button--primary,
-.message-editor-card__actions ion-button:not([class*='message-ai-button']):last-child {
-  --background: linear-gradient(180deg, #c9ee9e 0%, #a8df68 100%);
-  --color: #17301a;
-  --border-radius: 18px;
-  box-shadow: 0 14px 28px rgba(151, 211, 95, 0.24);
+.message-ai-action-button--return {
+  --background: #004c8f;
+  --background-activated: #003f78;
+  --background-hover: #004c8f;
 }
 
-.message-editor-card__actions ion-button[disabled] {
-  opacity: 0.56;
+.message-ai-fill-button {
+  --background: #34c759;
+  --background-activated: #2eaf4f;
+  --background-hover: #34c759;
+  --border-radius: 8px;
+  --box-shadow: none;
+  --color: #ffffff;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  min-height: 36px;
+  height: 36px;
+  margin: 2px 0 0;
+  font-size: var(--ios-pms-font-title-md-size);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
-.ai-polish-history-list {
-  display: grid;
-  gap: 12px;
+.message-ai-fill-button::part(native) {
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  box-shadow: none;
 }
 
-.ai-polish-history-item {
-  padding: 14px 16px;
-  border-radius: 20px;
-  border: none;
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+.message-ai-action-button[disabled],
+.message-ai-fill-button[disabled] {
+  opacity: 0.52;
 }
 
-.ai-polish-history-item.is-user {
-  margin-left: 28px;
-  background: linear-gradient(180deg, #eef4ff 0%, #e2ebff 100%);
-}
+@media (max-width: 374px) {
+  .message-ai-page {
+    --padding-top: var(--ios-pms-space-3);
+    --padding-start: var(--ios-pms-space-3);
+    --padding-end: var(--ios-pms-space-3);
+  }
 
-.ai-polish-history-item.is-assistant {
-  margin-right: 28px;
-  background: rgba(255, 255, 255, 0.92);
-}
+  .message-ai-page-card,
+  .message-ai-section {
+    padding: var(--ios-pms-space-4);
+  }
 
-.ai-polish-history-item strong,
-.ai-polish-history-item p {
-  margin: 0;
-}
+  .message-ai-section__title {
+    font-size: 16px;
+  }
 
-.ai-polish-history-item strong {
-  color: #7b8798;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.ai-polish-history-item p {
-  margin-top: 8px;
-  color: #1d2735;
-  white-space: pre-wrap;
-  line-height: 1.6;
-}
-
-@media (max-width: 420px) {
-  .message-editor-card__actions {
-    grid-template-columns: minmax(0, 1fr);
+  .message-ai-section__description {
+    font-size: 13px;
   }
 }
 </style>

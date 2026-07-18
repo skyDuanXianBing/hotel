@@ -13,6 +13,8 @@ export interface RequestConfig {
   data?: unknown
   headers?: Record<string, string>
   timeoutMs?: number
+  signal?: AbortSignal
+  suppressErrorToast?: boolean
   suppressErrorStatuses?: number[]
   skipAutoReauth?: boolean
   skipUnauthorizedHandling?: boolean

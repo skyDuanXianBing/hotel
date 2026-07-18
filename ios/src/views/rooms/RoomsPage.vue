@@ -1262,9 +1262,9 @@ onIonViewWillEnter(async () => {
   transform: translate(-50%, -48%);
   padding: 0;
   margin: 0;
-  color: #2b2b2b;
+  color: var(--ios-pms-header-title-color);
   font-size: 22px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0;
   text-align: center;
   line-height: 1;

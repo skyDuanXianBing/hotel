@@ -7,6 +7,11 @@ export interface MessageTranslationSettings {
   targetLanguage: MessageTranslationLanguageValue
 }
 
+export interface AiMessageTranslationRequestOptions {
+  signal?: AbortSignal
+  suppressErrorToast?: boolean
+}
+
 export const MESSAGE_TRANSLATION_SETTINGS_STORAGE_KEY = 'ios.messages.translation.settings'
 
 export const MESSAGE_TRANSLATION_LANGUAGE_OPTIONS: Array<{
@@ -85,6 +90,7 @@ export function normalizeTranslatedText(text: string) {
 export async function requestAiMessageTranslation(
   sourceText: string,
   targetLanguage: MessageTranslationLanguageValue,
+  options: AiMessageTranslationRequestOptions = {},
 ) {
   const trimmed = sourceText.trim()
   if (!trimmed) {
@@ -110,6 +116,8 @@ export async function requestAiMessageTranslation(
     },
     {
       timeoutMs: AI_TRANSLATION_TIMEOUT_MS,
+      signal: options.signal,
+      suppressErrorToast: options.suppressErrorToast,
     },
   )
 

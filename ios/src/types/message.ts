@@ -36,6 +36,20 @@ export interface MessageSendRequest {
   senderName?: string
 }
 
+export interface MessageTranslationRequest {
+  targetLanguage: string
+}
+
+export interface MessageTranslationResponse {
+  messageId: number
+  targetLanguage: string
+  translatedContent: string
+  sourceContentHash: string
+  status: string
+  cached: boolean
+  translatedAt: string
+}
+
 export interface ChatMessageRequest {
   message: string
   sessionId?: string

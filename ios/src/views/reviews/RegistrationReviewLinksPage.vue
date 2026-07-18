@@ -169,7 +169,7 @@ async function handleCopy(linkUrl: string) {
 }
 
 .registration-review-links-page__back-button {
-  --color: var(--ios-pms-text-primary);
+  --color: var(--ios-pms-header-control-color);
   font-weight: var(--ios-pms-weight-bold);
 }
 

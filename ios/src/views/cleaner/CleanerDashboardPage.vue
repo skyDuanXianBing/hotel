@@ -4,7 +4,9 @@
       <ion-toolbar class="app-page-header__toolbar">
         <ion-title class="app-page-header__title">保洁员工作台</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="handleLogout">退出登录</ion-button>
+          <ion-button class="cleaner-dashboard-page__logout-button" @click="handleLogout">
+            退出登录
+          </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -524,6 +526,10 @@ onIonViewWillEnter(async () => {
 <style scoped>
 .cleaner-dashboard-page {
   display: block;
+}
+
+.cleaner-dashboard-page__logout-button {
+  --color: var(--ios-pms-header-control-color);
 }
 
 .cleaner-dashboard-page__calendar-card {

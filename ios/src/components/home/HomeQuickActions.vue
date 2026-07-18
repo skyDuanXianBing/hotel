@@ -1,5 +1,5 @@
 <template>
-  <section class="quick-section">
+  <section class="quick-section mobile-dashboard-surface">
     <div class="quick-grid">
       <button
         v-for="item in items"
@@ -43,10 +43,7 @@ const handleSelect = (item: HomeQuickActionItem) => {
 <style scoped>
 .quick-section {
   padding: 11px 18px 10px;
-  border: 1px solid var(--ios-pms-border-soft);
   border-radius: var(--ios-pms-radius-card);
-  background: rgba(250, 252, 254, 0.7);
-  box-shadow: var(--ios-pms-shadow-card);
 }
 
 .quick-grid {

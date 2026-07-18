@@ -1,5 +1,5 @@
 <template>
-  <section class="memo-section">
+  <section class="memo-section mobile-dashboard-surface">
     <div class="memo-section__header">
       <h2 class="memo-section__title">备忘录</h2>
       <span class="memo-status" :class="{ 'memo-status--saving': autoSaving }">
@@ -55,10 +55,7 @@ const textareaValue = computed({
 <style scoped>
 .memo-section {
   padding: 18px 16px 20px;
-  border: 1px solid var(--ios-pms-border-soft);
   border-radius: var(--ios-pms-radius-card);
-  background: rgba(250, 252, 254, 0.7);
-  box-shadow: var(--ios-pms-shadow-card);
 }
 
 .memo-section__header {

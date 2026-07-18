@@ -13,12 +13,16 @@ import type {
   MessageDTO,
   MessageSendRequest,
   MessageThreadDTO,
+  MessageTranslationRequest,
+  MessageTranslationResponse,
 } from '@/types/message'
 
 export { MESSAGE_API_MOCK_ENABLED }
 
 export interface ChatMessageRequestOptions {
   timeoutMs?: number
+  signal?: AbortSignal
+  suppressErrorToast?: boolean
 }
 
 const TRANSLATION_MARKER_START = '<<<TEXT>>>'
@@ -105,6 +109,8 @@ const postAiChatMessage = (data: ChatMessageRequest, options?: ChatMessageReques
     method: 'POST',
     data,
     timeoutMs: options?.timeoutMs,
+    signal: options?.signal,
+    suppressErrorToast: options?.suppressErrorToast,
   })
 }
 
@@ -153,6 +159,22 @@ export const sendThreadMessage = (threadId: number, data: MessageSendRequest) =>
     url: `/su-messaging/threads/${threadId}/send`,
     method: 'POST',
     data,
+  })
+}
+
+export const translateThreadMessage = (
+  threadId: number,
+  messageId: number,
+  data: MessageTranslationRequest,
+  options?: ChatMessageRequestOptions,
+) => {
+  return request<ApiResponse<MessageTranslationResponse>>({
+    url: `/su-messaging/threads/${threadId}/messages/${messageId}/translation`,
+    method: 'POST',
+    data,
+    timeoutMs: options?.timeoutMs,
+    signal: options?.signal,
+    suppressErrorToast: options?.suppressErrorToast,
   })
 }
 

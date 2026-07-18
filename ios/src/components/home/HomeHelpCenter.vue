@@ -1,5 +1,5 @@
 <template>
-  <section class="help-section">
+  <section class="help-section mobile-dashboard-surface">
     <div class="help-section__header">
       <h2 class="help-section__title">帮助中心</h2>
       <button type="button" class="help-section__more" @click="handleMore">全部</button>
@@ -65,10 +65,7 @@ function handleMore() {
 <style scoped>
 .help-section {
   padding: 18px 16px 22px;
-  border: 1px solid var(--ios-pms-border-faint);
   border-radius: var(--ios-pms-radius-card);
-  background: rgba(250, 252, 254, 0.7);
-  box-shadow: var(--ios-pms-shadow-card);
 }
 
 .help-section__header {
