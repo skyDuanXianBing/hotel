@@ -352,9 +352,9 @@ function resolveChannelBadgeColor(channel: string, configuredColor?: string) {
   display: grid;
   gap: 4px;
   padding: 9px 12px 10px;
-  border: 0;
+  border: 1px solid var(--ios-pms-dashboard-card-border);
   border-radius: 8px;
-  background: #eef6ff;
+  background: var(--ios-pms-dashboard-page-background);
 }
 
 .order-card__stay-label {

@@ -3,30 +3,48 @@
     <ion-tabs>
       <ion-router-outlet />
       <ion-tab-bar slot="bottom" class="mobile-tabbar">
-        <ion-tab-button tab="home" :href="ROUTE_PATHS.home">
-          <ion-icon :icon="homeOutline" />
-          <ion-label>首页</ion-label>
-        </ion-tab-button>
-        <ion-tab-button tab="rooms" :href="ROUTE_PATHS.rooms">
-          <ion-icon :icon="bedOutline" />
-          <ion-label>房态</ion-label>
-        </ion-tab-button>
-        <ion-tab-button tab="messages" :href="ROUTE_PATHS.messages">
-          <span class="mobile-tabbar__icon-wrap">
-            <ion-icon class="mobile-tabbar__message-icon" :icon="chatbubblesOutline" />
-            <span v-if="notificationCenterStore.unreadMessageCount > 0" class="mobile-tabbar__badge">
-              {{ notificationCenterStore.unreadMessageCount }}
+        <ion-tab-button tab="home" :href="ROUTE_PATHS.home" aria-label="首页">
+          <span class="mobile-tabbar__content">
+            <span class="mobile-tabbar__icon-wrap" aria-hidden="true">
+              <span class="mobile-tabbar__icon mobile-tabbar__icon--home" />
             </span>
+            <span class="mobile-tabbar__label">首页</span>
           </span>
-          <ion-label>消息</ion-label>
         </ion-tab-button>
-        <ion-tab-button tab="reviews" :href="ROUTE_PATHS.reviews">
-          <ion-icon :icon="clipboardOutline" />
-          <ion-label>审查</ion-label>
+        <ion-tab-button tab="rooms" :href="ROUTE_PATHS.rooms" aria-label="房态">
+          <span class="mobile-tabbar__content">
+            <span class="mobile-tabbar__icon-wrap" aria-hidden="true">
+              <span class="mobile-tabbar__icon mobile-tabbar__icon--rooms" />
+            </span>
+            <span class="mobile-tabbar__label">房态</span>
+          </span>
         </ion-tab-button>
-        <ion-tab-button tab="settings" :href="ROUTE_PATHS.settings">
-          <ion-icon :icon="settingsOutline" />
-          <ion-label>设置</ion-label>
+        <ion-tab-button tab="messages" :href="ROUTE_PATHS.messages" aria-label="消息">
+          <span class="mobile-tabbar__content">
+            <span class="mobile-tabbar__icon-wrap" aria-hidden="true">
+              <span class="mobile-tabbar__icon mobile-tabbar__icon--messages" />
+              <span v-if="notificationCenterStore.unreadMessageCount > 0" class="mobile-tabbar__badge">
+                {{ notificationCenterStore.unreadMessageCount }}
+              </span>
+            </span>
+            <span class="mobile-tabbar__label">消息</span>
+          </span>
+        </ion-tab-button>
+        <ion-tab-button tab="reviews" :href="ROUTE_PATHS.reviews" aria-label="审查">
+          <span class="mobile-tabbar__content">
+            <span class="mobile-tabbar__icon-wrap" aria-hidden="true">
+              <span class="mobile-tabbar__icon mobile-tabbar__icon--reviews" />
+            </span>
+            <span class="mobile-tabbar__label">审查</span>
+          </span>
+        </ion-tab-button>
+        <ion-tab-button tab="settings" :href="ROUTE_PATHS.settings" aria-label="设置">
+          <span class="mobile-tabbar__content">
+            <span class="mobile-tabbar__icon-wrap" aria-hidden="true">
+              <span class="mobile-tabbar__icon mobile-tabbar__icon--settings" />
+            </span>
+            <span class="mobile-tabbar__label">设置</span>
+          </span>
         </ion-tab-button>
       </ion-tab-bar>
     </ion-tabs>
@@ -34,22 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  IonIcon,
-  IonLabel,
-  IonPage,
-  IonRouterOutlet,
-  IonTabBar,
-  IonTabButton,
-  IonTabs,
-} from '@ionic/vue'
-import {
-  bedOutline,
-  chatbubblesOutline,
-  clipboardOutline,
-  homeOutline,
-  settingsOutline,
-} from 'ionicons/icons'
+import { IonPage, IonRouterOutlet, IonTabBar, IonTabButton, IonTabs } from '@ionic/vue'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 
@@ -75,8 +78,7 @@ const notificationCenterStore = useNotificationCenterStore()
   --color-selected: #3474f6;
   min-width: 0;
   min-height: var(--tabbar-button-height);
-  gap: 3px;
-  padding: 3px 2px 2px;
+  padding: 0 2px;
   border-radius: 16px;
   position: relative;
   background: transparent;
@@ -95,8 +97,20 @@ const notificationCenterStore = useNotificationCenterStore()
   box-shadow: none;
 }
 
-.mobile-tabbar :deep(ion-icon) {
-  font-size: 20px;
+.mobile-tabbar__content {
+  display: grid;
+  grid-template-rows: 22px 12px;
+  align-content: center;
+  justify-items: center;
+  width: 100%;
+  height: 38px;
+  row-gap: 2px;
+  color: #8c98b1;
+  transition: color 160ms ease;
+}
+
+.mobile-tabbar :deep(ion-tab-button.tab-selected) .mobile-tabbar__content {
+  color: #3474f6;
 }
 
 .mobile-tabbar__icon-wrap {
@@ -104,25 +118,53 @@ const notificationCenterStore = useNotificationCenterStore()
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   line-height: 1;
-  vertical-align: middle;
   flex-shrink: 0;
 }
 
-.mobile-tabbar__message-icon {
-  transform: translateY(-1px);
+.mobile-tabbar__icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+  background-color: currentColor;
+  -webkit-mask-image: var(--tabbar-icon);
+  mask-image: var(--tabbar-icon);
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: auto var(--tabbar-icon-height, 24px);
+  mask-size: auto var(--tabbar-icon-height, 24px);
 }
 
-.mobile-tabbar :deep(ion-tab-button[tab='messages'] ion-label) {
-  transform: translateY(2.5px);
+.mobile-tabbar__icon--home {
+  --tabbar-icon: url('/tabbar/home.png');
+}
+
+.mobile-tabbar__icon--rooms {
+  --tabbar-icon: url('/home-shortcuts/rooms.png');
+  --tabbar-icon-height: 26px;
+}
+
+.mobile-tabbar__icon--messages {
+  --tabbar-icon: url('/home-shortcuts/messages.png');
+  --tabbar-icon-height: 24.5px;
+}
+
+.mobile-tabbar__icon--reviews {
+  --tabbar-icon: url('/tabbar/reviews.png');
+}
+
+.mobile-tabbar__icon--settings {
+  --tabbar-icon: url('/home-shortcuts/settings.png');
 }
 
 .mobile-tabbar__badge {
   position: absolute;
-  top: -5px;
-  right: -10px;
+  top: -4px;
+  right: -9px;
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
@@ -138,9 +180,13 @@ const notificationCenterStore = useNotificationCenterStore()
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.92);
 }
 
-.mobile-tabbar :deep(ion-label) {
+.mobile-tabbar__label {
+  display: block;
+  height: 12px;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  line-height: 12px;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 </style>

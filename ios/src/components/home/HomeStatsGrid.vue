@@ -1,5 +1,5 @@
 <template>
-  <section class="stats-section">
+  <section class="stats-section mobile-dashboard-surface">
     <div class="stats-section__header">
       <h2 class="stats-section__title">今日经营</h2>
       <span class="stats-section__tag">实时</span>
@@ -66,10 +66,7 @@ const handleSelect = (item: HomeStatCardItem) => {
 <style scoped>
 .stats-section {
   padding: 18px 16px 16px;
-  border: 1px solid var(--ios-pms-border-soft);
   border-radius: var(--ios-pms-radius-card);
-  background: rgba(250, 252, 254, 0.7);
-  box-shadow: var(--ios-pms-shadow-card);
 }
 
 .stats-section__header {

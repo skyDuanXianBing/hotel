@@ -57,7 +57,7 @@ button {
 }
 
 .mobile-page--dashboard {
-  --background: var(--ios-pms-bg-page);
+  --background: var(--ios-pms-dashboard-page-background);
 }
 
 .mobile-stack {
@@ -86,6 +86,12 @@ button {
   overflow: hidden;
   padding: var(--ios-pms-space-5);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 255, 0.94));
+}
+
+.mobile-dashboard-surface {
+  border: 1px solid var(--ios-pms-dashboard-card-border);
+  background: var(--ios-pms-dashboard-card-background);
+  box-shadow: var(--ios-pms-dashboard-card-shadow);
 }
 
 .mobile-hero::before,

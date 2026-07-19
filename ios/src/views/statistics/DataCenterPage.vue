@@ -7,7 +7,14 @@
         </ion-buttons>
         <ion-title class="app-page-header__title">{{ pageTitle }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button class="app-page-header__text-btn" fill="clear" @click="handleRefreshTap">刷新</ion-button>
+          <ion-button
+            class="app-page-header__icon-btn"
+            fill="clear"
+            aria-label="刷新数据"
+            @click="handleRefreshTap"
+          >
+            <img src="/statistics-refresh.png" alt="" aria-hidden="true" />
+          </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -27,7 +34,11 @@
             </div>
           </div>
 
-          <ion-segment :value="activePrimarySection" @ionChange="handlePrimarySectionChange">
+          <ion-segment
+            :value="activePrimarySection"
+            class="data-center-page__primary-segment"
+            @ionChange="handlePrimarySectionChange"
+          >
             <ion-segment-button value="overview">
               <ion-label>总览</ion-label>
             </ion-segment-button>
@@ -61,7 +72,7 @@
                 class="data-center-page__date-input"
                 @change="handleManualDateChange"
               />
-              <span class="data-center-page__date-separator">-</span>
+              <span class="data-center-page__date-separator">至</span>
               <input
                 v-model="endDate"
                 aria-label="结束日期"
@@ -78,6 +89,23 @@
           <p class="mobile-note">{{ loadNotice }}</p>
         </section>
 
+        <section v-if="activePrimarySection === 'overview'" class="data-center-page__overview-tabs">
+          <div class="data-center-page__tab-grid" role="tablist" aria-label="总览分类">
+            <button
+              v-for="tab in OVERVIEW_TABS"
+              :key="tab.value"
+              type="button"
+              role="tab"
+              class="data-center-page__tab-button"
+              :aria-selected="activeOverviewTab === tab.value ? 'true' : 'false'"
+              :class="{ 'is-active': activeOverviewTab === tab.value }"
+              @click="handleOverviewTabSelect(tab.value)"
+            >
+              {{ tab.label }}
+            </button>
+          </div>
+        </section>
+
         <section v-if="pageError" class="mobile-card data-center-page__error-card">
           <h2 class="mobile-section-title">加载失败</h2>
           <p class="mobile-note">{{ pageError }}</p>
@@ -91,24 +119,7 @@
 
         <template v-else>
           <template v-if="activePrimarySection === 'overview'">
-            <section class="mobile-card">
-              <div class="data-center-page__tab-grid" role="tablist" aria-label="总览分类">
-                <button
-                  v-for="tab in OVERVIEW_TABS"
-                  :key="tab.value"
-                  type="button"
-                  role="tab"
-                  class="data-center-page__tab-button"
-                  :aria-selected="activeOverviewTab === tab.value ? 'true' : 'false'"
-                  :class="{ 'is-active': activeOverviewTab === tab.value }"
-                  @click="handleOverviewTabSelect(tab.value)"
-                >
-                  {{ tab.label }}
-                </button>
-              </div>
-            </section>
-
-            <section v-if="activeOverviewTab === 'business'" class="mobile-card">
+            <section v-if="activeOverviewTab === 'business'" class="mobile-card data-center-page__overview-card">
               <div class="mobile-inline-row">
                 <div>
                   <h2 class="mobile-section-title">营业概况</h2>
@@ -140,14 +151,17 @@
               </div>
             </section>
 
-            <section v-if="activeOverviewTab === 'business'" class="mobile-card">
+            <section v-if="activeOverviewTab === 'business'" class="mobile-card data-center-page__overview-card">
               <div class="mobile-inline-row">
                 <div>
                   <h2 class="mobile-section-title">消费分类分布</h2>
                 </div>
               </div>
 
-              <div v-if="businessOverview.categoryDistribution.length > 0" class="data-center-page__summary-list">
+              <div
+                v-if="businessOverview.categoryDistribution.length > 0"
+                class="data-center-page__summary-list data-center-page__summary-list--distribution"
+              >
                 <article
                   v-for="item in businessOverview.categoryDistribution"
                   :key="item.category"
@@ -163,29 +177,42 @@
               <p v-else class="mobile-note">当前日期范围暂无消费分类分布数据。</p>
             </section>
 
-            <section v-if="activeOverviewTab === 'business'" class="mobile-card">
-              <h2 class="mobile-section-title">住宿消费趋势</h2>
-              <div v-if="businessTrendItems.length > 0" class="data-center-page__summary-list">
+            <section v-if="activeOverviewTab === 'business'" class="mobile-card data-center-page__overview-card">
+              <h2 class="mobile-section-title data-center-page__chart-title">
+                住宿消费趋势
+                <span>{{ chartDateRangeLabel }}</span>
+              </h2>
+              <div
+                v-if="businessTrendChartItems.length > 0"
+                class="data-center-page__trend-chart data-center-page__trend-chart--daily"
+              >
                 <article
-                  v-for="item in businessTrendItems"
+                  v-for="item in businessTrendChartItems"
                   :key="item.date"
-                  class="data-center-page__summary-item"
+                  class="data-center-page__trend-column data-center-page__trend-column--daily"
                 >
-                  <div>
-                    <strong>{{ formatShortDate(item.date) }}</strong>
-                    <p class="mobile-note">
-                      房费 {{ formatCurrency(item.roomFee) }} · 餐食/客房消费 {{ formatCurrency(item.roomServiceFee) }}
-                    </p>
+                  <div class="data-center-page__trend-value data-center-page__trend-value--compact">
+                    {{ formatCompactCurrency(item.value) }}
                   </div>
-                  <strong>{{ formatCurrency(resolveBusinessTrendTotal(item)) }}</strong>
+                  <div class="data-center-page__trend-track">
+                    <span
+                      v-if="item.value > 0"
+                      class="data-center-page__trend-bar"
+                      :style="{ height: `${item.height}%` }"
+                    />
+                  </div>
+                  <span class="data-center-page__trend-label">{{ item.label }}</span>
                 </article>
               </div>
               <p v-else class="mobile-note">当前日期范围暂无趋势数据。</p>
             </section>
 
-            <section v-if="activeOverviewTab === 'business'" class="mobile-card">
+            <section v-if="activeOverviewTab === 'business'" class="mobile-card data-center-page__overview-card">
               <h2 class="mobile-section-title">住宿消费明细</h2>
-              <div v-if="businessOverview.consumptionDetails.length > 0" class="data-center-page__summary-list">
+              <div
+                v-if="businessOverview.consumptionDetails.length > 0"
+                class="data-center-page__summary-list data-center-page__summary-list--table"
+              >
                 <article
                   v-for="item in businessOverview.consumptionDetails"
                   :key="item.category"
@@ -193,7 +220,6 @@
                 >
                   <div>
                     <strong>{{ item.category }}</strong>
-                    <p class="mobile-note">含 {{ item.dailyAmounts.length }} 个日期明细</p>
                   </div>
                   <strong>{{ formatCurrency(item.total) }}</strong>
                 </article>
@@ -201,7 +227,7 @@
               <p v-else class="mobile-note">当前日期范围暂无消费明细。</p>
             </section>
 
-            <section v-if="activeOverviewTab === 'revenue'" class="mobile-card">
+            <section v-if="activeOverviewTab === 'revenue'" class="mobile-card data-center-page__overview-card">
               <h2 class="mobile-section-title">流水汇总</h2>
               <div class="data-center-page__metric-grid">
                 <article class="data-center-page__metric-card is-primary">
@@ -219,9 +245,12 @@
               </div>
             </section>
 
-            <section v-if="activeOverviewTab === 'revenue'" class="mobile-card">
+            <section v-if="activeOverviewTab === 'revenue'" class="mobile-card data-center-page__overview-card">
               <h2 class="mobile-section-title">支付方式分布</h2>
-              <div v-if="revenueSummary.paymentMethodStats.length > 0" class="data-center-page__summary-list">
+              <div
+                v-if="revenueSummary.paymentMethodStats.length > 0"
+                class="data-center-page__summary-list data-center-page__summary-list--revenue-table"
+              >
                 <article
                   v-for="item in revenueSummary.paymentMethodStats"
                   :key="item.paymentMethod"
@@ -237,9 +266,12 @@
               <p v-else class="mobile-note">当前日期范围暂无支付方式统计。</p>
             </section>
 
-            <section v-if="activeOverviewTab === 'revenue'" class="mobile-card">
+            <section v-if="activeOverviewTab === 'revenue'" class="mobile-card data-center-page__overview-card">
               <h2 class="mobile-section-title">款项分类统计</h2>
-              <div v-if="revenueSummary.categoryStats.length > 0" class="data-center-page__summary-list">
+              <div
+                v-if="revenueSummary.categoryStats.length > 0"
+                class="data-center-page__summary-list data-center-page__summary-list--revenue-table"
+              >
                 <article
                   v-for="item in revenueSummary.categoryStats"
                   :key="item.category"
@@ -255,9 +287,12 @@
               <p v-else class="mobile-note">当前日期范围暂无款项分类统计。</p>
             </section>
 
-            <section v-if="activeOverviewTab === 'revenue'" class="mobile-card">
+            <section v-if="activeOverviewTab === 'revenue'" class="mobile-card data-center-page__overview-card">
               <h2 class="mobile-section-title">按日流水摘要</h2>
-              <div v-if="revenueTrendItems.length > 0" class="data-center-page__summary-list">
+              <div
+                v-if="revenueTrendItems.length > 0"
+                class="data-center-page__summary-list data-center-page__summary-list--revenue-table"
+              >
                 <article
                   v-for="item in revenueTrendItems"
                   :key="item.date"
@@ -273,7 +308,7 @@
               <p v-else class="mobile-note">当前日期范围暂无按日流水数据。</p>
             </section>
 
-            <section v-if="activeOverviewTab === 'channel'" class="mobile-card">
+            <section v-if="activeOverviewTab === 'channel'" class="mobile-card data-center-page__overview-card">
               <h2 class="mobile-section-title">渠道汇总</h2>
               <div class="data-center-page__metric-grid">
                 <article class="data-center-page__metric-card is-primary">
@@ -291,7 +326,7 @@
               </div>
             </section>
 
-            <section v-if="activeOverviewTab === 'channel'" class="mobile-card">
+            <section v-if="activeOverviewTab === 'channel'" class="mobile-card data-center-page__overview-card">
               <h2 class="mobile-section-title">渠道消费分布</h2>
               <div v-if="channelDisplaySummary.revenueDistribution.length > 0" class="data-center-page__summary-list">
                 <article
@@ -309,7 +344,7 @@
               <p v-else class="mobile-note">当前日期范围暂无渠道消费分布。</p>
             </section>
 
-            <section v-if="activeOverviewTab === 'channel'" class="mobile-card">
+            <section v-if="activeOverviewTab === 'channel'" class="mobile-card data-center-page__overview-card">
               <h2 class="mobile-section-title">渠道间夜分布</h2>
               <div v-if="channelDisplaySummary.nightsDistribution.length > 0" class="data-center-page__summary-list">
                 <article
@@ -327,7 +362,7 @@
               <p v-else class="mobile-note">当前日期范围暂无渠道间夜分布。</p>
             </section>
 
-            <section v-if="activeOverviewTab === 'channel'" class="mobile-card">
+            <section v-if="activeOverviewTab === 'channel'" class="mobile-card data-center-page__overview-card">
               <h2 class="mobile-section-title">渠道明细</h2>
               <div v-if="channelDisplaySummary.channelDetails.length > 0" class="data-center-page__summary-list">
                 <article
@@ -345,7 +380,7 @@
               <p v-else class="mobile-note">当前日期范围暂无渠道明细。</p>
             </section>
 
-            <section v-if="activeOverviewTab === 'sales'" class="mobile-card">
+            <section v-if="activeOverviewTab === 'sales'" class="mobile-card data-center-page__overview-card">
               <div class="mobile-inline-row">
                 <div>
                   <h2 class="mobile-section-title">销售汇总</h2>
@@ -377,7 +412,7 @@
               </div>
             </section>
 
-            <section v-if="activeOverviewTab === 'sales'" class="mobile-card">
+            <section v-if="activeOverviewTab === 'sales'" class="mobile-card data-center-page__overview-card">
               <div class="mobile-inline-row">
                 <div>
                   <h2 class="mobile-section-title">销售订单明细</h2>
@@ -398,19 +433,32 @@
               <p v-else class="mobile-note">当前日期范围暂无销售订单。</p>
             </section>
 
-            <section v-if="activeOverviewTab === 'sales'" class="mobile-card">
-              <h2 class="mobile-section-title">每日销售额</h2>
-              <div v-if="salesTrendItems.length > 0" class="data-center-page__summary-list">
+            <section v-if="activeOverviewTab === 'sales'" class="mobile-card data-center-page__overview-card">
+              <h2 class="mobile-section-title data-center-page__chart-title">
+                每日销售额
+                <span>{{ chartDateRangeLabel }}</span>
+              </h2>
+              <div
+                v-if="salesTrendChartItems.length > 0"
+                class="data-center-page__trend-chart data-center-page__trend-chart--daily"
+              >
                 <article
-                  v-for="item in salesTrendItems"
+                  v-for="item in salesTrendChartItems"
                   :key="item.date"
-                  class="data-center-page__summary-item"
+                  class="data-center-page__trend-column data-center-page__trend-column--daily"
                 >
-                  <div>
-                    <strong>{{ formatShortDate(item.date) }}</strong>
-                    <p class="mobile-note">订单 {{ formatCount(item.orderCount) }}</p>
+                  <div class="data-center-page__trend-value data-center-page__trend-value--compact">
+                    {{ formatCompactCurrency(item.value) }}
                   </div>
-                  <strong>{{ formatCurrency(item.sales) }}</strong>
+                  <div class="data-center-page__trend-track">
+                    <span
+                      v-if="item.value > 0"
+                      class="data-center-page__trend-bar"
+                      :style="{ height: `${item.height}%` }"
+                    />
+                  </div>
+                  <span class="data-center-page__trend-label">{{ item.label }}</span>
+                  <span class="data-center-page__trend-meta">{{ formatCount(item.orderCount) }}单</span>
                 </article>
               </div>
               <p v-else class="mobile-note">当前日期范围暂无销售趋势数据。</p>
@@ -453,14 +501,18 @@
               </div>
             </section>
 
-            <section class="mobile-card">
+            <section class="mobile-card data-center-page__statistics-card">
               <div class="mobile-inline-row">
                 <div>
                   <h2 class="mobile-section-title">经营指标趋势</h2>
                 </div>
               </div>
 
-              <ion-segment :value="activeAccommodationTrendTab" @ionChange="handleAccommodationTrendTabChange">
+              <ion-segment
+                :value="activeAccommodationTrendTab"
+                class="data-center-page__dark-segment data-center-page__accommodation-segment"
+                @ionChange="handleAccommodationTrendTabChange"
+              >
                 <ion-segment-button value="roomFee">
                   <ion-label>总房费</ion-label>
                 </ion-segment-button>
@@ -475,30 +527,37 @@
                 </ion-segment-button>
               </ion-segment>
 
-              <div v-if="accommodationTrendItems.length > 0" class="data-center-page__summary-list">
+              <div
+                v-if="accommodationTrendItems.length > 0"
+                class="data-center-page__accommodation-trend-list"
+              >
                 <article
                   v-for="item in accommodationTrendItems"
                   :key="item.date"
-                  class="data-center-page__summary-item"
+                  class="data-center-page__accommodation-trend-card"
                 >
-                  <div>
-                    <strong>{{ formatShortDate(item.date) }}</strong>
-                    <p class="mobile-note">{{ resolveAccommodationTrendMeta(item) }}</p>
-                  </div>
-                  <strong>{{ resolveAccommodationTrendValue(item) }}</strong>
+                  <strong class="data-center-page__accommodation-trend-date">
+                    {{ formatMonthDaySlash(item.date) }}
+                  </strong>
+                  <p class="mobile-note data-center-page__accommodation-trend-meta">
+                    {{ resolveAccommodationTrendMeta(item) }}
+                  </p>
+                  <strong class="data-center-page__accommodation-trend-value">
+                    {{ resolveAccommodationTrendValue(item) }}
+                  </strong>
                 </article>
               </div>
               <p v-else class="mobile-note">当前日期范围暂无经营指标趋势。</p>
             </section>
 
-            <section class="mobile-card">
+            <section class="mobile-card data-center-page__statistics-card">
               <div class="mobile-inline-row data-center-page__detail-toolbar">
                 <div class="data-center-page__detail-toolbar-copy">
                   <h2 class="mobile-section-title">经营指标明细</h2>
                 </div>
                 <ion-button
                   size="small"
-                  fill="outline"
+                  fill="solid"
                   class="data-center-page__export-button"
                   @click="handleExportAccommodationDetails"
                 >
@@ -508,7 +567,7 @@
 
               <ion-segment
                 :value="activeAccommodationDetailTab"
-                class="data-center-page__segment-grid data-center-page__segment-grid--detail"
+                class="data-center-page__dark-segment data-center-page__accommodation-segment"
                 @ionChange="handleAccommodationDetailTabChange"
               >
                 <ion-segment-button value="roomFee">
@@ -525,21 +584,25 @@
                 </ion-segment-button>
               </ion-segment>
 
-              <div v-if="accommodationDetailItems.length > 0" class="data-center-page__card-list">
+              <div
+                v-if="accommodationDetailItems.length > 0"
+                class="data-center-page__accommodation-detail-list"
+              >
                 <article
                   v-for="item in accommodationDetailItems"
                   :key="`${activeAccommodationDetailTab}-${item.roomType}-${item.roomNumber}`"
-                  class="data-center-page__detail-card"
+                  class="data-center-page__accommodation-detail-card"
                 >
-                  <div class="data-center-page__detail-header">
-                    <strong>{{ item.roomType }}</strong>
-                    <span class="data-center-page__amount">{{ resolveAccommodationDetailValue(item) }}</span>
-                  </div>
-                  <p class="mobile-note">{{ resolveAccommodationDetailMeta(item) }}</p>
+                  <strong class="data-center-page__accommodation-detail-title">{{ item.roomType }}</strong>
+                  <p class="mobile-note data-center-page__accommodation-detail-meta">
+                    {{ resolveAccommodationDetailMeta(item) }}
+                  </p>
+                  <strong class="data-center-page__accommodation-detail-value">
+                    {{ resolveAccommodationDetailValue(item) }}
+                  </strong>
                 </article>
               </div>
               <p v-else class="mobile-note">当前日期范围暂无经营指标明细。</p>
-              <p class="mobile-note">如需导出，可先记录当前筛选条件后再到电脑端处理。</p>
             </section>
           </template>
 
@@ -568,8 +631,12 @@
               </div>
             </section>
 
-            <section class="mobile-card">
-              <ion-segment :value="notesStatsMode" @ionChange="handleNotesStatsModeChange">
+            <section class="data-center-page__notes-mode-shell">
+              <ion-segment
+                :value="notesStatsMode"
+                class="data-center-page__notes-mode-segment"
+                @ionChange="handleNotesStatsModeChange"
+              >
                 <ion-segment-button value="project">
                   <ion-label>按项目</ion-label>
                 </ion-segment-button>
@@ -615,7 +682,7 @@
               <p v-else class="mobile-note">当前日期范围暂无支出统计。</p>
             </section>
 
-            <section class="mobile-card">
+            <section class="mobile-card data-center-page__notes-filter-card">
               <div class="mobile-inline-row">
                 <div>
                   <h2 class="mobile-section-title">记一笔明细</h2>
@@ -623,7 +690,11 @@
                 </div>
               </div>
 
-              <ion-segment :value="notesTypeFilter" @ionChange="handleNotesTypeFilterChange">
+              <ion-segment
+                :value="notesTypeFilter"
+                class="data-center-page__dark-segment data-center-page__notes-type-segment"
+                @ionChange="handleNotesTypeFilterChange"
+              >
                 <ion-segment-button value="all">
                   <ion-label>全部</ion-label>
                 </ion-segment-button>
@@ -636,9 +707,9 @@
               </ion-segment>
             </section>
 
-            <section class="mobile-card">
-              <div v-if="notesList.length > 0" class="data-center-page__card-list">
-                <article v-for="item in notesList" :key="item.id" class="data-center-page__detail-card">
+            <section class="mobile-card data-center-page__notes-detail-card">
+              <div v-if="notesList.length > 0" class="data-center-page__notes-detail-list">
+                <article v-for="item in notesList" :key="item.id" class="data-center-page__notes-entry">
                   <div class="data-center-page__detail-header">
                     <div class="data-center-page__tag-group">
                       <span class="data-center-page__type-tag" :class="`is-${item.type}`">
@@ -662,7 +733,7 @@
                   </div>
                 </article>
               </div>
-              <p v-else class="mobile-note">当前日期范围暂无记一笔明细。</p>
+              <p v-else class="mobile-note data-center-page__notes-empty">当前日期范围暂无记一笔明细。</p>
               <div class="data-center-page__subtle-actions">
                 <ion-button size="small" fill="outline" @click="handleExportNotes">导出报表</ion-button>
                 <ion-button size="small" fill="outline" @click="handleVoucherComingSoon">凭证说明</ion-button>
@@ -866,16 +937,53 @@ const dateRangeLabel = computed(() => {
   return `${formatDisplayDate(startDate.value)}-${formatDisplayDate(endDate.value)}`
 })
 
-const businessTrendItems = computed(() => {
-  return getRecentItems(businessOverview.value.consumptionTrend)
+const chartDateRangeLabel = computed(() => {
+  if (!startDate.value || !endDate.value) {
+    return ''
+  }
+
+  const startLabel = formatMonthDaySlash(startDate.value)
+  if (startDate.value === endDate.value) {
+    return `（${startLabel}）`
+  }
+
+  return `（${startLabel}-${formatMonthDaySlash(endDate.value)}）`
+})
+
+const businessTrendChartItems = computed(() => {
+  const items = getSortedItems(businessOverview.value.consumptionTrend)
+    .slice(-7)
+    .map((item) => ({
+      ...item,
+      label: formatMonthDaySlash(item.date),
+      value: resolveBusinessTrendTotal(item),
+    }))
+  const maxValue = Math.max(...items.map((item) => item.value), 0)
+
+  return items.map((item) => ({
+    ...item,
+    height:
+      maxValue > 0
+        ? Math.max((item.value / maxValue) * 100, item.value > 0 ? 8 : 0)
+        : 0,
+  }))
 })
 
 const revenueTrendItems = computed(() => {
   return getRecentItems(revenueSummary.value.dailyRevenues)
 })
 
-const salesTrendItems = computed(() => {
-  return getRecentItems(salesSummary.value.dailySalesTrend)
+const salesTrendChartItems = computed(() => {
+  const items = getSortedItems(salesSummary.value.dailySalesTrend).slice(-7)
+  const maxValue = Math.max(...items.map((item) => item.sales), 0)
+
+  return items.map((item) => ({
+    date: item.date,
+    label: formatMonthDaySlash(item.date),
+    value: item.sales,
+    orderCount: item.orderCount,
+    height: maxValue > 0 ? Math.max((item.sales / maxValue) * 100, item.sales > 0 ? 8 : 0) : 0,
+  }))
 })
 
 const accommodationTrendItems = computed(() => {
@@ -1041,6 +1149,10 @@ function formatShortDate(value: string) {
   return formatBusinessDateLabel(value, 'month-day')
 }
 
+function formatMonthDaySlash(value: string) {
+  return formatBusinessDateLabel(value, 'month-day').replace('-', '/')
+}
+
 function formatDisplayDate(value: string) {
   if (!value) {
     return '-'
@@ -1067,6 +1179,21 @@ function formatDateTime(value: string) {
 
 function formatCurrency(value: number) {
   return `¥${Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function formatCompactCurrency(value: number) {
+  const amount = Number(value || 0)
+  const absoluteAmount = Math.abs(amount)
+
+  if (absoluteAmount >= 100000000) {
+    return `¥${(amount / 100000000).toLocaleString('zh-CN', { maximumFractionDigits: 1 })}亿`
+  }
+
+  if (absoluteAmount >= 10000) {
+    return `¥${(amount / 10000).toLocaleString('zh-CN', { maximumFractionDigits: 1 })}万`
+  }
+
+  return `¥${amount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}`
 }
 
 function formatSignedCurrency(value: number, type: NoteType) {
@@ -1381,7 +1508,7 @@ async function loadAccommodationPage() {
   operationalMetrics.value = response.data
 }
 
-async function loadNotesPage() {
+function buildNotesListParams() {
   const listParams: { startDate: string; endDate: string; type?: NoteType } = {
     startDate: startDate.value,
     endDate: endDate.value,
@@ -1391,12 +1518,26 @@ async function loadNotesPage() {
     listParams.type = notesTypeFilter.value
   }
 
+  return listParams
+}
+
+async function loadNotesListForCurrentFilter() {
+  const response = await getNotesList(buildNotesListParams())
+
+  if (!response.success || !response.data) {
+    throw new Error(response.message || '记一笔明细加载失败')
+  }
+
+  notesList.value = response.data
+}
+
+async function loadNotesPage() {
   const [statisticsResult, listResult] = await Promise.allSettled([
     getNotesStatistics({
       startDate: startDate.value,
       endDate: endDate.value,
     }),
-    getNotesList(listParams),
+    getNotesList(buildNotesListParams()),
   ])
 
   const warnings: string[] = []
@@ -1475,7 +1616,17 @@ async function handleNotesTypeFilterChange(event: CustomEvent) {
   }
 
   notesTypeFilter.value = nextValue
-  await loadCurrentSection()
+  loadNotice.value = ''
+
+  try {
+    await loadNotesListForCurrentFilter()
+  } catch (error) {
+    const message = resolveWarningMessage(error, '记一笔明细加载失败')
+    loadNotice.value = message
+    if (!isHandledRequestError(error)) {
+      showWarningToast(message)
+    }
+  }
 }
 
 function handleAccommodationTrendTabChange(event: CustomEvent) {
@@ -1548,6 +1699,44 @@ async function handlePullRefresh(event: CustomEvent) {
 <style scoped>
 .data-center-page {
   display: block;
+  --background: #eef6ff;
+  --padding-top: 12px;
+  --padding-bottom: calc(36px + var(--app-safe-bottom));
+  --padding-start: 14px;
+  --padding-end: 14px;
+}
+
+.app-page-header__toolbar {
+  --background: rgba(255, 255, 255, 0.97);
+  --border-width: 0;
+  --min-height: 56px;
+}
+
+.app-page-header__icon-btn {
+  width: 38px;
+  height: 38px;
+  margin-inline-end: 8px;
+  --padding-start: 0;
+  --padding-end: 0;
+  --color: #333;
+}
+
+.app-page-header__icon-btn::part(native) {
+  border: 1px solid #e5eaf1;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(51, 65, 85, 0.08);
+}
+
+.app-page-header__icon-btn img {
+  display: block;
+  width: 19px;
+  height: 19px;
+  object-fit: contain;
+}
+
+.data-center-page .mobile-stack {
+  gap: 14px;
 }
 
 .data-center-page__toolbar-card,
@@ -1560,19 +1749,25 @@ async function handlePullRefresh(event: CustomEvent) {
 }
 
 .data-center-page__toolbar-card {
-  gap: 14px;
+  gap: 16px;
+  padding: 20px;
+  border: 0;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(73, 103, 139, 0.1);
 }
 
 .data-center-page__toolbar-copy {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .data-center-page__toolbar-store {
   margin: 0;
-  color: var(--app-heading);
-  font-size: 15px;
+  color: #303033;
+  font-size: 20px;
   font-weight: 700;
+  line-height: 1.3;
 }
 
 .data-center-page__toolbar-meta {
@@ -1584,20 +1779,60 @@ async function handlePullRefresh(event: CustomEvent) {
 .data-center-page__toolbar-meta span {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
+  min-height: 26px;
+  padding: 0 11px;
   border-radius: 999px;
-  background: var(--app-surface-muted);
-  color: var(--app-muted);
+  border: 1px solid #e7ebf0;
+  background: #fff;
+  color: #768395;
   font-size: 12px;
+  font-weight: 500;
+}
+
+.data-center-page__primary-segment {
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  border: 1px solid #e7ebf0;
+  border-radius: 50px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.data-center-page__primary-segment ion-segment-button {
+  --border-radius: 50px;
+  --color: #6c727c;
+  --color-checked: #fff;
+  --indicator-color: #343436;
+  --indicator-box-shadow: none;
+  --padding-start: 6px;
+  --padding-end: 6px;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+  font-size: 14px;
   font-weight: 600;
+}
+
+.data-center-page__primary-segment ion-segment-button::part(native) {
+  height: 100%;
+  border-radius: 50px;
+}
+
+.data-center-page__primary-segment ion-segment-button::part(indicator) {
+  padding: 0;
+}
+
+.data-center-page__primary-segment ion-segment-button::part(indicator-background) {
+  border-radius: 50px;
+  box-shadow: none;
 }
 
 .data-center-page__filter-shell {
   display: grid;
-  gap: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--app-border);
+  gap: 14px;
+  padding-top: 16px;
+  border-top: 2px solid #edf0f4;
 }
 
 .data-center-page__loading-card {
@@ -1607,12 +1842,12 @@ async function handlePullRefresh(event: CustomEvent) {
 
 .data-center-page__notice-card {
   border-style: dashed;
-  background: rgba(217, 119, 6, 0.08);
+  background: #fffaf0;
 }
 
 .data-center-page__error-card {
   border-style: dashed;
-  background: rgba(220, 38, 38, 0.08);
+  background: #fff5f5;
 }
 
 .data-center-page__preset-list {
@@ -1622,76 +1857,351 @@ async function handlePullRefresh(event: CustomEvent) {
 }
 
 .data-center-page__preset-button {
-  padding: 6px 12px;
-  border: 1px solid var(--app-border);
+  min-width: 48px;
+  min-height: 28px;
+  padding: 4px 11px;
+  border: 1px solid #e7ebf0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.88);
-  color: var(--app-muted);
-  font-size: 13px;
-  font-weight: 600;
+  background: #fff;
+  color: #616b78;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .data-center-page__preset-button.is-active {
-  border-color: var(--ion-color-primary);
-  background: var(--app-primary-soft-strong);
-  color: var(--ion-color-primary);
+  border-color: #168cf3;
+  background: #168cf3;
+  color: #fff;
+  box-shadow: none;
 }
 
 .data-center-page__date-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
+  gap: 5px;
+  min-height: 40px;
+  padding: 2px 12px;
+  border: 1px solid #e3e8ef;
+  border-radius: 999px;
+  background: #fff;
 }
 
 .data-center-page__date-input {
+  appearance: none;
+  -webkit-appearance: none;
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  min-height: 42px;
-  padding: 10px 6px;
-  border: 1px solid var(--app-border);
-  border-radius: 14px;
-  background: var(--app-surface);
-  color: var(--app-heading);
+  min-height: 34px;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: 999px;
+  outline: 0;
+  background: transparent;
+  color: #34363a;
   font: inherit;
+  font-size: 13px;
+  font-weight: 400;
   text-align: center;
 }
 
+.data-center-page__date-input::-webkit-calendar-picker-indicator,
+.data-center-page__date-input::-webkit-inner-spin-button {
+  display: none;
+  -webkit-appearance: none;
+}
+
+.data-center-page__date-input:focus {
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(22, 140, 243, 0.14);
+}
+
 .data-center-page__date-separator {
-  color: var(--app-muted);
-  font-size: 15px;
-  font-weight: 700;
+  color: #8b96a5;
+  font-size: 12px;
+  font-weight: 500;
   line-height: 1;
+}
+
+.data-center-page__overview-tabs {
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 1px solid rgba(218, 226, 236, 0.86);
+  border-radius: 50px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: none;
 }
 
 .data-center-page__tab-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  padding: 6px;
-  border: 1px solid var(--app-border);
-  border-radius: 18px;
-  background: var(--app-surface-muted);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  height: 100%;
 }
 
 .data-center-page__tab-button {
-  min-height: 48px;
-  padding: 10px;
+  min-width: 0;
+  min-height: 100%;
+  padding: 5px 3px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 50px;
   background: transparent;
-  color: var(--app-muted);
+  color: #41464e;
   font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.3;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
   text-align: center;
 }
 
 .data-center-page__tab-button.is-active {
-  background: var(--app-primary-soft-strong);
-  color: var(--ion-color-primary);
+  background: #168cf3;
+  color: #fff;
+  box-shadow: none;
+}
+
+.data-center-page__overview-card {
+  padding: 20px;
+  border: 0;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(73, 103, 139, 0.09);
+}
+
+.data-center-page__overview-card .mobile-section-title {
+  margin: 0;
+  color: #333438;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.data-center-page__overview-card .mobile-note {
+  margin: 5px 0 0;
+  color: #8b9098;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.data-center-page__statistics-card,
+.data-center-page__notes-filter-card,
+.data-center-page__notes-detail-card {
+  padding: var(--ios-pms-space-5);
+  border: 0;
+  border-radius: var(--ios-pms-radius-card);
+  background: var(--ios-pms-surface-strong);
+  box-shadow: var(--ios-pms-shadow-card);
+}
+
+.data-center-page__statistics-card .mobile-section-title,
+.data-center-page__notes-filter-card .mobile-section-title {
+  margin: 0;
+  color: #333438;
+  font-size: var(--ios-pms-font-title-xl-size);
+  font-weight: var(--ios-pms-weight-bold);
+  line-height: 1.35;
+}
+
+.data-center-page__dark-segment,
+.data-center-page__notes-mode-segment {
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid #e1e4e8;
+  border-radius: var(--ios-pms-radius-pill);
+  overflow: hidden;
+  background: #fff;
+}
+
+.data-center-page__dark-segment ion-segment-button,
+.data-center-page__notes-mode-segment ion-segment-button {
+  --border-radius: var(--ios-pms-radius-pill);
+  --indicator-box-shadow: none;
+  --padding-start: var(--ios-pms-space-1);
+  --padding-end: var(--ios-pms-space-1);
+  height: 100%;
+  min-width: 0;
+  min-height: 100%;
+  margin: 0;
+  font-size: 13px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
+}
+
+.data-center-page__dark-segment ion-segment-button {
+  --color: #242529;
+  --color-checked: #fff;
+  --indicator-color: #343436;
+}
+
+.data-center-page__notes-mode-segment ion-segment-button {
+  --color: #242529;
+  --color-checked: #fff;
+  --indicator-color: #168cf3;
+}
+
+.data-center-page__dark-segment ion-segment-button::part(native),
+.data-center-page__notes-mode-segment ion-segment-button::part(native) {
+  height: 100%;
+  border-radius: var(--ios-pms-radius-pill);
+}
+
+.data-center-page__dark-segment ion-segment-button::part(indicator),
+.data-center-page__notes-mode-segment ion-segment-button::part(indicator) {
+  padding: 0;
+}
+
+.data-center-page__dark-segment ion-segment-button::part(indicator-background),
+.data-center-page__notes-mode-segment ion-segment-button::part(indicator-background) {
+  border-radius: var(--ios-pms-radius-pill);
+  box-shadow: none;
+}
+
+.data-center-page__accommodation-segment,
+.data-center-page__notes-type-segment {
+  margin-top: var(--ios-pms-space-2);
+}
+
+.data-center-page__accommodation-segment ion-segment-button {
+  font-size: 12px;
+}
+
+.data-center-page__accommodation-trend-list,
+.data-center-page__accommodation-detail-list {
+  display: grid;
+  gap: var(--ios-pms-space-3);
+  margin-top: var(--ios-pms-space-3);
+}
+
+.data-center-page__accommodation-trend-card,
+.data-center-page__accommodation-detail-card {
+  display: grid;
+  min-width: 0;
+  border: 1px solid #dedede;
+  border-radius: var(--ios-pms-radius-input);
+  background: #fff;
+}
+
+.data-center-page__accommodation-trend-card {
+  gap: 3px;
+  min-height: 94px;
+  padding: 9px 12px;
+}
+
+.data-center-page__accommodation-trend-date {
+  color: #333438;
+  font-size: var(--ios-pms-font-title-md-size);
+  font-weight: var(--ios-pms-weight-bold);
+  line-height: 1.3;
+}
+
+.data-center-page__accommodation-trend-meta {
+  color: #777b82;
+  line-height: 1.45;
+}
+
+.data-center-page__accommodation-trend-value {
+  color: #333438;
+  font-size: var(--ios-pms-font-metric-lg-size);
+  font-weight: var(--ios-pms-weight-heavy);
+  line-height: 1.25;
+}
+
+.data-center-page__accommodation-detail-card {
+  gap: 4px;
+  min-height: 102px;
+  padding: 10px 12px;
+}
+
+.data-center-page__accommodation-detail-title {
+  min-width: 0;
+  overflow: hidden;
+  color: #333438;
+  font-size: var(--ios-pms-font-title-md-size);
+  font-weight: var(--ios-pms-weight-bold);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.data-center-page__accommodation-detail-meta {
+  color: #777b82;
+  line-height: 1.45;
+}
+
+.data-center-page__accommodation-detail-value {
+  color: #333438;
+  font-size: var(--ios-pms-font-metric-lg-size);
+  font-weight: var(--ios-pms-weight-heavy);
+  line-height: 1.25;
+}
+
+.data-center-page__notes-mode-shell {
+  min-height: 36px;
+}
+
+.data-center-page__notes-filter-card {
+  display: grid;
+  gap: var(--ios-pms-space-3);
+}
+
+.data-center-page__notes-filter-card .mobile-section-title {
+  margin-bottom: var(--ios-pms-space-1);
+}
+
+.data-center-page__notes-type-segment {
+  margin-top: 0;
+}
+
+.data-center-page__notes-detail-card {
+  display: grid;
+  gap: 0;
+}
+
+.data-center-page__notes-detail-list {
+  display: grid;
+  gap: 0;
+  border: 1px solid #e0e2e5;
+  border-radius: var(--ios-pms-radius-input);
+  overflow: hidden;
+  background: #fff;
+}
+
+.data-center-page__notes-entry {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.data-center-page__notes-entry + .data-center-page__notes-entry {
+  border-top: 1px solid #eceef1;
+}
+
+.data-center-page__notes-empty {
+  color: #999da4;
+  line-height: 1.5;
+}
+
+.data-center-page__notes-detail-card .data-center-page__subtle-actions {
+  margin-top: var(--ios-pms-space-2);
+  padding-top: var(--ios-pms-space-2);
+  border-top-color: #dedede;
+}
+
+.data-center-page__notes-detail-card .data-center-page__subtle-actions ion-button {
+  min-height: 30px;
+  margin: 0;
+  --border-color: #d7d7d7;
+  --border-radius: 7px;
+  --color: #44464b;
+  --padding-start: 11px;
+  --padding-end: 11px;
+  font-size: 12px;
 }
 
 .data-center-page__segment-grid {
@@ -1741,6 +2251,16 @@ async function handlePullRefresh(event: CustomEvent) {
 
 .data-center-page__export-button {
   flex: 0 0 auto;
+  min-height: 32px;
+  margin: 0;
+  --background: #168cf3;
+  --background-activated: #0f7edc;
+  --border-radius: 7px;
+  --box-shadow: none;
+  --color: #fff;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -1749,79 +2269,89 @@ async function handlePullRefresh(event: CustomEvent) {
 }
 
 .data-center-page__sales-searchbar {
-  --padding-start: 6px;
-  --padding-end: 6px;
+  --background: #f5f7fa;
+  --border-radius: 12px;
+  --box-shadow: none;
+  --color: #333438;
+  --icon-color: #8b96a5;
+  --padding-start: 0;
+  --padding-end: 0;
   --placeholder-font-weight: 400;
+  padding: 12px 0 4px;
 }
 
 .data-center-page__metric-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
-  margin-top: 12px;
-  border: 1px solid var(--app-border);
-  border-radius: 18px;
+  margin-top: 16px;
+  border: 1px solid #dedede;
+  border-radius: 2px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.72);
+  background: #fff;
 }
 
 .data-center-page__metric-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 6px 16px;
-  padding: 14px 16px;
+  gap: 6px 14px;
+  min-height: 42px;
+  padding: 7px 12px;
   border: 0;
   border-radius: 0;
   background: transparent;
 }
 
 .data-center-page__metric-card + .data-center-page__metric-card {
-  border-top: 1px solid var(--app-border);
+  border-top: 1px solid #dedede;
 }
 
 .data-center-page__metric-card.is-primary {
   grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  padding: 16px;
-  background: linear-gradient(135deg, var(--app-primary-soft-strong), rgba(59, 130, 246, 0.12));
+  gap: 3px;
+  min-height: 72px;
+  padding: 9px 12px;
+  background: #fff;
 }
 
 .data-center-page__metric-card:not(.is-primary) .data-center-page__metric-label {
-  color: var(--app-heading);
-  font-size: 13px;
-  font-weight: 600;
+  color: #3d3e42;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .data-center-page__metric-card:not(.is-primary) .data-center-page__metric-value {
-  font-size: 16px;
+  font-size: 17px;
+  font-weight: 500;
   text-align: right;
 }
 
 .data-center-page__metric-label {
-  color: var(--app-muted);
-  font-size: 12px;
+  color: #797d83;
+  font-size: 13px;
 }
 
 .data-center-page__metric-value {
-  color: var(--app-heading);
-  font-size: 20px;
+  color: #333438;
+  font-size: 22px;
   line-height: 1.3;
 }
 
 .data-center-page__metric-card.is-primary .data-center-page__metric-value {
-  font-size: 24px;
+  font-size: 27px;
+  font-weight: 700;
 }
 
 .data-center-page__summary-list,
 .data-center-page__card-list {
   display: grid;
   gap: 0;
-  margin-top: 12px;
-  border: 1px solid var(--app-border);
-  border-radius: 18px;
+  margin-top: 14px;
+  border: 1px solid #e0e2e5;
+  border-radius: 15px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.72);
+  background: #fff;
 }
 
 .data-center-page__summary-item,
@@ -1829,16 +2359,86 @@ async function handlePullRefresh(event: CustomEvent) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px;
   border: 0;
   border-radius: 0;
   background: transparent;
 }
 
+.data-center-page__summary-item > div {
+  min-width: 0;
+}
+
+.data-center-page__summary-item > strong {
+  flex: 0 0 auto;
+  color: #333438;
+  font-size: 17px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.data-center-page__summary-item > div > strong {
+  color: #333438;
+  font-size: 15px;
+  font-weight: 600;
+}
+
 .data-center-page__summary-item + .data-center-page__summary-item,
 .data-center-page__detail-card + .data-center-page__detail-card {
-  border-top: 1px solid var(--app-border);
+  border-top: 1px solid #eceef1;
+}
+
+.data-center-page__summary-list--distribution {
+  gap: 10px;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+}
+
+.data-center-page__summary-list--distribution .data-center-page__summary-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
+  min-height: 92px;
+  border: 1px solid #dedede;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.data-center-page__summary-list--distribution .data-center-page__summary-item + .data-center-page__summary-item {
+  border-top: 1px solid #dedede;
+}
+
+.data-center-page__summary-list--distribution .data-center-page__summary-item > strong {
+  font-size: 24px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.data-center-page__summary-list--distribution .mobile-note {
+  color: #575b62;
+}
+
+.data-center-page__summary-list--table {
+  border-radius: 12px;
+}
+
+.data-center-page__summary-list--table .data-center-page__summary-item {
+  min-height: 42px;
+  padding: 8px 12px;
+}
+
+.data-center-page__summary-list--table .data-center-page__summary-item > strong,
+.data-center-page__summary-list--table .data-center-page__summary-item > div > strong {
+  font-weight: 400;
+}
+
+.data-center-page__summary-list--revenue-table .data-center-page__summary-item > strong,
+.data-center-page__summary-list--revenue-table .data-center-page__summary-item > div > strong {
+  font-weight: 400;
 }
 
 .data-center-page__summary-item--stack,
@@ -1859,9 +2459,9 @@ async function handlePullRefresh(event: CustomEvent) {
 }
 
 .data-center-page__amount {
-  color: var(--app-heading);
+  color: #333438;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .data-center-page__amount.is-income {
@@ -1884,7 +2484,7 @@ async function handlePullRefresh(event: CustomEvent) {
   padding: 5px 10px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .data-center-page__type-tag.is-income {
@@ -1904,14 +2504,179 @@ async function handlePullRefresh(event: CustomEvent) {
   justify-content: flex-end;
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid var(--app-border);
+  border-top: 1px solid #e6e9ed;
+}
+
+.data-center-page__chart-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.data-center-page__chart-title span {
+  color: #42464d;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.data-center-page__trend-chart {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  min-height: 264px;
+  margin-top: 16px;
+  padding: 10px 7px 8px;
+  border: 1px dashed #d4dce7;
+  border-bottom-style: solid;
+  background: #fff;
+}
+
+.data-center-page__trend-chart::after {
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  z-index: 0;
+  border-top: 1px dashed rgba(154, 169, 187, 0.42);
+  content: '';
+  pointer-events: none;
+}
+
+.data-center-page__trend-chart--daily {
+  grid-template-columns: repeat(auto-fit, minmax(36px, 1fr));
+  gap: 2px;
+  padding-inline: 4px;
+}
+
+.data-center-page__trend-column {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: 30px 178px minmax(38px, auto);
+  align-items: end;
+  min-width: 0;
+  text-align: center;
+}
+
+.data-center-page__trend-column--daily {
+  grid-template-rows: 30px 164px 24px 18px;
+}
+
+.data-center-page__trend-value {
+  align-self: center;
+  min-width: 0;
+  overflow: hidden;
+  color: #4c535d;
+  font-size: 10px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.data-center-page__trend-value--compact {
+  font-size: 9px;
+}
+
+.data-center-page__trend-track {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 36%;
+  max-width: 30px;
+  height: 100%;
+  margin: 0 auto;
+  background: rgba(224, 235, 249, 0.48);
+}
+
+.data-center-page__trend-track::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-inline: 1px dashed rgba(179, 191, 206, 0.4);
+  content: '';
+  pointer-events: none;
+}
+
+.data-center-page__trend-bar {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #acd7ff 0%, #76b7fa 38%, #4f8ce9 100%);
+  box-shadow: 0 7px 14px rgba(65, 132, 224, 0.18);
+}
+
+.data-center-page__trend-chart--daily .data-center-page__trend-track {
+  width: 52%;
+  max-width: 24px;
+}
+
+.data-center-page__trend-label {
+  align-self: start;
+  padding-top: 9px;
+  color: #40444b;
+  font-size: 11px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.data-center-page__trend-column--daily .data-center-page__trend-label {
+  padding-top: 7px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.data-center-page__trend-meta {
+  align-self: start;
+  color: #8b9098;
+  font-size: 9px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 @media (max-width: 360px) {
+  .data-center-page {
+    --padding-start: 10px;
+    --padding-end: 10px;
+  }
+
+  .data-center-page__toolbar-card,
+  .data-center-page__overview-card {
+    padding: 17px;
+  }
+
+  .data-center-page__tab-button {
+    font-size: 11px;
+  }
+
   .data-center-page__metric-card:not(.is-primary),
   .data-center-page__summary-item,
   .data-center-page__detail-header {
     display: grid;
+  }
+
+  .data-center-page__summary-list--distribution .data-center-page__summary-item {
+    display: grid;
+  }
+
+  .data-center-page__trend-chart {
+    padding-inline: 3px;
+  }
+
+  .data-center-page__trend-chart--daily {
+    grid-template-columns: repeat(auto-fit, minmax(32px, 1fr));
+    padding-inline: 2px;
+  }
+
+  .data-center-page__trend-track {
+    width: 38%;
+  }
+
+  .data-center-page__trend-label {
+    font-size: 10px;
   }
 
   .data-center-page__subtle-actions {

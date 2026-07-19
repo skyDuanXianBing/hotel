@@ -1,5 +1,5 @@
 <template>
-  <section class="occ-section">
+  <section class="occ-section mobile-dashboard-surface">
     <div class="occ-section__header">
       <h2 class="occ-section__title">近7天入住率</h2>
       <span class="occ-section__range">{{ dateRangeLabel }}</span>
@@ -163,10 +163,7 @@ const resolveBarHeight = (rate: number) => {
 <style scoped>
 .occ-section {
   padding: 18px 16px 20px;
-  border: 1px solid var(--ios-pms-border-soft);
   border-radius: var(--ios-pms-radius-card);
-  background: rgba(250, 252, 254, 0.7);
-  box-shadow: var(--ios-pms-shadow-card);
 }
 
 .occ-section__header {

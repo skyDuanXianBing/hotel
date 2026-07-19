@@ -49,6 +49,8 @@
   --ios-pms-text-muted: #73829d;
   --ios-pms-text-soft: #8a98b0;
   --ios-pms-text-disabled: #a3b0c7;
+  --ios-pms-header-title-color: #333333;
+  --ios-pms-header-control-color: #666666;
 
   --ios-pms-border-soft: rgba(97, 124, 177, 0.08);
   --ios-pms-border-faint: rgba(116, 138, 185, 0.07);
@@ -91,6 +93,11 @@
   --ios-pms-shadow-card: 0 9px 22px rgba(77, 98, 145, 0.05);
   --ios-pms-shadow-card-strong: 0 10px 24px rgba(77, 98, 145, 0.06);
   --ios-pms-shadow-tabbar: 0 -14px 28px rgba(121, 145, 188, 0.08);
+
+  --ios-pms-dashboard-page-background: var(--ios-pms-bg-page);
+  --ios-pms-dashboard-card-background: rgba(250, 252, 254, 0.7);
+  --ios-pms-dashboard-card-border: var(--ios-pms-border-soft);
+  --ios-pms-dashboard-card-shadow: var(--ios-pms-shadow-card);
 
   --app-background: var(--ios-pms-bg-page);
   --app-surface: var(--ios-pms-surface);

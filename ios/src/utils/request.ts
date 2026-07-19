@@ -438,8 +438,16 @@ export const getRequestErrorStatus = (error: unknown) => {
 
 const executeRequest = async <T>(config: RequestConfig, responseType: 'json' | 'blob'): Promise<T> => {
   const controller = new AbortController()
+  let didTimeout = false
+  const abortFromCaller = () => controller.abort()
+  if (config.signal?.aborted) {
+    controller.abort()
+  } else {
+    config.signal?.addEventListener('abort', abortFromCaller, { once: true })
+  }
   const timeoutMs = config.timeoutMs ?? REQUEST_TIMEOUT
   const timeoutId = window.setTimeout(() => {
+    didTimeout = true
     controller.abort()
   }, timeoutMs)
 
@@ -469,7 +477,9 @@ const executeRequest = async <T>(config: RequestConfig, responseType: 'json' | '
 
     if (!response.ok) {
       const message = resolveErrorMessage(payload, response.statusText || '请求失败')
-      const shouldSuppressErrorToast = config.suppressErrorStatuses?.includes(response.status) === true
+      const shouldSuppressErrorToast =
+        config.suppressErrorToast === true ||
+        config.suppressErrorStatuses?.includes(response.status) === true
       const canRecoverUnauthorized =
         response.status === 401 &&
         !config.skipAutoReauth &&
@@ -520,17 +530,26 @@ const executeRequest = async <T>(config: RequestConfig, responseType: 'json' | '
     }
 
     if (error instanceof DOMException && error.name === 'AbortError') {
-      showErrorToast('请求超时，请稍后重试')
+      if (config.signal?.aborted && !didTimeout) {
+        throw error
+      }
+
+      if (!config.suppressErrorToast) {
+        showErrorToast('请求超时，请稍后重试')
+      }
       throw buildHandledError('请求超时，请稍后重试')
     }
 
     const message =
       error instanceof Error && error.message ? sanitizeUserFacingMessage(error.message) : '网络异常，请稍后重试'
 
-    showErrorToast(message)
+    if (!config.suppressErrorToast) {
+      showErrorToast(message)
+    }
     throw buildHandledError(message)
   } finally {
     window.clearTimeout(timeoutId)
+    config.signal?.removeEventListener('abort', abortFromCaller)
   }
 }
 

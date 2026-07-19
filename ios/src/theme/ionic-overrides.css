@@ -26,14 +26,14 @@ ion-page > ion-header:not(.rooms-header).header-collapse-condense > ion-toolbar 
 ion-page > ion-header:not(.rooms-header) > ion-toolbar ion-title,
 .app-page-header__title,
 .orders-header__title {
-  color: var(--ios-pms-text-primary);
+  color: var(--ios-pms-header-title-color);
   font-size: var(--ios-pms-font-title-xl-size);
-  font-weight: var(--ios-pms-weight-heavy);
+  font-weight: 500;
   letter-spacing: -0.04em;
 }
 
 .app-page-header__back-btn {
-  --color: #141821;
+  --color: var(--ios-pms-header-control-color);
   --icon-font-size: 22px;
   --padding-start: 0;
   --padding-end: 0;
@@ -49,7 +49,7 @@ ion-page > ion-header:not(.rooms-header) > ion-toolbar ion-title,
   --padding-end: 0;
   --padding-top: 0;
   --padding-bottom: 0;
-  --color: #141821;
+  --color: var(--ios-pms-header-control-color);
   min-height: 34px;
   margin: 0;
   font-size: var(--ios-pms-font-body-md-size);

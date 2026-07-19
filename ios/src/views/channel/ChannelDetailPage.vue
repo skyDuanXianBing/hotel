@@ -564,11 +564,11 @@ onIonViewWillEnter(async () => {
 }
 
 .channel-detail-page__back-btn {
-  --color: #717171;
+  --color: var(--ios-pms-header-control-color);
 }
 
 .channel-detail-page__toolbar-title {
-  color: #303030;
+  color: var(--ios-pms-header-title-color);
   font-size: 20px;
   font-weight: 500;
   letter-spacing: 0;

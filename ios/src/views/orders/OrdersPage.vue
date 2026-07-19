@@ -19,7 +19,7 @@
         <ion-refresher-content pulling-text="下拉刷新订单" refreshing-spinner="crescent" />
       </ion-refresher>
 
-      <div class="orders-page__shell">
+      <div class="orders-page__shell" :class="{ 'has-search': isSearchVisible }">
         <section v-if="isSearchVisible" class="orders-search-panel">
           <div class="orders-search-panel__bar">
             <ion-searchbar
@@ -1488,9 +1488,9 @@ onIonViewWillEnter(async () => {
 }
 
 .orders-header__title {
-  color: var(--ios-pms-text-primary);
+  color: var(--ios-pms-header-title-color);
   font-size: var(--ios-pms-font-title-xl-size);
-  font-weight: var(--ios-pms-weight-heavy);
+  font-weight: 500;
   letter-spacing: -0.04em;
 }
 
@@ -1503,15 +1503,24 @@ onIonViewWillEnter(async () => {
   width: 34px;
   height: 34px;
   margin: 0;
-  font-size: 25px;
+  font-size: 21px;
+}
+
+.orders-header__icon-btn ion-icon {
+  width: 21px;
+  height: 21px;
 }
 
 .orders-page__shell {
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  padding: 10px 0 0;
+  padding: 2px 0 0;
   background: #ffffff;
+}
+
+.orders-page__shell.has-search {
+  padding-top: 2px;
 }
 
 .orders-page__content-bg {
@@ -1520,11 +1529,11 @@ onIonViewWillEnter(async () => {
   flex-direction: column;
   gap: 6px;
   padding: 10px 0 32px;
-  background: var(--ios-pms-bg-page);
+  background: var(--ios-pms-dashboard-page-background);
 }
 
 .orders-search-panel {
-  padding: 0 14px;
+  padding: 0 14px 8px;
 }
 
   .orders-search-panel__bar {
@@ -1535,16 +1544,17 @@ onIonViewWillEnter(async () => {
 
 .orders-searchbar {
   flex: 1;
+  min-height: 44px;
   margin: 0;
   padding: 0;
-  --background: transparent;
-  --border-radius: 0;
+  --background: #fafafa;
+  --border-radius: 22px;
   --box-shadow: none;
-  --color: #10131a;
-  --icon-color: #c7ccd8;
-  --placeholder-color: #c7ccd8;
-  --placeholder-opacity: 1;
-  --clear-button-color: #8a90a0;
+  --color: #666666;
+  --icon-color: #666666;
+  --placeholder-color: #666666;
+  --placeholder-opacity: 0.72;
+  --clear-button-color: #666666;
   --padding-start: 0;
   --padding-end: 0;
   --padding-top: 0;
@@ -1556,12 +1566,12 @@ onIonViewWillEnter(async () => {
   box-shadow: none;
 }
 
-.orders-searchbar :deep(.searchbar-input-container) {
-  border: 1px solid #eceff5;
+.orders-searchbar::part(input) {
+  min-height: 44px;
+  border: 1px solid #ededed;
   border-radius: 22px;
-  background: #ffffff;
+  background: #fafafa;
   box-shadow: none;
-  overflow: hidden;
 }
 
 .orders-search-panel__cancel {

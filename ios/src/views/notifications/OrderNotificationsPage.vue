@@ -3,7 +3,7 @@
     <ion-header translucent>
       <ion-toolbar class="orders-header__toolbar">
         <ion-buttons slot="start">
-          <ion-back-button class="notifications-header__back-btn" :default-href="ROUTE_PATHS.home" text="" />
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.home" />
         </ion-buttons>
         <ion-title class="orders-header__title">订单通知</ion-title>
         <ion-buttons slot="end">
@@ -19,7 +19,7 @@
         <ion-refresher-content pulling-text="下拉刷新订单通知" refreshing-spinner="crescent" />
       </ion-refresher>
 
-      <div class="orders-page__shell">
+      <div class="orders-page__shell" :class="{ 'has-search': isSearchVisible }">
         <section v-if="isSearchVisible" class="orders-search-panel">
           <div class="orders-search-panel__bar">
             <ion-searchbar
@@ -47,74 +47,80 @@
           </div>
         </section>
 
-        <section v-if="false" class="orders-filter-row">
-          <div class="orders-filter-row__scroll">
-            <span class="orders-filter-chip orders-filter-chip--metric">未读 {{ unreadCount }}</span>
-            <span class="orders-filter-chip orders-filter-chip--metric">列表 {{ totalElements }}</span>
-            <button type="button" class="orders-filter-chip" @click="handleReload">刷新</button>
-            <button
-              type="button"
-              class="orders-filter-chip"
-              :class="{ 'is-active': unreadCount > 0 }"
-              :disabled="unreadCount <= 0"
-              @click="handleMarkAllAsRead"
-            >
-              全部已读
-            </button>
-            <button
-              v-if="activeTab !== 'all' || committedKeyword"
-              type="button"
-              class="orders-filter-chip orders-filter-chip--ghost"
-              @click="handleResetSearchAndFilters"
-            >
-              清空
-            </button>
-          </div>
-        </section>
+        <div class="orders-page__content-bg">
+          <section v-if="false" class="orders-filter-row">
+            <div class="orders-filter-row__scroll">
+              <span class="orders-filter-chip orders-filter-chip--metric">未读 {{ unreadCount }}</span>
+              <span class="orders-filter-chip orders-filter-chip--metric">列表 {{ totalElements }}</span>
+              <button type="button" class="orders-filter-chip" @click="handleReload">刷新</button>
+              <button
+                type="button"
+                class="orders-filter-chip"
+                :class="{ 'is-active': unreadCount > 0 }"
+                :disabled="unreadCount <= 0"
+                @click="handleMarkAllAsRead"
+              >
+                全部已读
+              </button>
+              <button
+                v-if="activeTab !== 'all' || committedKeyword"
+                type="button"
+                class="orders-filter-chip orders-filter-chip--ghost"
+                @click="handleResetSearchAndFilters"
+              >
+                清空
+              </button>
+            </div>
+          </section>
 
-        <section class="orders-list-section">
-          <div class="orders-list-header">
-            <div class="orders-list-header__heading">
-              <p class="orders-list-header__summary">{{ activeTabLabel }} · {{ totalElements }} 条结果</p>
-              <div v-if="activeTab !== 'all' || committedKeyword" class="orders-list-header__tags">
-                <span v-if="activeTab !== 'all'" class="orders-list-header__tag">{{ activeTabTag }}</span>
-                <span v-if="committedKeyword" class="orders-list-header__tag">{{ committedKeyword }}</span>
+          <section class="orders-list-section">
+            <div class="orders-list-header">
+              <div class="orders-list-header__heading">
+                <p class="orders-list-header__summary">
+                  {{ activeTabLabel }} · {{ totalElements }} 条结果
+                </p>
+                <div v-if="activeTab !== 'all' || committedKeyword" class="orders-list-header__tags">
+                  <span v-if="activeTab !== 'all'" class="orders-list-header__tag">{{ activeTabTag }}</span>
+                  <span v-if="committedKeyword" class="orders-list-header__tag">{{ committedKeyword }}</span>
+                </div>
+              </div>
+              <div class="orders-list-header__status" :class="{ 'is-loading': loading }" aria-hidden="true">
+                <ion-spinner name="crescent" class="orders-list-header__spinner" />
               </div>
             </div>
-            <ion-spinner v-if="loading" name="crescent" class="orders-list-header__spinner" />
-          </div>
 
-          <p v-if="loadNotice" class="orders-notice-text orders-notice-text--warning">{{ loadNotice }}</p>
+            <p v-if="loadNotice" class="orders-notice-text orders-notice-text--warning">{{ loadNotice }}</p>
 
-          <div v-if="notifications.length > 0" class="orders-list">
-            <OrderNotificationCard
-              v-for="item in notifications"
-              :key="item.id"
-              :notification="item"
-              @open-detail="handleOpenNotification(item)"
-              @open-actions="presentNotificationActions(item)"
-            />
-          </div>
-
-          <div v-else-if="!loading" class="orders-empty-state">
-            <div class="orders-empty-state__illustration" aria-hidden="true">
-              <span class="orders-empty-state__box"></span>
+            <div v-if="notifications.length > 0" class="orders-list">
+              <OrderNotificationCard
+                v-for="item in notifications"
+                :key="item.id"
+                :notification="item"
+                @open-detail="handleOpenNotification(item)"
+                @open-actions="presentNotificationActions(item)"
+              />
             </div>
-            <p class="orders-empty">{{ emptyTitle }}</p>
-          </div>
-        </section>
 
-        <section v-if="hasMore" class="orders-load-more-card">
-          <ion-button
-            expand="block"
-            fill="clear"
-            class="orders-load-more-card__button"
-            :disabled="loadingMore"
-            @click="handleLoadMoreButton"
-          >
-            {{ loadingMore ? '加载中...' : '加载更多订单通知' }}
-          </ion-button>
-        </section>
+            <div v-else-if="!loading" class="orders-empty-state">
+              <div class="orders-empty-state__illustration" aria-hidden="true">
+                <span class="orders-empty-state__box"></span>
+              </div>
+              <p class="orders-empty">{{ emptyTitle }}</p>
+            </div>
+          </section>
+
+          <section v-if="hasMore" class="orders-load-more-card">
+            <ion-button
+              expand="block"
+              fill="clear"
+              class="orders-load-more-card__button"
+              :disabled="loadingMore"
+              @click="handleLoadMoreButton"
+            >
+              {{ loadingMore ? '加载中...' : '加载更多订单通知' }}
+            </ion-button>
+          </section>
+        </div>
       </div>
 
       <ion-infinite-scroll v-if="hasMore" @ionInfinite="handleInfiniteLoad">
@@ -559,6 +565,8 @@ onIonViewWillEnter(async () => {
 .notifications-page {
   display: block;
   --background: #ffffff;
+  --padding-start: 0;
+  --padding-end: 0;
 }
 
 .notifications-page :deep(ion-header) {
@@ -577,18 +585,10 @@ onIonViewWillEnter(async () => {
 }
 
 .orders-header__title {
-  color: var(--ios-pms-text-primary);
+  color: var(--ios-pms-header-title-color);
   font-size: var(--ios-pms-font-title-xl-size);
-  font-weight: var(--ios-pms-weight-heavy);
+  font-weight: 500;
   letter-spacing: -0.04em;
-}
-
-.notifications-header__back-btn {
-  --color: #141821;
-  --icon-font-size: 22px;
-  --padding-start: 0;
-  --padding-end: 6px;
-  min-height: 34px;
 }
 
 .orders-header__icon-btn {
@@ -600,20 +600,37 @@ onIonViewWillEnter(async () => {
   width: 34px;
   height: 34px;
   margin: 0;
-  font-size: 25px;
+  font-size: 21px;
+}
+
+.orders-header__icon-btn ion-icon {
+  width: 21px;
+  height: 21px;
 }
 
 .orders-page__shell {
   display: flex;
   flex-direction: column;
-  gap: 12px;
   min-height: 100%;
+  padding: 2px 0 0;
+  background: #ffffff;
+}
+
+.orders-page__shell.has-search {
+  padding-top: 2px;
+}
+
+.orders-page__content-bg {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
   padding: 10px 0 32px;
-  background: linear-gradient(180deg, #ffffff 0%, #fcfcfe 100%);
+  background: #fafcff;
 }
 
 .orders-search-panel {
-  padding: 0 14px;
+  padding: 0 14px 8px;
 }
 
 .orders-search-panel__bar {
@@ -624,16 +641,17 @@ onIonViewWillEnter(async () => {
 
 .orders-searchbar {
   flex: 1;
+  min-height: 44px;
   margin: 0;
   padding: 0;
-  --background: transparent;
-  --border-radius: 0;
+  --background: #fafafa;
+  --border-radius: 22px;
   --box-shadow: none;
-  --color: #10131a;
-  --icon-color: #c7ccd8;
-  --placeholder-color: #c7ccd8;
-  --placeholder-opacity: 1;
-  --clear-button-color: #8a90a0;
+  --color: #666666;
+  --icon-color: #666666;
+  --placeholder-color: #666666;
+  --placeholder-opacity: 0.72;
+  --clear-button-color: #666666;
   --padding-start: 0;
   --padding-end: 0;
   --padding-top: 0;
@@ -645,12 +663,12 @@ onIonViewWillEnter(async () => {
   box-shadow: none;
 }
 
-.orders-searchbar :deep(.searchbar-input-container) {
-  border: 1px solid #eceff5;
+.orders-searchbar::part(input) {
+  min-height: 44px;
+  border: 1px solid #ededed;
   border-radius: 22px;
-  background: #ffffff;
+  background: #fafafa;
   box-shadow: none;
-  overflow: hidden;
 }
 
 .orders-search-panel__cancel {
@@ -677,8 +695,12 @@ onIonViewWillEnter(async () => {
   top: 0;
   bottom: 0;
   width: var(--orders-strip-fade-width);
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0), #ffffff 78%);
+  background: linear-gradient(90deg, rgba(247, 250, 255, 0), #f7faff 78%);
   pointer-events: none;
+}
+
+.orders-tabs-strip::after {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), #ffffff 78%);
 }
 
 .orders-tabs-strip__scroll,
@@ -766,7 +788,7 @@ onIonViewWillEnter(async () => {
 
 .orders-list-section {
   flex: 1;
-  padding: 2px 14px 40px;
+  padding: 0 14px 40px;
 }
 
 .orders-list-header {
@@ -811,13 +833,29 @@ onIonViewWillEnter(async () => {
 }
 
 .orders-list-header__spinner {
-  color: #4a98ff;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
+  color: #4a98ff;
+  opacity: 0;
+}
+
+.orders-list-header__status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  min-height: 20px;
+  flex-shrink: 0;
+}
+
+.orders-list-header__status.is-loading .orders-list-header__spinner {
+  opacity: 1;
 }
 
 .orders-list {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .orders-notice-text {

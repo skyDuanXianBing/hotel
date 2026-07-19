@@ -7,7 +7,9 @@
         </ion-buttons>
         <ion-title class="app-page-header__title">房价管理</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="handleOpenHistory">改价记录</ion-button>
+          <ion-button class="room-price-page__history-button" @click="handleOpenHistory">
+            改价记录
+          </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -1661,6 +1663,10 @@ onIonViewWillEnter(async () => {
 <style scoped>
 .room-price-page {
   display: block;
+}
+
+.room-price-page__history-button {
+  --color: var(--ios-pms-header-control-color);
 }
 
 .room-price-page__hero {

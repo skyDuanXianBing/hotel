@@ -446,6 +446,8 @@ onIonViewWillEnter(async () => {
 .notifications-page {
   display: block;
   --background: #ffffff;
+  --padding-start: 0;
+  --padding-end: 0;
 }
 
 .notifications-page :deep(ion-header) {
@@ -464,14 +466,14 @@ onIonViewWillEnter(async () => {
 }
 
 .orders-header__title {
-  color: var(--ios-pms-text-primary);
+  color: var(--ios-pms-header-title-color);
   font-size: var(--ios-pms-font-title-xl-size);
-  font-weight: var(--ios-pms-weight-heavy);
+  font-weight: 500;
   letter-spacing: -0.04em;
 }
 
 .notifications-header__back-btn {
-  --color: #141821;
+  --color: var(--ios-pms-header-control-color);
   --icon-font-size: 22px;
   --padding-start: 0;
   --padding-end: 6px;
@@ -487,20 +489,25 @@ onIonViewWillEnter(async () => {
   width: 34px;
   height: 34px;
   margin: 0;
-  font-size: 25px;
+  font-size: 21px;
+}
+
+.orders-header__icon-btn ion-icon {
+  width: 21px;
+  height: 21px;
 }
 
 .orders-page__shell {
   display: flex;
   flex-direction: column;
-  gap: 12px;
   min-height: 100%;
-  padding: 10px 0 32px;
-  background: linear-gradient(180deg, #ffffff 0%, #fcfcfe 100%);
+  padding: 2px 0 0;
+  background: #ffffff;
 }
 
 .orders-search-panel {
-  padding: 0 14px;
+  padding: 0 14px 8px;
+  background: #ffffff;
 }
 
 .orders-search-panel__bar {
@@ -511,16 +518,17 @@ onIonViewWillEnter(async () => {
 
 .orders-searchbar {
   flex: 1;
+  min-height: 44px;
   margin: 0;
   padding: 0;
-  --background: transparent;
-  --border-radius: 0;
+  --background: #fafafa;
+  --border-radius: 22px;
   --box-shadow: none;
-  --color: #10131a;
-  --icon-color: #c7ccd8;
-  --placeholder-color: #c7ccd8;
-  --placeholder-opacity: 1;
-  --clear-button-color: #8a90a0;
+  --color: #666666;
+  --icon-color: #666666;
+  --placeholder-color: #666666;
+  --placeholder-opacity: 0.72;
+  --clear-button-color: #666666;
   --padding-start: 0;
   --padding-end: 0;
   --padding-top: 0;
@@ -532,12 +540,12 @@ onIonViewWillEnter(async () => {
   box-shadow: none;
 }
 
-.orders-searchbar :deep(.searchbar-input-container) {
-  border: 1px solid #eceff5;
+.orders-searchbar::part(input) {
+  min-height: 44px;
+  border: 1px solid #ededed;
   border-radius: 22px;
-  background: #ffffff;
+  background: #fafafa;
   box-shadow: none;
-  overflow: hidden;
 }
 
 .orders-search-panel__cancel {
@@ -553,7 +561,7 @@ onIonViewWillEnter(async () => {
 .orders-filter-row {
   position: relative;
   --orders-strip-edge: 14px;
-  --orders-strip-fade-width: 18px;
+  --orders-strip-fade-width: 14px;
 }
 
 .orders-tabs-strip::after,
@@ -564,8 +572,16 @@ onIonViewWillEnter(async () => {
   top: 0;
   bottom: 0;
   width: var(--orders-strip-fade-width);
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0), #ffffff 78%);
+  background: linear-gradient(90deg, rgba(250, 252, 255, 0), #fafcff 78%);
   pointer-events: none;
+}
+
+.orders-tabs-strip {
+  background: #ffffff;
+}
+
+.orders-tabs-strip::after {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), #ffffff 78%);
 }
 
 .orders-tabs-strip__scroll,
@@ -573,14 +589,10 @@ onIonViewWillEnter(async () => {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  overflow-y: hidden;
   padding-left: var(--orders-strip-edge);
-  padding-right: calc(var(--orders-strip-edge) + var(--orders-strip-fade-width) + 22px);
+  padding-right: calc(var(--orders-strip-edge) + var(--orders-strip-fade-width));
   scroll-padding-left: var(--orders-strip-edge);
-  scroll-padding-right: calc(var(--orders-strip-edge) + var(--orders-strip-fade-width) + 22px);
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
-  touch-action: pan-x;
+  scroll-padding-right: calc(var(--orders-strip-edge) + var(--orders-strip-fade-width));
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -620,6 +632,8 @@ onIonViewWillEnter(async () => {
 
 .system-notifications-controls {
   display: block;
+  padding: 10px 0 6px;
+  background: #fafcff;
 }
 
 .system-notifications-controls__rail {
@@ -628,9 +642,6 @@ onIonViewWillEnter(async () => {
 
 .orders-filter-chip {
   flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   min-height: 36px;
   padding: 0 14px;
   border: 1px solid #e9ebf1;
@@ -656,7 +667,8 @@ onIonViewWillEnter(async () => {
 
 .orders-list-section {
   flex: 1;
-  padding: 2px 14px 40px;
+  padding: 0 14px 40px;
+  background: #fafcff;
 }
 
 .orders-list-header {
@@ -701,13 +713,15 @@ onIonViewWillEnter(async () => {
 }
 
 .orders-list-header__spinner {
+  width: 18px;
+  height: 18px;
   color: #4a98ff;
   flex-shrink: 0;
 }
 
 .orders-list {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .orders-notice-text {

@@ -9,13 +9,13 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content fullscreen class="mobile-page registration-review-list-page">
-      <section class="mobile-hero registration-review-list-page__hero">
+    <ion-content fullscreen class="mobile-page mobile-page--dashboard registration-review-list-page">
+      <section class="mobile-hero mobile-dashboard-surface registration-review-list-page__hero">
         <div class="registration-review-list-page__hero-header">
           <div>
             <h1 class="mobile-title">入住登记审查</h1>
           </div>
-          <ion-button fill="outline" size="small" class="registration-review-list-page__hero-action" @click="handleOpenLinks">
+          <ion-button size="small" class="registration-review-list-page__hero-action" @click="handleOpenLinks">
             链接列表
           </ion-button>
         </div>
@@ -27,7 +27,7 @@
       </section>
 
       <div class="mobile-stack">
-        <section class="mobile-card registration-review-list-page__filters">
+        <section class="mobile-card mobile-dashboard-surface registration-review-list-page__filters">
           <div class="mobile-inline-row registration-review-list-page__filters-header">
             <div>
               <h2 class="mobile-section-title">筛选条件</h2>
@@ -51,8 +51,17 @@
               </ion-select-option>
             </ion-select>
 
-            <ion-input v-model="checkInDateFilter" type="date" fill="outline" label="入住日期" label-placement="stacked" />
-            <ion-input v-model="checkOutDateFilter" type="date" fill="outline" label="离店日期" label-placement="stacked" />
+            <div class="registration-review-list-page__date-range">
+              <div class="registration-review-list-page__date-field">
+                <span>{{ checkInDateFilter || '入住日期' }}</span>
+                <ion-input v-model="checkInDateFilter" type="date" aria-label="入住日期" />
+              </div>
+              <span class="registration-review-list-page__date-separator" aria-hidden="true">至</span>
+              <div class="registration-review-list-page__date-field">
+                <span>{{ checkOutDateFilter || '离店日期' }}</span>
+                <ion-input v-model="checkOutDateFilter" type="date" aria-label="离店日期" />
+              </div>
+            </div>
           </div>
 
           <div class="registration-review-list-page__filter-actions">
@@ -63,14 +72,22 @@
           <p v-if="reviewStore.channelLoadError" class="mobile-note">{{ reviewStore.channelLoadError }}</p>
         </section>
 
-        <section class="mobile-card">
+        <section class="mobile-card mobile-dashboard-surface registration-review-list-page__results">
           <div class="mobile-inline-row registration-review-list-page__results-header">
             <div>
               <h2 class="mobile-section-title">审查列表</h2>
               <p class="mobile-note">共 {{ reviewStore.totalCount }} 条，待处理 {{ reviewStore.pendingCount }} 条。</p>
             </div>
             <div class="registration-review-list-page__header-actions">
-              <ion-button fill="outline" size="small" @click="handleReload">刷新</ion-button>
+              <ion-button
+                fill="clear"
+                size="small"
+                class="registration-review-list-page__reload-button"
+                aria-label="刷新审查列表"
+                @click="handleReload"
+              >
+                <ion-icon slot="icon-only" :icon="refreshOutline" />
+              </ion-button>
             </div>
           </div>
 
@@ -94,20 +111,51 @@
               @click="handleOpenDetail(record.formId)"
             >
               <div class="registration-review-list-page__item-header">
-                <div>
+                <div class="registration-review-list-page__item-heading">
                   <strong class="registration-review-list-page__guest-name">{{ record.guestName }}</strong>
-                  <p>{{ record.roomLabel }} · {{ record.channelName }}</p>
+                  <div class="registration-review-list-page__item-badges">
+                    <span
+                      class="registration-review-list-page__channel"
+                      :style="resolveChannelBadgeStyle(record.channelName)"
+                    >
+                      {{ record.channelName }}
+                    </span>
+                    <span
+                      class="registration-review-list-page__room"
+                      :class="{
+                        'is-unassigned': !record.roomNumber || record.roomNumber === '未排房',
+                        'is-assigned': record.roomNumber && record.roomNumber !== '未排房',
+                      }"
+                    >
+                      {{ record.roomLabel }}
+                    </span>
+                  </div>
                 </div>
                 <span class="registration-review-list-page__status" :class="`is-${record.status}`">
                   {{ getReviewStatusLabel(record.status) }}
                 </span>
               </div>
 
-              <div class="registration-review-list-page__meta-grid">
-                <span>入住 {{ record.checkInDate }}</span>
-                <span>离店 {{ record.checkOutDate }}</span>
-                <span>提交 {{ record.submittedAt }}</span>
-                <span>更新 {{ record.updatedAt }}</span>
+              <div class="registration-review-list-page__stay-grid">
+                <span>
+                  <span class="registration-review-list-page__meta-label">入住</span>
+                  <span class="registration-review-list-page__meta-value">{{ record.checkInDate }}</span>
+                </span>
+                <span>
+                  <span class="registration-review-list-page__meta-label">离店</span>
+                  <span class="registration-review-list-page__meta-value">{{ record.checkOutDate }}</span>
+                </span>
+              </div>
+
+              <div class="registration-review-list-page__time-grid">
+                <span>
+                  <span class="registration-review-list-page__meta-label">提交</span>
+                  <span class="registration-review-list-page__meta-value">{{ record.submittedAt }}</span>
+                </span>
+                <span>
+                  <span class="registration-review-list-page__meta-label">更新</span>
+                  <span class="registration-review-list-page__meta-value">{{ record.updatedAt }}</span>
+                </span>
               </div>
 
               <div class="registration-review-list-page__notes">
@@ -131,6 +179,7 @@ import {
   IonButtons,
   IonContent,
   IonHeader,
+  IonIcon,
   IonInput,
   IonPage,
   IonSelect,
@@ -139,6 +188,7 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/vue'
+import { refreshOutline } from 'ionicons/icons'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { type RegistrationReviewListParams } from '@/api/review'
@@ -154,6 +204,8 @@ const channelFilter = ref('all')
 const checkInDateFilter = ref('')
 const checkOutDateFilter = ref('')
 
+const DEFAULT_CHANNEL_COLOR = '#2949ff'
+
 const channelOptions = computed(() => {
   const options = [{ label: '全部渠道', value: 'all' }]
 
@@ -165,6 +217,21 @@ const channelOptions = computed(() => {
   }
 
   return options
+})
+
+const channelColorMap = computed(() => {
+  const result = new Map<string, string>()
+
+  for (const channel of reviewStore.channels) {
+    const name = normalizeChannelLookupValue(channel.name)
+    const color = normalizeChannelColor(channel.color)
+
+    if (name && color) {
+      result.set(name, color)
+    }
+  }
+
+  return result
 })
 
 const activeFilters = computed<RegistrationReviewListParams>(() => {
@@ -237,33 +304,46 @@ async function handleOpenLinks() {
     name: 'RegistrationReviewLinks',
   })
 }
+
+function normalizeChannelLookupValue(value?: string) {
+  return (value || '').trim().toLowerCase()
+}
+
+function normalizeChannelColor(value?: string) {
+  const color = (value || '').trim()
+  return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(color) ? color : ''
+}
+
+function resolveChannelBadgeStyle(channelName: string) {
+  return {
+    '--review-channel-color':
+      channelColorMap.value.get(normalizeChannelLookupValue(channelName)) || DEFAULT_CHANNEL_COLOR,
+  }
+}
 </script>
 
 <style scoped>
-.registration-review-list-page__hero {
-  display: grid;
-  gap: var(--ios-pms-space-3);
-  padding-bottom: var(--ios-pms-space-4);
-  margin-bottom: var(--ios-pms-space-3);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(249, 251, 255, 0.98));
-  box-shadow: 0 10px 24px rgba(77, 98, 145, 0.045);
-}
-
 .registration-review-list-route {
-  background:
-    radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 34%),
-    linear-gradient(180deg, #f4f7fc 0%, #eef3fb 100%);
+  background: var(--ios-pms-dashboard-page-background);
 }
 
 .registration-review-list-page {
-  --background:
-    radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 34%),
-    linear-gradient(180deg, #f4f7fc 0%, #eef3fb 100%);
+  --background: var(--ios-pms-dashboard-page-background);
+  --padding-top: 10px;
+  --padding-bottom: calc(36px + var(--app-safe-bottom));
   background: var(--background);
 }
 
+.registration-review-list-page__hero {
+  display: grid;
+  gap: 14px;
+  padding: 16px 16px 20px;
+  margin-bottom: 8px;
+  border-radius: 20px;
+}
+
 .registration-review-list-page__hero::before {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
+  display: none;
 }
 
 .registration-review-list-page__hero-header {
@@ -284,37 +364,84 @@ async function handleOpenLinks() {
 .registration-review-list-page__hero-header > div {
   display: flex;
   align-items: center;
-  min-height: 32px;
+  min-height: 30px;
 }
 
 .registration-review-list-page__hero :deep(.mobile-title) {
-  color: var(--ios-pms-text-primary);
   margin: 0;
+  color: #333333;
+  font-size: 24px;
+  font-weight: 540;
   line-height: 1.2;
+  letter-spacing: 0;
 }
 
 .registration-review-list-page__hero-action {
+  --background: #218cff;
+  --background-activated: #147be9;
+  --background-hover: #218cff;
+  --border-radius: 7px;
+  --box-shadow: none;
+  --color: #ffffff;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 0;
+  --padding-bottom: 0;
   flex-shrink: 0;
+  height: 30px;
+  min-height: 30px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 400;
 }
 
 .registration-review-list-page__hero-metrics {
+  gap: 8px;
   margin-top: 0;
+}
+
+.registration-review-list-page__hero-metrics .mobile-chip {
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid #d5d5d5;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #666666;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.registration-review-list-page :deep(.mobile-stack) {
+  gap: 8px;
 }
 
 .registration-review-list-page__filters {
   display: grid;
-  gap: var(--ios-pms-space-4);
+  gap: 16px;
+  padding: 16px;
+  border-radius: 20px;
 }
 
 .registration-review-list-page__filters-header {
   align-items: flex-start;
-  padding-bottom: var(--ios-pms-space-2);
-  border-bottom: 1px solid var(--ios-pms-divider);
   min-width: 0;
 }
 
+.registration-review-list-page__filters :deep(.mobile-section-title),
+.registration-review-list-page__results :deep(.mobile-section-title) {
+  margin: 0 0 3px;
+  color: #333333;
+  font-size: 22px;
+  font-weight: 540;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
 .registration-review-list-page__filters-note {
-  font-size: 11px;
+  color: #a1a1a1;
+  font-size: 13px;
+  line-height: 1.45;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -323,92 +450,220 @@ async function handleOpenLinks() {
 .registration-review-list-page__filter-summary {
   display: inline-flex;
   align-items: center;
-  min-height: 30px;
-  padding: 0 12px;
-  border: 1px solid var(--ios-pms-border-faint);
-  border-radius: var(--ios-pms-radius-pill);
-  background: var(--ios-pms-surface-muted);
-  color: var(--ios-pms-text-muted);
-  font-size: var(--ios-pms-font-body-sm-size);
-  font-weight: var(--ios-pms-weight-medium);
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid #d9ebff;
+  border-radius: 12px;
+  background: #eaf5ff;
+  color: #287cff;
+  font-size: 13px;
+  font-weight: 400;
   white-space: nowrap;
 }
 
 .registration-review-list-page__filter-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 14px;
+  gap: 16px 8px;
   align-items: start;
-  padding-top: 2px;
 }
 
-.registration-review-list-page__filter-grid :deep(ion-select),
-.registration-review-list-page__filter-grid :deep(ion-input) {
-  --border-radius: var(--ios-pms-radius-input);
-  --background: rgba(247, 250, 255, 0.72);
-  --border-color: var(--ios-pms-border-soft);
-  --highlight-color-focused: var(--ios-pms-primary);
-  --padding-start: 12px;
-  --padding-end: 12px;
-  min-height: 74px;
+.registration-review-list-page__filter-grid :deep(ion-select) {
+  --background: #ffffff;
+  --border-color: #dedede;
+  --border-radius: 10px;
+  --border-width: 1px;
+  --highlight-color-focused: #218cff;
+  --padding-start: 14px;
+  --padding-end: 14px;
+  min-height: 62px;
+  color: #666666;
 }
 
 .registration-review-list-page__filter-grid :deep(.label-text-wrapper) {
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .registration-review-list-page__filter-grid :deep(.label-text) {
-  color: var(--ios-pms-text-secondary);
-  font-size: var(--ios-pms-font-body-sm-size);
-  font-weight: var(--ios-pms-weight-medium);
+  color: #333333;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.registration-review-list-page__filter-grid :deep(ion-select::part(text)),
+.registration-review-list-page__filter-grid :deep(ion-select::part(placeholder)) {
+  color: #666666;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.registration-review-list-page__filter-grid :deep(ion-select::part(icon)) {
+  color: #888888;
+  opacity: 1;
+}
+
+.registration-review-list-page__date-range {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr);
+  align-items: center;
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid #dedede;
+  border-radius: 24px;
+  background: #ffffff;
+}
+
+.registration-review-list-page__date-field {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 46px;
+  color: #333333;
+  font-size: 14px;
+  font-weight: 400;
+  text-align: center;
+}
+
+.registration-review-list-page__date-field:first-child {
+  place-items: center end;
+  padding-right: 18px;
+}
+
+.registration-review-list-page__date-field:last-child {
+  place-items: center start;
+  padding-left: 18px;
+}
+
+.registration-review-list-page__date-field > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.registration-review-list-page__date-field :deep(ion-input) {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  min-height: 46px;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.registration-review-list-page__date-separator {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  color: #999999;
+  font-size: 16px;
+  text-align: center;
 }
 
 .registration-review-list-page__filter-actions {
   display: flex;
-  gap: var(--ios-pms-space-2);
+  gap: 8px;
   justify-content: flex-end;
   flex-wrap: wrap;
-  padding-top: var(--ios-pms-space-2);
-  border-top: 1px solid var(--ios-pms-divider);
+  padding-top: 12px;
+  border-top: 1px solid #d9d9d9;
+}
+
+.registration-review-list-page__filter-actions :deep(ion-button) {
+  --border-radius: 10px;
+  --box-shadow: none;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  height: 32px;
+  min-height: 32px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.registration-review-list-page__filter-actions :deep(ion-button::part(native)) {
+  min-height: 32px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.registration-review-list-page__filter-actions :deep(ion-button.button-solid) {
+  --background: #2b6cff;
+  --background-activated: #1d5be4;
+  --padding-start: 14px;
+  --padding-end: 14px;
+}
+
+.registration-review-list-page__filter-actions :deep(ion-button.button-outline) {
+  --background: #ffffff;
+  --border-color: #d2d2d2;
+  --border-width: 1px;
+  --color: #2455ee;
+  --padding-start: 13px;
+  --padding-end: 13px;
+}
+
+.registration-review-list-page__results {
+  padding: 16px 16px 24px;
+  border-radius: 20px;
 }
 
 .registration-review-list-page__results-header {
-  margin-bottom: var(--ios-pms-space-2);
+  align-items: flex-start;
+  margin-bottom: 16px;
   min-width: 0;
+}
+
+.registration-review-list-page__results-header .mobile-note {
+  color: #a1a1a1;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .registration-review-list-page__header-actions {
   display: flex;
-  gap: var(--ios-pms-space-2);
   flex-shrink: 0;
   align-items: center;
 }
 
-.registration-review-list-page__item {
-  width: 100%;
-  padding: var(--ios-pms-space-4) 0;
-  border: none;
-  border-radius: 0;
-  border-top: 1px solid var(--ios-pms-divider);
-  background: transparent;
-  text-align: left;
-  color: inherit;
+.registration-review-list-page__reload-button {
+  --background: rgba(33, 140, 255, 0.08);
+  --background-activated: rgba(33, 140, 255, 0.14);
+  --border-radius: 10px;
+  --box-shadow: none;
+  --color: #218cff;
+  --padding-start: 0;
+  --padding-end: 0;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  margin: 0;
 }
 
-.registration-review-list-page__item:first-child {
-  border-top: none;
+.registration-review-list-page__reload-button ion-icon {
+  font-size: 18px;
+}
+
+.registration-review-list-page__list {
+  gap: 16px;
+}
+
+.registration-review-list-page__item {
+  width: 100%;
+  padding: 18px 16px 20px;
+  border: none;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 16px rgba(75, 95, 130, 0.09);
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
 }
 
 .registration-review-list-page__item.is-pending {
-  margin: 0;
-  padding: var(--ios-pms-space-4) var(--ios-pms-space-3);
-  border-top-color: transparent;
-  border-radius: var(--ios-pms-radius-card-sm);
-  background: linear-gradient(180deg, rgba(227, 139, 24, 0.08), rgba(255, 255, 255, 0.72));
-}
-
-.registration-review-list-page__item.is-pending + .registration-review-list-page__item {
-  border-top-color: transparent;
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .registration-review-list-page__item-header {
@@ -419,33 +674,144 @@ async function handleOpenLinks() {
   min-width: 0;
 }
 
+.registration-review-list-page__item-heading {
+  min-width: 0;
+}
+
 .registration-review-list-page__guest-name {
   display: block;
-  color: var(--ios-pms-text-primary);
-  font-size: var(--ios-pms-font-title-sm-size);
-  font-weight: var(--ios-pms-weight-heavy);
-  line-height: 1.3;
+  overflow: hidden;
+  color: #333333;
+  font-size: 18px;
+  font-weight: 590;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.registration-review-list-page__item-header p,
-.registration-review-list-page__notes p {
-  margin: 4px 0 0;
-  color: var(--ios-pms-text-muted);
-  font-size: var(--ios-pms-font-body-sm-size);
-  line-height: 1.6;
+.registration-review-list-page__item-badges {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin-top: 5px;
 }
 
-.registration-review-list-page__meta-grid {
+.registration-review-list-page__channel,
+.registration-review-list-page__room {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 2px 10px;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.registration-review-list-page__channel {
+  max-width: 132px;
+  overflow: hidden;
+  background: var(--review-channel-color, #2949ff);
+  color: #ffffff;
+  text-overflow: ellipsis;
+}
+
+.registration-review-list-page__room {
+  max-width: 116px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.registration-review-list-page__room.is-unassigned {
+  background: #fff1f3;
+  color: #ff2525;
+}
+
+.registration-review-list-page__room.is-assigned {
+  background: #effbf6;
+  color: #43bc8a;
+}
+
+.registration-review-list-page__stay-grid,
+.registration-review-list-page__time-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--ios-pms-space-2) var(--ios-pms-space-3);
-  margin-top: var(--ios-pms-space-3);
-  color: var(--ios-pms-text-soft);
-  font-size: var(--ios-pms-font-body-sm-size);
+  column-gap: 12px;
+  margin-top: 14px;
+}
+
+.registration-review-list-page__stay-grid > span,
+.registration-review-list-page__time-grid > span {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.registration-review-list-page__stay-grid > span:nth-child(even),
+.registration-review-list-page__time-grid > span:nth-child(even) {
+  justify-content: flex-end;
+}
+
+.registration-review-list-page__meta-label {
+  flex-shrink: 0;
+  margin-right: 4px;
+  color: #777777;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.registration-review-list-page__meta-value {
+  min-width: 0;
+  color: #333333;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.registration-review-list-page__time-grid .registration-review-list-page__meta-value {
+  overflow: hidden;
+  overflow-wrap: normal;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.registration-review-list-page__time-grid {
+  grid-template-columns: minmax(0, 1fr) max-content;
+  column-gap: 8px;
+}
+
+.registration-review-list-page__time-grid .registration-review-list-page__meta-label {
+  margin-right: 2px;
+  font-size: 13px;
+}
+
+.registration-review-list-page__time-grid > span:nth-child(even) {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.registration-review-list-page__time-grid > span:nth-child(even) .registration-review-list-page__meta-value {
+  text-align: right;
 }
 
 .registration-review-list-page__notes {
-  margin-top: var(--ios-pms-space-3);
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.registration-review-list-page__notes p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #a0a0a0;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.55;
 }
 
 .registration-review-list-page__loading,
@@ -460,40 +826,39 @@ async function handleOpenLinks() {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: var(--ios-pms-radius-pill);
-  font-size: var(--ios-pms-font-body-sm-size);
-  font-weight: var(--ios-pms-weight-bold);
+  justify-content: center;
+  min-width: 80px;
+  min-height: 30px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 400;
 }
 
 .registration-review-list-page__status.is-pending {
-  border-color: rgba(227, 139, 24, 0.16);
-  background: rgba(227, 139, 24, 0.12);
-  color: var(--ion-color-warning);
+  background: #fff0db;
+  color: #e58a14;
 }
 
 .registration-review-list-page__status.is-draft {
-  border-color: rgba(100, 116, 139, 0.12);
-  background: rgba(100, 116, 139, 0.08);
-  color: var(--ion-color-medium);
+  background: #e3e3e3;
+  color: #666666;
 }
 
 .registration-review-list-page__status.is-approved {
-  border-color: rgba(15, 159, 110, 0.12);
-  background: rgba(15, 159, 110, 0.1);
-  color: var(--ion-color-success);
+  background: #58bd93;
+  color: #ffffff;
 }
 
 .registration-review-list-page__status.is-rejected {
-  border-color: rgba(220, 38, 38, 0.12);
-  background: rgba(220, 38, 38, 0.08);
-  color: var(--ion-color-danger);
+  background: #ef7777;
+  color: #ffffff;
 }
 
 .registration-review-list-page__empty {
-  padding-top: var(--ios-pms-space-2);
+  padding: 16px 0;
+  color: #999999;
 }
 
 @media (max-width: 360px) {
@@ -504,12 +869,27 @@ async function handleOpenLinks() {
   }
 
   .registration-review-list-page__filter-grid,
-  .registration-review-list-page__meta-grid {
+  .registration-review-list-page__stay-grid,
+  .registration-review-list-page__time-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .registration-review-list-page__filter-summary {
     justify-self: flex-start;
+  }
+
+  .registration-review-list-page__stay-grid > span:nth-child(even),
+  .registration-review-list-page__time-grid > span:nth-child(even) {
+    justify-content: flex-start;
+  }
+
+  .registration-review-list-page__status {
+    min-width: 72px;
+    padding: 0 10px;
+  }
+
+  .registration-review-list-page__guest-name {
+    font-size: 17px;
   }
 }
 </style>

@@ -95,12 +95,12 @@ function formatTypeLabel(type: string) {
 <style scoped>
 .system-notification-card {
   display: grid;
-  gap: var(--ios-pms-space-3);
-  padding: 16px;
-  border: 1px solid var(--ios-pms-border-soft);
+  gap: 10px;
+  padding: 16px 16px 18px;
+  border: 1px solid rgba(97, 124, 177, 0.06);
   border-radius: var(--ios-pms-radius-card-sm);
-  background: linear-gradient(180deg, var(--ios-pms-surface-strong) 0%, rgba(248, 251, 255, 0.92) 100%);
-  box-shadow: var(--ios-pms-shadow-card);
+  background: linear-gradient(180deg, #ffffff 0%, rgba(250, 252, 255, 0.97) 100%);
+  box-shadow: 0 8px 20px rgba(77, 98, 145, 0.08);
   transition:
     border-color 0.18s ease,
     box-shadow 0.18s ease,
@@ -109,7 +109,7 @@ function formatTypeLabel(type: string) {
 }
 
 .system-notification-card.is-read {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(250, 251, 253, 0.9) 100%);
+  background: linear-gradient(180deg, #ffffff 0%, rgba(250, 251, 253, 0.96) 100%);
 }
 
 .system-notification-card__header {
@@ -121,7 +121,8 @@ function formatTypeLabel(type: string) {
 
 .system-notification-card__identity {
   min-width: 0;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 4px;
 }
 
@@ -134,26 +135,27 @@ function formatTypeLabel(type: string) {
 .system-notification-card__eyebrow,
 .system-notification-card__title,
 .system-notification-card__content,
-.system-notification-card__meta-line,
 .system-notification-card__timestamp,
 .system-notification-card__support-line {
   margin: 0;
 }
 
 .system-notification-card__eyebrow {
+  order: 2;
   color: var(--ios-pms-text-soft);
-  font-size: 11px;
-  font-weight: var(--ios-pms-weight-bold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0;
 }
 
 .system-notification-card__title {
+  order: 1;
   color: var(--ios-pms-text-primary);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: var(--ios-pms-weight-heavy);
-  line-height: 1.24;
-  letter-spacing: -0.02em;
+  line-height: 1.2;
+  letter-spacing: 0;
   word-break: break-word;
 }
 
@@ -163,7 +165,7 @@ function formatTypeLabel(type: string) {
   align-items: center;
   justify-content: center;
   min-height: 26px;
-  padding: 0 10px;
+  padding: 0 12px;
   border-radius: var(--ios-pms-radius-pill);
   background: var(--ios-pms-primary-soft);
   color: var(--ios-pms-primary-strong);
@@ -173,13 +175,13 @@ function formatTypeLabel(type: string) {
 }
 
 .system-notification-card__status.is-danger {
-  background: rgba(var(--ion-color-danger-rgb), 0.1);
-  color: var(--ion-color-danger);
+  background: #ffe1e3;
+  color: #ef454f;
 }
 
 .system-notification-card__status.is-medium {
-  background: rgba(116, 138, 185, 0.1);
-  color: var(--ios-pms-text-muted);
+  background: #eef2f7;
+  color: #7f8999;
 }
 
 .system-notification-card__more-btn {
@@ -188,10 +190,10 @@ function formatTypeLabel(type: string) {
   width: 28px;
   height: 28px;
   padding: 0;
-  border: 1px solid var(--ios-pms-border-faint);
+  border: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.78);
-  color: var(--ios-pms-text-muted);
+  background: rgba(248, 249, 252, 0.94);
+  color: #a1a8b4;
   font: inherit;
 }
 
@@ -206,70 +208,70 @@ function formatTypeLabel(type: string) {
 
 .system-notification-card__content-band {
   display: grid;
-  gap: 6px;
-  padding: 10px 12px;
-  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.08);
-  border-radius: 14px;
-  background: var(--ios-pms-primary-soft);
+  gap: 8px;
+  padding: 12px 14px 13px;
+  border: 0;
+  border-radius: 10px;
+  background: #f1f6ff;
 }
 
 .system-notification-card__content-label {
-  color: var(--ios-pms-primary-strong);
-  font-size: 11px;
-  font-weight: var(--ios-pms-weight-bold);
-  line-height: 1;
+  color: #3f8cf4;
+  font-size: 14px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.2;
 }
 
 .system-notification-card__content {
   color: var(--ios-pms-text-primary);
   font-size: 15px;
-  font-weight: var(--ios-pms-weight-medium);
-  line-height: 1.55;
+  font-weight: 400;
+  line-height: 1.48;
   white-space: pre-wrap;
   word-break: break-word;
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
 }
 
 .system-notification-card__meta-strip {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
 .system-notification-card__meta-line {
-  min-width: 0;
-  color: var(--ios-pms-text-muted);
-  font-size: 12px;
-  line-height: 1.45;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: contents;
 }
 
 .system-notification-card__meta-item {
-  display: inline;
+  flex: 0 0 auto;
+  color: #a1a8b4;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: nowrap;
 }
 
 .system-notification-card__meta-item + .system-notification-card__meta-item::before {
-  content: '·';
-  margin: 0 6px;
-  color: var(--ios-pms-text-disabled);
+  content: none;
 }
 
 .system-notification-card__timestamp {
-  color: var(--ios-pms-text-soft);
+  min-width: 0;
+  margin-left: auto;
+  color: #a1a8b4;
   font-size: 11px;
-  line-height: 1.3;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .system-notification-card__support-line {
-  color: var(--ios-pms-text-muted);
+  color: #a1a8b4;
   font-size: 12px;
-  line-height: 1.45;
+  line-height: 1.4;
 }
 </style>

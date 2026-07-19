@@ -6,14 +6,15 @@
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.home" />
         </ion-buttons>
         <ion-title class="orders-header__title">消息</ion-title>
-        <ion-buttons slot="end">
+        <ion-buttons slot="end" class="messages-header__actions">
           <ion-button
             class="orders-header__text-btn"
             :class="{ 'is-active': translationEnabled }"
             fill="clear"
             @click="handleOpenTranslationSettings"
           >
-            翻译
+            <ion-icon :icon="languageOutline" aria-hidden="true" />
+            <span>翻译</span>
           </ion-button>
           <ion-button class="orders-header__icon-btn" fill="clear" @click="handleToggleSearch">
             <ion-icon :icon="isSearchVisible ? closeOutline : searchOutline" />
@@ -32,9 +33,9 @@
           <div class="orders-search-panel__bar">
             <ion-searchbar
               v-model="searchKeyword"
-              :debounce="0"
+              :debounce="300"
               class="orders-searchbar"
-              placeholder="搜索住客、房型、渠道、订单号或消息内容"
+              placeholder="单号/房间/房客姓名/消息/房型"
             />
             <button type="button" class="orders-search-panel__cancel" @click="handleHideSearch">取消</button>
           </div>
@@ -101,18 +102,24 @@
           <p v-if="loadNotice" class="orders-notice-text orders-notice-text--warning">{{ loadNotice }}</p>
           <p v-else-if="resultsNoticeText" class="orders-notice-text">{{ resultsNoticeText }}</p>
 
-          <div v-if="displayedThreads.length > 0" class="messages-thread-list">
+          <div
+            v-if="displayedThreads.length > 0"
+            ref="threadListRef"
+            class="messages-thread-list"
+          >
             <button
               v-for="thread in displayedThreads"
               :key="thread.id"
               type="button"
               class="messages-thread-item"
               :class="{ 'is-unread': thread.unreadCount > 0 }"
-              :style="resolveThreadVars(thread)"
+              :style="resolveMessageThreadAvatarVars(thread)"
               @click="handleOpenThread(thread.id)"
             >
               <div class="messages-thread-item__avatar">
-                <span class="messages-thread-item__avatar-text">{{ resolveAvatarLabel(thread) }}</span>
+                <span class="messages-thread-item__avatar-text">
+                  {{ resolveMessageThreadAvatarLabel(thread) }}
+                </span>
                 <span v-if="thread.unreadCount > 0" class="messages-thread-item__avatar-badge">
                   {{ formatUnreadCount(thread.unreadCount) }}
                 </span>
@@ -121,7 +128,9 @@
               <div class="messages-thread-item__body">
                 <div class="messages-thread-item__row messages-thread-item__row--top">
                   <div class="messages-thread-item__title-line">
-                    <h3 class="messages-thread-item__title">{{ formatThreadTitle(thread) }}</h3>
+                    <h3 class="messages-thread-item__title">
+                      {{ resolveMessageThreadTitle(thread) }}
+                    </h3>
                     <div class="messages-thread-item__brand-row">
                       <span class="messages-thread-item__utility">
                         <ion-icon :icon="mailOutline" />
@@ -184,15 +193,15 @@
         <section class="mobile-card message-translation-sheet">
           <div class="message-translation-sheet__intro">
             <h2 class="mobile-section-title">ChatGPT 翻译</h2>
-            <p class="mobile-note">开启一次后，消息列表和所有会话详情都会按这个配置自动翻译。</p>
+            <p class="mobile-note">开启后会优先翻译当前可见的未读会话，以及会话详情中的访客消息。</p>
           </div>
 
           <div class="message-translation-setting-row">
             <div>
-              <strong>翻译所有消息</strong>
-              <p>列表会翻译会话预览，进入任意会话后会自动翻译最近聊天内容。</p>
+              <strong>自动翻译访客消息</strong>
+              <p>原文会立即显示，译文在后台按需加载，不会阻塞浏览和回复。</p>
             </div>
-            <ion-toggle v-model="translationEnabled" aria-label="翻译所有消息" />
+            <ion-toggle v-model="translationEnabled" aria-label="自动翻译访客消息" />
           </div>
 
           <label class="message-translation-field">
@@ -217,7 +226,7 @@
               取消
             </ion-button>
             <ion-button :disabled="isApplyingTranslationSettings" @click="handleApplyTranslationSettings">
-              {{ isApplyingTranslationSettings ? '保存中...' : '保存并翻译' }}
+              {{ isApplyingTranslationSettings ? '保存中...' : '保存' }}
             </ion-button>
           </div>
         </section>
@@ -246,14 +255,28 @@ import {
   IonToggle,
   IonToolbar,
   onIonViewWillEnter,
+  onIonViewWillLeave,
 } from '@ionic/vue'
-import { closeOutline, homeOutline, mailOutline, searchOutline, timeOutline } from 'ionicons/icons'
-import { computed, ref, watch } from 'vue'
+import {
+  closeOutline,
+  homeOutline,
+  languageOutline,
+  mailOutline,
+  searchOutline,
+  timeOutline,
+} from 'ionicons/icons'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getMessageThreads } from '@/api/message'
 import { buildMessageDetailPath, ROUTE_PATHS } from '@/router/guards'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import type { MessageThreadDTO } from '@/types/message'
+import { createAsyncTaskQueue } from '@/utils/asyncTaskQueue'
+import {
+  getCachedMessageTranslation,
+  setCachedMessageTranslation,
+  type MessageTranslationCacheScope,
+} from '@/utils/messageTranslationCache'
 import { isHandledRequestError } from '@/utils/request'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import {
@@ -263,6 +286,12 @@ import {
   saveMessageTranslationSettings,
   type MessageTranslationLanguageValue,
 } from '@/utils/messageTranslation'
+import {
+  resolveMessageThreadAvatarLabel,
+  resolveMessageThreadAvatarVars,
+  resolveMessageThreadTitle,
+} from '@/utils/messageThreadPresentation'
+import { getStoredCurrentStoreId, getStoredUser } from '@/utils/storage'
 import {
   formatBusinessDateLabel,
   formatStoreDateTime,
@@ -282,37 +311,20 @@ interface ChannelFilterOption {
   value: string
 }
 
-interface ChannelBrand {
-  accent: string
-  soft: string
-  border: string
-  avatarStart: string
-  avatarEnd: string
-  label: string
-  icon?: string
-}
-
 interface ThreadStatusView {
   label: string
   tone: 'upcoming' | 'staying' | 'closed' | 'completed' | 'active' | 'reply'
 }
 
 const ALL_CHANNEL_VALUE = '__all__'
+const VISIBLE_PREVIEW_TRANSLATION_LIMIT = 6
+const PREVIEW_TRANSLATION_SETTLE_MS = 250
 
 const MESSAGE_TABS: MessageTabOption[] = [
   { label: '全部', value: 'all' },
   { label: '未读', value: 'unread' },
   { label: '已关闭', value: 'closed' },
 ]
-
-const DEFAULT_CHANNEL_BRAND: ChannelBrand = {
-  accent: '#4a98ff',
-  soft: 'rgba(74, 152, 255, 0.12)',
-  border: 'rgba(74, 152, 255, 0.18)',
-  avatarStart: '#8dbdff',
-  avatarEnd: '#4a98ff',
-  label: '客',
-}
 
 const route = useRoute()
 const router = useRouter()
@@ -331,9 +343,13 @@ const isApplyingTranslationSettings = ref(false)
 const translationEnabled = ref(false)
 const translationTargetLanguage = ref<MessageTranslationLanguageValue>('zh-CN')
 const translatedThreadPreviewMap = ref<Record<string, string>>({})
-const translationPendingMap = ref<Record<string, boolean>>({})
+const threadListRef = ref<HTMLElement | null>(null)
+const previewTranslationQueue = createAsyncTaskQueue(2)
+const visibleThreadIds = new Set<number>()
 
-let previewTranslationRunId = 0
+let previewObserver: IntersectionObserver | null = null
+let previewTranslationTimer = 0
+let messagesPageActive = false
 
 const trimmedKeyword = computed(() => searchKeyword.value.trim())
 
@@ -392,7 +408,7 @@ const displayedThreads = computed(() => {
     }
 
     const searchableValues = [
-      formatThreadTitle(thread),
+      resolveMessageThreadTitle(thread),
       thread.channelName || '',
       thread.bookingId || '',
       thread.threadId || '',
@@ -538,18 +554,25 @@ function syncTranslationSettingsFromStorage() {
   translationTargetLanguage.value = settings.targetLanguage
 
   if (shouldClearCaches) {
-    clearThreadTranslationCaches()
+    resetThreadTranslationState()
   }
 }
 
-function clearThreadTranslationCaches() {
+function clearPreviewTranslationTimer() {
+  if (previewTranslationTimer) {
+    window.clearTimeout(previewTranslationTimer)
+    previewTranslationTimer = 0
+  }
+}
+
+function resetThreadTranslationState() {
+  clearPreviewTranslationTimer()
+  previewTranslationQueue.cancelAll()
   translatedThreadPreviewMap.value = {}
-  translationPendingMap.value = {}
-  previewTranslationRunId += 1
 }
 
 function getThreadPreviewKey(thread: MessageThreadDTO) {
-  return `thread:${thread.id}:${thread.lastMessage || ''}`
+  return `thread:${thread.id}:${translationTargetLanguage.value}:${thread.lastMessage || ''}`
 }
 
 function getTranslatedThreadPreviewText(thread: MessageThreadDTO) {
@@ -570,74 +593,189 @@ function getThreadPreviewText(thread: MessageThreadDTO) {
   return originalText
 }
 
-function markTranslationPending(key: string, pending: boolean) {
-  if (pending) {
-    translationPendingMap.value = {
-      ...translationPendingMap.value,
-      [key]: true,
-    }
-    return
+function getTranslationCacheScope(): MessageTranslationCacheScope {
+  return {
+    storeId: getStoredCurrentStoreId(),
+    userId: getStoredUser()?.id,
+    targetLanguage: translationTargetLanguage.value,
   }
-
-  const nextMap = { ...translationPendingMap.value }
-  delete nextMap[key]
-  translationPendingMap.value = nextMap
 }
 
-async function ensureThreadPreviewTranslation(thread: MessageThreadDTO) {
-  if (!translationEnabled.value || !thread.lastMessage?.trim()) {
+function setThreadPreviewTranslation(thread: MessageThreadDTO, translatedText: string) {
+  const normalizedTranslation = translatedText.trim()
+  if (!normalizedTranslation) {
     return
   }
 
   const key = getThreadPreviewKey(thread)
-  if (translatedThreadPreviewMap.value[key] || translationPendingMap.value[key]) {
+  translatedThreadPreviewMap.value[key] = normalizedTranslation
+  setCachedMessageTranslation(
+    getTranslationCacheScope(),
+    thread.lastMessage || '',
+    normalizedTranslation,
+  )
+}
+
+function ensureThreadPreviewTranslation(thread: MessageThreadDTO) {
+  const sourceText = thread.lastMessage?.trim() || ''
+  if (
+    !messagesPageActive ||
+    translationSettingsOpen.value ||
+    !translationEnabled.value ||
+    !sourceText
+  ) {
     return
   }
 
-  markTranslationPending(key, true)
-  try {
-    const translatedText = await requestAiMessageTranslation(
-      thread.lastMessage,
-      translationTargetLanguage.value,
-    )
-    if (!translationEnabled.value) {
-      return
-    }
+  const key = getThreadPreviewKey(thread)
+  if (translatedThreadPreviewMap.value[key] || previewTranslationQueue.has(key)) {
+    return
+  }
 
-    translatedThreadPreviewMap.value = {
-      ...translatedThreadPreviewMap.value,
-      [key]: translatedText,
-    }
-  } catch (error) {
-    console.error('翻译会话预览失败:', error)
-  } finally {
-    markTranslationPending(key, false)
+  const cachedTranslation = getCachedMessageTranslation(getTranslationCacheScope(), sourceText)
+  if (cachedTranslation) {
+    translatedThreadPreviewMap.value[key] = cachedTranslation
+    return
+  }
+
+  previewTranslationQueue.enqueue({
+    key,
+    priority: thread.unreadCount,
+    run: (signal) =>
+      requestAiMessageTranslation(sourceText, translationTargetLanguage.value, {
+        signal,
+        suppressErrorToast: true,
+      }),
+    onSuccess: (translatedText) => {
+      if (messagesPageActive && translationEnabled.value) {
+        setThreadPreviewTranslation(thread, translatedText)
+      }
+    },
+    onError: (error) => {
+      console.error('翻译会话预览失败:', error)
+    },
+  })
+}
+
+function translateVisibleThreadPreviews() {
+  if (
+    !messagesPageActive ||
+    translationSettingsOpen.value ||
+    !translationEnabled.value
+  ) {
+    return
+  }
+
+  const targetThreads = displayedThreads.value
+    .filter((thread) => thread.unreadCount > 0 && visibleThreadIds.has(thread.id))
+    .slice(0, VISIBLE_PREVIEW_TRANSLATION_LIMIT)
+
+  for (const thread of targetThreads) {
+    ensureThreadPreviewTranslation(thread)
   }
 }
 
-async function translateDisplayedThreadPreviews() {
-  if (!translationEnabled.value) {
+function scheduleVisibleThreadTranslations() {
+  clearPreviewTranslationTimer()
+  if (
+    !messagesPageActive ||
+    translationSettingsOpen.value ||
+    !translationEnabled.value
+  ) {
     return
   }
 
-  const runId = ++previewTranslationRunId
-  const targetThreads = [...displayedThreads.value]
-  for (const thread of targetThreads) {
-    if (runId !== previewTranslationRunId || !translationEnabled.value) {
+  previewTranslationTimer = window.setTimeout(() => {
+    previewTranslationTimer = 0
+    translateVisibleThreadPreviews()
+  }, PREVIEW_TRANSLATION_SETTLE_MS)
+}
+
+function refreshThreadPreviewObserver() {
+  previewObserver?.disconnect()
+  visibleThreadIds.clear()
+
+  if (!messagesPageActive || !threadListRef.value) {
+    return
+  }
+
+  const threadElements = threadListRef.value.querySelectorAll<HTMLElement>(
+    '.messages-thread-item',
+  )
+  if (typeof IntersectionObserver === 'undefined') {
+    for (const thread of displayedThreads.value.slice(0, VISIBLE_PREVIEW_TRANSLATION_LIMIT)) {
+      visibleThreadIds.add(thread.id)
+    }
+    scheduleVisibleThreadTranslations()
+    return
+  }
+
+  if (!previewObserver) {
+    previewObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const threadId = Number((entry.target as HTMLElement).dataset.threadId)
+          if (!Number.isInteger(threadId)) {
+            continue
+          }
+          if (entry.isIntersecting) {
+            visibleThreadIds.add(threadId)
+          } else {
+            visibleThreadIds.delete(threadId)
+          }
+        }
+        scheduleVisibleThreadTranslations()
+      },
+      {
+        threshold: 0.45,
+      },
+    )
+  }
+
+  threadElements.forEach((element, index) => {
+    const thread = displayedThreads.value[index]
+    if (!thread) {
       return
     }
+    element.dataset.threadId = String(thread.id)
+    previewObserver?.observe(element)
+  })
+}
 
-    await ensureThreadPreviewTranslation(thread)
+function stopThreadPreviewTranslations() {
+  clearPreviewTranslationTimer()
+  previewTranslationQueue.cancelAll()
+  previewObserver?.disconnect()
+  visibleThreadIds.clear()
+}
+
+async function restartVisibleThreadTranslations() {
+  stopThreadPreviewTranslations()
+  if (!messagesPageActive || !translationEnabled.value) {
+    return
   }
+  await nextTick()
+  refreshThreadPreviewObserver()
+  scheduleVisibleThreadTranslations()
 }
 
 function handleOpenTranslationSettings() {
   syncTranslationSettingsFromStorage()
+  stopThreadPreviewTranslations()
   translationSettingsOpen.value = true
 }
 
 function handleDismissTranslationSettings() {
+  const shouldRestoreSavedSettings = translationSettingsOpen.value
   translationSettingsOpen.value = false
+  if (!shouldRestoreSavedSettings) {
+    return
+  }
+
+  syncTranslationSettingsFromStorage()
+  if (translationEnabled.value) {
+    void restartVisibleThreadTranslations()
+  }
 }
 
 async function handleApplyTranslationSettings() {
@@ -648,10 +786,10 @@ async function handleApplyTranslationSettings() {
       targetLanguage: translationTargetLanguage.value,
     })
     translationSettingsOpen.value = false
-    clearThreadTranslationCaches()
+    resetThreadTranslationState()
 
     if (translationEnabled.value) {
-      void translateDisplayedThreadPreviews()
+      await restartVisibleThreadTranslations()
     }
 
     showSuccessToast('全局翻译设置已更新')
@@ -799,87 +937,6 @@ function ensureActiveChannelStillExists(nextThreads: MessageThreadDTO[]) {
   activeChannel.value = ALL_CHANNEL_VALUE
 }
 
-function normalizeChannelName(value?: string) {
-  return (value || '').trim().toLowerCase()
-}
-
-function resolveChannelBrand(thread: MessageThreadDTO): ChannelBrand {
-  const normalized = normalizeChannelName(thread.channelName)
-
-  if (normalized.includes('meituan') || (thread.channelName || '').includes('美团')) {
-    return {
-      accent: '#38c2a4',
-      soft: 'rgba(56, 194, 164, 0.14)',
-      border: 'rgba(56, 194, 164, 0.24)',
-      avatarStart: '#87ead4',
-      avatarEnd: '#38c2a4',
-      label: '美',
-    }
-  }
-
-  if (normalized.includes('airbnb')) {
-    return {
-      accent: '#ff6f7a',
-      soft: 'rgba(255, 111, 122, 0.14)',
-      border: 'rgba(255, 111, 122, 0.2)',
-      avatarStart: '#ffb0b8',
-      avatarEnd: '#ff6f7a',
-      label: 'A',
-    }
-  }
-
-  if (normalized.includes('booking')) {
-    return {
-      accent: '#4f72dc',
-      soft: 'rgba(79, 114, 220, 0.14)',
-      border: 'rgba(79, 114, 220, 0.2)',
-      avatarStart: '#9cadff',
-      avatarEnd: '#4f72dc',
-      label: 'B',
-    }
-  }
-
-  return DEFAULT_CHANNEL_BRAND
-}
-
-function resolveThreadVars(thread: MessageThreadDTO) {
-  const brand = resolveChannelBrand(thread)
-
-  return {
-    '--thread-accent': brand.accent,
-    '--thread-soft': brand.soft,
-    '--thread-border': brand.border,
-    '--thread-avatar-start': brand.avatarStart,
-    '--thread-avatar-end': brand.avatarEnd,
-  }
-}
-
-function formatThreadTitle(thread: MessageThreadDTO) {
-  if (thread.guestName) {
-    return thread.guestName
-  }
-
-  if (thread.listingName) {
-    return thread.listingName
-  }
-
-  return thread.channelName || '未命名会话'
-}
-
-function resolveAvatarLabel(thread: MessageThreadDTO) {
-  const source = formatThreadTitle(thread).trim()
-  if (!source) {
-    return '客'
-  }
-
-  const firstCharacter = source.slice(0, 1)
-  if (/[a-z]/i.test(firstCharacter)) {
-    return firstCharacter.toUpperCase()
-  }
-
-  return firstCharacter
-}
-
 function formatMonthDay(value?: string) {
   return formatBusinessDateLabel(value, 'month-day', '--')
 }
@@ -1000,9 +1057,6 @@ async function loadThreads() {
     threads.value = response.data
     notificationCenterStore.syncMessageThreads(threads.value)
     await applyRouteMessageTarget()
-    if (translationEnabled.value) {
-      void translateDisplayedThreadPreviews()
-    }
   } catch (error) {
     loadNotice.value = resolveWarningMessage(error, '加载会话失败')
     if (!isHandledRequestError(error)) {
@@ -1015,24 +1069,15 @@ async function loadThreads() {
 
 function handleSelectTab(value: MessageTabValue) {
   activeTab.value = value
-  if (translationEnabled.value) {
-    void translateDisplayedThreadPreviews()
-  }
 }
 
 function handleSelectChannel(value: string) {
   activeChannel.value = value
-  if (translationEnabled.value) {
-    void translateDisplayedThreadPreviews()
-  }
 }
 
 function handleResetFilters() {
   activeChannel.value = ALL_CHANNEL_VALUE
   searchKeyword.value = ''
-  if (translationEnabled.value) {
-    void translateDisplayedThreadPreviews()
-  }
 }
 
 function handleToggleSearch() {
@@ -1065,16 +1110,31 @@ watch(
 
 watch(
   () => displayedThreads.value.map((thread) => getThreadPreviewKey(thread)).join('|'),
-  () => {
-    if (translationEnabled.value) {
-      void translateDisplayedThreadPreviews()
+  async () => {
+    if (messagesPageActive) {
+      await nextTick()
+      refreshThreadPreviewObserver()
     }
   },
 )
 
 onIonViewWillEnter(async () => {
+  messagesPageActive = true
   syncTranslationSettingsFromStorage()
   await loadThreads()
+  await nextTick()
+  refreshThreadPreviewObserver()
+})
+
+onIonViewWillLeave(() => {
+  messagesPageActive = false
+  stopThreadPreviewTranslations()
+})
+
+onUnmounted(() => {
+  messagesPageActive = false
+  stopThreadPreviewTranslations()
+  previewObserver = null
 })
 </script>
 
@@ -1095,10 +1155,14 @@ onIonViewWillEnter(async () => {
 }
 
 .orders-header__title {
-  color: var(--ios-pms-text-primary);
+  color: var(--ios-pms-header-title-color);
   font-size: var(--ios-pms-font-title-xl-size);
-  font-weight: var(--ios-pms-weight-heavy);
+  font-weight: 500;
   letter-spacing: -0.04em;
+}
+
+.messages-header__actions {
+  gap: 2px;
 }
 
 .orders-header__icon-btn {
@@ -1110,21 +1174,33 @@ onIonViewWillEnter(async () => {
   width: 34px;
   height: 34px;
   margin: 0;
-  font-size: 25px;
+}
+
+.orders-header__icon-btn ion-icon {
+  font-size: 19px;
 }
 
 .orders-header__text-btn {
-  --padding-start: 8px;
-  --padding-end: 8px;
-  --color: #6f7786;
-  min-width: 46px;
+  --padding-start: 5px;
+  --padding-end: 5px;
+  --background-activated: rgba(47, 156, 255, 0.08);
+  --border-radius: 8px;
+  --color: var(--ios-pms-header-control-color);
+  min-width: 0;
+  height: 34px;
   margin: 0;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.orders-header__text-btn ion-icon {
+  margin-right: 3px;
+  font-size: 15px;
 }
 
 .orders-header__text-btn.is-active {
-  --color: #4a98ff;
+  --color: #2f8fff;
 }
 
 ion-modal.message-translation-modal {
@@ -1274,14 +1350,14 @@ ion-modal.message-translation-modal {
   flex: 1;
   margin: 0;
   padding: 0;
-  --background: transparent;
+  --background: #fafafa;
   --border-radius: 0;
   --box-shadow: none;
-  --color: #10131a;
-  --icon-color: #c7ccd8;
-  --placeholder-color: #c7ccd8;
-  --placeholder-opacity: 1;
-  --clear-button-color: #8a90a0;
+  --color: #666666;
+  --icon-color: #666666;
+  --placeholder-color: #666666;
+  --placeholder-opacity: 0.72;
+  --clear-button-color: #666666;
   --padding-start: 0;
   --padding-end: 0;
   --padding-top: 0;
@@ -1296,7 +1372,7 @@ ion-modal.message-translation-modal {
 .orders-searchbar :deep(.searchbar-input-container) {
   border: 1px solid #eceff5;
   border-radius: 22px;
-  background: #ffffff;
+  background: #fafafa;
   box-shadow: none;
   overflow: hidden;
 }
@@ -1576,7 +1652,7 @@ ion-modal.message-translation-modal {
   content: '';
   position: absolute;
   inset: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.82);
   border-radius: 50%;
 }
 
@@ -1599,9 +1675,9 @@ ion-modal.message-translation-modal {
   min-width: 20px;
   height: 20px;
   padding: 0 5px;
-  border: 2px solid #ffffff;
+  border: 0;
   border-radius: 999px;
-  background: #4a98ff;
+  background: #ff3b30;
   color: #ffffff;
   font-size: 10px;
   font-weight: 700;

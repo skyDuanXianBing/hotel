@@ -245,3 +245,4 @@ connection.properties
 # Temporary files
 tmp/
 temp/
+.codex-temp/
