@@ -62,8 +62,8 @@ const emit = defineEmits<{
 <style scoped>
 .auth-brand-header {
   position: relative;
-  flex: 0 0 264px;
-  height: 264px;
+  flex: 0 0 304px;
+  height: 304px;
   overflow: hidden;
   background: linear-gradient(145deg, #edf9ff 0%, #eff7ff 56%, #f5f9ff 100%);
 }
