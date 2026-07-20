@@ -8,6 +8,7 @@ import { settingsStage4Messages } from './settingsStage4'
 import { stage5Messages } from './stage5'
 import { stage6Messages } from './stage6'
 import { managedOperationSettlementMessages } from './managedOperationSettlement'
+import { suReviewMessages } from './suReviews'
 
 const zhTW = mergeLocaleMessages(
   {
@@ -185,6 +186,7 @@ const zhTW = mergeLocaleMessages(
   stage5Messages['zh-TW'],
   stage6Messages['zh-TW'],
   managedOperationSettlementMessages['zh-TW'],
+  suReviewMessages['zh-TW'],
   {
     routeTitles: {
       checkinRegistration: '入住登記',

@@ -7,6 +7,7 @@ public enum PermissionModule {
     ACCOMMODATION("住宿管理"),
     ORDER("订单管理"),
     CHANNEL("渠道"),
+    REVIEW("评价管理"),
     CUSTOMER("客户管理"),
     STATISTICS("统计分析"),
     SETTINGS("设置"),

@@ -204,7 +204,7 @@ const getStoreRoleBadge = (role?: string) => {
       <LanguageSwitcher display="icon" />
 
       <el-dropdown placement="bottom-end" trigger="click">
-        <button type="button" class="profile-card">
+        <button type="button" class="profile-card" :aria-label="t('layout.profile')">
           <span class="profile-avatar">
             <img v-if="userAvatar" :src="userAvatar" alt="" />
             <el-icon v-else><User /></el-icon>
@@ -631,11 +631,62 @@ const getStoreRoleBadge = (role?: string) => {
 
 @media (max-width: 1480px) {
   .top-nav {
-    gap: 16px;
+    --nav-gap: 10px;
+    --nav-left-min-width: 220px;
+    --nav-center-safe-width: 520px;
+    --nav-right-min-width: 296px;
+  }
+
+  .top-nav--wide-copy {
+    --nav-center-safe-width: 580px;
+  }
+
+  .store-name {
+    max-width: 170px;
+  }
+
+  .profile-card {
+    min-width: 166px;
+    max-width: 166px;
+  }
+
+  .nav-pill,
+  .top-nav--wide-copy .nav-pill {
+    min-width: 38px;
+    padding: 0 8px;
+  }
+
+  .nav-pill-label,
+  .top-nav--wide-copy .nav-pill-label {
+    font-size: 12.5px;
   }
 
   .nav-pill-list {
     overflow: visible;
+  }
+}
+
+@media (max-width: 1280px) {
+  .top-nav,
+  .top-nav--wide-copy {
+    --nav-gap: 8px;
+    --nav-left-min-width: 180px;
+    --nav-center-safe-width: 560px;
+    --nav-right-min-width: 156px;
+  }
+
+  .store-name {
+    max-width: 132px;
+  }
+
+  .profile-card {
+    min-width: 42px;
+    max-width: 42px;
+    padding-right: 0;
+  }
+
+  .profile-copy {
+    display: none;
   }
 }
 </style>

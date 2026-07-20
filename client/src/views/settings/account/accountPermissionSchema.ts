@@ -13,6 +13,10 @@ export type ExtraPermissionKey =
   | 'viewOrders'
   | 'modifyOrder'
   | 'cancelOrder'
+  | 'viewReviews'
+  | 'replyReviews'
+  | 'reviewGuests'
+  | 'syncReviews'
   | 'viewChannels'
   | 'manageChannels'
   | 'viewStats'
@@ -146,6 +150,41 @@ export const ACCOUNT_PERMISSION_TABS: PermissionTabConfig[] = [
             label: 'settingsStage4.accountPermission.items.cancelOrder',
             module: PermissionModule.ORDER,
             action: PermissionAction.CANCEL_ORDER,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'reviews',
+    label: 'settingsStage4.accountPermission.tabs.reviews',
+    sections: [
+      {
+        title: 'settingsStage4.accountPermission.sections.reviews',
+        items: [
+          {
+            key: 'viewReviews',
+            label: 'settingsStage4.accountPermission.items.viewReviews',
+            module: PermissionModule.REVIEW,
+            action: PermissionAction.VIEW,
+          },
+          {
+            key: 'replyReviews',
+            label: 'settingsStage4.accountPermission.items.replyReviews',
+            module: PermissionModule.REVIEW,
+            action: PermissionAction.REPLY,
+          },
+          {
+            key: 'reviewGuests',
+            label: 'settingsStage4.accountPermission.items.reviewGuests',
+            module: PermissionModule.REVIEW,
+            action: PermissionAction.REVIEW_GUEST,
+          },
+          {
+            key: 'syncReviews',
+            label: 'settingsStage4.accountPermission.items.syncReviews',
+            module: PermissionModule.REVIEW,
+            action: PermissionAction.SYNC,
           },
         ],
       },

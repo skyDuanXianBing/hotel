@@ -13,6 +13,7 @@ import server.demo.enums.ReservationStatus;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.Optional;
@@ -230,6 +231,25 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     );
 
     List<Reservation> findByStoreIdAndExternalBookingKey(Long storeId, String externalBookingKey);
+
+    @Query("""
+           SELECT DISTINCT r
+           FROM Reservation r
+           JOIN FETCH r.channel c
+           WHERE r.storeId = :storeId
+             AND UPPER(TRIM(c.code)) IN :channelCodes
+             AND (
+                 r.channelOrderNumber = :bookingKey
+                 OR r.externalBookingKey = :bookingKey
+                 OR r.suReservationId = :bookingKey
+             )
+           ORDER BY r.createdAt DESC
+           """)
+    List<Reservation> findReviewAssociationCandidates(
+           @Param("storeId") Long storeId,
+           @Param("channelCodes") Collection<String> channelCodes,
+           @Param("bookingKey") String bookingKey
+    );
 
     @Query("""
            SELECT DISTINCT r

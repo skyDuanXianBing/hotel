@@ -128,6 +128,11 @@ watch(
     padding-right: 20px;
   }
 
+  .workspace-panel-header :deep(.top-nav) {
+    --nav-center-shift: 0px;
+    --nav-right-shift: 0px;
+  }
+
   .workspace-content {
     padding: var(--workspace-content-padding-narrow);
   }

@@ -30,6 +30,12 @@ public enum PermissionAction {
     VIEW_CHANNELS("查看渠道"),
     MANAGE_CHANNELS("管理渠道"),
 
+    // 评价管理相关
+    VIEW("查看评价"),
+    REPLY("回复评价"),
+    REVIEW_GUEST("评价住客"),
+    SYNC("同步评价"),
+
     // 客户管理相关
     VIEW_CUSTOMERS("查看客户信息"),
     MANAGE_CUSTOMERS("编辑客户信息"),

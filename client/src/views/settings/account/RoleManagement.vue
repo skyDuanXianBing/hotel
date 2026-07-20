@@ -120,6 +120,17 @@
             </div>
           </el-tab-pane>
 
+          <el-tab-pane :label="t('settingsStage4.accountPermission.tabs.reviews')" name="reviews">
+            <div class="permission-section">
+              <div class="permission-checkboxes">
+                <el-checkbox v-model="permissions.viewReviews" :label="t('settingsStage4.accountPermission.items.viewReviews')" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.replyReviews" :label="t('settingsStage4.accountPermission.items.replyReviews')" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.reviewGuests" :label="t('settingsStage4.accountPermission.items.reviewGuests')" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.syncReviews" :label="t('settingsStage4.accountPermission.items.syncReviews')" :disabled="!isEditing" />
+              </div>
+            </div>
+          </el-tab-pane>
+
           <el-tab-pane :label="t('settingsStage4.accountPermission.tabs.channel')" name="channel">
             <div class="permission-section">
               <div class="permission-checkboxes">
@@ -217,6 +228,10 @@ interface Permissions {
   viewOrders: boolean
   modifyOrder: boolean
   cancelOrder: boolean
+  viewReviews: boolean
+  replyReviews: boolean
+  reviewGuests: boolean
+  syncReviews: boolean
   viewChannels: boolean
   manageChannels: boolean
   viewStats: boolean
@@ -315,6 +330,10 @@ const permissions = ref<Permissions>({
   viewOrders: false,
   modifyOrder: false,
   cancelOrder: false,
+  viewReviews: false,
+  replyReviews: false,
+  reviewGuests: false,
+  syncReviews: false,
   viewChannels: false,
   manageChannels: false,
   viewStats: false,
@@ -387,6 +406,10 @@ const loadRolePermissions = async (roleId: number) => {
         viewOrders: false,
         modifyOrder: false,
         cancelOrder: false,
+        viewReviews: false,
+        replyReviews: false,
+        reviewGuests: false,
+        syncReviews: false,
         viewChannels: false,
         manageChannels: false,
         viewStats: false,
@@ -441,6 +464,26 @@ const loadRolePermissions = async (roleId: number) => {
             break
           case 'MANAGE_CHANNELS':
             permissions.value.manageChannels = true
+            break
+          case 'VIEW':
+            if (permission.module === PermissionModule.REVIEW) {
+              permissions.value.viewReviews = true
+            }
+            break
+          case 'REPLY':
+            if (permission.module === PermissionModule.REVIEW) {
+              permissions.value.replyReviews = true
+            }
+            break
+          case 'REVIEW_GUEST':
+            if (permission.module === PermissionModule.REVIEW) {
+              permissions.value.reviewGuests = true
+            }
+            break
+          case 'SYNC':
+            if (permission.module === PermissionModule.REVIEW) {
+              permissions.value.syncReviews = true
+            }
             break
           case 'VIEW_STATS':
             permissions.value.viewStats = true
@@ -633,6 +676,20 @@ const handleSavePermissions = async () => {
     }
     if (permissions.value.cancelOrder) {
       permissionDTOs.push({ module: PermissionModule.ORDER, action: PermissionAction.CANCEL_ORDER })
+    }
+
+    // 渠道评价
+    if (permissions.value.viewReviews) {
+      permissionDTOs.push({ module: PermissionModule.REVIEW, action: PermissionAction.VIEW })
+    }
+    if (permissions.value.replyReviews) {
+      permissionDTOs.push({ module: PermissionModule.REVIEW, action: PermissionAction.REPLY })
+    }
+    if (permissions.value.reviewGuests) {
+      permissionDTOs.push({ module: PermissionModule.REVIEW, action: PermissionAction.REVIEW_GUEST })
+    }
+    if (permissions.value.syncReviews) {
+      permissionDTOs.push({ module: PermissionModule.REVIEW, action: PermissionAction.SYNC })
     }
 
     // 渠道

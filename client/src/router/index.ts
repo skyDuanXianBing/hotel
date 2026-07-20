@@ -402,6 +402,12 @@ const router = createRouter({
           component: () => import('@/views/order/OrderManagement.vue'),
           meta: { title: 'Order Management', requiresAuth: true },
         },
+        {
+          path: 'reviews',
+          name: 'OtaReviews',
+          component: () => import('@/views/review/ReviewManagement.vue'),
+          meta: { title: 'Review Center', requiresAuth: true },
+        },
         // Data center
         {
           path: 'data-center/overview',
@@ -646,6 +652,7 @@ const routePermissionConfig = new Map<
   ],
   ['Order', { requirements: [{ module: PermissionModule.ORDER, action: PermissionAction.VIEW_ORDERS }] }],
   ['OrderNotifications', { requirements: [{ module: PermissionModule.ORDER, action: PermissionAction.VIEW_ORDERS }] }],
+  ['OtaReviews', { requirements: [{ module: PermissionModule.REVIEW, action: PermissionAction.VIEW }] }],
   ['DataCenterOverview', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
   ['DataCenterAccommodation', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
   ['DataCenterNotes', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
@@ -748,6 +755,7 @@ const routeTitleKeyByName = new Map<string, string>([
   ['ChannelListSettings', 'routeTitles.channelManagement'],
   ['ChannelPriceRatioSettings', 'routeTitles.channelManagement'],
   ['Order', 'routeTitles.orderManagement'],
+  ['OtaReviews', 'routeTitles.otaReviews'],
   ['DataCenterOverview', 'routeTitles.overview'],
   ['DataCenterAccommodation', 'routeTitles.accommodation'],
   ['DataCenterNotes', 'routeTitles.recordTransaction'],

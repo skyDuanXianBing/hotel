@@ -59,6 +59,7 @@ const isStatisticsRoute = computed(() => {
   )
 })
 const isOrderRoute = computed(() => normalizePath(route.path).startsWith('/order'))
+const isOtaReviewsRoute = computed(() => normalizePath(route.path).startsWith('/reviews'))
 const isWalletRoute = computed(() => normalizePath(route.path).startsWith('/wallet'))
 const isMessagesRoute = computed(() => normalizePath(route.path).startsWith('/messages'))
 const usesEmbeddedTopNav = computed(
@@ -68,6 +69,7 @@ const usesEmbeddedTopNav = computed(
     isStatisticsRoute.value ||
     isRegistrationReviewListRoute.value ||
     isOrderRoute.value ||
+    isOtaReviewsRoute.value ||
     isWalletRoute.value,
 )
 
@@ -109,6 +111,10 @@ const canAccessStatistics = computed(() =>
   permissionStore.hasPermission(PermissionModule.STATISTICS, PermissionAction.VIEW_STATS),
 )
 
+const canAccessOtaReviews = computed(() =>
+  permissionStore.hasPermission(PermissionModule.REVIEW, PermissionAction.VIEW),
+)
+
 const canAccessSettings = computed(() =>
   permissionStore.hasPermissions(
     [
@@ -134,6 +140,11 @@ const navItems = computed<NavItem[]>(() => {
     },
     { labelKey: 'nav.messages', path: '/messages', visible: true },
     { labelKey: 'nav.order', path: '/order', visible: canAccessOrder.value },
+    {
+      labelKey: 'nav.otaReviews',
+      path: '/reviews',
+      visible: canAccessOtaReviews.value,
+    },
     {
       labelKey: 'nav.statistics',
       path: '/data-center/overview',
