@@ -183,7 +183,7 @@
 .auth-captcha-row,
 .auth-code-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 88px;
+  grid-template-columns: minmax(0, 1fr) minmax(104px, max-content);
   align-items: stretch;
   gap: 12px;
 }
@@ -280,7 +280,7 @@
 }
 
 .auth-code-action::part(native) {
-  padding: 0 6px;
+  padding: 0 8px;
   color: #2b2d33;
   white-space: nowrap;
 }
@@ -564,7 +564,7 @@
 
   .auth-captcha-row,
   .auth-code-row {
-    grid-template-columns: minmax(0, 1fr) 82px;
+    grid-template-columns: minmax(0, 1fr) minmax(100px, max-content);
     gap: 9px;
   }
 

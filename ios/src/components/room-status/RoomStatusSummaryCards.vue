@@ -2,7 +2,7 @@
   <section class="mobile-card summary-card">
     <div class="mobile-inline-row summary-card__header">
       <div>
-        <h2 class="mobile-section-title">房态摘要</h2>
+        <h2 class="mobile-section-title">{{ $t('stage5VisibleText.176') }}</h2>
       </div>
       <ion-spinner v-if="loading" name="crescent" />
     </div>

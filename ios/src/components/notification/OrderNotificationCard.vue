@@ -12,7 +12,11 @@
       <div class="order-notification-card__identity">
         <h3 class="order-notification-card__title">{{ titleText }}</h3>
         <p class="order-notification-card__eyebrow">
-          {{ notification.relatedId ? `关联订单 #${notification.relatedId}` : '订单提醒' }}
+          {{
+            notification.relatedId
+              ? $t('stage5Final.notification.relatedOrder', { id: notification.relatedId })
+              : $t('iosStage5.roomStatus.reservationAlerts')
+          }}
         </p>
       </div>
 
@@ -21,7 +25,7 @@
         <button
           type="button"
           class="order-notification-card__more-btn"
-          aria-label="更多通知操作"
+          :aria-label="$t('stage5Final.notification.moreActions')"
           @click.stop="$emit('openActions')"
         >
           <ion-icon :icon="ellipsisHorizontal" />
@@ -30,7 +34,7 @@
     </div>
 
     <div class="order-notification-card__content-band">
-      <span class="order-notification-card__content-label">通知内容</span>
+      <span class="order-notification-card__content-label">{{ $t('stage5Final.notification.content') }}</span>
       <p class="order-notification-card__content">{{ contentText }}</p>
     </div>
 
@@ -51,6 +55,7 @@
 import { IonIcon } from '@ionic/vue'
 import { ellipsisHorizontal } from 'ionicons/icons'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '@/components/order/orderUtils'
 import type { NotificationMessageDTO } from '@/types/notification'
 
@@ -63,33 +68,46 @@ defineEmits<{
   openActions: []
 }>()
 
-const titleText = computed(() => props.notification.title?.trim() || '订单提醒')
-const contentText = computed(() => props.notification.content?.trim() || '暂无通知内容')
+const { t } = useI18n()
+const titleText = computed(
+  () => props.notification.title?.trim() || t('iosStage5.roomStatus.reservationAlerts'),
+)
+const contentText = computed(
+  () => props.notification.content?.trim() || t('stage5Final.notification.emptyContent'),
+)
 const createdAtText = computed(() => formatDateTime(props.notification.createdAt))
 const readAtText = computed(() => formatDateTime(props.notification.readAt))
-const statusText = computed(() => (props.notification.isRead ? '已读' : '未读'))
+const statusText = computed(() =>
+  props.notification.isRead
+    ? t('stage5Final.notification.read')
+    : t('stage5Final.notification.unread'),
+)
 const statusClass = computed(() => (props.notification.isRead ? 'is-medium' : 'is-danger'))
 const canOpenDetail = computed(() => Boolean(props.notification.relatedId))
 const metaItems = computed(() => {
-  const items = ['订单通知']
+  const items = [t('stage5Final.notification.orderNotification')]
 
   if (props.notification.relatedId) {
-    items.push(`订单${props.notification.relatedId}`)
+    items.push(t('stage5Final.notification.related', { id: props.notification.relatedId }))
   }
 
-  items.push(props.notification.isRead ? '已处理' : '待处理')
+  items.push(
+    props.notification.isRead
+      ? t('stage5Final.notification.handled')
+      : t('stage5Final.notification.pending'),
+  )
   return items
 })
 const supportingText = computed(() => {
   if (props.notification.readAt) {
-    return `已读时间 · ${readAtText.value}`
+    return t('stage5Final.notification.readAt', { time: readAtText.value })
   }
 
   if (props.notification.relatedId) {
-    return '点击卡片可查看关联订单详情'
+    return t('stage5Final.notification.openOrderHint')
   }
 
-  return '可在右上角菜单中标记已读或删除通知'
+  return t('stage5Final.notification.manageHint')
 })
 </script>
 

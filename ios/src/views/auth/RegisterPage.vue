@@ -2,13 +2,13 @@
   <div class="auth-register-form auth-register-form--single">
     <ion-list lines="none" class="auth-list">
       <div class="auth-field">
-        <p class="auth-field-label">邮箱</p>
+        <p class="auth-field-label">{{ t('auth.field.email') }}</p>
         <ion-item :class="['auth-item', { 'auth-item--focused': focusedField === 'email' }]">
           <ion-input
             v-model="form.email"
             autocomplete="email"
             inputmode="email"
-            placeholder="请输入邮箱"
+            :placeholder="t('auth.placeholder.email')"
             type="email"
             @ionBlur="handleInputBlur('email')"
             @ionFocus="handleInputFocus('email')"
@@ -17,7 +17,7 @@
       </div>
 
       <div class="auth-field">
-        <p class="auth-field-label">邮箱验证码</p>
+        <p class="auth-field-label">{{ t('auth.field.emailCode') }}</p>
         <div class="auth-code-row">
           <ion-item
             :class="[
@@ -30,7 +30,7 @@
               autocomplete="one-time-code"
               inputmode="numeric"
               :maxlength="VERIFICATION_CODE_LENGTH"
-              placeholder="请输入邮箱验证码"
+              :placeholder="t('auth.placeholder.emailCode')"
               type="text"
               @ionBlur="handleInputBlur('verificationCode')"
               @ionFocus="handleInputFocus('verificationCode')"
@@ -50,12 +50,12 @@
       </div>
 
       <div class="auth-field">
-        <p class="auth-field-label">密码</p>
+        <p class="auth-field-label">{{ t('auth.field.password') }}</p>
         <ion-item :class="['auth-item', { 'auth-item--focused': focusedField === 'password' }]">
           <ion-input
             v-model="form.password"
             autocomplete="new-password"
-            placeholder="请输入 6-20 位密码"
+            :placeholder="t('auth.placeholder.registerPassword')"
             type="password"
             @ionBlur="handleInputBlur('password')"
             @ionFocus="handleInputFocus('password')"
@@ -64,14 +64,14 @@
       </div>
 
       <div class="auth-field">
-        <p class="auth-field-label">确认密码</p>
+        <p class="auth-field-label">{{ t('auth.field.confirmPassword') }}</p>
         <ion-item
           :class="['auth-item', { 'auth-item--focused': focusedField === 'confirmPassword' }]"
         >
           <ion-input
             v-model="form.confirmPassword"
             autocomplete="new-password"
-            placeholder="请再次输入密码"
+            :placeholder="t('auth.placeholder.confirmPassword')"
             type="password"
             @ionBlur="handleInputBlur('confirmPassword')"
             @ionFocus="handleInputFocus('confirmPassword')"
@@ -84,7 +84,7 @@
         <span class="auth-agreement-row__box">
           <span class="auth-agreement-row__check">✓</span>
         </span>
-        <span class="auth-agreement-row__text">我已阅读并同意用户协议和隐私协议</span>
+        <span class="auth-agreement-row__text">{{ t('auth.register.agreement') }}</span>
       </label>
 
       <ion-button
@@ -94,7 +94,7 @@
         @click="handleSubmitRegister"
       >
         <ion-spinner v-if="submitting" name="crescent" />
-        <span v-else>注册</span>
+        <span v-else>{{ t('auth.action.register') }}</span>
       </ion-button>
     </ion-list>
   </div>
@@ -103,6 +103,7 @@
 <script setup lang="ts">
 import { IonButton, IonInput, IonItem, IonList, IonSpinner } from '@ionic/vue'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { register, sendVerificationCode } from '@/api/auth'
 import type { RegisterRequest } from '@/types/auth'
 import { showErrorToast, showSuccessToast, showWarningToast } from '@/utils/notify'
@@ -113,6 +114,7 @@ const PASSWORD_MAX_LENGTH = 20
 const VERIFICATION_CODE_LENGTH = 6
 const VERIFICATION_CODE_SECONDS = 60
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const { t } = useI18n()
 
 type FocusedField =
   | 'email'
@@ -157,10 +159,10 @@ const isSendCodeButtonDisabled = computed(
 )
 const sendCodeButtonLabel = computed(() => {
   if (registerCodeCountdown.value > 0) {
-    return `${registerCodeCountdown.value}s 后可重发`
+    return t('auth.action.resendAfter', { seconds: registerCodeCountdown.value })
   }
 
-  return '发送验证码'
+  return t('auth.action.sendCode')
 })
 
 const clearRegisterCodeCountdown = () => {
@@ -214,12 +216,12 @@ const validateEmail = (emailValue: string) => {
   const email = normalizeEmail(emailValue)
 
   if (!email) {
-    showWarningToast('请输入邮箱')
+    showWarningToast(t('auth.validation.emailRequired'))
     return ''
   }
 
   if (!EMAIL_PATTERN.test(email)) {
-    showWarningToast('请输入正确的邮箱格式')
+    showWarningToast(t('auth.validation.emailInvalid'))
     return ''
   }
 
@@ -237,27 +239,27 @@ const validateRegisterPayload = (): RegisterRequest | null => {
   }
 
   if (verificationCode.length !== VERIFICATION_CODE_LENGTH) {
-    showWarningToast('请输入 6 位邮箱验证码')
+    showWarningToast(t('auth.validation.emailCodeLength', { length: VERIFICATION_CODE_LENGTH }))
     return null
   }
 
   if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
-    showWarningToast(`密码需为 ${PASSWORD_MIN_LENGTH}-${PASSWORD_MAX_LENGTH} 位`)
+    showWarningToast(t('auth.validation.passwordRange', { min: PASSWORD_MIN_LENGTH, max: PASSWORD_MAX_LENGTH }))
     return null
   }
 
   if (!confirmPassword) {
-    showWarningToast('请再次输入密码')
+    showWarningToast(t('auth.validation.confirmPasswordRequired'))
     return null
   }
 
   if (password !== confirmPassword) {
-    showWarningToast('两次输入的密码不一致')
+    showWarningToast(t('auth.validation.passwordMismatch'))
     return null
   }
 
   if (!form.agreeToTerms) {
-    showWarningToast('请先阅读并同意用户协议和隐私协议')
+    showWarningToast(t('auth.validation.registerAgreementRequired'))
     return null
   }
 
@@ -287,15 +289,15 @@ const handleSendRegisterCode = async () => {
     })
 
     if (!response.success) {
-      showErrorToast(response.message || '验证码发送失败')
+      showErrorToast(response.message || t('auth.message.codeSendFailed'))
       return
     }
 
-    showSuccessToast('验证码已发送，请查收邮箱')
+    showSuccessToast(t('auth.message.codeSent'))
     startRegisterCodeCountdown()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showErrorToast(error instanceof Error ? error.message : '验证码发送失败')
+      showErrorToast(error instanceof Error ? error.message : t('auth.message.codeSendFailed'))
     }
   } finally {
     sendingRegisterCode.value = false
@@ -318,11 +320,11 @@ const handleSubmitRegister = async () => {
     const response = await register(payload)
 
     if (!response.success) {
-      showErrorToast(response.message || '注册失败')
+      showErrorToast(response.message || t('auth.message.registerFailed'))
       return
     }
 
-    showSuccessToast('注册成功，请登录')
+    showSuccessToast(t('auth.message.registerSuccess'))
     emit('registered', payload.email)
 
     form.verificationCode = ''
@@ -331,7 +333,7 @@ const handleSubmitRegister = async () => {
     form.agreeToTerms = false
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showErrorToast(error instanceof Error ? error.message : '注册失败')
+      showErrorToast(error instanceof Error ? error.message : t('auth.message.registerFailed'))
     }
   } finally {
     submitting.value = false

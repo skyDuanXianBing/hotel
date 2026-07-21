@@ -5,7 +5,7 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.home" />
         </ion-buttons>
-        <ion-title class="orders-header__title">消息</ion-title>
+        <ion-title class="orders-header__title">{{ $t('routes.Messages') }}</ion-title>
         <ion-buttons slot="end" class="messages-header__actions">
           <ion-button
             class="orders-header__text-btn"
@@ -14,7 +14,7 @@
             @click="handleOpenTranslationSettings"
           >
             <ion-icon :icon="languageOutline" aria-hidden="true" />
-            <span>翻译</span>
+            <span>{{ t('messages.translate') }}</span>
           </ion-button>
           <ion-button class="orders-header__icon-btn" fill="clear" @click="handleToggleSearch">
             <ion-icon :icon="isSearchVisible ? closeOutline : searchOutline" />
@@ -25,7 +25,7 @@
 
     <ion-content fullscreen class="mobile-page messages-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新消息" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="t('messages.pullToRefresh')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <div class="orders-page__shell messages-page__shell">
@@ -35,9 +35,11 @@
               v-model="searchKeyword"
               :debounce="300"
               class="orders-searchbar"
-              placeholder="单号/房间/房客姓名/消息/房型"
+              :placeholder="t('messages.searchPlaceholder')"
             />
-            <button type="button" class="orders-search-panel__cancel" @click="handleHideSearch">取消</button>
+            <button type="button" class="orders-search-panel__cancel" @click="handleHideSearch">
+              {{ t('messages.cancel') }}
+            </button>
           </div>
         </section>
 
@@ -64,7 +66,7 @@
               :class="{ 'is-active': activeChannel !== ALL_CHANNEL_VALUE }"
               @click="handleSelectChannel(ALL_CHANNEL_VALUE)"
             >
-              全部渠道
+              {{ t('messages.allChannels') }}
             </button>
             <button
               v-for="item in channelOptions"
@@ -82,7 +84,7 @@
               class="orders-filter-chip orders-filter-chip--ghost"
               @click="handleResetFilters"
             >
-              清空
+              {{ t('messages.clear') }}
             </button>
           </div>
         </section>
@@ -182,9 +184,9 @@
     >
       <ion-header translucent class="message-translation-modal__header">
         <ion-toolbar class="message-translation-modal__toolbar">
-          <ion-title>全局消息翻译</ion-title>
+          <ion-title>{{ t('messages.translationSettings') }}</ion-title>
           <ion-buttons slot="end">
-            <ion-button @click="handleDismissTranslationSettings">关闭</ion-button>
+            <ion-button @click="handleDismissTranslationSettings">{{ t('messages.close') }}</ion-button>
           </ion-buttons>
         </ion-toolbar>
       </ion-header>
@@ -192,21 +194,25 @@
       <ion-content class="mobile-page message-translation-modal__page">
         <section class="mobile-card message-translation-sheet">
           <div class="message-translation-sheet__intro">
-            <h2 class="mobile-section-title">ChatGPT 翻译</h2>
-            <p class="mobile-note">开启后会优先翻译当前可见的未读会话，以及会话详情中的访客消息。</p>
+            <h2 class="mobile-section-title">{{ t('messages.chatGptTranslation') }}</h2>
+            <p class="mobile-note">{{ t('messages.translationDescription') }}</p>
           </div>
 
           <div class="message-translation-setting-row">
             <div>
-              <strong>自动翻译访客消息</strong>
-              <p>原文会立即显示，译文在后台按需加载，不会阻塞浏览和回复。</p>
+              <strong>{{ t('messages.autoTranslate') }}</strong>
+              <p>{{ t('messages.autoTranslateDescription') }}</p>
             </div>
-            <ion-toggle v-model="translationEnabled" aria-label="自动翻译访客消息" />
+            <ion-toggle v-model="translationEnabled" :aria-label="t('messages.autoTranslate')" />
           </div>
 
           <label class="message-translation-field">
-            <span>目标语言</span>
-            <ion-select v-model="translationTargetLanguage" interface="action-sheet" placeholder="请选择目标语言">
+            <span>{{ t('messages.targetLanguage') }}</span>
+            <ion-select
+              v-model="translationTargetLanguage"
+              interface="action-sheet"
+              :placeholder="t('messages.targetLanguagePlaceholder')"
+            >
               <ion-select-option
                 v-for="option in MESSAGE_TRANSLATION_LANGUAGE_OPTIONS"
                 :key="option.value"
@@ -223,10 +229,10 @@
               :disabled="isApplyingTranslationSettings"
               @click="handleDismissTranslationSettings"
             >
-              取消
+              {{ t('messages.cancel') }}
             </ion-button>
             <ion-button :disabled="isApplyingTranslationSettings" @click="handleApplyTranslationSettings">
-              {{ isApplyingTranslationSettings ? '保存中...' : '保存' }}
+              {{ isApplyingTranslationSettings ? t('messages.saving') : t('messages.save') }}
             </ion-button>
           </div>
         </section>
@@ -266,6 +272,7 @@ import {
   timeOutline,
 } from 'ionicons/icons'
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { getMessageThreads } from '@/api/message'
 import { buildMessageDetailPath, ROUTE_PATHS } from '@/router/guards'
@@ -320,15 +327,16 @@ const ALL_CHANNEL_VALUE = '__all__'
 const VISIBLE_PREVIEW_TRANSLATION_LIMIT = 6
 const PREVIEW_TRANSLATION_SETTLE_MS = 250
 
-const MESSAGE_TABS: MessageTabOption[] = [
-  { label: '全部', value: 'all' },
-  { label: '未读', value: 'unread' },
-  { label: '已关闭', value: 'closed' },
-]
-
 const route = useRoute()
 const router = useRouter()
 const notificationCenterStore = useNotificationCenterStore()
+const { t } = useI18n()
+
+const MESSAGE_TABS = computed<MessageTabOption[]>(() => [
+  { label: t('messages.tabs.all'), value: 'all' },
+  { label: t('messages.tabs.unread'), value: 'unread' },
+  { label: t('messages.tabs.closed'), value: 'closed' },
+])
 
 const loading = ref(false)
 const isSearchVisible = ref(false)
@@ -435,7 +443,7 @@ const displayedThreads = computed(() => {
 })
 
 const activeTabLabel = computed(() => {
-  return MESSAGE_TABS.find((item) => item.value === activeTab.value)?.label || '全部'
+  return MESSAGE_TABS.value.find((item) => item.value === activeTab.value)?.label || t('messages.tabs.all')
 })
 
 const activeChannelLabel = computed(() => {
@@ -492,17 +500,23 @@ const routeTargetKey = computed(() => {
 })
 
 const resultsSummaryText = computed(() => {
-  const unreadLabel = unreadThreadCount.value > 0 ? ` · 未读 ${unreadThreadCount.value}` : ''
-  return `${activeTabLabel.value} · ${displayedThreads.value.length} 条会话${unreadLabel}`
+  const unreadLabel =
+    unreadThreadCount.value > 0
+      ? t('messages.summaryUnread', { count: unreadThreadCount.value })
+      : ''
+  return `${t('messages.summary', {
+    tab: activeTabLabel.value,
+    count: displayedThreads.value.length,
+  })}${unreadLabel}`
 })
 
 const resultsNoticeText = computed(() => {
   if (activeTab.value === 'unread') {
-    return '仅显示未读会话，方便优先处理住客消息。'
+    return t('messages.noticeUnread')
   }
 
   if (activeTab.value === 'closed') {
-    return '已关闭或归档的会话会保留在这里，便于后续查阅。'
+    return t('messages.noticeClosed')
   }
 
   return ''
@@ -510,30 +524,30 @@ const resultsNoticeText = computed(() => {
 
 const emptyTitle = computed(() => {
   if (trimmedKeyword.value) {
-    return '没有匹配的会话'
+    return t('messages.emptySearch')
   }
 
   if (activeTab.value === 'unread') {
-    return '当前没有未读消息'
+    return t('messages.emptyUnread')
   }
 
   if (activeTab.value === 'closed') {
-    return '当前没有已关闭会话'
+    return t('messages.emptyClosed')
   }
 
-  return '当前暂无会话'
+  return t('messages.emptyDefault')
 })
 
 const emptyDescription = computed(() => {
   if (trimmedKeyword.value) {
-    return '可以尝试调整关键词，或清空筛选后重新查看全部会话。'
+    return t('messages.emptySearchDescription')
   }
 
   if (activeChannel.value !== ALL_CHANNEL_VALUE) {
-    return '当前渠道下暂时没有匹配会话，可以切换其他渠道查看。'
+    return t('messages.emptyChannelDescription')
   }
 
-  return '新会话同步后会显示在这里，点击任一会话可进入详情继续沟通。'
+  return t('messages.emptyDefaultDescription')
 })
 
 function resolveWarningMessage(error: unknown, fallbackMessage: string) {
@@ -580,7 +594,7 @@ function getTranslatedThreadPreviewText(thread: MessageThreadDTO) {
 }
 
 function getThreadPreviewText(thread: MessageThreadDTO) {
-  const originalText = thread.lastMessage || '暂无最新消息'
+  const originalText = thread.lastMessage || t('messages.noLatestMessage')
   if (!translationEnabled.value) {
     return originalText
   }
@@ -792,10 +806,10 @@ async function handleApplyTranslationSettings() {
       await restartVisibleThreadTranslations()
     }
 
-    showSuccessToast('全局翻译设置已更新')
+    showSuccessToast(t('messages.settingsUpdated'))
   } catch (error) {
     console.error('保存全局翻译设置失败:', error)
-    showWarningToast('翻译设置保存失败')
+    showWarningToast(t('messages.settingsSaveFailed'))
   } finally {
     isApplyingTranslationSettings.value = false
   }
@@ -910,7 +924,7 @@ async function applyRouteMessageTarget() {
 
   if (!matchedThread) {
     if (!loadNotice.value) {
-      loadNotice.value = '暂未找到该订单对应的会话，可在当前结果中继续查找。'
+      loadNotice.value = t('messages.routeTargetNotFound')
     }
     return
   }
@@ -963,7 +977,7 @@ function resolveRoomLabel(thread: MessageThreadDTO) {
     return thread.listingName
   }
 
-  return '未关联房型'
+  return t('messages.noRoomType')
 }
 
 function formatStayDateRange(thread: MessageThreadDTO) {
@@ -971,15 +985,15 @@ function formatStayDateRange(thread: MessageThreadDTO) {
   const checkOutLabel = formatMonthDay(thread.checkOutDate)
 
   if (checkInLabel === '--' && checkOutLabel === '--') {
-    return '未关联入住日期'
+    return t('messages.noStayDate')
   }
 
   if (checkInLabel === '--') {
-    return `离店 ${checkOutLabel}`
+    return t('messages.checkout', { date: checkOutLabel })
   }
 
   if (checkOutLabel === '--') {
-    return `入住 ${checkInLabel}`
+    return t('messages.checkin', { date: checkInLabel })
   }
 
   return `${checkInLabel} ~ ${checkOutLabel}`
@@ -992,7 +1006,7 @@ function getTodayDateKey() {
 function resolveStayStatus(thread: MessageThreadDTO): ThreadStatusView {
   if (thread.closed) {
     return {
-      label: '已关闭',
+      label: t('messages.status.closed'),
       tone: 'closed',
     }
   }
@@ -1003,34 +1017,34 @@ function resolveStayStatus(thread: MessageThreadDTO): ThreadStatusView {
 
   if (checkInDate && today < checkInDate) {
     return {
-      label: '待入住',
+      label: t('messages.status.upcoming'),
       tone: 'upcoming',
     }
   }
 
   if (checkInDate && checkOutDate && today >= checkInDate && today < checkOutDate) {
     return {
-      label: '在住',
+      label: t('messages.status.staying'),
       tone: 'staying',
     }
   }
 
   if (checkOutDate && today >= checkOutDate) {
     return {
-      label: '已离店',
+      label: t('messages.status.departed'),
       tone: 'completed',
     }
   }
 
   if (thread.unreadCount > 0) {
     return {
-      label: '待回复',
+      label: t('messages.status.reply'),
       tone: 'reply',
     }
   }
 
   return {
-    label: '进行中',
+    label: t('messages.status.active'),
     tone: 'active',
   }
 }
@@ -1050,7 +1064,7 @@ async function loadThreads() {
   try {
     const response = await getMessageThreads()
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载会话失败')
+      throw new Error(response.message || t('messages.loadFailed'))
     }
 
     ensureActiveChannelStillExists(response.data)
@@ -1058,7 +1072,7 @@ async function loadThreads() {
     notificationCenterStore.syncMessageThreads(threads.value)
     await applyRouteMessageTarget()
   } catch (error) {
-    loadNotice.value = resolveWarningMessage(error, '加载会话失败')
+    loadNotice.value = resolveWarningMessage(error, t('messages.loadFailed'))
     if (!isHandledRequestError(error)) {
       showWarningToast(loadNotice.value)
     }

@@ -4,40 +4,40 @@
       <ion-toolbar>
         <ion-title>{{ modalTitle }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="$emit('dismiss')">关闭</ion-button>
+          <ion-button @click="$emit('dismiss')">{{ $t('home.section.close') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
     <ion-content>
       <section class="batch-modal__toolbar">
-        <ion-searchbar v-model="searchKeyword" placeholder="搜索房号或房型" />
+        <ion-searchbar v-model="searchKeyword" :placeholder="$t('stage5UiAttributes.47')" />
         <ion-button fill="clear" size="small" @click="toggleAllRooms">{{ toggleAllText }}</ion-button>
       </section>
 
       <ion-list inset v-if="needsDateRange">
         <ion-item>
-          <ion-input v-model="form.startDate" type="date" label="开始日期" label-placement="stacked" />
+          <ion-input v-model="form.startDate" type="date" :label="$t('accommodation.common.startDate')" label-placement="stacked" />
         </ion-item>
         <ion-item>
-          <ion-input v-model="form.endDate" type="date" label="结束日期" label-placement="stacked" />
+          <ion-input v-model="form.endDate" type="date" :label="$t('accommodation.common.endDate')" label-placement="stacked" />
         </ion-item>
         <ion-item>
-          <ion-select v-model="form.weekMode" label="适用日期" label-placement="stacked" interface="action-sheet">
-            <ion-select-option value="all">全部日期</ion-select-option>
-            <ion-select-option value="weekday">仅工作日</ion-select-option>
-            <ion-select-option value="weekend">仅周末</ion-select-option>
+          <ion-select v-model="form.weekMode" :label="$t('stage5UiAttributes.108')" label-placement="stacked" interface="action-sheet">
+            <ion-select-option value="all">{{ $t('roomStatus.closeRoom.allDates') }}</ion-select-option>
+            <ion-select-option value="weekday">{{ $t('stage5VisibleText.113') }}</ion-select-option>
+            <ion-select-option value="weekend">{{ $t('stage5VisibleText.112') }}</ion-select-option>
           </ion-select>
         </ion-item>
         <ion-item v-if="mode === 'close'">
-          <ion-select v-model="form.type" label="关房类型" label-placement="stacked" interface="action-sheet">
-            <ion-select-option value="stop">停用房</ion-select-option>
-            <ion-select-option value="maintenance">维修房</ion-select-option>
-            <ion-select-option value="retain">保留房</ion-select-option>
+          <ion-select v-model="form.type" :label="$t('roomStatus.closeRoom.typeLabel')" label-placement="stacked" interface="action-sheet">
+            <ion-select-option value="stop">{{ $t('roomStatus.closeRoom.type.stop') }}</ion-select-option>
+            <ion-select-option value="maintenance">{{ $t('roomStatus.closeRoom.type.maintenance') }}</ion-select-option>
+            <ion-select-option value="retain">{{ $t('roomStatus.closeRoom.type.retain') }}</ion-select-option>
           </ion-select>
         </ion-item>
         <ion-item v-if="mode === 'close'" lines="none">
-          <ion-textarea v-model="form.remark" auto-grow label="备注" label-placement="stacked" placeholder="可选" />
+          <ion-textarea v-model="form.remark" auto-grow :label="$t('accommodation.common.remarks')" label-placement="stacked" :placeholder="$t('settingsStage4.autoCheckin.status.optional')" />
         </ion-item>
       </ion-list>
 
@@ -55,9 +55,9 @@
     <ion-footer>
       <ion-toolbar>
         <div class="modal-footer-actions">
-          <ion-button fill="outline" @click="$emit('dismiss')">取消</ion-button>
+          <ion-button fill="outline" @click="$emit('dismiss')">{{ $t('accommodation.common.cancel') }}</ion-button>
           <ion-button :disabled="submitting || selectedRoomIds.length === 0" @click="handleSubmit">
-            确认执行
+            {{ $t('roomStatus.roomLock.actions.confirmExecute') }}
           </ion-button>
         </div>
       </ion-toolbar>
@@ -86,6 +86,7 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { BatchWeekMode } from '@/stores/roomStatus'
 import { getStoreTodayDate } from '@/utils/storeBusinessDate'
 
@@ -118,6 +119,7 @@ const emit = defineEmits<{
   submit: [payload: BatchActionSubmitPayload]
 }>()
 
+const { t } = useI18n()
 const searchKeyword = ref('')
 const selectedRoomIds = ref<number[]>([])
 const form = ref({
@@ -130,15 +132,15 @@ const form = ref({
 
 const modalTitle = computed(() => {
   if (props.mode === 'dirty') {
-    return '批量置脏'
+    return t('roomStatus.batch.title.dirty')
   }
   if (props.mode === 'clean') {
-    return '批量置净'
+    return t('roomStatus.batch.title.clean')
   }
   if (props.mode === 'open') {
-    return '批量开房'
+    return t('roomStatus.batch.title.open')
   }
-  return '批量关房'
+  return t('roomStatus.batch.title.close')
 })
 
 const needsDateRange = computed(() => props.mode === 'open' || props.mode === 'close')
@@ -156,9 +158,9 @@ const filteredRooms = computed(() => {
 
 const toggleAllText = computed(() => {
   if (selectedRoomIds.value.length === props.rooms.length) {
-    return '取消全选'
+    return t('roomStatus.batch.clearAll')
   }
-  return '全选'
+  return t('roomStatus.batch.selectAll')
 })
 
 function resetForm() {
@@ -214,13 +216,27 @@ watch(
 
 <style scoped>
 .batch-modal__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   padding: 12px 12px 0;
+}
+
+.batch-modal__toolbar ion-searchbar {
+  min-width: 0;
+  flex: 1 1 220px;
 }
 
 .modal-footer-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
   padding: 0 16px;
+}
+
+.modal-footer-actions ion-button {
+  min-width: 0;
+  white-space: normal;
 }
 </style>

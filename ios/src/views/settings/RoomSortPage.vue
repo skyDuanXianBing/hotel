@@ -1,25 +1,25 @@
 <template>
   <SettingsSortablePage
     :back-href="ROUTE_PATHS.settings"
-    title="排序设置"
-    hero-eyebrow="住宿设置"
-    hero-title="排序设置"
+    :title="$t('settings.entries.roomSort.0')"
+    :hero-eyebrow="$t('settings.groups.accommodation')"
+    :hero-title="$t('settings.entries.roomSort.0')"
     :show-refresher="true"
-    refresher-pulling-text="下拉刷新排序设置"
-    section-title="当前顺序"
+    :refresher-pulling-text="$t('stage5UiAttributes.11')"
+    :section-title="$t('stage5UiAttributes.41')"
     :loading="loading"
     @refresh="handleRefresh"
   >
     <template #controls>
       <ion-segment :value="activeSegment" @ionChange="handleSegmentChange">
         <ion-segment-button value="ROOM_TYPE">
-          <ion-label>房型</ion-label>
+          <ion-label>{{ $t('accommodation.common.roomType') }}</ion-label>
         </ion-segment-button>
         <ion-segment-button value="ROOM">
-          <ion-label>房间</ion-label>
+          <ion-label>{{ $t('accommodation.common.room') }}</ion-label>
         </ion-segment-button>
         <ion-segment-button value="GROUP">
-          <ion-label>分组</ion-label>
+          <ion-label>{{ $t('channel.mobile.mapping.groups') }}</ion-label>
         </ion-segment-button>
       </ion-segment>
     </template>
@@ -32,19 +32,19 @@
         </div>
 
         <div class="settings-card-item__actions settings-card-item__actions--vertical">
-          <ion-button size="small" fill="outline" :disabled="index === 0" @click="handleMove(index, -1)">上移</ion-button>
-          <ion-button size="small" fill="outline" :disabled="index === currentItems.length - 1" @click="handleMove(index, 1)">下移</ion-button>
+          <ion-button size="small" fill="outline" :disabled="index === 0" @click="handleMove(index, -1)">{{ $t('stage5SourceText.3') }}</ion-button>
+          <ion-button size="small" fill="outline" :disabled="index === currentItems.length - 1" @click="handleMove(index, 1)">{{ $t('stage5SourceText.4') }}</ion-button>
         </div>
       </article>
     </div>
 
-    <p v-else-if="!loading" class="mobile-note">当前分类暂无可排序数据。</p>
+    <p v-else-if="!loading" class="mobile-note">{{ $t('stage5SourceText.57') }}</p>
 
     <template #sectionFooter>
       <div class="settings-form-actions settings-form-actions--section">
-        <ion-button fill="outline" :disabled="loading || saving" @click="loadPageData">重置</ion-button>
+        <ion-button fill="outline" :disabled="loading || saving" @click="loadPageData">{{ $t('accommodation.common.reset') }}</ion-button>
         <ion-button :disabled="loading || saving || currentItems.length === 0" @click="handleSaveSortOrder">
-          {{ saving ? '保存中...' : '保存顺序' }}
+          {{ saving ? $t('channel.mobile.common.saving') : $t('stage5DynamicUi.24') }}
         </ion-button>
       </div>
     </template>
@@ -52,6 +52,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   IonButton,
   IonLabel,
@@ -71,6 +72,9 @@ import type { RoomDTO, RoomGroupDTO, SortEntityType } from '@/types/settings'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 import { moveArrayItem } from '@/utils/settings'
+import { compareLocalizedText } from '@/utils/formatters'
+
+const { t } = useI18n()
 
 interface SortItem {
   id: number
@@ -118,7 +122,7 @@ function sortWithOrderMap<T extends { id: number; name: string }>(items: T[], so
     if (typeof rightOrder === 'number') {
       return 1
     }
-    return left.name.localeCompare(right.name, 'zh-CN')
+    return compareLocalizedText(left.name, right.name)
   })
   return nextItems
 }
@@ -126,7 +130,7 @@ function sortWithOrderMap<T extends { id: number; name: string }>(items: T[], so
 async function loadPageData() {
   const userId = userStore.currentUser?.id
   if (!userId) {
-    showWarningToast('请先恢复当前用户信息')
+    showWarningToast(t('stage5Pattern.setup'))
     return
   }
 
@@ -142,13 +146,13 @@ async function loadPageData() {
     ])
 
     if (!roomTypeResponse.success || !roomTypeResponse.data) {
-      throw new Error(roomTypeResponse.message || '加载房型失败')
+      throw new Error(roomTypeResponse.message || t('settingsStage4.roomSort.messages.loadRoomTypesFailed'))
     }
     if (!roomResponse.success || !roomResponse.data) {
-      throw new Error(roomResponse.message || '加载房间失败')
+      throw new Error(roomResponse.message || t('settingsStage4.roomSort.messages.loadRoomsFailed'))
     }
     if (!groupResponse.success || !groupResponse.data) {
-      throw new Error(groupResponse.message || '加载分组失败')
+      throw new Error(groupResponse.message || t('settingsStage4.roomSort.messages.loadGroupsFailed'))
     }
 
     const roomTypeSortMap = roomTypeMapResponse.success && roomTypeMapResponse.data ? roomTypeMapResponse.data : {}
@@ -156,7 +160,11 @@ async function loadPageData() {
     const groupSortMap = groupMapResponse.success && groupMapResponse.data ? groupMapResponse.data : {}
 
     roomTypeItems.value = sortWithOrderMap(
-      roomTypeResponse.data.map((item) => ({ id: item.id, name: item.name, description: item.code || '房型代码未设置' })),
+      roomTypeResponse.data.map((item) => ({
+        id: item.id,
+        name: item.name,
+        description: item.code || t('settingsResidual.common.notConfigured'),
+      })),
       roomTypeSortMap,
     )
     roomItems.value = sortWithOrderMap(
@@ -164,12 +172,16 @@ async function loadPageData() {
       roomSortMap,
     )
     groupItems.value = sortWithOrderMap(
-      groupResponse.data.map((item: RoomGroupDTO) => ({ id: Number(item.id), name: item.name, description: item.description || '未填写说明' })),
+      groupResponse.data.map((item: RoomGroupDTO) => ({
+        id: Number(item.id),
+        name: item.name,
+        description: item.description || t('settingsResidual.common.notConfigured'),
+      })),
       groupSortMap,
     )
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载排序设置失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.loadFailed')))
     }
   } finally {
     loading.value = false
@@ -196,7 +208,7 @@ function handleMove(index: number, delta: number) {
 async function handleSaveSortOrder() {
   const userId = userStore.currentUser?.id
   if (!userId) {
-    showWarningToast('请先恢复当前用户信息')
+    showWarningToast(t('stage5Pattern.setup'))
     return
   }
 
@@ -209,14 +221,14 @@ async function handleSaveSortOrder() {
     })
 
     if (!response.success) {
-      throw new Error(response.message || '保存排序失败')
+      throw new Error(response.message || t('settingsStage4.roomSort.messages.saveSortFailed'))
     }
 
-    showSuccessToast('排序设置已保存')
+    showSuccessToast(t('stage5Pattern.saveCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存排序失败'))
+      showWarningToast(resolveWarningMessage(error, t('settingsStage4.roomSort.messages.saveSortFailed')))
     }
   } finally {
     saving.value = false

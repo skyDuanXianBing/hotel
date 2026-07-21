@@ -1,6 +1,11 @@
 import type { OrderBoxItem } from '@/api/orderBox'
 import type { ReservationDTO } from '@/api/reservation'
-import { formatBusinessDateLabel, formatStoreDateTime } from '@/utils/storeBusinessDate'
+import { i18n } from '@/locales'
+import { formatMoney, type MoneyDisplayContext } from '@/utils/formatters'
+import {
+  formatBusinessDateLabel,
+  formatStoreDateTime,
+} from '@/utils/storeBusinessDate'
 
 export type OrderTabValue =
   | 'all'
@@ -21,6 +26,7 @@ export interface OrderFilterForm {
   paymentStatus: string
   startDate: string
   endDate: string
+  operationDate: string
 }
 
 export interface OrderOptionItem {
@@ -37,20 +43,23 @@ export interface OrderSummaryCardItem {
   tone: 'primary' | 'warning' | 'secondary' | 'success' | 'danger'
 }
 
-export const ORDER_PRIMARY_TABS: Array<{ label: string; value: OrderTabValue }> = [
-  { label: '全部', value: 'all' },
-  { label: '预抵', value: 'today-checkin' },
-  { label: '预离', value: 'today-checkout' },
-  { label: '新单', value: 'today-new' },
+export const ORDER_PRIMARY_TABS: Array<{ labelKey: string; value: OrderTabValue }> = [
+  { labelKey: 'order.tabs.all', value: 'all' },
+  { labelKey: 'order.tabs.todayCheckin', value: 'today-checkin' },
+  { labelKey: 'order.tabs.todayCheckout', value: 'today-checkout' },
+  { labelKey: 'order.tabs.todayNew', value: 'today-new' },
 ]
 
-export const ORDER_SECONDARY_TABS: Array<{ label: string; value: OrderTabValue }> = [
-  { label: '未排房/未映射', value: 'unassigned' },
-  { label: '已排房', value: 'assigned' },
-  { label: '待处理', value: 'pending' },
-  { label: '订单盒子', value: 'order-box' },
-  { label: '房型/房间已删除', value: 'deleted-rooms' },
+export const ORDER_SECONDARY_TABS: Array<{ labelKey: string; value: OrderTabValue }> = [
+  { labelKey: 'order.tabs.unassigned', value: 'unassigned' },
+  { labelKey: 'order.tabs.assigned', value: 'assigned' },
+  { labelKey: 'order.tabs.pending', value: 'pending' },
+  { labelKey: 'order.tabs.orderBox', value: 'order-box' },
+  { labelKey: 'order.tabs.deletedRooms', value: 'deleted-rooms' },
 ]
+
+const t = (key: string, params?: Record<string, unknown>) =>
+  params ? i18n.global.t(key, params) : i18n.global.t(key)
 
 export function createDefaultOrderFilters(): OrderFilterForm {
   return {
@@ -61,35 +70,36 @@ export function createDefaultOrderFilters(): OrderFilterForm {
     paymentStatus: '',
     startDate: '',
     endDate: '',
+    operationDate: '',
   }
 }
 
 export function getOrderTabLabel(tab: OrderTabValue) {
   if (tab === 'all') {
-    return '全部订单'
+    return t('order.tabs.all')
   }
   if (tab === 'today-checkin') {
-    return '今日预抵'
+    return t('order.tabs.todayCheckin')
   }
   if (tab === 'today-checkout') {
-    return '今日预离'
+    return t('order.tabs.todayCheckout')
   }
   if (tab === 'today-new') {
-    return '今日新单'
+    return t('order.tabs.todayNew')
   }
   if (tab === 'unassigned') {
-    return '未排房/未映射'
+    return t('order.tabs.unassigned')
   }
   if (tab === 'assigned') {
-    return '已排房'
+    return t('order.tabs.assigned')
   }
   if (tab === 'pending') {
-    return '待处理'
+    return t('order.tabs.pending')
   }
   if (tab === 'order-box') {
-    return '订单盒子'
+    return t('order.tabs.orderBox')
   }
-  return '房型/房间已删除'
+  return t('order.tabs.deletedRooms')
 }
 
 export function mapHomeTypeToOrderTab(type?: string): OrderTabValue {
@@ -152,37 +162,37 @@ export function buildOrderSummaryCards(statistics: {
   return [
     {
       key: 'today-checkin',
-      title: '今日预抵',
+      title: t('order.tabs.todayCheckin'),
       value: Number(statistics.todayCheckinCount ?? 0),
-      note: '优先处理入住准备',
+      note: t('order.mobile.summary.prepareCheckin'),
       tone: 'primary',
     },
     {
       key: 'today-checkout',
-      title: '今日预离',
+      title: t('order.tabs.todayCheckout'),
       value: Number(statistics.todayCheckoutCount ?? 0),
-      note: '关注退房节奏',
+      note: t('order.mobile.summary.watchCheckout'),
       tone: 'warning',
     },
     {
       key: 'today-new',
-      title: '今日新单',
+      title: t('order.tabs.todayNew'),
       value: Number(statistics.todayNewCount ?? 0),
-      note: '查看新增订单',
+      note: t('order.mobile.summary.viewNewOrders'),
       tone: 'secondary',
     },
     {
       key: 'unassigned',
-      title: '未排房/未映射',
+      title: t('order.tabs.unassigned'),
       value: Number(statistics.unassignedCount ?? 0),
-      note: '关注排房与映射异常',
+      note: t('order.mobile.summary.watchAssignment'),
       tone: 'danger',
     },
     {
       key: 'pending',
-      title: '待处理',
+      title: t('order.tabs.pending'),
       value: Number(statistics.pendingCount ?? 0),
-      note: '集中处理异常项',
+      note: t('order.mobile.summary.handleExceptions'),
       tone: 'success',
     },
   ]
@@ -206,21 +216,21 @@ export function getDisplayChannelOrderNumber(reservation: ReservationDTO) {
 export function getReservationStatusText(status?: string) {
   const normalized = (status || '').toUpperCase()
   if (normalized === 'CONFIRMED' || normalized === 'NEW') {
-    return '已确认'
+    return t('order.status.confirmed')
   }
   if (normalized === 'REQUESTED') {
-    return '待确认'
+    return t('order.status.requested')
   }
   if (normalized === 'CHECKED_IN') {
-    return '已入住'
+    return t('order.status.checkedIn')
   }
   if (normalized === 'CHECKED_OUT') {
-    return '已退房'
+    return t('order.status.checkedOut')
   }
   if (normalized === 'CANCELLED') {
-    return '已取消'
+    return t('order.status.cancelled')
   }
-  return status || '未知状态'
+  return status || t('order.mobile.unknownStatus')
 }
 
 export function getReservationStatusColor(status?: string) {
@@ -243,12 +253,12 @@ export function getReservationStatusColor(status?: string) {
 export function getCheckinTypeText(checkinType?: string) {
   const normalized = (checkinType || '').toLowerCase()
   if (normalized === 'early') {
-    return '提前入住'
+    return t('order.options.earlyCheckin')
   }
   if (normalized === 'late') {
-    return '延迟入住'
+    return t('order.options.lateCheckin')
   }
-  return '正常入住'
+  return t('order.options.normalCheckin')
 }
 
 export function canAssignRoom(reservation: ReservationDTO) {
@@ -272,12 +282,12 @@ export function canCancelOrder(reservation: ReservationDTO) {
 
 export function getAssignStatusText(reservation: ReservationDTO) {
   if (!reservation.roomId) {
-    return '未排房'
+    return t('order.assignStatus.unassigned')
   }
   if (canAssignRoom(reservation)) {
-    return '已排房'
+    return t('order.assignStatus.assigned')
   }
-  return '已排房(不占房)'
+  return t('order.assignStatus.assignedNoInventory')
 }
 
 export function getAssignStatusColor(reservation: ReservationDTO) {
@@ -294,34 +304,47 @@ export function getSettlementStatusText(reservation: ReservationDTO) {
   const paidAmount = Number(reservation.paidAmount ?? 0)
   const totalAmount = Number(reservation.totalAmount ?? 0)
   if (totalAmount > 0 && paidAmount >= totalAmount) {
-    return '已结账'
+    return t('order.settlement.settled')
   }
   if (paidAmount > 0 && paidAmount < totalAmount) {
-    return '部分结账'
+    return t('order.settlement.partiallySettled')
   }
-  return '未结账'
+  return t('order.settlement.unsettled')
 }
 
 export function getSettlementStatusColor(reservation: ReservationDTO) {
-  const settlementStatus = getSettlementStatusText(reservation)
-  if (settlementStatus === '已结账') {
+  const paidAmount = Number(reservation.paidAmount ?? 0)
+  const totalAmount = Number(reservation.totalAmount ?? 0)
+  if (totalAmount > 0 && paidAmount >= totalAmount) {
     return 'success'
   }
-  if (settlementStatus === '部分结账') {
+  if (paidAmount > 0 && paidAmount < totalAmount) {
     return 'warning'
   }
   return 'danger'
 }
 
-export function formatAmount(value?: number) {
+export function formatAmount(
+  value?: number,
+  currency = 'CNY',
+  context: MoneyDisplayContext = {},
+) {
   const amount = Number(value ?? 0)
   if (!Number.isFinite(amount)) {
-    return '¥0.00'
+    return formatMoney(
+      0,
+      currency,
+      { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+      context,
+    )
   }
-  return `¥${amount.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
+
+  return formatMoney(
+    amount,
+    currency,
+    { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+    context,
+  )
 }
 
 export function formatDateTime(value?: string) {
@@ -366,12 +389,14 @@ function matchesCheckinTypeFilter(reservation: ReservationDTO, checkinType: stri
 }
 
 function matchesPaymentFilter(reservation: ReservationDTO, paymentStatus: string) {
-  const settlementStatus = getSettlementStatusText(reservation)
+  const paidAmount = Number(reservation.paidAmount ?? 0)
+  const totalAmount = Number(reservation.totalAmount ?? 0)
+  const isSettled = totalAmount > 0 && paidAmount >= totalAmount
   if (paymentStatus === 'paid') {
-    return settlementStatus === '已结账'
+    return isSettled
   }
   if (paymentStatus === 'unpaid') {
-    return settlementStatus !== '已结账'
+    return !isSettled
   }
   return true
 }
@@ -387,14 +412,16 @@ function matchesMultiValueFilter(selectedValues: string[], value?: string) {
 }
 
 function matchesDateRange(reservation: ReservationDTO, startDate: string, endDate: string) {
-  const createdDate = formatDateLabel(reservation.createdAt)
-  if (!createdDate || createdDate === '-') {
+  const checkInDate = reservation.checkInDate?.includes('T')
+    ? reservation.checkInDate.split('T')[0]
+    : reservation.checkInDate
+  if (!checkInDate) {
     return false
   }
-  if (startDate && createdDate < startDate) {
+  if (startDate && checkInDate < startDate) {
     return false
   }
-  if (endDate && createdDate > endDate) {
+  if (endDate && checkInDate > endDate) {
     return false
   }
   return true

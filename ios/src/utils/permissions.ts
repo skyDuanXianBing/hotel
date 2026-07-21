@@ -1,4 +1,5 @@
 import { PermissionAction, PermissionModule, type PermissionDTO } from '@/api/role'
+import { i18n } from '@/locales'
 import type { ApiResponse } from '@/types/api'
 import request from '@/utils/request'
 import { getStoredCurrentStore } from '@/utils/storage'
@@ -71,7 +72,7 @@ export async function fetchCurrentStorePermissions(force = false) {
   })
 
   if (!response.success) {
-    throw new Error(response.message || '加载当前门店权限失败')
+    throw new Error(response.message || i18n.global.t('runtime.errors.permissionsLoadFailed'))
   }
 
   cachedStoreId = currentStore.id

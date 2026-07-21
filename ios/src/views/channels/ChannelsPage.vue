@@ -8,13 +8,13 @@
             :default-href="ROUTE_PATHS.home"
           />
         </ion-buttons>
-        <ion-title class="app-page-header__title channels-page__title">渠道</ion-title>
+        <ion-title class="app-page-header__title channels-page__title">{{ $t('routes.Channels') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content class="mobile-page channels-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新渠道状态" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('channel.mobile.refreshList')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <section v-if="loadNotice" class="channels-page__notice">
@@ -33,10 +33,10 @@
 
       <section v-else-if="loading" class="channels-page__loading">
         <ion-spinner name="crescent" />
-        <p class="mobile-note">正在同步渠道状态…</p>
+        <p class="mobile-note">{{ $t('channel.mobile.syncingStatus') }}</p>
       </section>
 
-      <p v-else class="mobile-note channels-page__empty">当前门店暂无可用渠道配置。</p>
+      <p v-else class="mobile-note channels-page__empty">{{ $t('channel.mobile.empty') }}</p>
     </ion-content>
 
     <ChannelConnectModal
@@ -70,7 +70,8 @@ import {
   IonToolbar,
   onIonViewWillEnter,
 } from '@ionic/vue'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import ChannelConnectModal from '@/components/channel/ChannelConnectModal.vue'
 import ChannelOverviewCard from '@/components/channel/ChannelOverviewCard.vue'
@@ -84,6 +85,7 @@ import {
 import {
   getAllOtaIntegrations,
   getSuMappingStatus,
+  type OtaIntegrationDTO,
   type SuMappingStatusSummary,
 } from '@/api/otaIntegration'
 import { ROUTE_PATHS } from '@/router/guards'
@@ -95,9 +97,19 @@ import {
 import { isHandledRequestError } from '@/utils/request'
 
 const router = useRouter()
+const { locale, t } = useI18n()
 
 const loading = ref(false)
-const channels = ref<ChannelViewModel[]>([])
+const channelSources = ref<OtaIntegrationDTO[]>([])
+const mappingStatuses = ref<Map<number, SuMappingStatusSummary | null>>(new Map())
+const channels = computed(() => {
+  locale.value
+  return sortChannelViewModels(
+    channelSources.value.map((item) =>
+      buildChannelViewModel(item, mappingStatuses.value.get(item.id) || null),
+    ),
+  )
+})
 const loadNotice = ref('')
 const connectModalOpen = ref(false)
 const widgetModalOpen = ref(false)
@@ -112,7 +124,7 @@ async function loadChannels() {
   try {
     const response = await getAllOtaIntegrations()
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载渠道列表失败')
+      throw new Error(response.message || t('channel.mobile.list.loadFailed'))
     }
 
     const mappingStatusById = new Map<number, SuMappingStatusSummary | null>()
@@ -140,7 +152,12 @@ async function loadChannels() {
         })
         .catch((error) => {
           mappingStatusById.set(item.id, null)
-          warnings.push(resolveWarningMessage(error, `${item.name} 映射状态加载失败`))
+          warnings.push(
+            resolveWarningMessage(
+              error,
+              t('channel.mobile.list.mappingLoadFailed', { name: item.name }),
+            ),
+          )
         })
 
       mappingTasks.push(task)
@@ -148,12 +165,8 @@ async function loadChannels() {
 
     await Promise.all(mappingTasks)
 
-    const nextItems: ChannelViewModel[] = []
-    for (const item of response.data) {
-      nextItems.push(buildChannelViewModel(item, mappingStatusById.get(item.id) || null))
-    }
-
-    channels.value = sortChannelViewModels(nextItems)
+    channelSources.value = response.data
+    mappingStatuses.value = mappingStatusById
     loadNotice.value = warnings.join('；')
   } finally {
     loading.value = false
@@ -165,7 +178,7 @@ async function loadPage() {
     await loadChannels()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '渠道数据加载失败'))
+      showWarningToast(resolveWarningMessage(error, t('channel.mobile.list.dataLoadFailed')))
     }
   }
 }
@@ -198,7 +211,7 @@ function handleWidgetDismiss() {
 }
 
 function handleWidgetError(message: string) {
-  loadNotice.value = sanitizeChannelWarningMessage(message, '渠道操作异常，请稍后重试')
+  loadNotice.value = sanitizeChannelWarningMessage(message, t('channel.mobile.list.operationFailed'))
 }
 
 async function handleRefresh(event: CustomEvent) {
@@ -249,6 +262,7 @@ onIonViewWillEnter(async () => {
 
 .channels-page__notice-text {
   color: #99661c;
+  overflow-wrap: anywhere;
 }
 
 .channels-page__card-list {

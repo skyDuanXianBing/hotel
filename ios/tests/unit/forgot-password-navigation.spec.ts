@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import ForgotPasswordPage from '@/views/auth/ForgotPasswordPage.vue'
+import { createTestI18n } from './helpers/i18n'
 
 const routerMocks = vi.hoisted(() => ({
   back: vi.fn(),
@@ -102,6 +103,13 @@ const setHistoryLength = (length: number) => {
   })
 }
 
+const mountForgotPasswordPage = () =>
+  mount(ForgotPasswordPage, {
+    global: {
+      plugins: [createTestI18n()],
+    },
+  })
+
 describe('ForgotPasswordPage back navigation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -113,7 +121,7 @@ describe('ForgotPasswordPage back navigation', () => {
 
   test('uses router back so Ionic plays the backward transition', async () => {
     setHistoryLength(2)
-    const wrapper = mount(ForgotPasswordPage)
+    const wrapper = mountForgotPasswordPage()
 
     await wrapper.find('.auth-page-tabs__button--back').trigger('click')
     await flushPromises()
@@ -124,7 +132,7 @@ describe('ForgotPasswordPage back navigation', () => {
 
   test('falls back to the login route when there is no navigation history', async () => {
     setHistoryLength(1)
-    const wrapper = mount(ForgotPasswordPage)
+    const wrapper = mountForgotPasswordPage()
 
     await wrapper.find('.auth-page-tabs__button--back').trigger('click')
     await flushPromises()
@@ -139,7 +147,7 @@ describe('ForgotPasswordPage back navigation', () => {
   })
 
   test('removes the local graphic captcha and sends reset code with email only', async () => {
-    const wrapper = mount(ForgotPasswordPage)
+    const wrapper = mountForgotPasswordPage()
 
     expect(wrapper.text()).not.toContain('图形验证码')
     expect(wrapper.find('input[placeholder="请输入图形验证码"]').exists()).toBe(false)
@@ -157,7 +165,7 @@ describe('ForgotPasswordPage back navigation', () => {
   })
 
   test('submits a 6-20 character reset password without trimming it', async () => {
-    const wrapper = mount(ForgotPasswordPage)
+    const wrapper = mountForgotPasswordPage()
 
     await wrapper.find('input[placeholder="请输入验证码"]').setValue('123456')
     await wrapper.find('input[placeholder="请输入 6-20 位新密码"]').setValue(' 123456 ')

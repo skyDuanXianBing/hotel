@@ -5,19 +5,19 @@
         <p class="room-card__eyebrow">{{ room.roomType }}</p>
         <h3>{{ room.roomNumber }}</h3>
       </div>
-      <ion-button fill="clear" size="small" @click.stop="$emit('quick-action', room.roomId)">操作</ion-button>
+      <ion-button fill="clear" size="small" @click.stop="$emit('quick-action', room.roomId)">{{ $t('accommodation.common.actions') }}</ion-button>
     </div>
 
     <div class="room-card__chips">
       <ion-chip :color="focusedStatusColor">{{ room.focusedStatusText }}</ion-chip>
-      <ion-chip v-if="room.isDirty" color="warning">脏房</ion-chip>
+      <ion-chip v-if="room.isDirty" color="warning">{{ $t('accommodation.roomTable.columns.dirtyRooms') }}</ion-chip>
       <ion-chip v-if="room.focusedClosed && room.closeType" :color="closeTypeColor">{{ closeTypeText }}</ion-chip>
     </div>
 
     <div v-if="room.focusedClosed" class="room-card__closed-info">
-      <strong>关房类型：{{ closeTypeText }}</strong>
-      <p v-if="room.closeRemark">备注：{{ room.closeRemark }}</p>
-      <p v-else>当前日期已关房，开房后可恢复可售。</p>
+      <strong>{{ $t('stage5DynamicUi.96') }}{{ closeTypeText }}</strong>
+      <p v-if="room.closeRemark">{{ $t('roomStatus.hoverCard.notes') }}{{ room.closeRemark }}</p>
+      <p v-else>{{ $t('stage5VisibleText.163') }}</p>
     </div>
 
     <ReservationSummaryCard
@@ -52,7 +52,7 @@
       >
         <span>{{ item.label }}</span>
         <strong>{{ item.statusText }}</strong>
-        <span v-if="item.isDirty" class="timeline-pill__flag">脏房</span>
+        <span v-if="item.isDirty" class="timeline-pill__flag">{{ $t('accommodation.roomTable.columns.dirtyRooms') }}</span>
       </button>
     </div>
   </article>
@@ -61,6 +61,7 @@
 <script setup lang="ts">
 import { IonButton, IonChip } from '@ionic/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import ReservationSummaryCard from '@/components/room-status/ReservationSummaryCard.vue'
 import type { RoomStatusRoomItem } from '@/stores/roomStatus'
 
@@ -75,14 +76,16 @@ defineEmits<{
   'select-date': [date: string]
 }>()
 
+const { t } = useI18n()
+
 const closeTypeText = computed(() => {
   if (props.room.closeType === 'maintenance') {
-    return '维修房'
+    return t('roomStatus.store.roomState.maintenanceRoom')
   }
   if (props.room.closeType === 'retain') {
-    return '保留房'
+    return t('roomStatus.store.roomState.retainRoom')
   }
-  return '停用房'
+  return t('roomStatus.store.roomState.closedRoom')
 })
 
 const closeTypeColor = computed(() => {
@@ -119,10 +122,10 @@ const focusedStatusColor = computed(() => {
 
 const emptyStateText = computed(() => {
   if (props.room.focusedClosed) {
-    return '当前日期已关房，可执行开房或查看关房备注。'
+    return t('roomStatus.roomCard.closedEmpty')
   }
 
-  return '当前房间暂无订单，可直接发起预订、直接入住或关房。'
+  return t('roomStatus.roomCard.availableEmpty')
 })
 </script>
 

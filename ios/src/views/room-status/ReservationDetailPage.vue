@@ -5,7 +5,6 @@
         <ion-buttons slot="start">
           <ion-back-button
             class="app-page-header__back-btn"
-            text="返回"
             :default-href="defaultBackHref"
           />
         </ion-buttons>
@@ -15,12 +14,12 @@
 
     <ion-content fullscreen class="mobile-page reservation-detail-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新订单" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('order.mobile.refresh')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <section class="mobile-hero reservation-detail-hero" v-if="reservation">
         <div class="reservation-detail-hero__topline">
-          <p class="mobile-note reservation-detail-hero__eyebrow">订单详情</p>
+          <p class="mobile-note reservation-detail-hero__eyebrow">{{ $t('roomStatus.detail.channelInfo.orderDetails') }}</p>
           <span :class="['mobile-chip', 'reservation-detail-hero__status', `is-${statusColor}`]">
             {{ statusText }}
           </span>
@@ -31,7 +30,7 @@
             <h1 class="mobile-title">{{ reservation.guestName }}</h1>
             <p class="mobile-subtitle reservation-detail-hero__orderline">
               <span>{{ reservation.orderNumber }}</span>
-              <span>{{ reservation.channelName || '自来客' }}</span>
+              <span>{{ reservation.channelName || $t('roomStatus.common.defaultChannel') }}</span>
             </p>
           </div>
 
@@ -43,36 +42,36 @@
               :disabled="!reservation"
               @click="openReservationMessages"
             >
-              消息
+              {{ $t('home.quick.messages.0') }}
             </ion-button>
           </div>
         </div>
 
         <div class="reservation-detail-hero__meta-grid">
           <div class="reservation-detail-hero__meta-item">
-            <span>入住</span>
+            <span>{{ $t('roomStatus.action.checkIn') }}</span>
             <strong>{{ reservation.checkInDate }}</strong>
           </div>
           <div class="reservation-detail-hero__meta-item">
-            <span>离店</span>
+            <span>{{ $t('roomStatus.hoverCard.checkOutDate') }}</span>
             <strong>{{ reservation.checkOutDate }}</strong>
           </div>
           <div class="reservation-detail-hero__meta-item">
-            <span>房间</span>
-            <strong>{{ reservation.roomTypeName || '待排房' }} {{ reservation.roomNumber || '' }}</strong>
+            <span>{{ $t('accommodation.common.room') }}</span>
+            <strong>{{ reservation.roomTypeName || $t('roomStatus.bookingModal.unassignedRoom') }} {{ reservation.roomNumber || '' }}</strong>
           </div>
           <div class="reservation-detail-hero__meta-item">
-            <span>入住人数</span>
+            <span>{{ $t('order.table.totalGuests') }}</span>
             <strong class="reservation-detail-hero__guest-count">
-              <span>{{ reservation.adults || 1 }}成人</span>
-              <span>{{ reservation.children || 0 }}儿童</span>
+              <span>{{ reservation.adults || 1 }}{{ $t('stage5VisibleText.172') }}</span>
+              <span>{{ reservation.children || 0 }}{{ $t('stage5VisibleText.128') }}</span>
             </strong>
           </div>
         </div>
 
         <div v-if="sourceOrderTab || orderBoxItem" class="mobile-chip-row reservation-detail-hero__chips">
-          <span v-if="sourceOrderTab" class="mobile-chip">来源：{{ getOrderTabLabel(sourceOrderTab) }}</span>
-          <span v-if="orderBoxItem" class="mobile-chip">已在订单盒子</span>
+          <span v-if="sourceOrderTab" class="mobile-chip">{{ $t('stage5DynamicUi.129') }}{{ getOrderTabLabel(sourceOrderTab) }}</span>
+          <span v-if="orderBoxItem" class="mobile-chip">{{ $t('stage5VisibleText.157') }}</span>
         </div>
       </section>
 
@@ -83,16 +82,16 @@
           </div>
 
           <div class="detail-actions">
-            <ion-button v-if="canCheckIn" class="detail-actions__primary" color="success" @click="handleCheckIn">办理入住</ion-button>
-            <ion-button v-else-if="canCheckOut" class="detail-actions__primary" color="warning" @click="handleCheckOut">办理退房</ion-button>
-            <ion-button v-if="canEditOrder" fill="outline" class="detail-actions__secondary" @click="showBookingModal = true">修改订单</ion-button>
+            <ion-button v-if="canCheckIn" class="detail-actions__primary" color="success" @click="handleCheckIn">{{ $t('roomStatus.detail.checkInAction') }}</ion-button>
+            <ion-button v-else-if="canCheckOut" class="detail-actions__primary" color="warning" @click="handleCheckOut">{{ $t('roomStatus.detail.checkOutAction') }}</ion-button>
+            <ion-button v-if="canEditOrder" fill="outline" class="detail-actions__secondary" @click="showBookingModal = true">{{ $t('roomStatus.common.modifyOrder') }}</ion-button>
             <ion-button
               fill="outline"
               class="detail-actions__secondary"
               :class="{ 'detail-actions__secondary--solo': !canEditOrder && !canCheckIn && !canCheckOut }"
               @click="presentMoreActions"
             >
-              更多操作
+              {{ $t('roomStatus.common.moreActions') }}
             </ion-button>
           </div>
         </section>
@@ -100,13 +99,13 @@
         <section class="mobile-card reservation-detail-content">
           <ion-segment v-model="activeSegment" class="reservation-detail-content__segment">
             <ion-segment-button value="detail">
-              <ion-label>详情</ion-label>
+              <ion-label>{{ $t('accommodation.cleaning.detail') }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="logs">
-              <ion-label>日志</ion-label>
+              <ion-label>{{ $t('iosStage5.roomStatus.logs') }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="channel">
-              <ion-label>渠道</ion-label>
+              <ion-label>{{ $t('home.quick.channels.0') }}</ion-label>
             </ion-segment-button>
           </ion-segment>
 
@@ -118,18 +117,18 @@
                   <strong :class="['detail-summary-card__amount', remainingPaymentClass]">{{ remainingPaymentText }}</strong>
                 </div>
                 <div class="detail-summary-card__hero-side">
-                  <span>订单金额</span>
+                  <span>{{ $t('roomStatus.booking.orderAmount') }}</span>
                   <strong>{{ totalAmountText }}</strong>
                 </div>
               </div>
 
               <div class="detail-summary-card__metrics">
                 <div class="detail-summary-card__metric">
-                  <span>已收款</span>
+                  <span>{{ $t('roomStatus.common.paidAmount') }}</span>
                   <strong>{{ totalPaymentText }}</strong>
                 </div>
                 <div class="detail-summary-card__metric">
-                  <span>其他消费</span>
+                  <span>{{ $t('roomStatus.detail.otherConsumption') }}</span>
                   <strong>{{ totalConsumptionText }}</strong>
                 </div>
               </div>
@@ -137,33 +136,33 @@
 
             <article class="detail-section">
               <div class="detail-section__head">
-                <h3>入住信息</h3>
+                <h3>{{ $t('iosStage5.roomStatus.stayInfo') }}</h3>
               </div>
 
               <div class="detail-fact-list">
                 <div class="detail-fact-list__row">
-                  <span>房间</span>
-                  <strong>{{ reservation.roomTypeName || '待排房' }} {{ reservation.roomNumber || '' }}</strong>
+                  <span>{{ $t('accommodation.common.room') }}</span>
+                  <strong>{{ reservation.roomTypeName || $t('roomStatus.bookingModal.unassignedRoom') }} {{ reservation.roomNumber || '' }}</strong>
                 </div>
                 <div class="detail-fact-list__row">
-                  <span>入住</span>
+                  <span>{{ $t('roomStatus.action.checkIn') }}</span>
                   <strong>{{ reservation.checkInDate }}</strong>
                 </div>
                 <div class="detail-fact-list__row">
-                  <span>离店</span>
+                  <span>{{ $t('roomStatus.hoverCard.checkOutDate') }}</span>
                   <strong>{{ reservation.checkOutDate }}</strong>
                 </div>
                 <div class="detail-fact-list__row">
-                  <span>人数</span>
-                  <strong>{{ reservation.adults || 1 }}成人/{{ reservation.children || 0 }}儿童</strong>
+                  <span>{{ $t('iosStage5.roomStatus.guests') }}</span>
+                  <strong>{{ reservation.adults || 1 }}{{ $t('stage5DynamicUi.115') }}{{ reservation.children || 0 }}{{ $t('stage5VisibleText.128') }}</strong>
                 </div>
               </div>
             </article>
 
             <article class="detail-section detail-record-section">
               <div class="detail-section__head">
-                <h3>消费记录</h3>
-                <span v-if="consumptions.length > 0" class="detail-section__meta">{{ consumptions.length }} 条</span>
+                <h3>{{ $t('iosStage5.roomStatus.consumptionRecords') }}</h3>
+                <span v-if="consumptions.length > 0" class="detail-section__meta">{{ consumptions.length }} {{ $t('stage5DynamicUi.125') }}</span>
               </div>
 
               <div v-if="consumptions.length > 0" class="detail-list">
@@ -177,18 +176,20 @@
                     <p v-if="item.remark">{{ item.remark }}</p>
                   </div>
                   <div class="detail-list__actions">
-                    <strong class="detail-list__amount">{{ formatAmount(item.amount) }}</strong>
-                    <ion-button fill="clear" size="small" color="danger" @click="handleDeleteConsumption(item.id)">删除</ion-button>
+                    <strong class="detail-list__amount">
+                    {{ formatAmount(item.amount, currentCurrency, currentMoneyContext) }}
+                    </strong>
+                    <ion-button fill="clear" size="small" color="danger" @click="handleDeleteConsumption(item.id)">{{ $t('roomStatus.roomLock.actions.delete') }}</ion-button>
                   </div>
                 </div>
               </div>
-              <p v-else class="mobile-note">暂无消费记录</p>
+              <p v-else class="mobile-note">{{ $t('iosStage5.roomStatus.noConsumptionRecords') }}</p>
             </article>
 
             <article class="detail-section detail-record-section">
               <div class="detail-section__head">
-                <h3>收款记录</h3>
-                <span v-if="payments.length > 0" class="detail-section__meta">{{ payments.length }} 条</span>
+                <h3>{{ $t('iosStage5.roomStatus.paymentRecords') }}</h3>
+                <span v-if="payments.length > 0" class="detail-section__meta">{{ payments.length }} {{ $t('stage5DynamicUi.125') }}</span>
               </div>
 
               <div v-if="payments.length > 0" class="detail-list">
@@ -206,30 +207,32 @@
                     <p v-if="item.remark">{{ item.remark }}</p>
                   </div>
                   <div class="detail-list__actions">
-                    <strong class="detail-list__amount">{{ formatAmount(item.amount) }}</strong>
-                    <ion-button fill="clear" size="small" color="danger" @click="handleDeletePayment(item.id)">删除</ion-button>
+                    <strong class="detail-list__amount">
+                    {{ formatAmount(item.amount, currentCurrency, currentMoneyContext) }}
+                    </strong>
+                    <ion-button fill="clear" size="small" color="danger" @click="handleDeletePayment(item.id)">{{ $t('roomStatus.roomLock.actions.delete') }}</ion-button>
                   </div>
                 </div>
               </div>
-              <p v-else class="mobile-note">暂无收款记录</p>
+              <p v-else class="mobile-note">{{ $t('iosStage5.roomStatus.noPaymentRecords') }}</p>
             </article>
 
             <article class="detail-section detail-reminder-card">
               <div class="detail-reminder-card__header">
                 <div>
-                  <h3>订单提醒</h3>
+                  <h3>{{ $t('iosStage5.roomStatus.reservationAlerts') }}</h3>
                   <p v-if="orderReminderNotice">{{ orderReminderNotice }}</p>
                   <p v-else-if="orderReminderCount > 0" class="detail-reminder-card__description">
-                    <span>有</span>
+                    <span>{{ $t('stage5VisibleText.201') }}</span>
                     <span class="detail-reminder-card__count">{{ orderReminderCount }}</span>
-                    <span>条未读订单提醒待处理</span>
+                    <span>{{ $t('iosStage5.roomStatus.unreadAlerts') }}</span>
                   </p>
-                  <p v-else>暂无提醒</p>
+                  <p v-else>{{ $t('iosStage5.roomStatus.noAlerts') }}</p>
                 </div>
               </div>
 
               <div class="detail-reminder-card__actions">
-                <ion-button fill="outline" size="small" @click="openOrderNotifications">查看提醒</ion-button>
+                <ion-button fill="outline" size="small" @click="openOrderNotifications">{{ $t('iosStage5.roomStatus.viewAlerts') }}</ion-button>
               </div>
             </article>
           </div>
@@ -242,7 +245,7 @@
                     <strong>{{ item.action }}</strong>
                     <span class="mobile-note">{{ item.timestamp }}</span>
                   </div>
-                  <p class="mobile-note">操作人：{{ item.operator }}</p>
+                  <p class="mobile-note">{{ $t('stage5DynamicUi.117') }}{{ item.operator }}</p>
                   <p v-if="item.content" class="mobile-note">{{ item.content }}</p>
                   <div v-if="item.details && item.details.length > 0" class="log-item__details">
                     <p v-for="detail in item.details" :key="`${item.id}-${detail.label}`" class="mobile-note">
@@ -251,43 +254,43 @@
                   </div>
                 </div>
               </div>
-              <p v-else class="mobile-note">暂无日志。</p>
+              <p v-else class="mobile-note">{{ $t('iosStage5.roomStatus.noLogs') }}</p>
             </article>
           </div>
 
           <div v-else class="reservation-detail-content__body">
             <article class="detail-section">
               <div class="detail-section__head">
-                <h2 class="mobile-section-title">渠道信息</h2>
+                <h2 class="mobile-section-title">{{ $t('roomStatus.detail.tabs.channel') }}</h2>
               </div>
 
               <div class="detail-definition-list">
                 <div class="detail-definition-list__row">
-                  <span class="detail-definition-list__label">渠道名称</span>
-                  <strong class="detail-definition-list__value">{{ channelInfo?.channelName || reservation.channelName || '自来客' }}</strong>
+                  <span class="detail-definition-list__label">{{ $t('iosStage5.roomStatus.channelName') }}</span>
+                  <strong class="detail-definition-list__value">{{ channelInfo?.channelName || reservation.channelName || $t('roomStatus.common.defaultChannel') }}</strong>
                 </div>
                 <div v-if="linkedMessageThread" class="detail-definition-list__row">
-                  <span class="detail-definition-list__label">关联会话</span>
+                  <span class="detail-definition-list__label">{{ $t('iosStage5.roomStatus.linkedConversation') }}</span>
                   <div class="detail-linked-thread">
                     <strong class="detail-definition-list__value">{{ linkedMessageThreadLabel }}</strong>
                     <p class="mobile-note">{{ linkedMessageThreadMeta }}</p>
                   </div>
                 </div>
                 <div class="detail-definition-list__row">
-                  <span class="detail-definition-list__label">渠道订单号</span>
-                  <strong class="detail-definition-list__value">{{ channelInfo?.channelOrderNumber || reservation.channelOrderNumber || '无' }}</strong>
+                  <span class="detail-definition-list__label">{{ $t('roomStatus.detail.channelInfo.channelOrderNumber') }}</span>
+                  <strong class="detail-definition-list__value">{{ channelInfo?.channelOrderNumber || reservation.channelOrderNumber || $t('roomStatus.common.none') }}</strong>
                 </div>
                 <div class="detail-definition-list__row">
-                  <span class="detail-definition-list__label">价格计划</span>
-                  <strong class="detail-definition-list__value">{{ channelInfo?.pricePlan || reservation.pricePlan || '无' }}</strong>
+                  <span class="detail-definition-list__label">{{ $t('accommodation.roomPriceBulk.table.pricePlan') }}</span>
+                  <strong class="detail-definition-list__value">{{ channelInfo?.pricePlan || reservation.pricePlan || $t('roomStatus.common.none') }}</strong>
                 </div>
                 <div class="detail-definition-list__row">
-                  <span class="detail-definition-list__label">支付方式</span>
-                  <strong class="detail-definition-list__value">{{ channelInfo?.paymentMethod || reservation.paymentMethod || '未记录' }}</strong>
+                  <span class="detail-definition-list__label">{{ $t('roomStatus.common.paymentMethod') }}</span>
+                  <strong class="detail-definition-list__value">{{ channelInfo?.paymentMethod || reservation.paymentMethod || $t('iosStage5.roomStatus.recorded') }}</strong>
                 </div>
                 <div class="detail-definition-list__row">
-                  <span class="detail-definition-list__label">特殊需求</span>
-                  <strong class="detail-definition-list__value">{{ channelInfo?.specialRequests || reservation.notes || '无' }}</strong>
+                  <span class="detail-definition-list__label">{{ $t('roomStatus.detail.channelInfo.specialRequests') }}</span>
+                  <strong class="detail-definition-list__value">{{ channelInfo?.specialRequests || reservation.notes || $t('roomStatus.common.none') }}</strong>
                 </div>
               </div>
             </article>
@@ -337,6 +340,7 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import BookingFormModal, { type BookingFormSubmitPayload } from '@/components/room-status/BookingFormModal.vue'
 import CancelReservationModal from '@/components/room-status/CancelReservationModal.vue'
@@ -382,6 +386,7 @@ import {
 import { getUnreadNotificationCountByType } from '@/api/notification'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import { useRoomStatusStore } from '@/stores/roomStatus'
+import { useStoreStore } from '@/stores/store'
 import { ROUTE_PATHS, buildMessageDetailPath } from '@/router/guards'
 import { useUserStore } from '@/stores/user'
 import { isHandledRequestError } from '@/utils/request'
@@ -389,8 +394,10 @@ import { showSuccessToast, showWarningToast } from '@/utils/notify'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const notificationCenterStore = useNotificationCenterStore()
 const roomStatusStore = useRoomStatusStore()
+const storeStore = useStoreStore()
 const userStore = useUserStore()
 
 const ORDER_NOTIFICATION_TYPE = 'ORDER'
@@ -441,10 +448,13 @@ const defaultBackHref = computed(() => {
 })
 
 const pageTitle = computed(() => {
+  const titleKey = route.path.includes('/tabs/orders/')
+    ? 'routes.OrderReservationDetail'
+    : 'routes.RoomReservationDetail'
   if (!reservation.value) {
-    return '订单详情'
+    return t(titleKey)
   }
-  return `${reservation.value.guestName} 订单`
+  return `${reservation.value.guestName} · ${t(titleKey)}`
 })
 
 const statusText = computed(() => getReservationStatusText(reservation.value?.status))
@@ -491,7 +501,7 @@ const linkedMessageThreadLabel = computed(() => {
     linkedMessageThread.value.guestName ||
     linkedMessageThread.value.listingName ||
     linkedMessageThread.value.channelName ||
-    `会话 #${linkedMessageThread.value.id}`
+    `${t('stage5Final.roomStatus.conversation')} #${linkedMessageThread.value.id}`
   )
 })
 const linkedMessageThreadMeta = computed(() => {
@@ -501,32 +511,42 @@ const linkedMessageThreadMeta = computed(() => {
 
   const parts = [
     linkedMessageThread.value.channelName,
-    linkedMessageThread.value.closed ? '已关闭' : '进行中',
+    linkedMessageThread.value.closed ? t('messages.tabs.closed') : t('iosStage5.cleaning.status.inProgress'),
   ]
 
   if (linkedMessageThread.value.unreadCount > 0) {
-    parts.push(`未读 ${linkedMessageThread.value.unreadCount} 条`)
+    parts.push(`${t('messages.tabs.unread')} ${linkedMessageThread.value.unreadCount} ${t('stage5DynamicUi.125')}`)
   }
 
   return parts.filter(Boolean).join(' · ')
 })
 
-const totalAmountText = computed(() => formatAmount(reservation.value?.totalAmount))
-const totalConsumptionText = computed(() => formatAmount(totalConsumption.value))
-const totalPaymentText = computed(() => formatAmount(totalPayment.value))
+const currentCurrency = computed(() => storeStore.currentStore?.currency || 'CNY')
+const currentMoneyContext = computed(() => ({ country: storeStore.currentStore?.country }))
+const totalAmountText = computed(() =>
+  formatAmount(reservation.value?.totalAmount, currentCurrency.value, currentMoneyContext.value),
+)
+const totalConsumptionText = computed(() =>
+  formatAmount(totalConsumption.value, currentCurrency.value, currentMoneyContext.value),
+)
+const totalPaymentText = computed(() =>
+  formatAmount(totalPayment.value, currentCurrency.value, currentMoneyContext.value),
+)
 const remainingPayment = computed(() => {
   return Number(reservation.value?.totalAmount ?? 0) - Number(totalPayment.value || 0) - Number(totalConsumption.value || 0)
 })
 
-const remainingPaymentText = computed(() => formatAmount(remainingPayment.value))
+const remainingPaymentText = computed(() =>
+  formatAmount(remainingPayment.value, currentCurrency.value, currentMoneyContext.value),
+)
 const remainingPaymentLabel = computed(() => {
   if (remainingPayment.value > 0) {
-    return '还需付款'
+    return t('roomStatus.detail.remainingPayment')
   }
   if (remainingPayment.value < 0) {
-    return '超收金额'
+    return t('iosStage5.roomStatus.overpaid')
   }
-  return '账目状态'
+  return t('iosStage5.roomStatus.accountBalance')
 })
 
 const remainingPaymentClass = computed(() => {
@@ -676,7 +696,7 @@ async function ensureUserId() {
 
   const user = await userStore.fetchCurrentUser(true)
   if (!user?.id) {
-    throw new Error('未获取到当前用户')
+    throw new Error(t('stage5Final.roomStatus.currentUserUnavailable'))
   }
 
   return user.id
@@ -689,13 +709,13 @@ async function loadOrderReminderCount() {
     const userId = await ensureUserId()
     const response = await getUnreadNotificationCountByType(userId, ORDER_NOTIFICATION_TYPE)
     if (!response.success) {
-      throw new Error(response.message || '加载订单提醒失败')
+      throw new Error(response.message || t('stage5Pattern.loadFailed'))
     }
 
     orderReminderCount.value = Number(response.data || 0)
   } catch {
     orderReminderCount.value = 0
-    orderReminderNotice.value = '提醒数加载失败，请进入提醒页查看'
+    orderReminderNotice.value = t('stage5Final.roomStatus.reminderLoadFailed')
   }
 }
 
@@ -760,7 +780,7 @@ async function openReservationMessages() {
   }
 
   if (!reservation.value) {
-    showWarningToast('订单数据仍在加载，请稍后再试')
+    showWarningToast(t('iosStage5.roomStatus.orderDataLoading'))
     return
   }
 
@@ -820,7 +840,7 @@ async function confirmAction(header: string, message: string, confirmText: strin
     message,
     buttons: [
       {
-        text: '取消',
+        text: t('accommodation.common.cancel'),
         role: 'cancel',
       },
       {
@@ -871,7 +891,7 @@ async function loadDetail() {
       return
     }
     if (!reservationResponse.success || !reservationResponse.data) {
-      throw new Error(reservationResponse.message || '订单详情加载失败')
+      throw new Error(reservationResponse.message || t('stage5Pattern.loadFailed'))
     }
     const currentReservation = reservationResponse.data
     reservation.value = currentReservation
@@ -941,7 +961,7 @@ async function handleRefresh(event: CustomEvent) {
     await loadDetail()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '订单刷新失败'))
+      showWarningToast(resolveWarningMessage(error, t('iosStage5.roomStatus.orderRefreshFailed')))
     }
   } finally {
     event.detail.complete()
@@ -956,14 +976,14 @@ async function handleCheckIn() {
   try {
     const response = await checkInReservation(reservation.value.id)
     if (!response.success) {
-      throw new Error(response.message || '办理入住失败')
+      throw new Error(response.message || t('roomStatus.messages.checkInFailed'))
     }
-    showSuccessToast('入住办理成功')
+    showSuccessToast(t('order.mobile.messages.checkInSuccess'))
     await loadDetail()
     await roomStatusStore.refreshAll()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '办理入住失败'))
+      showWarningToast(resolveWarningMessage(error, t('roomStatus.messages.checkInFailed')))
     }
   } finally {
     actionLoading.value = false
@@ -978,14 +998,14 @@ async function handleCheckOut() {
   try {
     const response = await checkOutReservation(reservation.value.id)
     if (!response.success) {
-      throw new Error(response.message || '办理退房失败')
+      throw new Error(response.message || t('roomStatus.messages.checkOutFailed'))
     }
-    showSuccessToast('退房办理成功')
+    showSuccessToast(t('order.mobile.messages.checkOutSuccess'))
     await loadDetail()
     await roomStatusStore.refreshAll()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '办理退房失败'))
+      showWarningToast(resolveWarningMessage(error, t('roomStatus.messages.checkOutFailed')))
     }
   } finally {
     actionLoading.value = false
@@ -997,7 +1017,7 @@ async function handleUpdateReservation(payload: BookingFormSubmitPayload) {
     return
   }
   if (!canEditOrder.value) {
-    showWarningToast('已取消订单不可修改')
+    showWarningToast(t('iosStage5.roomStatus.orderCannotEdit'))
     showBookingModal.value = false
     return
   }
@@ -1017,15 +1037,15 @@ async function handleUpdateReservation(payload: BookingFormSubmitPayload) {
       notes: payload.notes,
     })
     if (!response.success) {
-      throw new Error(response.message || '修改订单失败')
+      throw new Error(response.message || t('stage5Pattern.updateFailed'))
     }
-    showSuccessToast('订单已更新')
+    showSuccessToast(t('iosStage5.roomStatus.orderUpdated'))
     showBookingModal.value = false
     await loadDetail()
     await roomStatusStore.refreshAll()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '修改订单失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.updateFailed')))
     }
   } finally {
     actionLoading.value = false
@@ -1040,15 +1060,15 @@ async function handleCancelReservation() {
   try {
     const response = await cancelReservation(reservation.value.id)
     if (!response.success) {
-      throw new Error(response.message || '取消预约失败')
+      throw new Error(response.message || t('roomStatus.cancelReservation.messages.failed'))
     }
-    showSuccessToast('订单已取消')
+    showSuccessToast(t('order.mobile.messages.cancelSuccess'))
     showCancelModal.value = false
     await loadDetail()
     await roomStatusStore.refreshAll()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '取消预约失败'))
+      showWarningToast(resolveWarningMessage(error, t('roomStatus.cancelReservation.messages.failed')))
     }
   } finally {
     actionLoading.value = false
@@ -1063,18 +1083,18 @@ async function handleMoveToOrderBox() {
   try {
     const checkResponse = await checkCanMoveToOrderBox(reservation.value.id)
     if (!checkResponse.success || !checkResponse.data) {
-      throw new Error(checkResponse.message || '校验订单盒子资格失败')
+      throw new Error(checkResponse.message || t('order.mobile.messages.eligibilityFailed'))
     }
 
     if (!checkResponse.data.canMove) {
-      showWarningToast(checkResponse.data.reason || '只有已预订的房间可以移入订单盒子')
+      showWarningToast(checkResponse.data.reason || t('roomStatus.detail.messages.moveToOrderBoxOnlyConfirmed'))
       return
     }
 
     const confirmed = await confirmAction(
-      '移入订单盒子',
-      '移入后订单不会实际排房、不占库存，且营业数据不计入统计。确认继续吗？',
-      '确认移入',
+      t('roomStatus.common.moveToOrderBox'),
+      t('order.mobile.confirmMoveIn'),
+      t('order.mobile.actions.confirmMoveIn'),
     )
     if (!confirmed) {
       return
@@ -1083,15 +1103,15 @@ async function handleMoveToOrderBox() {
     actionLoading.value = true
     const response = await moveToOrderBox({ reservationId: reservation.value.id })
     if (!response.success) {
-      throw new Error(response.message || '移入订单盒子失败')
+      throw new Error(response.message || t('roomStatus.detail.messages.moveToOrderBoxFailed'))
     }
 
-    showSuccessToast('已移入订单盒子')
+    showSuccessToast(t('roomStatus.detail.messages.moveToOrderBoxSuccess'))
     await loadDetail()
     await roomStatusStore.refreshAll()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '移入订单盒子失败'))
+      showWarningToast(resolveWarningMessage(error, t('roomStatus.detail.messages.moveToOrderBoxFailed')))
     }
   } finally {
     actionLoading.value = false
@@ -1100,11 +1120,16 @@ async function handleMoveToOrderBox() {
 
 async function handleMoveOutOrderBox() {
   if (!reservation.value || !orderBoxItem.value) {
-    showWarningToast('未找到订单盒子记录')
+    showWarningToast(t('stage5Pattern.unavailable'))
     return
   }
 
-  const confirmed = await confirmAction('移出订单盒子', '确认将该订单移出盒子吗？', '确认移出', true)
+  const confirmed = await confirmAction(
+    t('order.mobile.actions.moveOut'),
+    t('order.mobile.confirmMoveOut'),
+    t('order.mobile.actions.confirmMoveOut'),
+    true,
+  )
   if (!confirmed) {
     return
   }
@@ -1113,15 +1138,15 @@ async function handleMoveOutOrderBox() {
   try {
     const response = await moveOutOrderBox({ orderBoxItemId: orderBoxItem.value.id })
     if (!response.success) {
-      throw new Error(response.message || '移出订单盒子失败')
+      throw new Error(response.message || t('order.mobile.messages.moveOutFailed'))
     }
 
-    showSuccessToast('已移出订单盒子')
+    showSuccessToast(t('order.mobile.messages.moveOutSuccess'))
     await loadDetail()
     await roomStatusStore.refreshAll()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '移出订单盒子失败'))
+      showWarningToast(resolveWarningMessage(error, t('order.mobile.messages.moveOutFailed')))
     }
   } finally {
     actionLoading.value = false
@@ -1131,14 +1156,14 @@ async function handleMoveOutOrderBox() {
 async function confirmDelete(title: string) {
   const alert = await alertController.create({
     header: title,
-    message: '删除后不可恢复，是否继续？',
+    message: t('stage5Final.roomStatus.deleteIrreversible'),
     buttons: [
       {
-        text: '取消',
+        text: t('accommodation.common.cancel'),
         role: 'cancel',
       },
       {
-        text: '删除',
+        text: t('roomStatus.roomLock.actions.delete'),
         role: 'destructive',
       },
     ],
@@ -1153,7 +1178,7 @@ async function handleDeleteConsumption(consumptionId?: number) {
   if (!consumptionId) {
     return
   }
-  const confirmed = await confirmDelete('删除消费')
+  const confirmed = await confirmDelete(t('stage5Final.roomStatus.deleteConsumption'))
   if (!confirmed) {
     return
   }
@@ -1162,13 +1187,13 @@ async function handleDeleteConsumption(consumptionId?: number) {
   try {
     const response = await deleteConsumption(consumptionId)
     if (!response.success) {
-      throw new Error(response.message || '删除消费失败')
+      throw new Error(response.message || t('stage5Pattern.deleteFailed'))
     }
-    showSuccessToast('消费已删除')
+    showSuccessToast(t('stage5Pattern.deleteCompleted'))
     await loadDetail()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '删除消费失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.deleteFailed')))
     }
   } finally {
     actionLoading.value = false
@@ -1179,7 +1204,7 @@ async function handleDeletePayment(paymentId?: number) {
   if (!paymentId) {
     return
   }
-  const confirmed = await confirmDelete('删除收款')
+  const confirmed = await confirmDelete(t('stage5Final.roomStatus.deletePayment'))
   if (!confirmed) {
     return
   }
@@ -1188,13 +1213,13 @@ async function handleDeletePayment(paymentId?: number) {
   try {
     const response = await deletePayment(paymentId)
     if (!response.success) {
-      throw new Error(response.message || '删除收款失败')
+      throw new Error(response.message || t('stage5Pattern.deleteFailed'))
     }
-    showSuccessToast('收款已删除')
+    showSuccessToast(t('stage5Pattern.deleteCompleted'))
     await loadDetail()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '删除收款失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.deleteFailed')))
     }
   } finally {
     actionLoading.value = false
@@ -1214,7 +1239,7 @@ async function openRoomDetail() {
 
 function handlePrint() {
   if (typeof window.print !== 'function') {
-    showWarningToast('当前环境暂不支持打印')
+    showWarningToast(t('iosStage5.roomStatus.printUnavailable'))
     return
   }
 
@@ -1228,13 +1253,13 @@ async function presentMoreActions() {
 
   const buttons: Array<Record<string, unknown>> = [
     {
-      text: '打印',
+      text: t('roomStatus.common.print'),
       handler: () => {
         handlePrint()
       },
     },
     {
-      text: '查看客人备注',
+      text: t('order.mobile.actions.viewGuestNotes'),
       handler: () => {
         void presentReservationNotes()
       },
@@ -1244,7 +1269,7 @@ async function presentMoreActions() {
   if (isOrderContext.value || orderBoxItem.value) {
     if (orderBoxItem.value) {
       buttons.push({
-        text: '移出订单盒子',
+        text: t('order.mobile.actions.moveOut'),
         role: 'destructive',
         handler: () => {
           void handleMoveOutOrderBox()
@@ -1252,7 +1277,7 @@ async function presentMoreActions() {
       })
     } else {
       buttons.push({
-        text: '移入订单盒子',
+        text: t('roomStatus.common.moveToOrderBox'),
         handler: () => {
           void handleMoveToOrderBox()
         },
@@ -1262,7 +1287,7 @@ async function presentMoreActions() {
 
   if (reservation.value.roomId) {
     buttons.push({
-      text: '查看房间',
+      text: t('stage5Final.roomStatus.viewRoom'),
       handler: () => {
         void openRoomDetail()
       },
@@ -1271,7 +1296,7 @@ async function presentMoreActions() {
 
   if (canCancelOrder.value) {
     buttons.push({
-      text: '取消订单',
+      text: t('order.mobile.actions.cancelOrder'),
       role: 'destructive',
       handler: () => {
         showCancelModal.value = true
@@ -1280,12 +1305,12 @@ async function presentMoreActions() {
   }
 
   buttons.push({
-    text: '取消',
+    text: t('accommodation.common.cancel'),
     role: 'cancel',
   })
 
   const actionSheet = await actionSheetController.create({
-    header: reservation.value.guestName || '订单更多操作',
+    header: reservation.value.guestName || t('iosStage5.roomStatus.orderMoreActions'),
     subHeader: reservation.value.orderNumber,
     buttons,
   })
@@ -1294,11 +1319,11 @@ async function presentMoreActions() {
 }
 
 async function presentReservationNotes() {
-  const notesText = reservationNotesText.value || '暂无客人备注'
+  const notesText = reservationNotesText.value || t('order.mobile.notesEmpty')
   const alert = await alertController.create({
-    header: '客人备注',
+    header: t('order.mobile.actions.guestNotes'),
     message: escapeAlertMessage(notesText),
-    buttons: ['知道了'],
+    buttons: [t('order.mobile.understood')],
   })
 
   await alert.present()
@@ -1322,7 +1347,7 @@ onMounted(async () => {
     await loadDetail()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '订单详情加载失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.loadFailed')))
     }
   }
 })

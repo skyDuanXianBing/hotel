@@ -1,30 +1,30 @@
 <template>
   <SettingsDetailFormShell
     :back-href="ROUTE_PATHS.settings"
-    title="门店详情"
-    hero-eyebrow="当前门店"
+    :title="$t('settingsStage4.storeDetails.title')"
+    :hero-eyebrow="$t('common.currentStore')"
     :hero-title="pageTitle"
     :show-refresher="true"
-    refresher-pulling-text="下拉刷新门店详情"
+    :refresher-pulling-text="$t('stage5UiAttributes.19')"
     @refresh="handleRefresh"
   >
     <template #heroExtra>
       <div class="settings-detail-hero__summary">
         <div class="settings-detail-hero__meta">
           <div class="settings-detail-hero__meta-item">
-            <span class="settings-detail-hero__meta-label">地区</span>
+            <span class="settings-detail-hero__meta-label">{{ $t('stage5SourceText.39') }}</span>
             <strong>{{ locationLabel }}</strong>
           </div>
           <div class="settings-detail-hero__meta-item">
-            <span class="settings-detail-hero__meta-label">语言</span>
+            <span class="settings-detail-hero__meta-label">{{ $t('settingsStage4.storeDetails.fields.language') }}</span>
             <strong>{{ languageLabel }}</strong>
           </div>
           <div class="settings-detail-hero__meta-item">
-            <span class="settings-detail-hero__meta-label">时区</span>
+            <span class="settings-detail-hero__meta-label">{{ $t('settingsStage4.storeBasic.fields.timezone') }}</span>
             <strong>{{ timezoneLabel }}</strong>
           </div>
           <div class="settings-detail-hero__meta-item">
-            <span class="settings-detail-hero__meta-label">币种</span>
+            <span class="settings-detail-hero__meta-label">{{ $t('stage5SourceText.53') }}</span>
             <strong>{{ currencyLabel }}</strong>
           </div>
         </div>
@@ -32,18 +32,18 @@
     </template>
 
     <SettingsSectionCard
-      title="门店详情"
+      :title="$t('settingsStage4.storeDetails.title')"
       :loading="loading"
       header-class="settings-detail-page__section-header"
     >
       <div class="settings-form-grid settings-form-grid--top">
         <label class="settings-form-field">
-          <span>邮箱地址</span>
-          <ion-input v-model="form.email" fill="outline" placeholder="请输入邮箱地址" />
+          <span>{{ $t('settingsStage4.storeDetails.fields.email') }}</span>
+          <ion-input v-model="form.email" fill="outline" :placeholder="$t('settingsStage4.accountList.placeholders.email')" />
         </label>
 
         <label class="settings-form-field">
-          <span>语言</span>
+          <span>{{ $t('settingsStage4.storeDetails.fields.language') }}</span>
           <ion-select v-model="form.language" fill="outline" interface="modal">
             <ion-select-option v-for="option in LANGUAGE_OPTIONS" :key="option.value" :value="option.value">
               {{ option.label }}
@@ -52,31 +52,31 @@
         </label>
 
         <label class="settings-form-field settings-form-field--full">
-          <span>详细地址</span>
-          <ion-input v-model="form.address" fill="outline" placeholder="请输入详细地址" />
+          <span>{{ $t('storeSelection.field.address') }}</span>
+          <ion-input v-model="form.address" fill="outline" :placeholder="$t('settingsStage4.storeDetails.placeholders.address')" />
         </label>
 
         <label class="settings-form-field">
-          <span>城市</span>
-          <ion-input v-model="form.city" fill="outline" placeholder="请输入城市" />
+          <span>{{ $t('settingsStage4.storeBasic.fields.city') }}</span>
+          <ion-input v-model="form.city" fill="outline" :placeholder="$t('settingsStage4.storeBasic.placeholders.city')" />
         </label>
 
         <label class="settings-form-field">
-          <span>州 / 省</span>
-          <ion-input v-model="form.state" fill="outline" placeholder="请输入州 / 省" />
+          <span>{{ $t('stage5SourceText.51') }}</span>
+          <ion-input v-model="form.state" fill="outline" :placeholder="$t('stage5UiAttributes.73')" />
         </label>
 
         <label class="settings-form-field">
-          <span>国家</span>
+          <span>{{ $t('stage5.publicRegistration.form.country') }}</span>
           <ion-select v-model="form.country" fill="outline" interface="modal">
-            <ion-select-option v-for="option in COUNTRY_OPTIONS" :key="option.value" :value="option.value">
+            <ion-select-option v-for="option in countryOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </ion-select-option>
           </ion-select>
         </label>
 
         <label class="settings-form-field">
-          <span>时区</span>
+          <span>{{ $t('settingsStage4.storeBasic.fields.timezone') }}</span>
           <ion-select v-model="form.timezone" fill="outline" interface="modal">
             <ion-select-option v-for="option in TIMEZONE_OPTIONS" :key="option.value" :value="option.value">
               {{ option.label }}
@@ -85,16 +85,16 @@
         </label>
 
         <label class="settings-form-field">
-          <span>币种</span>
+          <span>{{ $t('stage5SourceText.53') }}</span>
           <ion-select v-model="form.currency" fill="outline" interface="modal">
-            <ion-select-option v-for="option in CURRENCY_OPTIONS" :key="option.value" :value="option.value">
+            <ion-select-option v-for="option in currencyOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </ion-select-option>
           </ion-select>
         </label>
 
         <label class="settings-form-field">
-          <span>入住时间</span>
+          <span>{{ $t('order.table.checkInTime') }}</span>
           <ion-select v-model="policyForm.checkinTime" fill="outline" interface="modal">
             <ion-select-option v-for="option in STORE_TIME_OPTIONS" :key="option.value" :value="option.value">
               {{ option.label }}
@@ -103,7 +103,7 @@
         </label>
 
         <label class="settings-form-field">
-          <span>退房时间</span>
+          <span>{{ $t('settingsStage4.storeDetails.fields.checkoutTime') }}</span>
           <ion-select v-model="policyForm.checkoutTime" fill="outline" interface="modal">
             <ion-select-option v-for="option in STORE_TIME_OPTIONS" :key="option.value" :value="option.value">
               {{ option.label }}
@@ -112,86 +112,86 @@
         </label>
 
         <label class="settings-form-field settings-form-field--full">
-          <span>门店设施</span>
-          <ion-select v-model="selectedFacilityLabels" fill="outline" interface="modal" multiple>
-            <ion-select-option v-for="item in STORE_FACILITY_OPTIONS" :key="item.label" :value="item.label">
-              {{ item.label }}
+          <span>{{ $t('stage5SourceText.226') }}</span>
+          <ion-select v-model="selectedFacilityKeys" fill="outline" interface="modal" multiple>
+            <ion-select-option v-for="item in STORE_FACILITY_OPTIONS" :key="item.key" :value="item.key">
+              {{ t(item.labelKey) }}
             </ion-select-option>
           </ion-select>
         </label>
 
         <label class="settings-form-field settings-form-field--full">
-          <span>门店描述</span>
-          <ion-textarea v-model="form.description" :rows="4" fill="outline" placeholder="请输入门店描述" />
+          <span>{{ $t('settingsStage4.storeDetails.fields.description') }}</span>
+          <ion-textarea v-model="form.description" :rows="4" fill="outline" :placeholder="$t('stage5UiAttributes.99')" />
         </label>
 
         <label class="settings-form-field settings-form-field--full">
-          <span>桌面照片链接</span>
+          <span>{{ $t('stage5SourceText.150') }}</span>
           <ion-textarea
             v-model="form.desktopPhotoUrlsText"
             :rows="4"
             fill="outline"
-            placeholder="每行一个照片链接"
+            :placeholder="$t('stage5UiAttributes.52')"
           />
         </label>
 
         <label class="settings-form-field settings-form-field--full">
-          <span>移动照片链接</span>
+          <span>{{ $t('stage5SourceText.171') }}</span>
           <ion-textarea
             v-model="form.mobilePhotoUrlsText"
             :rows="4"
             fill="outline"
-            placeholder="每行一个照片链接"
+            :placeholder="$t('stage5UiAttributes.52')"
           />
         </label>
       </div>
     </SettingsSectionCard>
 
-    <SettingsSectionCard title="门店政策">
+    <SettingsSectionCard :title="$t('stage5UiAttributes.110')">
       <div class="settings-form-grid settings-form-grid--top">
         <label class="settings-form-field settings-form-field--full">
-          <span>儿童政策</span>
-          <ion-textarea v-model="policyForm.childPolicy" :rows="3" fill="outline" placeholder="请输入儿童政策" />
+          <span>{{ $t('stage5SourceText.11') }}</span>
+          <ion-textarea v-model="policyForm.childPolicy" :rows="3" fill="outline" :placeholder="$t('stage5UiAttributes.62')" />
         </label>
 
         <label class="settings-form-field settings-form-field--full">
-          <span>吸烟政策</span>
-          <ion-textarea v-model="policyForm.smokingPolicy" :rows="3" fill="outline" placeholder="请输入吸烟政策" />
+          <span>{{ $t('stage5SourceText.36') }}</span>
+          <ion-textarea v-model="policyForm.smokingPolicy" :rows="3" fill="outline" :placeholder="$t('stage5UiAttributes.67')" />
         </label>
 
         <label class="settings-form-field settings-form-field--full">
-          <span>宠物政策</span>
-          <ion-textarea v-model="policyForm.petPolicy" :rows="3" fill="outline" placeholder="请输入宠物政策" />
+          <span>{{ $t('stage5SourceText.42') }}</span>
+          <ion-textarea v-model="policyForm.petPolicy" :rows="3" fill="outline" :placeholder="$t('stage5UiAttributes.72')" />
         </label>
 
         <label class="settings-form-field settings-form-field--full">
-          <span>附加规则</span>
+          <span>{{ $t('stage5SourceText.228') }}</span>
           <ion-textarea
             v-model="policyForm.additionalRules"
             :rows="4"
             fill="outline"
-            placeholder="请输入附加规则"
+            :placeholder="$t('stage5UiAttributes.102')"
           />
         </label>
 
         <label class="settings-form-field settings-form-field--full">
-          <span>酒店条款</span>
-          <ion-textarea v-model="policyForm.hotelTerms" :rows="4" fill="outline" placeholder="请输入酒店条款" />
+          <span>{{ $t('stage5SourceText.224') }}</span>
+          <ion-textarea v-model="policyForm.hotelTerms" :rows="4" fill="outline" :placeholder="$t('stage5UiAttributes.98')" />
         </label>
       </div>
     </SettingsSectionCard>
 
-    <SettingsSectionCard title="地址与定位">
+    <SettingsSectionCard :title="$t('stage5UiAttributes.37')">
       <div class="settings-map-placeholder">
-        <strong>{{ form.address || '未填写地址' }}</strong>
+        <strong>{{ form.address || $t('stage5DynamicUi.48') }}</strong>
       </div>
     </SettingsSectionCard>
 
     <template #bottomActions>
       <div class="settings-page-actions">
-        <ion-button fill="outline" :disabled="loading || saving" @click="loadPageData">重置</ion-button>
+        <ion-button fill="outline" :disabled="loading || saving" @click="loadPageData">{{ $t('accommodation.common.reset') }}</ion-button>
         <ion-button :disabled="loading || saving" @click="handleSave">
-          {{ saving ? '保存中...' : '保存门店详情' }}
+          {{ saving ? $t('channel.mobile.common.saving') : $t('stage5DynamicUi.22') }}
         </ion-button>
       </div>
     </template>
@@ -201,6 +201,7 @@
 <script setup lang="ts">
 import { IonButton, IonInput, IonSelect, IonSelectOption, IonTextarea, onIonViewWillEnter } from '@ionic/vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getStoreById, getStorePolicy, updateStore, updateStorePolicy } from '@/api/store'
 import SettingsSectionCard from '@/components/settings/base/SettingsSectionCard.vue'
 import SettingsDetailFormShell from '@/components/settings/families/SettingsDetailFormShell.vue'
@@ -236,29 +237,53 @@ interface StoreDetailsFormState {
 }
 
 const storeStore = useStoreStore()
+const { t } = useI18n()
 
 const loading = ref(false)
 const saving = ref(false)
 const form = ref<StoreDetailsFormState>(createEmptyForm())
 const policyForm = ref<StorePolicyDTO>(createEmptyPolicyForm())
-const selectedFacilityLabels = ref<string[]>([])
+const selectedFacilityKeys = ref<string[]>([])
 
-const pageTitle = computed(() => storeStore.currentStore?.name || '门店详情')
+const COUNTRY_OPTION_KEYS: Record<string, string> = {
+  China: 'China',
+  Japan: 'Japan',
+  'South Korea': 'SouthKorea',
+  'United Kingdom': 'UnitedKingdom',
+  USA: 'USA',
+}
+
+const countryOptions = computed(() =>
+  COUNTRY_OPTIONS.map((option) => ({
+    ...option,
+    label: t(`storeSelection.option.country.${COUNTRY_OPTION_KEYS[option.value] || option.value}`),
+  })),
+)
+
+const currencyOptions = computed(() =>
+  CURRENCY_OPTIONS.map((option) => ({
+    ...option,
+    label: t(`storeSelection.option.currency.${option.value}`),
+  })),
+)
+
+const pageTitle = computed(() => storeStore.currentStore?.name || t('routes.SettingsStoreDetails'))
 const locationLabel = computed(() => {
-  const values = [form.value.city, form.value.state, form.value.country].filter(Boolean)
+  const country = resolveOptionLabel(countryOptions.value, form.value.country, form.value.country)
+  const values = [form.value.city, form.value.state, country].filter(Boolean)
   if (values.length === 0) {
-    return '未设置地区'
+    return t('settings.constants.storeDetails.unsetRegion')
   }
   return values.join(' · ')
 })
 const languageLabel = computed(() => {
-  return resolveOptionLabel(LANGUAGE_OPTIONS, form.value.language, '未设置语言')
+  return resolveOptionLabel(LANGUAGE_OPTIONS, form.value.language, t('settings.constants.storeDetails.unsetLanguage'))
 })
 const timezoneLabel = computed(() => {
-  return resolveOptionLabel(TIMEZONE_OPTIONS, form.value.timezone, '未设置时区')
+  return resolveOptionLabel(TIMEZONE_OPTIONS, form.value.timezone, t('settings.constants.storeDetails.unsetTimezone'))
 })
 const currencyLabel = computed(() => {
-  return resolveOptionLabel(CURRENCY_OPTIONS, form.value.currency, '未设置币种')
+  return resolveOptionLabel(currencyOptions.value, form.value.currency, t('settings.constants.storeDetails.unsetCurrency'))
 })
 
 function createEmptyForm(): StoreDetailsFormState {
@@ -319,20 +344,20 @@ function fillStoreForm(store: StoreDTO) {
     mobilePhotoUrlsText: formatTextList(store.mobilePhotoUrls),
   }
 
-  const facilityLabels: string[] = []
+  const facilityKeys: string[] = []
   for (const selectedFacility of store.facilities || []) {
     const matched = STORE_FACILITY_OPTIONS.find((item) => {
       return item.payload.name === selectedFacility.name && (item.payload.group || '') === (selectedFacility.group || '')
     })
     if (matched) {
-      facilityLabels.push(matched.label)
+      facilityKeys.push(matched.key)
     }
   }
-  selectedFacilityLabels.value = facilityLabels
+  selectedFacilityKeys.value = facilityKeys
 }
 
 function buildStorePayload(): Partial<StoreRequest> {
-  const facilities = STORE_FACILITY_OPTIONS.filter((item) => selectedFacilityLabels.value.includes(item.label)).map(
+  const facilities = STORE_FACILITY_OPTIONS.filter((item) => selectedFacilityKeys.value.includes(item.key)).map(
     (item) => item.payload,
   )
 
@@ -355,7 +380,7 @@ function buildStorePayload(): Partial<StoreRequest> {
 async function loadPageData() {
   const storeId = storeStore.currentStore?.id
   if (!storeId) {
-    showWarningToast('请先选择门店')
+    showWarningToast(t('settingsStage4.roomGroup.messages.selectStore'))
     return
   }
 
@@ -363,10 +388,10 @@ async function loadPageData() {
   try {
     const [storeResponse, policyResponse] = await Promise.all([getStoreById(storeId), getStorePolicy(storeId)])
     if (!storeResponse.success || !storeResponse.data) {
-      throw new Error(storeResponse.message || '加载门店详情失败')
+      throw new Error(storeResponse.message || t('settingsStage4.storeDetails.messages.loadFailed'))
     }
     if (!policyResponse.success || !policyResponse.data) {
-      throw new Error(policyResponse.message || '加载门店政策失败')
+      throw new Error(policyResponse.message || t('stage5Pattern.loadFailed'))
     }
 
     fillStoreForm(storeResponse.data)
@@ -377,7 +402,7 @@ async function loadPageData() {
     storeStore.setCurrentStore(storeResponse.data)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载门店详情失败'))
+      showWarningToast(resolveWarningMessage(error, t('settingsStage4.storeDetails.messages.loadFailed')))
     }
   } finally {
     loading.value = false
@@ -387,12 +412,12 @@ async function loadPageData() {
 async function handleSave() {
   const currentStore = storeStore.currentStore
   if (!currentStore?.id) {
-    showWarningToast('请先选择门店')
+    showWarningToast(t('settingsStage4.roomGroup.messages.selectStore'))
     return
   }
 
   if (!form.value.country) {
-    showWarningToast('请选择国家')
+    showWarningToast(t('settingsStage4.storeBasic.placeholders.country'))
     return
   }
 
@@ -430,7 +455,7 @@ async function handleSave() {
 
     const storeResponse = await updateStore(currentStore.id, storePayload as StoreRequest)
     if (!storeResponse.success || !storeResponse.data) {
-      throw new Error(storeResponse.message || '保存门店详情失败')
+      throw new Error(storeResponse.message || t('stage5Pattern.saveFailed'))
     }
 
     const policyResponse = await updateStorePolicy(currentStore.id, {
@@ -445,15 +470,15 @@ async function handleSave() {
     })
 
     if (!policyResponse.success || !policyResponse.data) {
-      throw new Error(policyResponse.message || '保存门店政策失败')
+      throw new Error(policyResponse.message || t('stage5Pattern.saveFailed'))
     }
 
     storeStore.setCurrentStore(storeResponse.data)
-    showSuccessToast('门店详情已保存')
+    showSuccessToast(t('stage5Pattern.saveCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存门店详情失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     saving.value = false

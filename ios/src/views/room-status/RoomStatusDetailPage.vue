@@ -11,12 +11,12 @@
 
     <ion-content fullscreen class="mobile-page room-detail-page">
       <section class="mobile-hero room-detail-hero">
-        <p class="mobile-note room-detail-hero__eyebrow">单房详情</p>
-        <h1 class="mobile-title">{{ room?.roomNumber || '房间详情' }}</h1>
-        <p class="mobile-subtitle">{{ room?.roomType || '当前房间' }} · {{ businessDate }}</p>
+        <p class="mobile-note room-detail-hero__eyebrow">{{ $t('iosStage5.roomStatus.singleRoom') }}</p>
+        <h1 class="mobile-title">{{ room?.roomNumber || $t('routes.RoomStatusDetail') }}</h1>
+        <p class="mobile-subtitle">{{ room?.roomType || $t('iosStage5.roomStatus.currentRoom') }} · {{ businessDate }}</p>
         <div class="mobile-chip-row" v-if="room">
           <span class="mobile-chip">{{ room.focusedStatusText }}</span>
-          <span class="mobile-chip" v-if="room.isDirty">脏房</span>
+          <span class="mobile-chip" v-if="room.isDirty">{{ $t('accommodation.roomTable.columns.dirtyRooms') }}</span>
           <span class="mobile-chip" v-if="room.focusedClosed && room.closeType">{{ closeTypeText }}</span>
         </div>
       </section>
@@ -25,23 +25,23 @@
         <section class="mobile-card">
           <div class="mobile-inline-row">
             <div>
-              <h2 class="mobile-section-title">关键动作</h2>
-              <p class="mobile-note">把桌面悬浮操作收敛成移动端按钮流。</p>
+              <h2 class="mobile-section-title">{{ $t('iosStage5.roomStatus.keyActions') }}</h2>
+              <p class="mobile-note">{{ $t('iosStage5.roomStatus.mobileActions') }}</p>
             </div>
           </div>
 
           <div class="detail-actions">
-            <ion-button v-if="!room.focusedClosed && !room.reservation" @click="openBooking('create')">快速预订</ion-button>
-            <ion-button v-if="!room.focusedClosed && !room.reservation" color="success" @click="openBooking('check-in')">直接入住</ion-button>
-            <ion-button v-if="!room.focusedClosed && !room.reservation" fill="outline" color="danger" @click="showCloseRoomModal = true">关房</ion-button>
-            <ion-button v-if="room.focusedClosed" color="success" @click="handleOpenRoom">开房</ion-button>
+            <ion-button v-if="!room.focusedClosed && !room.reservation" @click="openBooking('create')">{{ $t('roomStatus.bookingModal.title.create') }}</ion-button>
+            <ion-button v-if="!room.focusedClosed && !room.reservation" color="success" @click="openBooking('check-in')">{{ $t('roomStatus.booking.drawerTitle.checkIn') }}</ion-button>
+            <ion-button v-if="!room.focusedClosed && !room.reservation" fill="outline" color="danger" @click="showCloseRoomModal = true">{{ $t('accommodation.roomPrice.closeRoom') }}</ion-button>
+            <ion-button v-if="room.focusedClosed" color="success" @click="handleOpenRoom">{{ $t('iosStage5.roomStatus.openRoom') }}</ion-button>
             <ion-button fill="outline" color="warning" @click="handleToggleDirty">{{ dirtyActionText }}</ion-button>
-            <ion-button v-if="room.reservation" fill="outline" @click="openReservationDetail(room.reservation.id)">订单详情</ion-button>
+            <ion-button v-if="room.reservation" fill="outline" @click="openReservationDetail(room.reservation.id)">{{ $t('roomStatus.detail.channelInfo.orderDetails') }}</ion-button>
           </div>
         </section>
 
         <section class="mobile-card">
-          <h2 class="mobile-section-title">短周期房态</h2>
+          <h2 class="mobile-section-title">{{ $t('iosStage5.roomStatus.shortStayStatus') }}</h2>
           <div class="room-detail-timeline">
             <div
               v-for="item in room.timeline"
@@ -56,15 +56,15 @@
         </section>
 
         <section class="mobile-card" v-if="room.closeRemark">
-          <h2 class="mobile-section-title">关房备注</h2>
+          <h2 class="mobile-section-title">{{ $t('iosStage5.roomStatus.closeRoomNote') }}</h2>
           <p class="mobile-note">{{ room.closeRemark }}</p>
         </section>
 
         <section class="mobile-card" v-if="room.reservation">
           <div class="mobile-inline-row">
             <div>
-              <h2 class="mobile-section-title">入住信息</h2>
-              <p class="mobile-note">展示当前房间的订单摘要、渠道与入离日期。</p>
+              <h2 class="mobile-section-title">{{ $t('iosStage5.roomStatus.stayInfo') }}</h2>
+              <p class="mobile-note">{{ $t('iosStage5.roomStatus.staySummary') }}</p>
             </div>
           </div>
 
@@ -78,8 +78,8 @@
       </div>
 
       <section v-else class="mobile-card">
-        <h2 class="mobile-section-title">暂无房间数据</h2>
-        <p class="mobile-note">当前房间可能不在所选日期窗口内，请返回房态主页重新选择。</p>
+        <h2 class="mobile-section-title">{{ $t('settingsStage4.roomSort.empty.room') }}</h2>
+        <p class="mobile-note">{{ $t('iosStage5.roomStatus.roomOutsideWindow') }}</p>
       </section>
     </ion-content>
 
@@ -116,6 +116,7 @@ import {
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import BookingFormModal, {
   type BookingFormSubmitPayload,
@@ -130,6 +131,7 @@ import { showSuccessToast, showWarningToast } from '@/utils/notify'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const roomStatusStore = useRoomStatusStore()
 
 const showBookingModal = ref(false)
@@ -151,24 +153,24 @@ const room = computed(() => roomStatusStore.getRoomListItemById(roomId.value, bu
 
 const pageTitle = computed(() => {
   if (!room.value) {
-    return '房间详情'
+    return t('routes.RoomStatusDetail')
   }
-  return `${room.value.roomNumber} · 房态详情`
+  return `${room.value.roomNumber} · ${t('routes.RoomStatusDetail')}`
 })
 
-const dirtyActionText = computed(() => (room.value?.isDirty ? '置净' : '置脏'))
+const dirtyActionText = computed(() => (room.value?.isDirty ? t('iosStage5.roomStatus.setClean') : t('iosStage5.roomStatus.setDirty')))
 
 const closeTypeText = computed(() => {
   if (!room.value?.closeType) {
-    return '停用'
+    return t('roomStatus.store.roomState.outOfOrder')
   }
   if (room.value.closeType === 'maintenance') {
-    return '维修'
+    return t('roomStatus.calendar.cell.maintenance')
   }
   if (room.value.closeType === 'retain') {
-    return '保留'
+    return t('roomStatus.calendar.cell.retain')
   }
-  return '停用'
+  return t('roomStatus.store.roomState.outOfOrder')
 })
 
 function resolveWarningMessage(error: unknown, fallbackMessage: string) {
@@ -185,11 +187,11 @@ function openBooking(mode: BookingModalMode) {
 
 async function handleBookingSubmit(payload: BookingFormSubmitPayload) {
   if (!room.value) {
-    showWarningToast('未找到房间信息')
+    showWarningToast(t('iosStage5.roomStatus.roomMissing'))
     return
   }
   if (!payload.guestName || !payload.channelId) {
-    showWarningToast('请填写完整订单信息')
+    showWarningToast(t('iosStage5.roomStatus.completeOrder'))
     return
   }
 
@@ -211,15 +213,19 @@ async function handleBookingSubmit(payload: BookingFormSubmitPayload) {
   try {
     const response = await createReservation(requestData)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '订单提交失败')
+      throw new Error(response.message || t('stage5Pattern.submitFailed'))
     }
 
-    showSuccessToast(bookingMode.value === 'check-in' ? '入住已创建' : '预订已创建')
+    showSuccessToast(
+      bookingMode.value === 'check-in'
+        ? t('iosStage5.roomStatus.checkInCreated')
+        : t('stage5Final.roomStatus.reservationCreated'),
+    )
     showBookingModal.value = false
     await roomStatusStore.refreshAll()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '订单提交失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.submitFailed')))
     }
   } finally {
     bookingSubmitting.value = false
@@ -242,7 +248,7 @@ async function handleCloseRoomSubmit(payload: CloseRoomSubmitPayload) {
     showCloseRoomModal.value = false
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '关房失败'))
+      showWarningToast(resolveWarningMessage(error, t('roomStatus.closeRoom.messages.failed')))
     }
   }
 }
@@ -260,7 +266,7 @@ async function handleOpenRoom() {
     })
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '开房失败'))
+      showWarningToast(resolveWarningMessage(error, t('roomStatus.closeRoom.messages.openFailed')))
     }
   }
 }
@@ -288,7 +294,7 @@ async function hydrateRoomReservationAmount() {
     await roomStatusStore.hydrateMissingReservationAmounts(businessDate.value, roomId.value)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '房间详情加载失败'))
+      showWarningToast(resolveWarningMessage(error, t('iosStage5.roomStatus.roomDetailsLoadFailed')))
     }
   }
 }

@@ -1,4 +1,5 @@
 import type { RoomPriceManagementDTO } from '@/api/roomPrice'
+import { formatMoney, type MoneyDisplayContext } from '@/utils/formatters'
 
 export interface RoomStatusDailyPricing {
   price: number
@@ -42,9 +43,20 @@ export const normalizeRoomStatusPriceSource = (value: unknown): RoomStatusPriceS
   return 'default'
 }
 
-export const formatRoomStatusPrice = (price: unknown) => {
+export const formatRoomStatusPrice = (
+  price: unknown,
+  currency = 'CNY',
+  context: MoneyDisplayContext = {},
+) => {
   const normalized = normalizePositiveNumber(price)
-  return normalized === undefined ? '' : `¥${normalized.toFixed(2)}`
+  if (normalized === undefined) {
+    return ''
+  }
+
+  return formatMoney(normalized, currency, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }, context)
 }
 
 export const buildRoomStatusDailyPricingMap = (

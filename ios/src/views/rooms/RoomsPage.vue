@@ -7,7 +7,7 @@
             <button
               class="rooms-header__icon"
               type="button"
-              aria-label="搜索订单"
+              :aria-label="$t('stage5UiAttributes.48')"
               @click="handleToggleSearchPanel"
             >
               <ion-icon :icon="searchOutline" />
@@ -16,7 +16,7 @@
             <button
               class="rooms-header__icon"
               type="button"
-              aria-label="刷新房态"
+              :aria-label="$t('stage5UiAttributes.33')"
               :disabled="roomStatusStore.loading || roomTypeCatalogLoading"
               @click="handleManualRefresh"
             >
@@ -26,20 +26,20 @@
             <button
               class="rooms-header__icon"
               type="button"
-              aria-label="房型筛选"
+              :aria-label="$t('accommodation.roomPrice.roomTypeFilter')"
               @click="handleOpenFilterModal"
             >
               <ion-icon :icon="funnelOutline" />
             </button>
           </div>
 
-          <h1 class="rooms-header__title">房态</h1>
+          <h1 class="rooms-header__title">{{ $t('routes.Rooms') }}</h1>
 
           <div class="rooms-header__actions rooms-header__actions--right">
             <button
               class="rooms-header__icon"
               type="button"
-              aria-label="住宿工具与批量操作"
+              :aria-label="$t('stage5UiAttributes.24')"
               @click="presentToolsMenu"
             >
               <ion-icon :icon="menuOutline" />
@@ -51,7 +51,7 @@
 
     <ion-content fullscreen class="rooms-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新房态" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('stage5UiAttributes.8')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <section v-if="showSearchPanel" class="rooms-search-panel">
@@ -61,7 +61,7 @@
               v-model="searchKeyword"
               :debounce="0"
               class="rooms-searchbar"
-              placeholder="房号/订单号/客户"
+              :placeholder="$t('stage5UiAttributes.43')"
             />
 
             <section v-if="showSearchOverlay" class="rooms-search-popover" aria-live="polite">
@@ -89,7 +89,7 @@
           </div>
 
           <button type="button" class="rooms-search-panel__cancel" @click="handleHideSearchPanel">
-            取消
+            {{ $t('accommodation.common.cancel') }}
           </button>
         </div>
       </section>
@@ -127,7 +127,7 @@
         @click="handleGoToday"
       >
         <ion-icon :icon="locateOutline" />
-        <span>回到今日</span>
+        <span>{{ $t('stage5VisibleText.150') }}</span>
       </button>
 
       <ion-fab slot="fixed" vertical="bottom" horizontal="end" class="rooms-fab">
@@ -146,8 +146,8 @@
     >
       <ion-header translucent class="rooms-sheet-header">
         <ion-toolbar class="rooms-sheet-toolbar">
-          <ion-title>房态概览与筛选</ion-title>
-          <ion-button slot="end" fill="clear" @click="handleCloseFilterModal">关闭</ion-button>
+          <ion-title>{{ $t('stage5VisibleText.177') }}</ion-title>
+          <ion-button slot="end" fill="clear" @click="handleCloseFilterModal">{{ $t('home.section.close') }}</ion-button>
         </ion-toolbar>
       </ion-header>
 
@@ -166,8 +166,8 @@
           />
 
           <div class="rooms-filter-actions">
-            <ion-button fill="outline" @click="handleResetDraftRoomTypeFilter">重置</ion-button>
-            <ion-button @click="handleApplyDraftRoomTypeFilter">确定</ion-button>
+            <ion-button fill="outline" @click="handleResetDraftRoomTypeFilter">{{ $t('accommodation.common.reset') }}</ion-button>
+            <ion-button @click="handleApplyDraftRoomTypeFilter">{{ $t('accommodation.common.confirm') }}</ion-button>
           </div>
         </div>
       </ion-content>
@@ -180,12 +180,12 @@
     >
       <ion-header class="rooms-picker-header">
         <ion-toolbar class="rooms-picker-toolbar">
-          <ion-title>选择房间新建订单</ion-title>
+          <ion-title>{{ $t('stage5VisibleText.237') }}</ion-title>
           <ion-button
             slot="end"
             fill="clear"
             class="rooms-picker__close"
-            aria-label="关闭"
+            :aria-label="$t('home.section.close')"
             @click="showRoomPickerModal = false"
           >
             <ion-icon slot="icon-only" :icon="closeOutline" />
@@ -195,11 +195,11 @@
 
       <ion-content class="mobile-page rooms-picker-page">
         <section v-if="roomStatusStore.groupedVisibleRooms.length > 0" class="rooms-picker">
-          <header class="rooms-picker__summary" aria-label="当前可选房间摘要">
+          <header class="rooms-picker__summary" :aria-label="$t('stage5UiAttributes.40')">
             <span class="rooms-picker__summary-pill rooms-picker__summary-pill--accent">
               {{ pickerDateLabel }}
             </span>
-            <span class="rooms-picker__summary-pill">{{ pickerRoomCount }}间可选</span>
+            <span class="rooms-picker__summary-pill">{{ pickerRoomCount }}{{ $t('stage5DynamicUi.140') }}</span>
           </header>
 
           <section
@@ -209,7 +209,7 @@
           >
             <div class="rooms-picker__group-header">
               <strong>{{ group.roomType }}</strong>
-              <span>{{ group.rooms.length }}间</span>
+              <span>{{ group.rooms.length }}{{ $t('settingsStage4.common.unitRooms') }}</span>
             </div>
 
             <div class="rooms-picker__group-grid">
@@ -223,7 +223,7 @@
               >
                 <div class="rooms-picker__room-top">
                   <strong class="rooms-picker__room-number">{{ room.roomNumber }}</strong>
-                  <span class="rooms-picker__room-arrow">新建</span>
+                  <span class="rooms-picker__room-arrow">{{ $t('stage5VisibleText.195') }}</span>
                 </div>
 
                 <div class="rooms-picker__room-bottom">
@@ -234,15 +234,15 @@
           </section>
         </section>
         <section v-else class="rooms-picker__empty">
-          <h3>暂无可选房间</h3>
-          <p>请调整日期或筛选条件后重试。</p>
+          <h3>{{ $t('stage5VisibleText.200') }}</h3>
+          <p>{{ $t('stage5VisibleText.227') }}</p>
         </section>
       </ion-content>
     </ion-modal>
 
     <ion-action-sheet
       :is-open="showQuickActionSheet"
-      header="房间快捷动作"
+      :header="$t('stage5UiAttributes.45')"
       :sub-header="quickActionDescription"
       :buttons="quickActionButtons"
       @didDismiss="handleQuickActionDismiss"
@@ -315,6 +315,7 @@ import {
   timeOutline,
 } from 'ionicons/icons'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import BookingFormModal, {
   type BookingFormSubmitPayload,
@@ -356,6 +357,7 @@ interface RoomsToolEntry {
 const router = useRouter()
 const storeStore = useStoreStore()
 const roomStatusStore = useRoomStatusStore()
+const { t } = useI18n()
 
 const searchKeyword = ref('')
 const showSearchPanel = ref(false)
@@ -381,43 +383,43 @@ const toolEntries = computed<RoomsToolEntry[]>(() => {
   return [
     {
       key: 'room-table',
-      title: '房情表',
-      description: '查看单日统计与远期 7 日房情，快速判断可售、占用与不可售。',
+      title: t('accommodation.layout.roomTable'),
+      description: t('stage5Final.rooms.roomTableDescription'),
       path: ROUTE_PATHS.roomsRoomTable,
       icon: gridOutline,
-      badge: '房情',
+      badge: t('stage5Final.rooms.roomTableBadge'),
     },
     {
       key: 'pricing',
-      title: '房价管理',
-      description: '按房型与价格计划查看运营价格，并从移动端直接改价。',
+      title: t('accommodation.layout.roomPriceManagement'),
+      description: t('stage5Final.rooms.pricingDescription'),
       path: ROUTE_PATHS.roomsPricing,
       icon: pricetagOutline,
-      badge: '价格',
+      badge: t('stage5Final.rooms.pricingBadge'),
     },
     {
       key: 'pricing-history',
-      title: '改价记录',
-      description: '按操作日期、价格日期、房型与价格计划回看变更记录。',
+      title: t('accommodation.layout.priceChangeHistory'),
+      description: t('stage5Final.rooms.historyDescription'),
       path: ROUTE_PATHS.roomsPricingHistory,
       icon: timeOutline,
-      badge: '记录',
+      badge: t('stage5Final.rooms.historyBadge'),
     },
     {
       key: 'cleaning-overview',
-      title: '保洁概览',
-      description: '用房间卡片视图查看 7 日任务分布，并完成生成、分配与新增。',
+      title: t('stage5Final.rooms.cleaningOverview'),
+      description: t('stage5Final.rooms.cleaningOverviewDescription'),
       path: ROUTE_PATHS.roomsCleaningOverview,
       icon: sparklesOutline,
-      badge: '保洁',
+      badge: t('stage5Final.rooms.cleaningBadge'),
     },
     {
       key: 'cleaning-tasks',
-      title: '任务列表',
-      description: '按条件筛选保洁任务列表，并在详情弹层内分配或完成任务。',
+      title: t('accommodation.layout.taskList'),
+      description: t('stage5Final.rooms.cleaningTasksDescription'),
       path: ROUTE_PATHS.roomsCleaningTasks,
       icon: listOutline,
-      badge: '列表',
+      badge: t('stage5Final.rooms.listBadge'),
     },
   ]
 })
@@ -456,26 +458,28 @@ const showSearchOverlay = computed(() => {
 
 const searchOverlayTitle = computed(() => {
   if (roomStatusStore.searching) {
-    return '正在查找订单'
+    return t('roomStatus.roomsPage.search.loadingTitle')
   }
 
   if (roomStatusStore.searchResults.length > 0) {
-    return `找到 ${roomStatusStore.searchResults.length} 条匹配订单`
+    return t('roomStatus.roomsPage.search.resultTitle', {
+      count: roomStatusStore.searchResults.length,
+    })
   }
 
-  return '未找到匹配结果'
+  return t('roomStatus.roomsPage.search.emptyTitle')
 })
 
 const searchOverlayHint = computed(() => {
   if (roomStatusStore.searching) {
-    return '正在查找匹配订单…'
+    return t('roomStatus.roomsPage.search.loadingHint')
   }
 
   if (roomStatusStore.searchResults.length > 0) {
-    return '点选下方订单可直接进入详情。'
+    return t('roomStatus.roomsPage.search.resultHint')
   }
 
-  return '可尝试房号、手机号、订单号、渠道订单号或客户名。'
+  return t('roomStatus.roomsPage.search.emptyHint')
 })
 
 const emptyStateMode = computed(() => {
@@ -492,34 +496,34 @@ const emptyStateMode = computed(() => {
 
 const emptyStateTitle = computed(() => {
   if (emptyStateMode.value === 'no-room-type') {
-    return '当前无房型'
+    return t('roomStatus.roomsPage.empty.noRoomTypeTitle')
   }
 
   if (emptyStateMode.value === 'no-room') {
-    return '有房型但无房间'
+    return t('roomStatus.roomsPage.empty.noRoomTitle')
   }
 
-  return '筛选结果为空'
+  return t('roomStatus.roomsPage.empty.filteredTitle')
 })
 
 const emptyStateDescription = computed(() => {
   if (emptyStateMode.value === 'no-room-type') {
-    return '当前还没有配置房型。先添加房型并维护房间号，房态页才会出现可操作房间。'
+    return t('roomStatus.roomsPage.empty.noRoomTypeDescription')
   }
 
   if (emptyStateMode.value === 'no-room') {
-    return '当前门店有房型但无房间，请到房型设置页继续在房型内补充房间号。'
+    return t('roomStatus.roomsPage.empty.noRoomDescription')
   }
 
-  return '当前筛选结果为空。可尝试重置房型筛选或下拉刷新后再查看。'
+  return t('roomStatus.roomsPage.empty.filteredDescription')
 })
 
 const emptyStateActionText = computed(() => {
   if (emptyStateMode.value === 'filtered-empty') {
-    return '重置筛选'
+    return t('roomStatus.roomsPage.empty.resetAction')
   }
 
-  return '添加房型'
+  return t('roomStatus.roomsPage.empty.addRoomTypeAction')
 })
 
 const batchRooms = computed<BatchRoomOption[]>(() => {
@@ -558,7 +562,11 @@ function formatPickerDateLabel(value: string) {
     return dateLabel
   }
 
-  return `${Number(month)}月${Number(day)}日 ${getBusinessDateWeekdayLabel(value, '周')}`
+  return t('stage5Final.rooms.dateLabel', {
+    month: Number(month),
+    day: Number(day),
+    weekday: getBusinessDateWeekdayLabel(value, ''),
+  })
 }
 
 const pickerDateLabel = computed(() => formatPickerDateLabel(roomStatusStore.visibleFocusDate))
@@ -573,53 +581,53 @@ const quickActionDescription = computed(() => {
 
 const quickActionButtons = computed(() => {
   if (!selectedRoom.value) {
-    return [{ text: '取消', role: 'cancel' }]
+    return [{ text: t('accommodation.common.cancel'), role: 'cancel' }]
   }
 
   const buttons = [] as Array<Record<string, unknown>>
 
   if (selectedRoom.value.focusedClosed) {
     buttons.push({
-      text: '开房',
+      text: t('iosStage5.roomStatus.openRoom'),
       handler: handleOpenRoom,
     })
   } else if (!selectedRoom.value.reservation) {
     buttons.push({
-      text: '快速预订',
+      text: t('roomStatus.bookingModal.title.create'),
       handler: handleOpenCreateBooking,
     })
     buttons.push({
-      text: '直接入住',
+      text: t('roomStatus.booking.drawerTitle.checkIn'),
       handler: handleOpenCheckInBooking,
     })
     buttons.push({
-      text: '关房',
+      text: t('accommodation.roomPrice.closeRoom'),
       handler: handleOpenCloseRoom,
     })
   } else {
     buttons.push({
-      text: '查看订单',
+      text: t('home.stat.arrivals.2'),
       handler: handleOpenQuickReservation,
     })
 
     if (selectedRoom.value.focusedBusinessState === 'reserved') {
       buttons.push({
-        text: '移入订单盒子',
+        text: t('roomStatus.common.moveToOrderBox'),
         handler: handleMoveSelectedReservationToOrderBox,
       })
     }
   }
 
   buttons.push({
-    text: selectedRoom.value.isDirty ? '置净' : '置脏',
+    text: selectedRoom.value.isDirty ? t('stage5Final.rooms.clean') : t('stage5Final.rooms.dirty'),
     handler: handleToggleDirty,
   })
   buttons.push({
-    text: '房间详情',
+    text: t('roomStatus.detail.channelInfo.roomDetails'),
     handler: handleOpenQuickRoomDetail,
   })
   buttons.push({
-    text: '取消',
+    text: t('accommodation.common.cancel'),
     role: 'cancel',
   })
 
@@ -640,7 +648,7 @@ async function confirmAction(header: string, message: string, confirmText: strin
     message,
     buttons: [
       {
-        text: '取消',
+        text: t('accommodation.common.cancel'),
         role: 'cancel',
       },
       {
@@ -666,7 +674,7 @@ async function loadPage(force = false) {
   try {
     await roomStatusStore.initialize(force)
   } catch (error) {
-    const message = resolveWarningMessage(error, '房态加载失败')
+    const message = resolveWarningMessage(error, t('roomStatus.store.errors.calendarLoadFailed'))
     loadNotice.value = message
 
     if (!isHandledRequestError(error)) {
@@ -699,7 +707,7 @@ async function refreshPageDataOnEnter() {
   try {
     await Promise.all([roomStatusStore.refreshAll(true), loadRoomTypeCatalogCount()])
   } catch (error) {
-    const message = resolveWarningMessage(error, '房态刷新失败')
+    const message = resolveWarningMessage(error, t('stage5Pattern.refreshFailed'))
     loadNotice.value = message
 
     if (!isHandledRequestError(error)) {
@@ -741,7 +749,7 @@ async function handleSelectDate(date: string) {
     await roomStatusStore.setSelectedDate(date)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '切换日期失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.operationFailed')))
     }
   }
 }
@@ -752,7 +760,7 @@ async function handlePreviousWindow() {
     await roomStatusStore.shiftWindow(-shiftDays)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '切换日期失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.operationFailed')))
     }
   }
 }
@@ -763,7 +771,7 @@ async function handleNextWindow() {
     await roomStatusStore.shiftWindow(shiftDays)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '切换日期失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.operationFailed')))
     }
   }
 }
@@ -773,7 +781,7 @@ async function handleGoToday() {
     await roomStatusStore.goToday()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '定位今天失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.operationFailed')))
     }
   }
 }
@@ -841,7 +849,7 @@ function handleQuickActionDismiss() {
 
 function handleFabClick() {
   if (roomStatusStore.groupedVisibleRooms.length === 0) {
-    showWarningToast('当前没有可选房间，请先配置房型与房间')
+    showWarningToast(t('stage5Pattern.setup'))
     return
   }
 
@@ -859,14 +867,14 @@ function handleRoomPicked(roomId: number, businessDate: string) {
 async function presentToolsMenu() {
   const buttons = [
     {
-      text: '前 5 天',
+      text: t('stage5Final.rooms.previousFiveDays'),
       icon: chevronBackOutline,
       handler: () => {
         void handlePreviousWindow()
       },
     },
     {
-      text: '后 5 天',
+      text: t('stage5Final.rooms.nextFiveDays'),
       icon: chevronForwardOutline,
       handler: () => {
         void handleNextWindow()
@@ -880,38 +888,38 @@ async function presentToolsMenu() {
       },
     })),
     {
-      text: '批量置脏',
+      text: t('roomStatus.batchClean.dirty'),
       handler: () => {
         openBatchModal('dirty')
       },
     },
     {
-      text: '批量置净',
+      text: t('roomStatus.batchClean.clean'),
       handler: () => {
         openBatchModal('clean')
       },
     },
     {
-      text: '批量开房',
+      text: t('roomStatus.batchRoom.open'),
       handler: () => {
         openBatchModal('open')
       },
     },
     {
-      text: '批量关房',
+      text: t('roomStatus.batchRoom.close'),
       handler: () => {
         openBatchModal('close')
       },
     },
     {
-      text: '取消',
+      text: t('accommodation.common.cancel'),
       role: 'cancel',
     },
   ]
 
   const actionSheet = await actionSheetController.create({
-    header: '住宿工具',
-    subHeader: '房态工具与批量动作都集中在这里',
+    header: t('stage5Final.rooms.toolsTitle'),
+    subHeader: t('stage5Final.rooms.toolsSubtitle'),
     buttons,
   })
 
@@ -945,7 +953,7 @@ async function handleOpenRoom() {
     })
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '开房失败'))
+      showWarningToast(resolveWarningMessage(error, t('roomStatus.closeRoom.messages.openFailed')))
     }
   }
 }
@@ -984,18 +992,18 @@ async function handleMoveSelectedReservationToOrderBox() {
   try {
     const checkResponse = await checkCanMoveToOrderBox(reservationId)
     if (!checkResponse.success || !checkResponse.data) {
-      throw new Error(checkResponse.message || '校验订单盒子资格失败')
+      throw new Error(checkResponse.message || t('order.mobile.messages.eligibilityFailed'))
     }
 
     if (!checkResponse.data.canMove) {
-      showWarningToast(checkResponse.data.reason || '只有已预订的房间可以移入订单盒子')
+      showWarningToast(checkResponse.data.reason || t('roomStatus.detail.messages.moveToOrderBoxOnlyConfirmed'))
       return
     }
 
     const confirmed = await confirmAction(
-      '移入订单盒子',
-      '移入后订单不会实际排房、不占库存，且移出后不会自动恢复原房间。确认继续吗？',
-      '确认移入',
+      t('stage5Final.rooms.moveToOrderBoxTitle'),
+      t('stage5Final.rooms.moveToOrderBoxMessage'),
+      t('stage5Final.rooms.moveToOrderBoxConfirm'),
     )
     if (!confirmed) {
       return
@@ -1003,14 +1011,14 @@ async function handleMoveSelectedReservationToOrderBox() {
 
     const response = await moveToOrderBox({ reservationId })
     if (!response.success) {
-      throw new Error(response.message || '移入订单盒子失败')
+      throw new Error(response.message || t('roomStatus.detail.messages.moveToOrderBoxFailed'))
     }
 
-    showSuccessToast('已移入订单盒子')
+    showSuccessToast(t('roomStatus.detail.messages.moveToOrderBoxSuccess'))
     await roomStatusStore.refreshAll()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '移入订单盒子失败'))
+      showWarningToast(resolveWarningMessage(error, t('roomStatus.detail.messages.moveToOrderBoxFailed')))
     }
   }
 }
@@ -1029,12 +1037,12 @@ async function handleBookingSubmit(payload: BookingFormSubmitPayload) {
   const currentRoom = selectedRoom.value
 
   if (!currentRoom) {
-    showWarningToast('未选择房间')
+    showWarningToast(t('roomStatus.roomLock.target.none'))
     return
   }
 
   if (!payload.guestName || !payload.channelId || !payload.checkInDate || !payload.checkOutDate) {
-    showWarningToast('请填写完整订单信息')
+    showWarningToast(t('iosStage5.roomStatus.completeOrder'))
     return
   }
 
@@ -1056,16 +1064,18 @@ async function handleBookingSubmit(payload: BookingFormSubmitPayload) {
   try {
     const response = await createReservation(requestData)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '订单提交失败')
+      throw new Error(response.message || t('stage5Pattern.submitFailed'))
     }
 
-    showSuccessToast(bookingMode.value === 'check-in' ? '入住已创建' : '预订已创建')
+    showSuccessToast(
+      bookingMode.value === 'check-in' ? t('iosStage5.roomStatus.checkInCreated') : t('roomStatus.roomsPage.bookingCreated'),
+    )
     showBookingModal.value = false
     clearSelectedRoomContext()
     await roomStatusStore.refreshAll()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '订单提交失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.submitFailed')))
     }
   } finally {
     bookingSubmitting.value = false
@@ -1076,7 +1086,7 @@ async function handleCloseRoomSubmit(payload: CloseRoomSubmitPayload) {
   const currentRoom = selectedRoom.value
 
   if (!currentRoom) {
-    showWarningToast('未选择房间')
+    showWarningToast(t('roomStatus.roomLock.target.none'))
     return
   }
 
@@ -1092,7 +1102,7 @@ async function handleCloseRoomSubmit(payload: CloseRoomSubmitPayload) {
     clearSelectedRoomContext()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '关房失败'))
+      showWarningToast(resolveWarningMessage(error, t('roomStatus.closeRoom.messages.failed')))
     }
   }
 }
@@ -1139,7 +1149,7 @@ async function handleBatchSubmit(payload: BatchActionSubmitPayload) {
     showBatchModal.value = false
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '批量操作失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.operationFailed')))
     }
   }
 }
@@ -1194,7 +1204,7 @@ watch(
         await roomStatusStore.runSearch(keyword)
       } catch (error) {
         if (!isHandledRequestError(error)) {
-          showWarningToast(resolveWarningMessage(error, '订单搜索失败'))
+          showWarningToast(resolveWarningMessage(error, t('roomStatus.store.errors.searchFailed')))
         }
       }
     }, 250)

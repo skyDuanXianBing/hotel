@@ -1,19 +1,19 @@
 <template>
   <SettingsCrudPage
     :back-href="ROUTE_PATHS.settings"
-    title="快捷回复"
-    hero-eyebrow="沟通与自动化"
-    hero-title="快捷回复"
+    :title="$t('stage5.dataCenter.detail.quickReply')"
+    :hero-eyebrow="$t('stage5SourceText.159')"
+    :hero-title="$t('stage5.dataCenter.detail.quickReply')"
     :chips="[
-      { label: `模板 ${replies.length}` },
+      { label: `${$t('stage5VisibleText.216')} ${replies.length}` },
     ]"
-    toolbar-action-label="新增"
+    :toolbar-action-label="$t('settingsStage4.roomGroup.addGroup')"
     :show-refresher="true"
-    refresher-pulling-text="下拉刷新快捷回复"
-    section-title="模板列表"
+    :refresher-pulling-text="$t('stage5UiAttributes.3')"
+    :section-title="$t('stage5UiAttributes.51')"
     :loading="loading"
     :modal-open="editorOpen"
-    :modal-title="editingReplyId ? '编辑快捷回复' : '新增快捷回复'"
+    :modal-title="editingReplyId ? $t('stage5DynamicUi.62') : $t('stage5DynamicUi.35')"
     @toolbar-action="handleCreateReply"
     @refresh="handleRefresh"
     @dismiss-editor="handleDismissEditor"
@@ -26,31 +26,31 @@
         </div>
 
         <div class="settings-minimal-card__actions">
-          <ion-button size="small" fill="outline" @click="handleEditReply(reply)">编辑</ion-button>
+          <ion-button size="small" fill="outline" @click="handleEditReply(reply)">{{ $t('accommodation.roomPrice.editTitle') }}</ion-button>
           <ion-button size="small" color="danger" fill="clear" @click="handleDeleteReply(reply)">
-            删除
+            {{ $t('roomStatus.roomLock.actions.delete') }}
           </ion-button>
         </div>
       </article>
     </div>
 
-    <p v-else-if="!loading" class="mobile-note settings-quick-replies-page__empty-state">当前暂无快捷回复。</p>
+    <p v-else-if="!loading" class="mobile-note settings-quick-replies-page__empty-state">{{ $t('stage5SourceText.78') }}</p>
 
     <template #modalContent>
       <div class="settings-form-grid">
         <label class="settings-form-field">
-          <span>标题</span>
-          <ion-input v-model="replyForm.title" fill="outline" placeholder="请输入标题" />
+          <span>{{ $t('stage5SourceText.148') }}</span>
+          <ion-input v-model="replyForm.title" fill="outline" :placeholder="$t('stage5UiAttributes.85')" />
         </label>
 
         <label class="settings-form-field settings-form-field--full">
-          <span>消息内容</span>
-          <ion-textarea v-model="replyForm.message" :rows="7" fill="outline" placeholder="请输入回复内容" />
+          <span>{{ $t('stage5.dataCenter.detail.messageContent') }}</span>
+          <ion-textarea v-model="replyForm.message" :rows="7" fill="outline" :placeholder="$t('stage5UiAttributes.69')" />
         </label>
       </div>
 
       <div class="settings-variable-panel">
-        <h3>插入变量</h3>
+        <h3>{{ $t('stage5SourceText.122') }}</h3>
         <div class="settings-variable-panel__list">
           <button
             v-for="variable in messageVariables"
@@ -66,15 +66,16 @@
     </template>
 
     <template #modalActions>
-      <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
+      <ion-button fill="outline" @click="handleDismissEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
       <ion-button :disabled="submitting" @click="handleSaveReply">
-        {{ submitting ? '提交中...' : '保存快捷回复' }}
+        {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.9') }}
       </ion-button>
     </template>
   </SettingsCrudPage>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   alertController,
   IonButton,
@@ -94,6 +95,8 @@ import SettingsCrudPage from '@/components/settings/families/SettingsCrudPage.vu
 import { ROUTE_PATHS } from '@/router/guards'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
+
+const { t } = useI18n()
 
 interface QuickReplyFormState {
   title: string
@@ -132,15 +135,15 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
 
 async function confirmDelete(title: string) {
   const alert = await alertController.create({
-    header: '删除快捷回复',
-    message: `确认删除 ${title} 吗？`,
+    header: t('settingsResidual.common.confirm'),
+    message: t('settingsResidual.common.confirmDelete', { name: title }),
     buttons: [
       {
-        text: '取消',
+        text: t('accommodation.common.cancel'),
         role: 'cancel',
       },
       {
-        text: '确认删除',
+        text: t('settingsStage4.roomSettings.messages.deleteTitle'),
         role: 'destructive',
       },
     ],
@@ -156,12 +159,12 @@ async function loadReplies() {
   try {
     const response = await getAllQuickReplies()
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载快捷回复失败')
+      throw new Error(response.message || t('stage5Pattern.loadFailed'))
     }
     replies.value = response.data
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载快捷回复失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.loadFailed')))
     }
   } finally {
     loading.value = false
@@ -200,11 +203,11 @@ function handleInsertVariable(code: string) {
 
 async function handleSaveReply() {
   if (!replyForm.value.title.trim()) {
-    showWarningToast('请输入标题')
+    showWarningToast(t('stage5UiAttributes.85'))
     return
   }
   if (!replyForm.value.message.trim()) {
-    showWarningToast('请输入消息内容')
+    showWarningToast(t('stage5Pattern.enter'))
     return
   }
 
@@ -218,22 +221,22 @@ async function handleSaveReply() {
     if (editingReplyId.value) {
       const response = await updateQuickReply(editingReplyId.value, payload)
       if (!response.success) {
-        throw new Error(response.message || '更新快捷回复失败')
+        throw new Error(response.message || t('stage5Pattern.updateFailed'))
       }
-      showSuccessToast('快捷回复已更新')
+      showSuccessToast(t('stage5Pattern.updateCompleted'))
     } else {
       const response = await createQuickReply(payload)
       if (!response.success) {
-        throw new Error(response.message || '创建快捷回复失败')
+        throw new Error(response.message || t('stage5Pattern.createFailed'))
       }
-      showSuccessToast('快捷回复已创建')
+      showSuccessToast(t('stage5Pattern.createCompleted'))
     }
 
     handleDismissEditor()
     await loadReplies()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存快捷回复失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     submitting.value = false
@@ -249,13 +252,13 @@ async function handleDeleteReply(reply: QuickReplyDTO) {
   try {
     const response = await deleteQuickReply(reply.id)
     if (!response.success) {
-      throw new Error(response.message || '删除快捷回复失败')
+      throw new Error(response.message || t('stage5Pattern.deleteFailed'))
     }
-    showSuccessToast('快捷回复已删除')
+    showSuccessToast(t('stage5Pattern.deleteCompleted'))
     await loadReplies()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '删除快捷回复失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.deleteFailed')))
     }
   }
 }

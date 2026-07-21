@@ -1,14 +1,14 @@
 <template>
   <SettingsCrudPage
     :back-href="ROUTE_PATHS.settings"
-    title="渠道设置"
-    hero-eyebrow="通用设置"
-    hero-title="渠道设置"
-    toolbar-action-label="新增"
-    section-title="渠道列表"
+    :title="$t('settings.entries.channelSettings.0')"
+    :hero-eyebrow="$t('settings.groups.general')"
+    :hero-title="$t('settings.entries.channelSettings.0')"
+    :toolbar-action-label="$t('settingsStage4.roomGroup.addGroup')"
+    :section-title="$t('channel.sidebar.list')"
     :loading="loading"
     :modal-open="editorOpen"
-    :modal-title="editingChannelId ? '编辑渠道' : '新增渠道'"
+    :modal-title="editingChannelId ? $t('stage5DynamicUi.67') : $t('stage5DynamicUi.40')"
     @toolbar-action="handleCreateChannel"
     @dismiss-editor="handleDismissEditor"
   >
@@ -24,67 +24,67 @@
               <strong>{{ channel.name }}</strong>
             </div>
             <p class="settings-channel-card__subtitle">
-              {{ resolveChannelTypeLabel(channel.type) }} · 代码 {{ channel.code }}
+              {{ resolveChannelTypeLabel(channel.type) }} {{ $t('stage5DynamicUi.80') }} {{ channel.code }}
             </p>
           </div>
           <span
             class="settings-channel-card__status"
             :class="channel.enabled ? 'is-active' : 'is-inactive'"
           >
-            {{ channel.enabled ? '已启用' : '已停用' }}
+            {{ channel.enabled ? $t('channel.managementData.statusActive') : $t('stage5DynamicUi.28') }}
           </span>
         </div>
 
         <p class="settings-channel-card__description">
-          {{ channel.description || '未填写渠道说明' }}
+          {{ channel.description || $t('stage5DynamicUi.49') }}
         </p>
 
         <div class="settings-channel-card__meta-grid">
           <div class="settings-channel-card__meta-item">
-            <span>渠道类型</span>
+            <span>{{ $t('stage5SourceText.166') }}</span>
             <strong>{{ resolveChannelTypeLabel(channel.type) }}</strong>
           </div>
           <div class="settings-channel-card__meta-item">
-            <span>渠道代码</span>
+            <span>{{ $t('stage5SourceText.164') }}</span>
             <strong>{{ channel.code }}</strong>
           </div>
         </div>
 
         <div class="settings-channel-card__actions">
-          <ion-button size="small" fill="outline" @click="handleEditChannel(channel)">编辑</ion-button>
+          <ion-button size="small" fill="outline" @click="handleEditChannel(channel)">{{ $t('accommodation.roomPrice.editTitle') }}</ion-button>
           <ion-button size="small" fill="outline" @click="handleToggleChannel(channel)">
-            {{ channel.enabled ? '停用' : '启用' }}
+            {{ channel.enabled ? $t('roomStatus.store.roomState.outOfOrder') : $t('settingsStage4.accountList.status.enabled') }}
           </ion-button>
-          <ion-button size="small" color="danger" fill="clear" @click="handleDeleteChannel(channel)">删除</ion-button>
+          <ion-button size="small" color="danger" fill="clear" @click="handleDeleteChannel(channel)">{{ $t('roomStatus.roomLock.actions.delete') }}</ion-button>
         </div>
       </article>
     </div>
 
-    <p v-else-if="!loading" class="mobile-note">当前暂无渠道。</p>
+    <p v-else-if="!loading" class="mobile-note">{{ $t('stage5SourceText.84') }}</p>
 
     <template #modalContent>
       <div class="settings-form-grid">
         <label class="settings-form-field">
-          <span>渠道名称</span>
-          <ion-input v-model="channelForm.name" fill="outline" placeholder="请输入渠道名称" />
+          <span>{{ $t('iosStage5.roomStatus.channelName') }}</span>
+          <ion-input v-model="channelForm.name" fill="outline" :placeholder="$t('stage5UiAttributes.88')" />
         </label>
 
         <label class="settings-form-field">
-          <span>渠道代码</span>
-          <ion-input v-model="channelForm.code" fill="outline" placeholder="请输入渠道代码" />
+          <span>{{ $t('stage5SourceText.164') }}</span>
+          <ion-input v-model="channelForm.code" fill="outline" :placeholder="$t('stage5UiAttributes.87')" />
         </label>
 
         <label class="settings-form-field">
-          <span>渠道类型</span>
+          <span>{{ $t('stage5SourceText.166') }}</span>
           <ion-select v-model="channelForm.type" fill="outline" interface="action-sheet">
             <ion-select-option v-for="option in CHANNEL_TYPE_OPTIONS" :key="option.value" :value="option.value">
-              {{ option.label }}
+              {{ t(option.labelKey) }}
             </ion-select-option>
           </ion-select>
         </label>
 
         <label class="settings-form-field">
-          <span>颜色</span>
+          <span>{{ $t('stage5SourceText.231') }}</span>
           <ion-select
             v-model="channelForm.color"
             fill="outline"
@@ -92,7 +92,7 @@
             :selected-text="resolveChannelColorLabel(channelForm.color)"
           >
             <ion-select-option v-for="color in CHANNEL_COLOR_OPTIONS" :key="color.value" :value="color.value">
-              {{ color.label }}
+              {{ t(color.labelKey) }}
             </ion-select-option>
           </ion-select>
           <div class="settings-channel-color-preview">
@@ -105,13 +105,13 @@
         </label>
 
         <label class="settings-form-field settings-form-field--full">
-          <span>说明</span>
-          <ion-textarea v-model="channelForm.description" :rows="4" fill="outline" placeholder="请输入说明" />
+          <span>{{ $t('stage5SourceText.206') }}</span>
+          <ion-textarea v-model="channelForm.description" :rows="4" fill="outline" :placeholder="$t('stage5UiAttributes.95')" />
         </label>
 
         <div class="settings-toggle-field">
           <div>
-            <strong>启用状态</strong>
+            <strong>{{ $t('stage5SourceText.35') }}</strong>
           </div>
           <ion-toggle v-model="channelForm.enabled" />
         </div>
@@ -119,9 +119,9 @@
     </template>
 
     <template #modalActions>
-      <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
+      <ion-button fill="outline" @click="handleDismissEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
       <ion-button :disabled="submitting" @click="handleSaveChannel">
-        {{ submitting ? '提交中...' : '保存渠道' }}
+        {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.17') }}
       </ion-button>
     </template>
   </SettingsCrudPage>
@@ -139,6 +139,7 @@ import {
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { createChannel, deleteChannel, getAllChannels, toggleChannelStatus, updateChannel, type ChannelDTO } from '@/api/channel'
 import SettingsCrudPage from '@/components/settings/families/SettingsCrudPage.vue'
 import { CHANNEL_COLOR_OPTIONS, CHANNEL_TYPE_OPTIONS } from '@/constants/settings'
@@ -153,6 +154,7 @@ const editorOpen = ref(false)
 const editingChannelId = ref<number | null>(null)
 const channels = ref<ChannelDTO[]>([])
 const channelForm = ref<CreateChannelRequest>(createEmptyForm())
+const { t } = useI18n()
 
 function createEmptyForm(): CreateChannelRequest {
   return {
@@ -168,17 +170,17 @@ function createEmptyForm(): CreateChannelRequest {
 function resolveChannelColorLabel(colorValue?: string) {
   const matched = CHANNEL_COLOR_OPTIONS.find((item) => item.value === colorValue)
   if (matched) {
-    return matched.label
+    return t(matched.labelKey)
   }
-  return '默认颜色'
+  return t('settings.constants.channel.defaultColor')
 }
 
 function resolveChannelTypeLabel(typeValue: string) {
   const matched = CHANNEL_TYPE_OPTIONS.find((item) => item.value === typeValue)
   if (matched) {
-    return matched.label
+    return t(matched.labelKey)
   }
-  return typeValue || '未设置'
+  return typeValue || t('settings.constants.channel.unsetType')
 }
 
 function resolveWarningMessage(error: unknown, fallbackMessage: string) {
@@ -190,11 +192,11 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
 
 async function confirmDelete(name: string) {
   const alert = await alertController.create({
-    header: '删除渠道',
-    message: `确认删除 ${name} 吗？`,
+    header: t('settingsResidual.common.confirm'),
+    message: t('settingsResidual.common.confirmDelete', { name }),
     buttons: [
-      { text: '取消', role: 'cancel' },
-      { text: '确认删除', role: 'destructive' },
+      { text: t('accommodation.common.cancel'), role: 'cancel' },
+      { text: t('settingsStage4.roomSettings.messages.deleteTitle'), role: 'destructive' },
     ],
   })
   await alert.present()
@@ -207,12 +209,12 @@ async function loadPageData() {
   try {
     const response = await getAllChannels()
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载渠道失败')
+      throw new Error(response.message || t('stage5.common.messages.loadChannelsFailed'))
     }
     channels.value = response.data
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载渠道失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5.common.messages.loadChannelsFailed')))
     }
   } finally {
     loading.value = false
@@ -246,11 +248,11 @@ function handleDismissEditor() {
 
 async function handleSaveChannel() {
   if (!channelForm.value.name.trim()) {
-    showWarningToast('请输入渠道名称')
+    showWarningToast(t('stage5UiAttributes.88'))
     return
   }
   if (!channelForm.value.code.trim()) {
-    showWarningToast('请输入渠道代码')
+    showWarningToast(t('stage5UiAttributes.87'))
     return
   }
 
@@ -264,7 +266,7 @@ async function handleSaveChannel() {
         description: channelForm.value.description?.trim(),
       })
       if (!response.success) {
-        throw new Error(response.message || '更新渠道失败')
+        throw new Error(response.message || t('stage5Pattern.updateFailed'))
       }
     } else {
       const response = await createChannel({
@@ -274,16 +276,16 @@ async function handleSaveChannel() {
         description: channelForm.value.description?.trim(),
       })
       if (!response.success) {
-        throw new Error(response.message || '创建渠道失败')
+        throw new Error(response.message || t('stage5Pattern.createFailed'))
       }
     }
 
-    showSuccessToast('渠道已保存')
+    showSuccessToast(t('stage5Pattern.saveCompleted'))
     handleDismissEditor()
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存渠道失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     submitting.value = false
@@ -294,13 +296,17 @@ async function handleToggleChannel(channel: ChannelDTO) {
   try {
     const response = await toggleChannelStatus(channel.id, !channel.enabled)
     if (!response.success) {
-      throw new Error(response.message || '更新渠道状态失败')
+      throw new Error(response.message || t('stage5Pattern.updateFailed'))
     }
-    showSuccessToast(response.data.enabled ? '渠道已启用' : '渠道已停用')
+    showSuccessToast(
+      response.data.enabled
+        ? t('settings.constants.channel.enabled')
+        : t('settings.constants.channel.disabled'),
+    )
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '更新渠道状态失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.updateFailed')))
     }
   }
 }
@@ -313,13 +319,13 @@ async function handleDeleteChannel(channel: ChannelDTO) {
   try {
     const response = await deleteChannel(channel.id)
     if (!response.success) {
-      throw new Error(response.message || '删除渠道失败')
+      throw new Error(response.message || t('stage5Pattern.deleteFailed'))
     }
-    showSuccessToast('渠道已删除')
+    showSuccessToast(t('stage5Pattern.deleteCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '删除渠道失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.deleteFailed')))
     }
   }
 }

@@ -5,22 +5,22 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.roomsPricing" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">改价记录</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.RoomsPricingHistory') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content fullscreen class="mobile-page price-history-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新改价记录" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('stage5UiAttributes.13')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <section class="mobile-hero price-history-page__hero">
-        <p class="mobile-note price-history-page__eyebrow">住宿运营</p>
-        <h1 class="mobile-title">改价记录</h1>
-        <p class="mobile-subtitle">默认展示最近 7 天变更，筛选区按移动端收纳为基础条件与进阶条件。</p>
+        <p class="mobile-note price-history-page__eyebrow">{{ $t('stage5VisibleText.121') }}</p>
+        <h1 class="mobile-title">{{ $t('routes.RoomsPricingHistory') }}</h1>
+        <p class="mobile-subtitle">{{ $t('stage5VisibleText.245') }}</p>
         <div class="mobile-chip-row">
-          <span class="mobile-chip">最近 {{ records.length }} 条</span>
-          <span class="mobile-chip">总数 {{ total }}</span>
+          <span class="mobile-chip">{{ $t('stage5DynamicUi.123') }} {{ records.length }} {{ $t('stage5DynamicUi.125') }}</span>
+          <span class="mobile-chip">{{ $t('iosStage5.common.total') }} {{ total }}</span>
         </div>
       </section>
 
@@ -28,36 +28,36 @@
         <section class="mobile-card price-history-page__filter-card">
           <div class="mobile-inline-row price-history-page__section-header">
             <div>
-              <h2 class="mobile-section-title">筛选条件</h2>
-              <p class="mobile-note">常用条件常显，进阶条件按需展开。</p>
+              <h2 class="mobile-section-title">{{ $t('iosStage5.cleaning.filters') }}</h2>
+              <p class="mobile-note">{{ $t('stage5VisibleText.159') }}</p>
             </div>
             <ion-button fill="clear" size="small" @click="handleToggleAdvancedFilters">
-              {{ showAdvancedFilters ? '收起' : '展开' }}
+              {{ showAdvancedFilters ? $t('accommodation.common.collapse') : $t('accommodation.common.expand') }}
             </ion-button>
           </div>
 
           <div class="price-history-page__filter-grid">
             <label class="price-history-page__field">
-              <span>操作开始</span>
+              <span>{{ $t('stage5VisibleText.185') }}</span>
               <input v-model="filters.operateDateStart" type="date" />
             </label>
             <label class="price-history-page__field">
-              <span>操作结束</span>
+              <span>{{ $t('stage5VisibleText.186') }}</span>
               <input v-model="filters.operateDateEnd" type="date" />
             </label>
             <label class="price-history-page__field">
-              <span>房型</span>
+              <span>{{ $t('accommodation.common.roomType') }}</span>
               <select v-model="filters.roomTypeIdText">
-                <option value="">全部房型</option>
+                <option value="">{{ $t('accommodation.priceHistory.allRoomTypes') }}</option>
                 <option v-for="roomType in roomTypes" :key="roomType.id" :value="String(roomType.id)">
                   {{ roomType.name }}
                 </option>
               </select>
             </label>
             <label class="price-history-page__field">
-              <span>价格计划</span>
+              <span>{{ $t('accommodation.roomPriceBulk.table.pricePlan') }}</span>
               <select v-model="filters.pricePlanIdText">
-                <option value="">全部计划</option>
+                <option value="">{{ $t('stage5VisibleText.135') }}</option>
                 <option v-for="plan in pricePlans" :key="plan.id" :value="String(plan.id)">
                   {{ plan.name }}
                 </option>
@@ -67,22 +67,22 @@
 
           <div v-if="showAdvancedFilters" class="price-history-page__filter-grid">
             <label class="price-history-page__field">
-              <span>价格开始</span>
+              <span>{{ $t('stage5VisibleText.114') }}</span>
               <input v-model="filters.priceDateStart" type="date" />
             </label>
             <label class="price-history-page__field">
-              <span>价格结束</span>
+              <span>{{ $t('stage5VisibleText.118') }}</span>
               <input v-model="filters.priceDateEnd" type="date" />
             </label>
             <label class="price-history-page__field price-history-page__field--full">
-              <span>操作人</span>
-              <input v-model="filters.operator" placeholder="输入操作人昵称或邮箱" type="text" />
+              <span>{{ $t('accommodation.common.operator') }}</span>
+              <input v-model="filters.operator" :placeholder="$t('stage5UiAttributes.106')" type="text" />
             </label>
           </div>
 
           <div class="price-history-page__actions">
-            <ion-button fill="outline" @click="handleResetFilters">重置</ion-button>
-            <ion-button @click="handleSearch">查询</ion-button>
+            <ion-button fill="outline" @click="handleResetFilters">{{ $t('accommodation.common.reset') }}</ion-button>
+            <ion-button @click="handleSearch">{{ $t('settingsStage4.pricingTools.actions.query') }}</ion-button>
           </div>
 
           <p v-if="errorMessage" class="mobile-note price-history-page__error">{{ errorMessage }}</p>
@@ -91,8 +91,8 @@
         <section class="mobile-card">
           <div class="mobile-inline-row price-history-page__section-header">
             <div>
-              <h2 class="mobile-section-title">变更列表</h2>
-              <p class="mobile-note">卡片展示房型、计划、价格日期、周几、操作人与变更值。</p>
+              <h2 class="mobile-section-title">{{ $t('stage5VisibleText.147') }}</h2>
+              <p class="mobile-note">{{ $t('stage5VisibleText.146') }}</p>
             </div>
             <ion-spinner v-if="loading" name="crescent" />
           </div>
@@ -108,23 +108,23 @@
               </div>
 
               <div class="price-history-page__record-grid">
-                <span>价格日期 {{ record.priceDate }}</span>
-                <span>适用周几 {{ record.applyDays }}</span>
-                <span>调整结果 {{ formatCurrency(record.changeValue) }}</span>
-                <span>原值 {{ formatCurrency(record.previousValue) }}</span>
-                <span>操作人 {{ record.operator || '系统' }}</span>
-                <span>操作时间 {{ formatDateTime(record.operateTime) }}</span>
+                <span>{{ $t('accommodation.priceHistory.priceDate') }} {{ record.priceDate }}</span>
+                <span>{{ $t('accommodation.priceHistory.columns.applyDays') }} {{ record.applyDays }}</span>
+                <span>{{ $t('stage5DynamicUi.135') }} {{ formatMoney(record.changeValue) }}</span>
+                <span>{{ $t('stage5DynamicUi.102') }} {{ formatMoney(record.previousValue) }}</span>
+                <span>{{ $t('accommodation.common.operator') }} {{ record.operator || $t('accommodation.priceHistory.operatorOptions.system') }}</span>
+                <span>{{ $t('accommodation.priceHistory.columns.operateTime') }} {{ formatDateTime(record.operateTime) }}</span>
               </div>
 
-              <p v-if="record.notes" class="mobile-note price-history-page__record-note">备注：{{ record.notes }}</p>
+              <p v-if="record.notes" class="mobile-note price-history-page__record-note">{{ $t('roomStatus.hoverCard.notes') }}{{ record.notes }}</p>
             </article>
           </div>
 
-          <p v-else-if="!loading" class="mobile-note">当前筛选条件下暂无改价记录。</p>
+          <p v-else-if="!loading" class="mobile-note">{{ $t('stage5VisibleText.168') }}</p>
 
           <div v-if="hasMore" class="price-history-page__load-more">
             <ion-button fill="outline" :disabled="loadingMore" @click="handleLoadMore">
-              {{ loadingMore ? '加载中...' : '加载更多' }}
+              {{ loadingMore ? $t('order.options.loading') : $t('iosStage5.cleaning.loadMore') }}
             </ion-button>
           </div>
         </section>
@@ -134,6 +134,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   IonBackButton,
   IonButton,
@@ -157,10 +158,14 @@ import {
 } from '@/api/roomPrice'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
 import { ROUTE_PATHS } from '@/router/guards'
+import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
-import { formatCurrency, formatDateTime, getTodayDate, shiftDate } from '@/utils/accommodation'
+import { formatDateTime, getTodayDate, shiftDate } from '@/utils/accommodation'
+import { formatMoney as formatBusinessMoney } from '@/utils/formatters'
 import { showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
+
+const { t } = useI18n()
 
 interface FilterState {
   operateDateStart: string
@@ -174,6 +179,7 @@ interface FilterState {
 
 const DEFAULT_PAGE_SIZE = 20
 
+const storeStore = useStoreStore()
 const userStore = useUserStore()
 
 const roomTypes = ref<RoomTypeDTO[]>([])
@@ -186,6 +192,8 @@ const loadingMore = ref(false)
 const errorMessage = ref('')
 const showAdvancedFilters = ref(false)
 const filters = ref<FilterState>(createDefaultFilters())
+const currentCurrency = computed(() => storeStore.currentStore?.currency || 'CNY')
+const currentMoneyContext = computed(() => ({ country: storeStore.currentStore?.country }))
 
 const hasMore = computed(() => {
   return records.value.length < total.value
@@ -210,6 +218,12 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
   return fallbackMessage
 }
 
+function formatMoney(value?: number | null) {
+  return formatBusinessMoney(Number(value || 0), currentCurrency.value, {
+    maximumFractionDigits: 0,
+  }, currentMoneyContext.value)
+}
+
 function buildQueryParams(): PriceChangeHistoryQueryParams {
   const roomTypeId = filters.value.roomTypeIdText ? Number(filters.value.roomTypeIdText) : undefined
   const params: PriceChangeHistoryQueryParams = {
@@ -231,7 +245,7 @@ async function loadOptions() {
   const roomTypeResponse = await getAllRoomTypes()
 
   if (!roomTypeResponse.success || !roomTypeResponse.data) {
-    throw new Error(roomTypeResponse.message || '加载房型失败')
+    throw new Error(roomTypeResponse.message || t('settingsStage4.roomSort.messages.loadRoomTypesFailed'))
   }
 
   roomTypes.value = roomTypeResponse.data
@@ -260,7 +274,7 @@ async function loadRecords(reset = true) {
   try {
     const response = await getPriceChangeHistory(buildQueryParams())
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载改价记录失败')
+      throw new Error(response.message || t('stage5Pattern.loadFailed'))
     }
 
     total.value = response.data.total
@@ -271,7 +285,7 @@ async function loadRecords(reset = true) {
       records.value = [...records.value, ...response.data.records]
     }
   } catch (error) {
-    const message = resolveWarningMessage(error, '加载改价记录失败')
+    const message = resolveWarningMessage(error, t('stage5Pattern.loadFailed'))
     errorMessage.value = message
     if (!isHandledRequestError(error)) {
       showWarningToast(message)
@@ -290,7 +304,7 @@ async function loadPageData() {
     await loadOptions()
     await loadRecords(true)
   } catch (error) {
-    const message = resolveWarningMessage(error, '加载改价记录失败')
+    const message = resolveWarningMessage(error, t('stage5Pattern.loadFailed'))
     errorMessage.value = message
     if (!isHandledRequestError(error)) {
       showWarningToast(message)

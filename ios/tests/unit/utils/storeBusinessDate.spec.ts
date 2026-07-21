@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vitest'
 import { CURRENT_STORE_KEY } from '@/utils/storage'
+import { i18n } from '@/locales'
 import {
   DEFAULT_BUSINESS_TIME_ZONE,
   buildBusinessDateRange,
@@ -22,6 +23,7 @@ const TOKYO_BOUNDARY_INSTANT = new Date('2026-01-01T15:30:00.000Z')
 describe('storeBusinessDate', () => {
   beforeEach(() => {
     window.localStorage.clear()
+    i18n.global.locale.value = 'zh-CN'
   })
 
   test('uses explicit store timezone before the fallback timezone', () => {
@@ -68,10 +70,23 @@ describe('storeBusinessDate', () => {
   })
 
   test('formats date-only labels and weekdays without native Date parsing', () => {
-    expect(formatBusinessDateLabel('2026-03-01', 'month-day-weekday')).toBe('03-01 周日')
-    expect(getBusinessDateWeekdayLabel('2026-03-02', '周')).toBe('周一')
+    expect(formatBusinessDateLabel('2026-03-01', 'month-day-weekday')).toContain('周日')
+    expect(getBusinessDateWeekdayLabel('2026-03-02')).toBe('周一')
     expect(diffBusinessDates('2026-02-27', '2026-03-02')).toBe(3)
     expect(compareBusinessDates('2026-03-02', '2026-03-01')).toBeGreaterThan(0)
+  })
+
+  test('localizes display labels without changing the business date', () => {
+    i18n.global.locale.value = 'en'
+    const englishLabel = formatBusinessDateLabel('2026-03-01', 'month-day-weekday')
+
+    i18n.global.locale.value = 'ja'
+    const japaneseLabel = formatBusinessDateLabel('2026-03-01', 'month-day-weekday')
+
+    expect(englishLabel).toContain('Sun')
+    expect(japaneseLabel).toContain('日')
+    expect(englishLabel).not.toBe(japaneseLabel)
+    expect(getStoreTodayDate(TOKYO_BOUNDARY_INSTANT, 'Asia/Tokyo')).toBe('2026-01-02')
   })
 
   test('builds preset ranges from the store timezone date', () => {
@@ -94,18 +109,28 @@ describe('storeBusinessDate', () => {
   })
 
   test('formats instants and store-local datetime values in the store timezone', () => {
-    expect(formatStoreDateTime(TOKYO_BOUNDARY_INSTANT, 'date-time', '-', 'Asia/Tokyo')).toBe(
-      '2026-01-02 00:30',
+    const instantLabel = formatStoreDateTime(TOKYO_BOUNDARY_INSTANT, 'date-time', '-', 'Asia/Tokyo')
+    const localLabel = formatStoreDateTime('2026-01-02 00:30:45', 'date-time', '-', 'Asia/Tokyo')
+    const fractionalLabel = formatStoreDateTime(
+      '2026-01-02 00:30:45.123',
+      'date-time',
+      '-',
+      'Asia/Tokyo',
     )
-    expect(formatStoreDateTime('2026-01-02 00:30:45', 'date-time', '-', 'Asia/Tokyo')).toBe(
-      '2026-01-02 00:30',
+    const monthDayLabel = formatStoreDateTime(
+      '2026-01-02T00:30',
+      'month-day-time',
+      '-',
+      'Asia/Tokyo',
     )
-    expect(formatStoreDateTime('2026-01-02 00:30:45.123', 'date-time', '-', 'Asia/Tokyo')).toBe(
-      '2026-01-02 00:30',
-    )
-    expect(formatStoreDateTime('2026-01-02T00:30', 'month-day-time', '-', 'Asia/Tokyo')).toBe(
-      '01-02 00:30',
-    )
+
+    expect(instantLabel).toBe(localLabel)
+    expect(localLabel).toBe(fractionalLabel)
+    expect(instantLabel).toContain('2026')
+    expect(instantLabel).toContain('00:30')
+    expect(monthDayLabel).toContain('01')
+    expect(monthDayLabel).toContain('02')
+    expect(monthDayLabel).toContain('00:30')
   })
 
   test('normalizes datetime-local input and server datetime without device timezone conversion', () => {

@@ -2,7 +2,7 @@
   <div class="quick-tools-root">
     <button class="quick-tools-trigger" type="button" @click="toolMenuOpen = true">
       <ion-icon :icon="addOutline" />
-      <span>工具</span>
+      <span>{{ t('tools.trigger') }}</span>
     </button>
 
     <ion-modal
@@ -14,24 +14,24 @@
       <ion-content class="mobile-page quick-tools-sheet-page">
         <div class="mobile-stack">
           <section class="mobile-card quick-tools-sheet-card">
-            <h2 class="mobile-section-title">快捷工具</h2>
+            <h2 class="mobile-section-title">{{ t('tools.title') }}</h2>
 
             <button class="quick-tools-sheet-item" type="button" @click="handleOpenMemo">
               <ion-icon :icon="documentTextOutline" />
-              <strong>备忘录</strong>
+              <strong>{{ t('tools.memo') }}</strong>
             </button>
 
             <button class="quick-tools-sheet-item" type="button" @click="handleOpenRecord">
               <ion-icon :icon="createOutline" />
-              <strong>记一笔</strong>
+              <strong>{{ t('tools.record') }}</strong>
             </button>
 
             <button class="quick-tools-sheet-item" type="button" @click="handleOpenContact">
               <ion-icon :icon="headsetOutline" />
-              <strong>联系客服</strong>
+              <strong>{{ t('tools.support') }}</strong>
             </button>
 
-            <ion-button fill="outline" @click="handleDismissToolMenu">收起</ion-button>
+            <ion-button fill="outline" @click="handleDismissToolMenu">{{ t('tools.collapse') }}</ion-button>
           </section>
         </div>
       </ion-content>
@@ -53,6 +53,7 @@
 import { IonButton, IonContent, IonIcon, IonModal } from '@ionic/vue'
 import { addOutline, createOutline, documentTextOutline, headsetOutline } from 'ionicons/icons'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import ContactSupportModal from '@/components/global/ContactSupportModal.vue'
 import MemoSheetModal from '@/components/global/MemoSheetModal.vue'
 import RecordTransactionModal from '@/components/notes/RecordTransactionModal.vue'
@@ -60,6 +61,7 @@ import { useVisibleToolsStore } from '@/stores/visibleTools'
 import { showSuccessToast } from '@/utils/notify'
 
 const visibleToolsStore = useVisibleToolsStore()
+const { t } = useI18n()
 
 const toolMenuOpen = ref(false)
 
@@ -83,7 +85,7 @@ const handleOpenContact = () => {
 }
 
 const handleRecordSuccess = () => {
-  showSuccessToast('已完成记一笔录入')
+  showSuccessToast(t('tools.recordSuccess'))
 }
 </script>
 

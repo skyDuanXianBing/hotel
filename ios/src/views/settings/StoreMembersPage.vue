@@ -5,38 +5,38 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.settings" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">门店成员</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.SettingsStoreMembers') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button class="app-page-header__text-btn" fill="clear" @click="handleCreateMember">添加</ion-button>
+          <ion-button class="app-page-header__text-btn" fill="clear" @click="handleCreateMember">{{ $t('stage5SourceText.162') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
     <ion-content fullscreen class="mobile-page settings-members-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新成员设置" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('stage5UiAttributes.4')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <section class="mobile-hero settings-members-hero">
-        <p class="mobile-note settings-members-hero__eyebrow">账号与角色</p>
+        <p class="mobile-note settings-members-hero__eyebrow">{{ $t('stage5SourceText.211') }}</p>
         <h1 class="mobile-title">{{ storeTitle }}</h1>
         <div class="settings-page-hero__summary">
           <div class="settings-page-hero__meta">
             <div class="settings-page-hero__meta-item">
-              <span class="settings-page-hero__meta-label">当前视图</span>
+              <span class="settings-page-hero__meta-label">{{ $t('stage5SourceText.93') }}</span>
               <strong>{{ activeSegmentLabel }}</strong>
             </div>
             <div class="settings-page-hero__meta-item">
-              <span class="settings-page-hero__meta-label">成员数</span>
-              <strong>{{ members.length }} 人</strong>
+              <span class="settings-page-hero__meta-label">{{ $t('stage5SourceText.98') }}</span>
+              <strong>{{ members.length }} {{ $t('settingsStage4.roomTypeManagement.editor.units.people') }}</strong>
             </div>
             <div class="settings-page-hero__meta-item">
-              <span class="settings-page-hero__meta-label">启用成员</span>
-              <strong>{{ activeMembersCount }} 人</strong>
+              <span class="settings-page-hero__meta-label">{{ $t('stage5SourceText.34') }}</span>
+              <strong>{{ activeMembersCount }} {{ $t('settingsStage4.roomTypeManagement.editor.units.people') }}</strong>
             </div>
             <div class="settings-page-hero__meta-item">
-              <span class="settings-page-hero__meta-label">角色数</span>
-              <strong>{{ roles.length }} 个</strong>
+              <span class="settings-page-hero__meta-label">{{ $t('stage5SourceText.194') }}</span>
+              <strong>{{ roles.length }} {{ $t('stage5DynamicUi.87') }}</strong>
             </div>
           </div>
         </div>
@@ -46,10 +46,10 @@
         <section class="mobile-card">
           <ion-segment :value="activeSegment" @ionChange="handleSegmentChange">
             <ion-segment-button value="members">
-              <ion-label>成员</ion-label>
+              <ion-label>{{ $t('settingsStage4.accountList.baseRoles.member') }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="roles">
-              <ion-label>角色</ion-label>
+              <ion-label>{{ $t('stage5SourceText.191') }}</ion-label>
             </ion-segment-button>
           </ion-segment>
         </section>
@@ -57,7 +57,7 @@
         <section v-if="activeSegment === 'members'" class="mobile-card">
           <div class="mobile-inline-row settings-members-page__section-header">
             <div class="settings-members-page__section-heading">
-              <h2 class="mobile-section-title">门店成员</h2>
+              <h2 class="mobile-section-title">{{ $t('settings.entries.storeMembers.0') }}</h2>
             </div>
             <ion-spinner v-if="loading" name="crescent" />
           </div>
@@ -70,15 +70,15 @@
                   <p>{{ member.user.email }}</p>
                 </div>
                 <span class="settings-member-card__status" :class="member.isActive ? 'is-active' : 'is-inactive'">
-                  {{ member.isActive ? '已激活' : '已停用' }}
+                  {{ member.isActive ? $t('stage5DynamicUi.29') : $t('stage5DynamicUi.28') }}
                 </span>
               </div>
 
               <div class="settings-member-card__meta">
-                <span>基础角色：{{ resolveRoleLabel(member.role) }}</span>
-                <span>角色数：{{ member.roles.length }}</span>
-                <span>额外权限：{{ member.extraPermissions?.length || 0 }}</span>
-                <span>加入时间：{{ formatDate(member.joinedAt) }}</span>
+                <span>{{ $t('stage5DynamicUi.105') }}{{ resolveRoleLabel(member.role) }}</span>
+                <span>{{ $t('stage5DynamicUi.134') }}{{ member.roles.length }}</span>
+                <span>{{ $t('stage5DynamicUi.144') }}{{ member.extraPermissions?.length || 0 }}</span>
+                <span>{{ $t('stage5DynamicUi.100') }}{{ formatDate(member.joinedAt) }}</span>
               </div>
 
               <p class="mobile-note settings-member-card__roles-note">
@@ -92,7 +92,7 @@
                   fill="solid"
                   @click="handleEditMember(member)"
                 >
-                  设置权限
+                  {{ $t('settingsStage4.accountPermission.sections.settings') }}
                 </ion-button>
 
                 <div class="settings-member-card__secondary-actions">
@@ -102,7 +102,7 @@
                     class="settings-member-card__action settings-member-card__action--secondary"
                     @click="handleToggleMember(member)"
                   >
-                    {{ member.isActive ? '停用' : '启用' }}
+                    {{ member.isActive ? $t('roomStatus.store.roomState.outOfOrder') : $t('settingsStage4.accountList.status.enabled') }}
                   </ion-button>
                   <ion-button
                     v-if="member.role === 'owner'"
@@ -111,7 +111,7 @@
                     class="settings-member-card__action settings-member-card__action--secondary"
                     @click="handleOpenTransferOwner"
                   >
-                    更换负责人
+                    {{ $t('settingsStage4.accountList.actions.transferOwner') }}
                   </ion-button>
                 </div>
 
@@ -123,36 +123,36 @@
                     class="settings-member-card__action settings-member-card__action--danger"
                     @click="handleRemoveMember(member)"
                   >
-                    移除成员
+                    {{ $t('stage5VisibleText.221') }}
                   </ion-button>
                 </div>
               </div>
             </article>
           </div>
 
-          <p v-else-if="!loading" class="mobile-note settings-members-page__empty-state">当前门店暂无成员。</p>
+          <p v-else-if="!loading" class="mobile-note settings-members-page__empty-state">{{ $t('stage5SourceText.95') }}</p>
         </section>
 
         <section v-else class="mobile-card">
           <div class="mobile-inline-row settings-members-page__section-header">
             <div class="settings-members-page__section-heading">
-              <h2 class="mobile-section-title">角色管理</h2>
+              <h2 class="mobile-section-title">{{ $t('settingsStage4.accountList.actions.roleManagement') }}</h2>
             </div>
-            <ion-button size="small" class="settings-role-create-button" @click="handleCreateRole">新增角色</ion-button>
+            <ion-button size="small" class="settings-role-create-button" @click="handleCreateRole">{{ $t('settingsStage4.roleManagement.dialog.addRole') }}</ion-button>
           </div>
 
           <div v-if="roles.length > 0" class="mobile-list settings-roles-list">
             <article v-for="role in roles" :key="role.id" class="settings-role-card">
               <div>
                 <strong>{{ role.name }}</strong>
-                <p>{{ role.description || '未填写角色说明' }}</p>
+                <p>{{ role.description || $t('stage5DynamicUi.50') }}</p>
               </div>
 
               <div class="settings-role-card__footer">
-                <span>{{ role.isSystem ? '系统角色' : '自定义角色' }}</span>
+                <span>{{ role.isSystem ? $t('stage5DynamicUi.60') : $t('stage5DynamicUi.72') }}</span>
                 <div class="settings-role-card__actions">
-                  <ion-button size="small" fill="outline" @click="handleOpenRolePermissions(role)">权限</ion-button>
-                  <ion-button size="small" fill="outline" @click="handleEditRole(role)">编辑</ion-button>
+                  <ion-button size="small" fill="outline" @click="handleOpenRolePermissions(role)">{{ $t('stage5SourceText.144') }}</ion-button>
+                  <ion-button size="small" fill="outline" @click="handleEditRole(role)">{{ $t('accommodation.roomPrice.editTitle') }}</ion-button>
                   <ion-button
                     size="small"
                     color="danger"
@@ -160,23 +160,23 @@
                     :disabled="role.isSystem"
                     @click="handleDeleteRole(role)"
                   >
-                    删除
+                    {{ $t('roomStatus.roomLock.actions.delete') }}
                   </ion-button>
                 </div>
               </div>
             </article>
           </div>
 
-          <p v-else-if="!loading" class="mobile-note settings-members-page__empty-state">当前暂无角色数据。</p>
+          <p v-else-if="!loading" class="mobile-note settings-members-page__empty-state">{{ $t('stage5SourceText.87') }}</p>
         </section>
       </div>
 
       <ion-modal :is-open="memberModalOpen" @didDismiss="handleDismissMemberModal">
         <ion-header>
           <ion-toolbar>
-            <ion-title>{{ editingMemberId ? '编辑成员' : '添加成员' }}</ion-title>
+            <ion-title>{{ editingMemberId ? $t('stage5DynamicUi.63') : $t('stage5DynamicUi.56') }}</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="handleDismissMemberModal">关闭</ion-button>
+              <ion-button @click="handleDismissMemberModal">{{ $t('home.section.close') }}</ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -185,35 +185,35 @@
           <section class="mobile-card">
             <ion-segment :value="memberEditorSegment" @ionChange="handleMemberEditorSegmentChange">
               <ion-segment-button value="basic">
-                <ion-label>基础信息</ion-label>
+                <ion-label>{{ $t('settingsStage4.roomTypeManagement.actions.basicInfo') }}</ion-label>
               </ion-segment-button>
               <ion-segment-button value="permissions">
-                <ion-label>额外权限</ion-label>
+                <ion-label>{{ $t('settingsStage4.accountList.columns.extraPermissions') }}</ion-label>
               </ion-segment-button>
             </ion-segment>
 
             <div v-if="memberEditorSegment === 'basic'" class="settings-form-grid settings-form-grid--with-segment">
               <label class="settings-form-field">
-                <span>邮箱</span>
+                <span>{{ $t('auth.field.email') }}</span>
                 <ion-input
                   v-model="memberForm.email"
                   fill="outline"
-                  placeholder="请输入成员邮箱"
+                  :placeholder="$t('stage5UiAttributes.76')"
                   :readonly="Boolean(editingMemberId)"
                 />
               </label>
 
               <label class="settings-form-field">
-                <span>基础角色</span>
+                <span>{{ $t('settingsStage4.accountList.columns.baseRole') }}</span>
                 <ion-select v-model="memberForm.role" fill="outline" interface="action-sheet">
-                  <ion-select-option value="owner">负责人</ion-select-option>
-                  <ion-select-option value="admin">管理员</ion-select-option>
-                  <ion-select-option value="member">成员</ion-select-option>
+                  <ion-select-option value="owner">{{ $t('settingsStage4.storeBasic.fields.manager') }}</ion-select-option>
+                  <ion-select-option value="admin">{{ $t('settingsStage4.accountList.baseRoles.admin') }}</ion-select-option>
+                  <ion-select-option value="member">{{ $t('settingsStage4.accountList.baseRoles.member') }}</ion-select-option>
                 </ion-select>
               </label>
 
               <label class="settings-form-field settings-form-field--full">
-                <span>角色列表</span>
+                <span>{{ $t('stage5SourceText.192') }}</span>
                 <ion-select v-model="memberForm.roleIds" fill="outline" interface="modal" multiple>
                   <ion-select-option v-for="role in roles" :key="role.id" :value="role.id">
                     {{ role.name }}
@@ -224,21 +224,21 @@
 
             <div v-else class="settings-form-grid settings-form-grid--with-segment">
               <div class="settings-member-permissions-note">
-                <strong>权限状态</strong>
+                <strong>{{ $t('stage5SourceText.145') }}</strong>
                 <p>{{ permissionSummary }}</p>
               </div>
 
               <div v-for="tab in SETTINGS_PERMISSION_TABS" :key="tab.name" class="settings-member-permission-tab">
-                <h3 class="mobile-section-title">{{ tab.label }}</h3>
+                <h3 class="mobile-section-title">{{ t(tab.labelKey) }}</h3>
 
-                <article v-for="section in tab.sections" :key="`${tab.name}-${section.title}`" class="settings-member-permission-section">
-                  <strong>{{ section.title }}</strong>
+                <article v-for="section in tab.sections" :key="`${tab.name}-${section.titleKey}`" class="settings-member-permission-section">
+                  <strong>{{ t(section.titleKey) }}</strong>
 
                   <div class="settings-permission-grid settings-permission-grid--member">
                     <article v-for="item in section.items" :key="item.key" class="settings-permission-item">
                       <div class="settings-permission-item__header">
                         <div>
-                          <strong>{{ item.label }}</strong>
+                          <strong>{{ t(item.labelKey) }}</strong>
                           <p>{{ resolveMemberPermissionSummary(item) }}</p>
                         </div>
                         <ion-checkbox
@@ -252,8 +252,8 @@
 
                   <div v-if="showMemberRoomTypeScopeEditor(tab.name, section)" class="settings-member-room-scope">
                     <div class="settings-member-room-scope__header">
-                      <strong>房型范围</strong>
-                      <p>可单独设置“查看房态”的房型范围。</p>
+                      <strong>{{ $t('settingsStage4.accountList.sections.roomTypeScope') }}</strong>
+                      <p>{{ $t('stage5SourceText.30') }}</p>
                     </div>
 
                     <label class="settings-member-room-scope__all">
@@ -262,10 +262,10 @@
                         :disabled="roleRoomScope.allRoomTypes || !hasViewRoomStatusPermission"
                         @ionChange="handleRoomTypeAllToggle($event.detail.checked)"
                       />
-                      <span>查看全部房型</span>
+                      <span>{{ $t('settingsStage4.accountList.actions.viewAllRoomTypes') }}</span>
                     </label>
 
-                    <p v-if="roomTypes.length === 0" class="mobile-note">当前门店暂无房型。</p>
+                    <p v-if="roomTypes.length === 0" class="mobile-note">{{ $t('stage5SourceText.96') }}</p>
 
                     <div v-else class="settings-member-room-type-grid">
                       <label v-for="roomType in roomTypes" :key="roomType.id" class="settings-member-room-type-item">
@@ -283,9 +283,9 @@
             </div>
 
             <div class="settings-form-actions">
-              <ion-button fill="outline" @click="handleDismissMemberModal">取消</ion-button>
+              <ion-button fill="outline" @click="handleDismissMemberModal">{{ $t('accommodation.common.cancel') }}</ion-button>
               <ion-button :disabled="submitting" @click="handleSaveMember">
-                {{ submitting ? '提交中...' : '保存成员' }}
+                {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.10') }}
               </ion-button>
             </div>
           </section>
@@ -295,9 +295,9 @@
       <ion-modal :is-open="roleModalOpen" @didDismiss="handleDismissRoleModal">
         <ion-header>
           <ion-toolbar>
-            <ion-title>{{ editingRoleId ? '编辑角色' : '新增角色' }}</ion-title>
+            <ion-title>{{ editingRoleId ? $t('settingsStage4.roleManagement.dialog.editRole') : $t('settingsStage4.roleManagement.dialog.addRole') }}</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="handleDismissRoleModal">关闭</ion-button>
+              <ion-button @click="handleDismissRoleModal">{{ $t('home.section.close') }}</ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -306,20 +306,20 @@
           <section class="mobile-card">
             <div class="settings-form-grid">
               <label class="settings-form-field">
-                <span>角色名称</span>
-                <ion-input v-model="roleForm.name" fill="outline" placeholder="请输入角色名称" />
+                <span>{{ $t('stage5SourceText.193') }}</span>
+                <ion-input v-model="roleForm.name" fill="outline" :placeholder="$t('settingsStage4.roleManagement.prompts.roleName')" />
               </label>
 
               <label class="settings-form-field settings-form-field--full">
-                <span>角色说明</span>
-                <ion-textarea v-model="roleForm.description" :rows="5" fill="outline" placeholder="请输入角色说明" />
+                <span>{{ $t('stage5SourceText.195') }}</span>
+                <ion-textarea v-model="roleForm.description" :rows="5" fill="outline" :placeholder="$t('stage5UiAttributes.93')" />
               </label>
             </div>
 
             <div class="settings-form-actions">
-              <ion-button fill="outline" @click="handleDismissRoleModal">取消</ion-button>
+              <ion-button fill="outline" @click="handleDismissRoleModal">{{ $t('accommodation.common.cancel') }}</ion-button>
               <ion-button :disabled="submitting" @click="handleSaveRole">
-                {{ submitting ? '提交中...' : '保存角色' }}
+                {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.19') }}
               </ion-button>
             </div>
           </section>
@@ -329,9 +329,9 @@
       <ion-modal :is-open="transferOwnerModalOpen" @didDismiss="handleDismissTransferOwnerModal">
         <ion-header>
           <ion-toolbar>
-            <ion-title>转移负责人</ion-title>
+            <ion-title>{{ $t('stage5SourceText.212') }}</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="handleDismissTransferOwnerModal">关闭</ion-button>
+              <ion-button @click="handleDismissTransferOwnerModal">{{ $t('home.section.close') }}</ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -339,7 +339,7 @@
         <ion-content class="mobile-page settings-modal-page">
           <section class="mobile-card">
             <label class="settings-form-field settings-form-field--full">
-              <span>新负责人</span>
+              <span>{{ $t('stage5SourceText.132') }}</span>
               <ion-select v-model="transferOwnerUserIdText" fill="outline" interface="modal">
                 <ion-select-option v-for="member in ownerTransferCandidates" :key="member.user.id" :value="String(member.user.id)">
                   {{ resolveMemberName(member) }} · {{ member.user.email }}
@@ -348,9 +348,9 @@
             </label>
 
             <div class="settings-form-actions">
-              <ion-button fill="outline" @click="handleDismissTransferOwnerModal">取消</ion-button>
+              <ion-button fill="outline" @click="handleDismissTransferOwnerModal">{{ $t('accommodation.common.cancel') }}</ion-button>
               <ion-button :disabled="submitting" @click="handleConfirmTransferOwner">
-                {{ submitting ? '提交中...' : '确认转移' }}
+                {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.58') }}
               </ion-button>
             </div>
           </section>
@@ -386,6 +386,7 @@ import {
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   addStoreMember,
   getStoreMemberDetail,
@@ -418,7 +419,7 @@ import { useStoreStore } from '@/stores/store'
 import type { StoreMember } from '@/types/store'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
-import { formatPermissionSummary, resolveRoomScope, type PermissionRoomScope } from '@/utils/settings'
+import { resolveRoomScope, type PermissionRoomScope } from '@/utils/settings'
 import { useRouter } from 'vue-router'
 
 type MemberSegment = 'members' | 'roles'
@@ -443,6 +444,7 @@ interface ExtraPermissionFormState extends Record<SettingsExtraPermissionKey, bo
 
 const storeStore = useStoreStore()
 const router = useRouter()
+const { t } = useI18n()
 
 const permissionItems: PermissionItemConfig[] = []
 for (const tab of SETTINGS_PERMISSION_TABS) {
@@ -478,7 +480,7 @@ const rolePermissionsMap = ref<Map<number, PermissionDTO[]>>(new Map())
 const rolePermissionRequestToken = ref(0)
 
 const storeTitle = computed(() => {
-  return storeStore.currentStore?.name || '当前门店'
+  return storeStore.currentStore?.name || t('common.currentStore')
 })
 
 const activeMembersCount = computed(() => {
@@ -487,9 +489,9 @@ const activeMembersCount = computed(() => {
 
 const activeSegmentLabel = computed(() => {
   if (activeSegment.value === 'roles') {
-    return '角色管理视图'
+    return t('settings.constants.member.segments.roles')
   }
-  return '成员管理视图'
+  return t('settings.constants.member.segments.members')
 })
 
 const ownerTransferCandidates = computed(() => {
@@ -535,7 +537,11 @@ const availableExtraRoomTypes = computed(() => {
 })
 
 const permissionSummary = computed(() => {
-  return formatPermissionSummary(buildSelectedExtraPermissionCount())
+  const count = buildSelectedExtraPermissionCount()
+  if (count <= 0) {
+    return t('settings.constants.permission.summary.none')
+  }
+  return t('settings.constants.permission.summary.selected', { count })
 })
 
 watch(
@@ -676,27 +682,29 @@ function resolveMemberName(member: StoreMember) {
 
 function resolveAssignedRoles(member: StoreMember) {
   if (!member.roles || member.roles.length === 0) {
-    return '未分配额外角色'
+    return t('settings.constants.member.noAssignedRoles')
   }
-  return `已分配角色：${member.roles.map((item) => item.name).join('、')}`
+  return t('settings.constants.member.assignedRoles', {
+    roles: member.roles.map((item) => item.name).join('、'),
+  })
 }
 
 function resolveRoleLabel(role: string) {
   if (role === 'owner') {
-    return '负责人'
+    return t('settings.role.owner')
   }
   if (role === 'admin') {
-    return '管理员'
+    return t('settings.role.admin')
   }
   if (role === 'member') {
-    return '成员'
+    return t('settings.role.member')
   }
-  return role || '未标注'
+  return role || t('settings.constants.member.unlabeledRole')
 }
 
 function formatDate(rawValue: string) {
   if (!rawValue) {
-    return '未知'
+    return t('settings.constants.member.unknownDate')
   }
 
   const date = new Date(rawValue)
@@ -765,15 +773,15 @@ function isMemberPermissionDisabled(item: PermissionItemConfig) {
 
 function resolveRoomStatusPermissionSummary() {
   if (!hasViewRoomStatusPermission.value) {
-    return '未启用'
+    return t('settings.constants.permission.summary.notEnabled')
   }
 
   if (roleRoomScope.value.allRoomTypes) {
-    return '角色默认：全部房型'
+    return t('settings.constants.member.roomScope.roleAll')
   }
 
   if (memberExtraPermissionForm.value.roomTypeAll) {
-    return '成员追加：全部房型'
+    return t('settings.constants.member.roomScope.memberAll')
   }
 
   const coveredRoomTypeIds = new Set<number>()
@@ -785,10 +793,10 @@ function resolveRoomStatusPermissionSummary() {
   }
 
   if (coveredRoomTypeIds.size === 0) {
-    return '已启用'
+    return t('settings.constants.permission.summary.enabled')
   }
 
-  return `已覆盖 ${coveredRoomTypeIds.size} 个房型`
+  return t('settings.constants.member.roomScope.covered', { count: coveredRoomTypeIds.size })
 }
 
 function resolveMemberPermissionSummary(item: PermissionItemConfig) {
@@ -797,14 +805,14 @@ function resolveMemberPermissionSummary(item: PermissionItemConfig) {
   }
 
   if (hasInheritedPermission(item)) {
-    return '角色默认已授予'
+    return t('settings.constants.member.permissionInherited')
   }
 
   if (memberExtraPermissionForm.value[item.key]) {
-    return '成员额外已启用'
+    return t('settings.constants.member.permissionExtraEnabled')
   }
 
-  return '未启用'
+  return t('settings.constants.permission.summary.notEnabled')
 }
 
 async function confirmAction(header: string, message: string, destructive = false) {
@@ -813,11 +821,13 @@ async function confirmAction(header: string, message: string, destructive = fals
     message,
     buttons: [
       {
-        text: '取消',
+        text: t('accommodation.common.cancel'),
         role: 'cancel',
       },
       {
-        text: destructive ? '确认删除' : '确认',
+        text: destructive
+          ? t('settingsResidual.common.deleteConfirm')
+          : t('settingsResidual.common.confirm'),
         role: destructive ? 'destructive' : 'confirm',
       },
     ],
@@ -1017,7 +1027,7 @@ function buildExtraPermissions() {
       })
 
       if (selectedRoomTypeIds.length === 0 && !hasRoleRoomStatusPermission.value) {
-        showWarningToast('请至少选择一个房型，或直接授予全部房型权限')
+        showWarningToast(t('settingsStage4.accountList.messages.selectRoomTypeScope'))
         return null
       }
 
@@ -1050,7 +1060,7 @@ function buildExtraPermissions() {
 async function loadPageData() {
   const storeId = storeStore.currentStore?.id
   if (!storeId) {
-    showWarningToast('请先选择门店')
+    showWarningToast(t('settingsStage4.roomGroup.messages.selectStore'))
     return
   }
 
@@ -1063,13 +1073,13 @@ async function loadPageData() {
     ])
 
     if (!membersResponse.success || !membersResponse.data) {
-      throw new Error(membersResponse.message || '加载门店成员失败')
+      throw new Error(membersResponse.message || t('stage5Pattern.loadFailed'))
     }
     if (!rolesResponse.success || !rolesResponse.data) {
-      throw new Error(rolesResponse.message || '加载角色列表失败')
+      throw new Error(rolesResponse.message || t('settingsStage4.roleManagement.messages.loadRolesFailed'))
     }
     if (!roomTypesResponse.success || !roomTypesResponse.data) {
-      throw new Error(roomTypesResponse.message || '加载房型列表失败')
+      throw new Error(roomTypesResponse.message || t('accommodation.roomPrice.messages.loadRoomTypesFailed'))
     }
 
     members.value = membersResponse.data
@@ -1077,7 +1087,7 @@ async function loadPageData() {
     roomTypes.value = roomTypesResponse.data
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载门店成员失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.loadFailed')))
     }
   } finally {
     loading.value = false
@@ -1105,14 +1115,14 @@ function handleCreateMember() {
 async function handleEditMember(member: StoreMember) {
   const storeId = storeStore.currentStore?.id
   if (!storeId) {
-    showWarningToast('请先选择门店')
+    showWarningToast(t('settingsStage4.roomGroup.messages.selectStore'))
     return
   }
 
   try {
     const response = await getStoreMemberDetail(storeId, member.id)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载成员权限失败')
+      throw new Error(response.message || t('stage5Pattern.loadFailed'))
     }
 
     editingMemberId.value = member.id
@@ -1126,7 +1136,7 @@ async function handleEditMember(member: StoreMember) {
     memberModalOpen.value = true
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载成员权限失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.loadFailed')))
     }
   }
 }
@@ -1143,12 +1153,12 @@ function handleDismissMemberModal() {
 async function handleSaveMember() {
   const storeId = storeStore.currentStore?.id
   if (!storeId) {
-    showWarningToast('请先选择门店')
+    showWarningToast(t('settingsStage4.roomGroup.messages.selectStore'))
     return
   }
 
   if (!memberForm.value.email.trim()) {
-    showWarningToast('请输入成员邮箱')
+    showWarningToast(t('stage5UiAttributes.76'))
     return
   }
 
@@ -1168,9 +1178,9 @@ async function handleSaveMember() {
         extraPermissions,
       })
       if (!response.success) {
-        throw new Error(response.message || '更新成员失败')
+        throw new Error(response.message || t('stage5Pattern.updateFailed'))
       }
-      showSuccessToast('成员权限已更新')
+      showSuccessToast(t('stage5Pattern.updateCompleted'))
     } else {
       const payload: AddStoreMemberRequest = {
         email: memberForm.value.email.trim(),
@@ -1180,16 +1190,16 @@ async function handleSaveMember() {
       }
       const response = await addStoreMember(storeId, payload)
       if (!response.success) {
-        throw new Error(response.message || '添加成员失败')
+        throw new Error(response.message || t('settingsStage4.accountList.messages.addMemberFailed'))
       }
-      showSuccessToast('成员已添加')
+      showSuccessToast(t('stage5Pattern.createCompleted'))
     }
 
     handleDismissMemberModal()
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存成员失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     submitting.value = false
@@ -1203,9 +1213,14 @@ async function handleToggleMember(member: StoreMember) {
   }
 
   const nextStatus = !member.isActive
+  const memberName = resolveMemberName(member)
   const confirmed = await confirmAction(
-    nextStatus ? '启用成员' : '停用成员',
-    `${nextStatus ? '确认启用' : '确认停用'} ${resolveMemberName(member)} 吗？`,
+    nextStatus
+      ? t('settings.constants.member.enabled')
+      : t('settings.constants.member.disabled'),
+    nextStatus
+      ? t('settingsResidual.common.enableConfirm', { name: memberName })
+      : t('settingsResidual.common.disableConfirm', { name: memberName }),
   )
   if (!confirmed) {
     return
@@ -1219,13 +1234,17 @@ async function handleToggleMember(member: StoreMember) {
       extraPermissions: member.extraPermissions || [],
     })
     if (!response.success) {
-      throw new Error(response.message || '更新成员状态失败')
+      throw new Error(response.message || t('stage5Pattern.updateFailed'))
     }
-    showSuccessToast(nextStatus ? '成员已启用' : '成员已停用')
+    showSuccessToast(
+      nextStatus
+        ? t('settings.constants.member.enabled')
+        : t('settings.constants.member.disabled'),
+    )
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '更新成员状态失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.updateFailed')))
     }
   }
 }
@@ -1236,7 +1255,11 @@ async function handleRemoveMember(member: StoreMember) {
     return
   }
 
-  const confirmed = await confirmAction('移除成员', `确认移除 ${resolveMemberName(member)} 吗？`, true)
+  const confirmed = await confirmAction(
+    t('settingsResidual.common.confirm'),
+    t('settingsResidual.common.confirmDelete', { name: resolveMemberName(member) }),
+    true,
+  )
   if (!confirmed) {
     return
   }
@@ -1244,13 +1267,13 @@ async function handleRemoveMember(member: StoreMember) {
   try {
     const response = await removeStoreMember(storeId, member.id)
     if (!response.success) {
-      throw new Error(response.message || '移除成员失败')
+      throw new Error(response.message || t('settingsStage4.accountList.messages.removeMemberFailed'))
     }
-    showSuccessToast('成员已移除')
+    showSuccessToast(t('stage5Pattern.deleteCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '移除成员失败'))
+      showWarningToast(resolveWarningMessage(error, t('settingsStage4.accountList.messages.removeMemberFailed')))
     }
   }
 }
@@ -1278,7 +1301,7 @@ function handleDismissRoleModal() {
 
 function handleOpenTransferOwner() {
   if (ownerTransferCandidates.value.length === 0) {
-    showWarningToast('当前没有可接手负责人的成员')
+    showWarningToast(t('settingsStage4.accountList.messages.noTransferableMembers'))
     return
   }
 
@@ -1294,11 +1317,11 @@ function handleDismissTransferOwnerModal() {
 async function handleConfirmTransferOwner() {
   const storeId = storeStore.currentStore?.id
   if (!storeId) {
-    showWarningToast('请先选择门店')
+    showWarningToast(t('settingsStage4.roomGroup.messages.selectStore'))
     return
   }
   if (!transferOwnerUserIdText.value) {
-    showWarningToast('请选择新负责人')
+    showWarningToast(t('stage5Pattern.select'))
     return
   }
 
@@ -1308,14 +1331,14 @@ async function handleConfirmTransferOwner() {
       targetUserId: Number(transferOwnerUserIdText.value),
     })
     if (!response.success) {
-      throw new Error(response.message || '转移负责人失败')
+      throw new Error(response.message || t('stage5Pattern.operationFailed'))
     }
-    showSuccessToast('负责人已转移')
+    showSuccessToast(t('stage5Pattern.operationCompleted'))
     handleDismissTransferOwnerModal()
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '转移负责人失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.operationFailed')))
     }
   } finally {
     submitting.value = false
@@ -1328,7 +1351,7 @@ async function handleOpenRolePermissions(role: RoleDTO) {
 
 async function handleSaveRole() {
   if (!roleForm.value.name.trim()) {
-    showWarningToast('请输入角色名称')
+    showWarningToast(t('settingsStage4.roleManagement.prompts.roleName'))
     return
   }
 
@@ -1340,25 +1363,25 @@ async function handleSaveRole() {
         description: roleForm.value.description.trim(),
       })
       if (!response.success) {
-        throw new Error(response.message || '更新角色失败')
+        throw new Error(response.message || t('settingsStage4.roleManagement.messages.updateRoleFailed'))
       }
-      showSuccessToast('角色已更新')
+      showSuccessToast(t('stage5Pattern.updateCompleted'))
     } else {
       const response = await createRole({
         name: roleForm.value.name.trim(),
         description: roleForm.value.description.trim(),
       })
       if (!response.success) {
-        throw new Error(response.message || '创建角色失败')
+        throw new Error(response.message || t('settingsStage4.roleManagement.messages.createRoleFailed'))
       }
-      showSuccessToast('角色已创建')
+      showSuccessToast(t('stage5Pattern.createCompleted'))
     }
 
     handleDismissRoleModal()
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存角色失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     submitting.value = false
@@ -1366,7 +1389,11 @@ async function handleSaveRole() {
 }
 
 async function handleDeleteRole(role: RoleDTO) {
-  const confirmed = await confirmAction('删除角色', `确认删除角色 ${role.name} 吗？`, true)
+  const confirmed = await confirmAction(
+    t('settingsResidual.common.confirm'),
+    t('settingsResidual.common.confirmDelete', { name: role.name }),
+    true,
+  )
   if (!confirmed) {
     return
   }
@@ -1374,13 +1401,13 @@ async function handleDeleteRole(role: RoleDTO) {
   try {
     const response = await deleteRole(role.id)
     if (!response.success) {
-      throw new Error(response.message || '删除角色失败')
+      throw new Error(response.message || t('settingsStage4.roleManagement.messages.deleteRoleFailed'))
     }
-    showSuccessToast('角色已删除')
+    showSuccessToast(t('stage5Pattern.deleteCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '删除角色失败'))
+      showWarningToast(resolveWarningMessage(error, t('settingsStage4.roleManagement.messages.deleteRoleFailed')))
     }
   }
 }
@@ -1464,6 +1491,10 @@ onIonViewWillEnter(async () => {
   gap: 12px;
 }
 
+.settings-member-card__header > div {
+  min-width: 0;
+}
+
 .settings-member-card__header strong,
 .settings-member-card__header p,
 .settings-role-card strong,
@@ -1479,10 +1510,16 @@ onIonViewWillEnter(async () => {
 }
 
 .settings-member-card__status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
   padding: 5px 10px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .settings-member-card__status.is-active {
@@ -1493,6 +1530,13 @@ onIonViewWillEnter(async () => {
 .settings-member-card__status.is-inactive {
   background: rgba(217, 119, 6, 0.12);
   color: var(--ion-color-warning);
+}
+
+@media (max-width: 360px) {
+  .settings-member-card__status {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
 }
 
 .settings-member-card__meta {

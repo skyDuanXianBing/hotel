@@ -11,7 +11,7 @@
 
     <ion-content fullscreen class="mobile-page channel-inventory-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新房量设置" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('channel.mobile.refreshInventory')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <section v-if="channelView" class="mobile-hero channel-inventory-hero">
@@ -21,10 +21,10 @@
             {{ channelView.statusLabel }}
           </span>
           <span class="mobile-chip channel-inventory-hero__chip channel-inventory-hero__chip--metric">
-            账号 {{ mappingGroups.length }}
+            {{ $t('channel.mobile.accounts', { count: mappingGroups.length }) }}
           </span>
           <span class="mobile-chip channel-inventory-hero__chip channel-inventory-hero__chip--metric">
-            范围 {{ syncDays }} 天
+            {{ $t('channel.mobile.dayRange', { count: syncDays }) }}
           </span>
         </div>
       </section>
@@ -34,7 +34,7 @@
           <div class="channel-inventory-page__toolbar-head">
             <div class="channel-inventory-page__toolbar-main">
               <strong>{{ inventoryOverviewText }}</strong>
-              <p>同步房量并整理 Airbnb 预订设置</p>
+              <p>{{ $t('channel.mobile.inventoryDescription') }}</p>
             </div>
             <div class="channel-inventory-page__toolbar-side">
               <ion-spinner v-if="loading || actionLoading || draftSubmitting" name="crescent" />
@@ -44,7 +44,7 @@
                 class="channel-inventory-page__action-secondary"
                 @click="reloadInventory"
               >
-                刷新
+                {{ $t('channel.mobile.common.refresh') }}
               </ion-button>
             </div>
           </div>
@@ -55,13 +55,13 @@
             @ionChange="handleSyncDaysChange"
           >
             <ion-segment-button value="30">
-              <ion-label>30 天</ion-label>
+              <ion-label>{{ $t('channel.mobile.days', { count: 30 }) }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="90">
-              <ion-label>90 天</ion-label>
+              <ion-label>{{ $t('channel.mobile.days', { count: 90 }) }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="365">
-              <ion-label>365 天</ion-label>
+              <ion-label>{{ $t('channel.mobile.days', { count: 365 }) }}</ion-label>
             </ion-segment-button>
           </ion-segment>
 
@@ -71,7 +71,7 @@
               :disabled="!canRunInventorySync || actionLoading"
               @click="handleSyncInventory"
             >
-              {{ actionLoading ? '同步中...' : '同步房量' }}
+              {{ actionLoading ? $t('order.options.loading') : $t('channel.mobile.inventory.sync') }}
             </ion-button>
           </div>
 
@@ -93,7 +93,7 @@
 
         <section class="mobile-card channel-inventory-page__list-card">
           <div class="channel-inventory-page__section-heading">
-            <h2 class="mobile-section-title">账号摘要</h2>
+            <h2 class="mobile-section-title">{{ $t('channel.mobile.inventory.accountSummary') }}</h2>
             <p class="mobile-note">{{ inventoryGroupSummaryText }}</p>
           </div>
 
@@ -106,84 +106,88 @@
               <div class="channel-inventory-page__group-header">
                 <div>
                   <strong>{{ group.title }}</strong>
-                  <p>{{ capability.groupLabel }}标识：{{ group.hotelKey }}</p>
+                  <p>{{ capability.groupLabel }} {{ $t('channel.mobile.common.identifier') }}: {{ group.hotelKey }}</p>
                 </div>
                 <ion-badge :color="group.statusColor">{{ group.statusLabel }}</ion-badge>
               </div>
 
               <div class="channel-inventory-page__group-meta">
-                <span>房型 {{ group.roomIds.length }}</span>
-                <span>活跃价盘 {{ group.activeRatePlanCount }}</span>
-                <span>总价盘 {{ group.ratePlans.length }}</span>
+                <span>{{ $t('channel.mobile.common.roomTypes') }} {{ group.roomIds.length }}</span>
+                <span>{{ $t('channel.mobile.common.activeRatePlans') }} {{ group.activeRatePlanCount }}</span>
+                <span>{{ $t('channel.mobile.common.totalRatePlans') }} {{ group.ratePlans.length }}</span>
               </div>
 
               <p v-if="group.roomIds.length > 0" class="channel-inventory-page__group-secondary">
-                房型标识：{{ group.roomIds.join(' / ') }}
+                {{ $t('channel.mobile.common.roomTypeIdentifier') }}：{{ group.roomIds.join(' / ') }}
               </p>
             </article>
           </div>
 
           <p v-else class="mobile-note channel-inventory-page__empty">
-            当前暂无可展示的账号摘要。
+            {{ $t('channel.mobile.inventory.groupEmpty') }}
           </p>
         </section>
 
         <section class="mobile-card channel-inventory-page__form-card">
           <div class="channel-inventory-page__section-heading">
-            <h2 class="mobile-section-title">预订设置草稿</h2>
-            <p class="mobile-note">先保存常用规则，稍后继续整理。</p>
+            <h2 class="mobile-section-title">{{ $t('channel.mobile.inventory.draftTitle') }}</h2>
+            <p class="mobile-note">{{ $t('channel.mobile.inventory.draftDescription') }}</p>
           </div>
 
           <div class="channel-inventory-page__form-grid">
             <label class="channel-inventory-page__field">
-              <span>提前预订量</span>
+              <span>{{ $t('channel.mobile.inventory.advanceBooking') }}</span>
               <ion-select
                 v-model="bookingSettingsForm.advanceBookingHours"
                 fill="outline"
                 interface="action-sheet"
               >
                 <ion-select-option v-for="item in ADVANCE_BOOKING_HOURS" :key="item" :value="item">
-                  {{ item }} 小时
+                  {{ $t('channel.mobile.inventory.hours', { count: item }) }}
                 </ion-select-option>
               </ion-select>
             </label>
 
             <div class="channel-inventory-page__toggle-field">
               <div>
-                <strong>需人工确认</strong>
-                <p>未在可直接接待时间内完成的订单可转为预订申请。</p>
+                <strong>{{ $t('channel.mobile.inventory.approvalRequired') }}</strong>
+                <p>{{ $t('channel.mobile.inventory.approvalDescription') }}</p>
               </div>
               <ion-toggle v-model="bookingSettingsForm.requireApproval" />
             </div>
 
             <label class="channel-inventory-page__field">
-              <span>准备时间</span>
+              <span>{{ $t('channel.mobile.inventory.preparationTime') }}</span>
               <ion-select
                 v-model="bookingSettingsForm.preparationNights"
                 fill="outline"
                 interface="action-sheet"
               >
                 <ion-select-option v-for="item in PREPARATION_NIGHTS" :key="item" :value="item">
-                  {{ item === 0 ? '无' : `${item} 晚` }}
+                  {{
+                    item === 0
+                      ? $t('channel.mobile.inventory.none')
+                      : $t('channel.mobile.inventory.nights', { count: item })
+                  }}
                 </ion-select-option>
               </ion-select>
             </label>
 
             <label class="channel-inventory-page__field">
-              <span>预订开放期</span>
+              <span>{{ $t('channel.mobile.inventory.bookingWindow') }}</span>
               <ion-select
                 v-model="bookingSettingsForm.bookingWindowDays"
                 fill="outline"
                 interface="action-sheet"
               >
                 <ion-select-option v-for="item in BOOKING_WINDOW_DAYS" :key="item" :value="item">
-                  {{ item }} 天
+                  {{ $t('channel.mobile.common.rangeDays', { count: item }) }}
                 </ion-select-option>
               </ion-select>
             </label>
 
             <label class="channel-inventory-page__field">
-              <span>入住开始时间</span>
+              <span>{{ $t('channel.mobile.inventory.checkInStart') }}</span>
               <ion-select
                 v-model="bookingSettingsForm.checkInStartTime"
                 fill="outline"
@@ -196,13 +200,13 @@
             </label>
 
             <label class="channel-inventory-page__field">
-              <span>入住结束时间</span>
+              <span>{{ $t('channel.mobile.inventory.checkInEnd') }}</span>
               <ion-select
                 v-model="bookingSettingsForm.checkInEndTime"
                 fill="outline"
                 interface="action-sheet"
               >
-                <ion-select-option value="">不限</ion-select-option>
+                <ion-select-option value="">{{ $t('channel.mobile.inventory.unlimited') }}</ion-select-option>
                 <ion-select-option v-for="item in TIME_OPTIONS" :key="item" :value="item">
                   {{ item }}
                 </ion-select-option>
@@ -210,7 +214,7 @@
             </label>
 
             <label class="channel-inventory-page__field">
-              <span>离店时间</span>
+              <span>{{ $t('channel.mobile.inventory.checkOut') }}</span>
               <ion-select
                 v-model="bookingSettingsForm.checkOutTime"
                 fill="outline"
@@ -225,17 +229,19 @@
 
           <div class="channel-inventory-page__actions">
             <ion-button fill="outline" :disabled="draftSubmitting" @click="handleResetDraft">
-              重置草稿
+              {{ $t('channel.mobile.inventory.resetDraft') }}
             </ion-button>
             <ion-button :disabled="draftSubmitting" @click="handleSaveDraft">
-              {{ draftSubmitting ? '保存中...' : '保存本地草稿' }}
+              {{ draftSubmitting ? $t('channel.mobile.common.saving') : $t('channel.mobile.inventory.saveDraft') }}
             </ion-button>
           </div>
         </section>
       </div>
 
       <section v-else class="mobile-card">
-        <p class="mobile-note">{{ loading ? '房量设置加载中...' : '未找到该渠道配置。' }}</p>
+        <p class="mobile-note">
+          {{ loading ? $t('channel.mobile.inventory.loading') : $t('channel.mobile.common.notFound') }}
+        </p>
       </section>
     </ion-content>
   </ion-page>
@@ -264,6 +270,7 @@ import {
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { buildChannelDetailPath } from '@/router/guards'
 import {
@@ -277,6 +284,7 @@ import {
   getSuMappings,
   syncSuAvailability,
   type OtaIntegrationDTO,
+  type SuMappingsResponse,
 } from '@/api/otaIntegration'
 import { resolveChannelWarningMessage } from '@/utils/channelMessage'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
@@ -307,12 +315,13 @@ const TIME_OPTIONS = Array.from({ length: 24 }, (_, index) => {
 const INVENTORY_DRAFT_STORAGE_KEY = 'ios_airbnb_inventory_drafts_v1'
 
 const route = useRoute()
+const { locale, t } = useI18n()
 
 const loading = ref(false)
 const actionLoading = ref(false)
 const draftSubmitting = ref(false)
 const channel = ref<OtaIntegrationDTO | null>(null)
-const mappingGroups = ref<SuHotelMappingView[]>([])
+const mappingPayload = ref<SuMappingsResponse | null>(null)
 const syncDays = ref('30')
 const loadNotice = ref('')
 const lastSyncResult = ref<InventorySyncResult | null>(null)
@@ -328,9 +337,13 @@ const channelView = computed(() => {
 const capability = computed(() => getChannelActionCapability(channel.value?.code))
 const pageTitle = computed(() => {
   if (!channelView.value) {
-    return '房量设置'
+    return t('routes.ChannelInventory')
   }
-  return `${channelView.value.name} · 房量设置`
+  return `${channelView.value.name} · ${t('routes.ChannelInventory')}`
+})
+const mappingGroups = computed(() => {
+  locale.value
+  return parseSuMappings(mappingPayload.value, channelView.value?.suChannelId || undefined)
 })
 const canRunInventorySync = computed(() => {
   if (!channelView.value) {
@@ -343,13 +356,13 @@ const canRunInventorySync = computed(() => {
 })
 const inventoryBlockedMessage = computed(() => {
   if (!channelView.value) {
-    return '未找到该渠道配置。'
+    return t('channel.mobile.common.notFound')
   }
   if (!channelView.value.isConnected) {
-    return '请先完成 Airbnb 授权，再执行房量同步。'
+    return t('channel.mobile.inventory.authorizeFirst')
   }
   if (!capability.value.supportsInventorySettings) {
-    return '当前渠道不是 Airbnb，移动端不展示房量设置。'
+    return t('channel.mobile.inventory.unsupported')
   }
   return ''
 })
@@ -361,33 +374,41 @@ const inventoryActiveRatePlanCount = computed(() => {
 })
 const inventoryOverviewText = computed(() => {
   if (!channelView.value) {
-    return '房量设置待刷新'
+    return t('channel.mobile.inventory.pendingRefresh')
   }
   if (!capability.value.supportsInventorySettings) {
-    return '当前渠道不支持房量设置'
+    return t('channel.mobile.inventory.unsupportedTitle')
   }
   if (!channelView.value.isConnected) {
-    return '完成授权后再同步房量'
+    return t('channel.mobile.inventory.authorizeTitle')
   }
   if (mappingGroups.value.length === 0) {
-    return `已授权 · 范围 ${syncDays.value} 天`
+    return t('channel.mobile.inventory.authorizedOverview', { days: syncDays.value })
   }
-  return `账号 ${mappingGroups.value.length} · 房型 ${inventoryRoomCount.value} · 范围 ${syncDays.value} 天`
+  return t('channel.mobile.inventory.overview', {
+    accounts: mappingGroups.value.length,
+    rooms: inventoryRoomCount.value,
+    days: syncDays.value,
+  })
 })
 const inventoryGroupSummaryText = computed(() => {
   if (!channelView.value) {
-    return '账号摘要待刷新'
+    return t('channel.mobile.inventory.summaryPending')
   }
   if (!capability.value.supportsInventorySettings) {
-    return '当前渠道不返回账号摘要'
+    return t('channel.mobile.inventory.summaryUnsupported')
   }
   if (!channelView.value.isConnected) {
-    return '完成授权后会在这里显示账号摘要'
+    return t('channel.mobile.inventory.summaryAuthorize')
   }
   if (mappingGroups.value.length === 0) {
-    return '暂无账号摘要，可稍后刷新查看'
+    return t('channel.mobile.inventory.summaryEmpty')
   }
-  return `共 ${mappingGroups.value.length} 个账号，房型 ${inventoryRoomCount.value} 个，活跃价盘 ${inventoryActiveRatePlanCount.value} 个`
+  return t('channel.mobile.inventory.summary', {
+    accounts: mappingGroups.value.length,
+    rooms: inventoryRoomCount.value,
+    ratePlans: inventoryActiveRatePlanCount.value,
+  })
 })
 const inventoryCombinedNotice = computed(() => {
   return joinUniqueMessages([
@@ -486,7 +507,7 @@ async function loadPage() {
   try {
     const detailResponse = await getOtaIntegrationById(otaId.value)
     if (!detailResponse.success || !detailResponse.data) {
-      throw new Error(detailResponse.message || '加载房量设置失败')
+      throw new Error(detailResponse.message || t('channel.mobile.inventory.loadFailed'))
     }
 
     channel.value = detailResponse.data
@@ -494,25 +515,25 @@ async function loadPage() {
 
     const nextCapability = getChannelActionCapability(detailResponse.data.code)
     if (!nextCapability.supportsInventorySettings) {
-      mappingGroups.value = []
-      loadNotice.value = '当前渠道暂不提供房量设置。'
+      mappingPayload.value = null
+      loadNotice.value = t('channel.mobile.inventory.channelUnsupported')
       return
     }
 
     if (!channelView.value?.suChannelId) {
-      mappingGroups.value = []
-      loadNotice.value = '当前账号信息尚未准备完成，暂时无法展示账号摘要。'
+      mappingPayload.value = null
+      loadNotice.value = t('channel.mobile.inventory.accountNotReady')
       return
     }
 
     const mappingsResponse = await getSuMappings(otaId.value, channelView.value.suChannelId)
     if (!mappingsResponse.success) {
-      mappingGroups.value = []
-      loadNotice.value = mappingsResponse.message || '账号摘要加载失败'
+      mappingPayload.value = null
+      loadNotice.value = mappingsResponse.message || t('channel.mobile.inventory.summaryLoadFailed')
       return
     }
 
-    mappingGroups.value = parseSuMappings(mappingsResponse.data || null, channelView.value.suChannelId)
+    mappingPayload.value = mappingsResponse.data || null
   } finally {
     loading.value = false
   }
@@ -524,7 +545,7 @@ function handleSyncDaysChange(event: CustomEvent) {
 
 async function handleSyncInventory() {
   if (!canRunInventorySync.value || !channelView.value) {
-    showWarningToast(inventoryBlockedMessage.value || '当前无法执行房量同步')
+    showWarningToast(inventoryBlockedMessage.value || t('channel.mobile.inventory.unavailable'))
     return
   }
 
@@ -532,13 +553,13 @@ async function handleSyncInventory() {
   try {
     const response = await syncSuAvailability(channelView.value.id, Number(syncDays.value || 30))
     if (!response.success || !response.data) {
-      throw new Error(response.message || '房量同步失败')
+      throw new Error(response.message || t('channel.mobile.inventory.syncFailed'))
     }
 
     if (!response.data.availabilitySynced) {
-      const message = response.data.availabilityError || '房量同步未完成'
+      const message = response.data.availabilityError || t('channel.mobile.inventory.syncPending')
       lastSyncResult.value = {
-        title: '房量同步待处理',
+        title: t('channel.mobile.inventory.syncPendingTitle'),
         message,
         tone: 'warning',
       }
@@ -547,16 +568,19 @@ async function handleSyncInventory() {
     }
 
     lastSyncResult.value = {
-      title: '房量同步完成',
-      message: `已同步 ${response.data.roomCount} 个房型，范围 ${response.data.days} 天`,
+      title: t('channel.mobile.inventory.syncComplete'),
+      message: t('channel.mobile.inventory.syncResult', {
+        rooms: response.data.roomCount,
+        days: response.data.days,
+      }),
       tone: 'success',
     }
-    showSuccessToast('Airbnb 房量同步完成')
+    showSuccessToast(t('channel.mobile.inventory.airbnbSyncComplete'))
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      const message = resolveWarningMessage(error, '房量同步失败')
+      const message = resolveWarningMessage(error, t('channel.mobile.inventory.syncFailed'))
       lastSyncResult.value = {
-        title: '房量同步失败',
+        title: t('channel.mobile.inventory.syncFailed'),
         message,
         tone: 'danger',
       }
@@ -571,7 +595,7 @@ async function handleSaveDraft() {
   draftSubmitting.value = true
   try {
     saveDraftToStorage()
-    showSuccessToast('预订设置草稿已保存，可稍后继续完善')
+    showSuccessToast(t('channel.mobile.inventory.draftSaved'))
   } finally {
     draftSubmitting.value = false
   }
@@ -580,7 +604,7 @@ async function handleSaveDraft() {
 function handleResetDraft() {
   bookingSettingsForm.value = createDefaultBookingSettingsDraft()
   removeDraftFromStorage()
-  showSuccessToast('已重置为默认草稿')
+  showSuccessToast(t('channel.mobile.inventory.draftReset'))
 }
 
 async function reloadInventory() {
@@ -588,7 +612,7 @@ async function reloadInventory() {
     await loadPage()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '刷新房量设置失败'))
+      showWarningToast(resolveWarningMessage(error, t('channel.mobile.inventory.refreshFailed')))
     }
   }
 }
@@ -633,12 +657,16 @@ onIonViewWillEnter(async () => {
 }
 
 .channel-inventory-hero__chip {
+  max-width: 100%;
   min-height: 28px;
   padding: 0 12px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
   backdrop-filter: blur(10px);
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
 }
 
 .channel-inventory-hero__chip--status {
@@ -767,6 +795,11 @@ onIonViewWillEnter(async () => {
   font-size: 12px;
 }
 
+.channel-inventory-page__range-segment ion-segment-button::part(native),
+.channel-inventory-page__actions ion-button::part(native) {
+  white-space: normal;
+}
+
 .channel-inventory-page__action-primary {
   --background: #234ebd;
   --background-activated: #2046aa;
@@ -866,6 +899,9 @@ onIonViewWillEnter(async () => {
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
+  max-width: 45%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .channel-inventory-page__group-header p {
@@ -891,6 +927,9 @@ onIonViewWillEnter(async () => {
   color: #61718d;
   font-size: 11px;
   font-weight: 600;
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
 }
 
 .channel-inventory-page__group-secondary {
@@ -938,6 +977,7 @@ onIonViewWillEnter(async () => {
   color: var(--app-heading);
   font-size: 12px;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .channel-inventory-page__toggle-field {
@@ -950,6 +990,12 @@ onIonViewWillEnter(async () => {
 .channel-inventory-page__toggle-field p {
   color: var(--ios-pms-text-soft);
   font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.channel-inventory-page__field ion-select::part(text) {
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .channel-inventory-page__toggle-field ion-toggle {

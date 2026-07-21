@@ -4,7 +4,7 @@
       <ion-toolbar>
         <ion-title>{{ title }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="handleDismiss">关闭</ion-button>
+          <ion-button @click="handleDismiss">{{ $t('home.section.close') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -16,20 +16,20 @@
 
       <section v-if="loading" class="channel-widget-modal__state">
         <ion-spinner name="crescent" />
-        <p>正在加载渠道向导...</p>
+        <p>{{ $t('iosStage5.channel.loadingWidget') }}</p>
       </section>
 
       <section v-else-if="errorMessage" class="channel-widget-modal__state channel-widget-modal__state--error">
         <p>{{ errorMessage }}</p>
-        <ion-button @click="loadWidget">重试</ion-button>
+        <ion-button @click="loadWidget">{{ $t('channel.mappingPriceSettings.actions.retry') }}</ion-button>
       </section>
 
       <section v-else class="channel-widget-modal__content">
         <div class="channel-widget-modal__toolbar">
-          <span>语言</span>
+          <span>{{ $t('settingsStage4.storeDetails.fields.language') }}</span>
           <ion-segment :value="widgetLanguage" @ionChange="handleLanguageChange">
             <ion-segment-button value="zn">
-              <ion-label>中文</ion-label>
+              <ion-label>{{ $t('language.option.zh-CN') }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="en">
               <ion-label>EN</ion-label>
@@ -43,6 +43,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   IonButton,
   IonButtons,
@@ -60,6 +61,8 @@ import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { getSuWidgetToken, type WidgetTokenResponse } from '@/api/otaIntegration'
 import { SU_CONFIG_PROXY_BASE } from '@/constants/api'
 import { showWarningToast } from '@/utils/notify'
+
+const { t } = useI18n()
 
 interface SuOtaSwitchConfig {
   type: string
@@ -110,7 +113,11 @@ const emit = defineEmits<{
   error: [message: string]
 }>()
 
-const title = computed(() => `连接到 ${props.otaName || '渠道'}`)
+const title = computed(() =>
+  t('stage5Final.channel.connectTitle', {
+    name: props.otaName || t('home.quick.channels.0'),
+  }),
+)
 const widgetContainerId = `su-widget-container-${Math.random().toString(36).slice(2)}`
 const loading = ref(false)
 const errorMessage = ref('')
@@ -380,7 +387,7 @@ function loadExternalScriptOnce(id: string, scriptUrl: string) {
       }
 
       existingScript.addEventListener('load', () => resolve(), { once: true })
-      existingScript.addEventListener('error', () => reject(new Error(`脚本加载失败：${scriptUrl}`)), {
+      existingScript.addEventListener('error', () => reject(new Error(t('stage5VisibleText.93', { url: scriptUrl }))), {
         once: true,
       })
       return
@@ -396,7 +403,7 @@ function loadExternalScriptOnce(id: string, scriptUrl: string) {
       resolve()
     }
     script.onerror = () => {
-      reject(new Error(`脚本加载失败：${scriptUrl}`))
+      reject(new Error(t('stage5VisibleText.93', { url: scriptUrl })))
     }
 
     document.body.appendChild(script)
@@ -408,7 +415,7 @@ async function ensureWidgetRuntimeReady() {
   await loadExternalScriptOnce('ios-widget-react-dom-script', REACT_DOM_UMD_URL)
 
   if (typeof window.ReactDOM?.createRoot !== 'function') {
-    throw new Error('Su Widget 依赖未就绪，请稍后重试')
+    throw new Error(t('iosStage5.channel.widgetDependencyMissing'))
   }
 }
 
@@ -435,7 +442,7 @@ function loadWidgetScript(scriptUrl: string) {
       resolve()
     }
     script.onerror = () => {
-      reject(new Error('无法加载 Su Widget 脚本'))
+      reject(new Error(t('stage5VisibleText.77')))
     }
     document.head.appendChild(script)
   })
@@ -443,7 +450,7 @@ function loadWidgetScript(scriptUrl: string) {
 
 async function initializeWidget(widgetConfig: WidgetTokenResponse) {
   if (!window.loadScript) {
-    throw new Error('Su Widget 未正确加载')
+    throw new Error(t('stage5VisibleText.5'))
   }
 
   await ensureWidgetRuntimeReady()
@@ -464,7 +471,7 @@ async function initializeWidget(widgetConfig: WidgetTokenResponse) {
 
 async function loadWidget() {
   if (!props.otaId) {
-    errorMessage.value = '缺少渠道配置标识'
+    errorMessage.value = t('iosStage5.channel.channelConfigMissing')
     return
   }
 
@@ -478,12 +485,14 @@ async function loadWidget() {
       language: widgetLanguage.value,
     })
     if (!response.success || !response.data) {
-      throw new Error(response.message || '获取渠道向导失败')
+      throw new Error(response.message || t('iosStage5.channel.loadWizardFailed'))
     }
     setSuConfigProxyContext(response.data)
 
     if (isLocalhost() && import.meta.env.VITE_ALLOW_SU_WIDGET_LOCAL !== 'true') {
-      throw new Error('本地地址无法直接加载 Su Widget，请使用已部署域名或开启 VITE_ALLOW_SU_WIDGET_LOCAL=true')
+      throw new Error(
+        t('stage5Final.channel.widgetUnavailable'),
+      )
     }
 
     uninstallSuConfigProxy?.()
@@ -494,7 +503,8 @@ async function loadWidget() {
     await nextTick()
     await initializeWidget(response.data)
   } catch (error) {
-    const message = error instanceof Error && error.message ? error.message : '加载渠道向导失败'
+    const message =
+      error instanceof Error && error.message ? error.message : t('stage5VisibleText.9')
     errorMessage.value = message
     showWarningToast(message)
     emit('error', message)

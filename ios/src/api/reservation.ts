@@ -84,6 +84,7 @@ export interface ReservationFilters {
   startDate?: string
   endDate?: string
   orderType?: string
+  operationDate?: string
 }
 
 export interface ReservationChannelInfoDTO {

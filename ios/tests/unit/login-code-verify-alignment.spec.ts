@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import LoginCodeVerifyPage from '@/views/auth/LoginCodeVerifyPage.vue'
+import { createTestI18n } from './helpers/i18n'
 
 const apiMocks = vi.hoisted(() => ({
   loginByCode: vi.fn(),
@@ -205,6 +206,13 @@ const enterVerificationCode = async (wrapper: ReturnType<typeof mount>) => {
   await flushPromises()
 }
 
+const mountLoginCodeVerifyPage = () =>
+  mount(LoginCodeVerifyPage, {
+    global: {
+      plugins: [createTestI18n()],
+    },
+  })
+
 describe('LoginCodeVerifyPage Web alignment', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -216,7 +224,7 @@ describe('LoginCodeVerifyPage Web alignment', () => {
   })
 
   test('does not claim a hard-coded verification-code expiry and remembers false by default', async () => {
-    const wrapper = mount(LoginCodeVerifyPage)
+    const wrapper = mountLoginCodeVerifyPage()
 
     expect(wrapper.text()).not.toContain('有效期10分钟')
     await enterVerificationCode(wrapper)
@@ -231,7 +239,7 @@ describe('LoginCodeVerifyPage Web alignment', () => {
 
   test('selects a workspace from the authorized code-login response without sending the code again', async () => {
     apiMocks.loginByCode.mockResolvedValue(buildLoginResponse(['PMS', 'CLEANER']))
-    const wrapper = mount(LoginCodeVerifyPage)
+    const wrapper = mountLoginCodeVerifyPage()
 
     await enterVerificationCode(wrapper)
 

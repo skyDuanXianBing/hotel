@@ -16,6 +16,7 @@ import type {
   MessageTranslationRequest,
   MessageTranslationResponse,
 } from '@/types/message'
+import { i18n } from '@/locales'
 
 export { MESSAGE_API_MOCK_ENABLED }
 
@@ -230,5 +231,5 @@ export const sendAiChatMessage = async (
     }
   }
 
-  throw new Error('翻译结果解析失败，请重试')
+  throw new Error(i18n.global.t('runtime.errors.translationParseFailed'))
 }

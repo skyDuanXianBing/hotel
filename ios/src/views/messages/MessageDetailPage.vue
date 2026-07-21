@@ -16,7 +16,7 @@
             fill="clear"
             @click="handleOpenReservation"
           >
-            订单
+            {{ t('messageDetail.reservation') }}
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
@@ -28,12 +28,12 @@
       class="mobile-page message-detail-page"
     >
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新会话" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="t('messageDetail.pullToRefresh')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <div v-if="loadNotice || loading" class="message-detail-page__status">
         <ion-spinner v-if="loading" name="crescent" />
-        <span>{{ loadNotice || '同步中...' }}</span>
+        <span>{{ loadNotice || t('messageDetail.syncing') }}</span>
       </div>
 
       <section
@@ -88,12 +88,12 @@
               </p>
             </div>
             <div v-if="shouldShowTranslatedMessage(message)" class="message-translation-card">
-              <span class="message-translation-card__label">译文</span>
+              <span class="message-translation-card__label">{{ t('messageDetail.translation') }}</span>
               <p>{{ getTranslatedMessageText(message) }}</p>
             </div>
             <div v-else-if="shouldShowTranslationPending(message)" class="message-translation-card is-loading">
               <ion-spinner name="crescent" />
-              <span>正在翻译...</span>
+              <span>{{ t('messageDetail.translating') }}</span>
             </div>
             <button
               v-else-if="shouldShowTranslationAction(message)"
@@ -102,23 +102,27 @@
               @click.stop="handleTranslateMessage(message)"
             >
               <ion-icon :icon="languageOutline" />
-              翻译
+              {{ t('messageDetail.translate') }}
             </button>
             <div class="message-row__meta">
               <span>{{ formatDateTime(message.timestamp) }}</span>
-              <span v-if="message.deliveryStatus === 'FAILED'" class="message-row__failed">发送失败</span>
+              <span v-if="message.deliveryStatus === 'FAILED'" class="message-row__failed">
+                {{ t('messageDetail.sendFailed') }}
+              </span>
             </div>
           </div>
         </article>
       </section>
 
       <section v-else-if="!loading" class="message-detail-empty-state">
-        <h3>暂无消息</h3>
-        <p class="mobile-note">该会话还没有聊天记录，可以先发送一条消息。</p>
+        <h3>{{ t('messageDetail.emptyTitle') }}</h3>
+        <p class="mobile-note">{{ t('messageDetail.emptyDescription') }}</p>
       </section>
 
       <div slot="fixed" class="message-composer">
-        <p v-if="activeThread?.closed" class="message-composer__closed-tip">当前会话已关闭，不能继续发送消息。</p>
+        <p v-if="activeThread?.closed" class="message-composer__closed-tip">
+          {{ t('messageDetail.closedTip') }}
+        </p>
         <div class="message-composer__bar">
           <ion-button
             class="message-composer__ai"
@@ -135,7 +139,7 @@
               auto-grow
               :rows="1"
               class="message-composer__textarea"
-              placeholder="输入给住客的消息"
+              :placeholder="t('messageDetail.composerPlaceholder')"
               :disabled="sending || !activeThread || activeThread.closed"
             />
           </div>
@@ -144,7 +148,7 @@
             :disabled="sending || !composerValue.trim() || !activeThread || activeThread.closed"
             @click="handleSendMessage"
           >
-            {{ sending ? '发送中' : '发送' }}
+            {{ sending ? t('messageDetail.sending') : t('messageDetail.send') }}
           </ion-button>
         </div>
       </div>
@@ -161,14 +165,14 @@
             <ion-button
               class="message-ai-page__back"
               fill="clear"
-              aria-label="返回对话"
+              :aria-label="t('messageDetail.backToConversation')"
               @click="handleDismissAiDraft"
             >
               <ion-icon :icon="chevronBackOutline" />
-              <span>返回</span>
+              <span>{{ t('messageDetail.back') }}</span>
             </ion-button>
           </ion-buttons>
-          <ion-title>AI回复草稿</ion-title>
+          <ion-title>{{ t('messageDetail.aiDraftTitle') }}</ion-title>
         </ion-toolbar>
       </ion-header>
 
@@ -179,8 +183,8 @@
               <h2 class="message-ai-section__title">
                 {{
                   isAiDraftTranslationView
-                    ? `员工参考译文(${aiDraftTranslationLanguageLabel})`
-                    : '初始回复草稿（可直接编辑）'
+                    ? t('messageDetail.staffTranslation', { language: aiDraftTranslationLanguageLabel })
+                    : t('messageDetail.initialDraft')
                 }}
               </h2>
 
@@ -190,7 +194,9 @@
                   v-model="aiDraft"
                   :rows="8"
                   class="message-ai-textarea message-ai-textarea--draft"
-                  :placeholder="draftLoading ? 'AI 正在生成回复草稿...' : 'AI 草稿会显示在这里'"
+                  :placeholder="
+                    draftLoading ? t('messageDetail.draftGenerating') : t('messageDetail.draftPlaceholder')
+                  "
                 />
                 <ion-textarea
                   v-else
@@ -201,7 +207,7 @@
                 />
                 <div v-if="draftLoading" class="message-ai-textarea-shell__loading">
                   <ion-spinner name="crescent" />
-                  <span>正在生成...</span>
+                  <span>{{ t('messageDetail.generating') }}</span>
                 </div>
               </div>
 
@@ -219,19 +225,19 @@
                 >
                   {{
                     aiDraftTranslationLoading
-                      ? '翻译中...'
+                      ? t('messageDetail.translationLoading')
                       : isAiDraftTranslationView
-                        ? '返回'
-                        : '翻译'
+                        ? t('messageDetail.back')
+                        : t('messageDetail.translate')
                   }}
                 </ion-button>
               </div>
             </section>
 
             <section class="message-ai-section message-ai-section--instruction">
-              <h2 class="message-ai-section__title">补充要求</h2>
+              <h2 class="message-ai-section__title">{{ t('messageDetail.requirements') }}</h2>
               <p class="message-ai-section__description">
-                输入你想优化的方向，例如：更礼貌、加入入住步骤、简约
+                {{ t('messageDetail.requirementsDescription') }}
               </p>
 
               <div class="message-ai-input-frame">
@@ -239,7 +245,7 @@
                   v-model="aiInstruction"
                   :rows="3"
                   class="message-ai-textarea message-ai-textarea--instruction"
-                  placeholder="告诉GPT你想怎么修改"
+                  :placeholder="t('messageDetail.requirementsPlaceholder')"
                 />
               </div>
 
@@ -255,7 +261,7 @@
                   "
                   @click="handlePolishAiDraft"
                 >
-                  {{ aiPolishLoading ? '润色中...' : '润色并重新生成' }}
+                  {{ aiPolishLoading ? t('messageDetail.polishing') : t('messageDetail.polish') }}
                 </ion-button>
               </div>
             </section>
@@ -268,7 +274,7 @@
               "
               @click="handleUseAiDraft"
             >
-              回填到对话框
+              {{ t('messageDetail.useDraft') }}
             </ion-button>
           </section>
         </div>
@@ -298,6 +304,7 @@ import {
 } from '@ionic/vue'
 import { chevronBackOutline, languageOutline } from 'ionicons/icons'
 import { computed, nextTick, onUnmounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getThreadMessages,
@@ -372,6 +379,7 @@ const TRAILING_URL_PUNCTUATION_PATTERN = /[),.!?\]}]+$/
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const notificationCenterStore = useNotificationCenterStore()
 
 function resolveRouteThreadId() {
@@ -448,7 +456,7 @@ const activeThread = computed(() => {
 
 const pageTitle = computed(() => {
   if (!activeThread.value) {
-    return '消息详情'
+    return t('routes.MessageDetail')
   }
 
   return threadTitle.value
@@ -456,7 +464,7 @@ const pageTitle = computed(() => {
 
 const threadTitle = computed(() => {
   if (!activeThread.value) {
-    return '消息详情'
+    return t('routes.MessageDetail')
   }
 
   if (activeThread.value.guestName) {
@@ -467,7 +475,7 @@ const threadTitle = computed(() => {
     return activeThread.value.listingName
   }
 
-  return activeThread.value.channelName || '会话详情'
+  return activeThread.value.channelName || t('routes.MessageDetail')
 })
 
 const reservationMatched = computed(() => reservationId.value !== null)
@@ -493,10 +501,10 @@ const headerCaption = computed(() => {
     parts.push(activeThread.value.channelName)
   }
 
-  parts.push(activeThread.value.closed ? '已关闭' : '会话进行中')
+  parts.push(activeThread.value.closed ? t('messageDetail.closed') : t('messageDetail.active'))
 
   if (reservationMatched.value) {
-    parts.push('已关联订单')
+    parts.push(t('messageDetail.reservationLinked'))
   }
 
   return parts.join(' · ')
@@ -602,10 +610,10 @@ async function scrollToConversationBottom(duration = 0) {
 
 function resolveSenderLabel(message: MessageDTO) {
   if (message.senderType === MessageSenderType.STAFF) {
-    return message.senderName || '酒店客服'
+    return message.senderName || t('messageDetail.staff')
   }
 
-  return message.senderName || '住客'
+  return message.senderName || t('messageDetail.guest')
 }
 
 function resolveAvatarCharacter(source: string, fallbackValue: string) {
@@ -624,18 +632,21 @@ function resolveAvatarCharacter(source: string, fallbackValue: string) {
 
 function resolveMessageAvatarLabel(message: MessageDTO) {
   if (message.senderType === MessageSenderType.STAFF) {
-    return resolveAvatarCharacter(message.senderName || '店', '店')
+    return resolveAvatarCharacter(
+      message.senderName || t('messageDetail.staffAvatar'),
+      t('messageDetail.staffAvatar'),
+    )
   }
 
   if (activeThread.value) {
     return resolveMessageThreadAvatarLabel(activeThread.value)
   }
 
-  return resolveAvatarCharacter(resolveSenderLabel(message), '客')
+  return resolveAvatarCharacter(resolveSenderLabel(message), t('messageDetail.guestAvatar'))
 }
 
 function formatDateTime(value: string) {
-  return formatStoreDateTime(value, 'month-day-time', '时间未知')
+  return formatStoreDateTime(value, 'month-day-time', t('messageDetail.unknownTime'))
 }
 
 function normalizeExternalUrl(rawUrl: string) {
@@ -734,17 +745,28 @@ function buildConversationContext() {
   const recentMessages = messages.value.slice(-20)
 
   for (const message of recentMessages) {
-    const role = message.senderType === MessageSenderType.STAFF ? '客服' : '住客'
+    const role =
+      message.senderType === MessageSenderType.STAFF
+        ? t('messageDetail.staff')
+        : t('messageDetail.guest')
     historyLines.push(`[${role}] ${message.content}`)
   }
 
   const header = [
-    `渠道：${activeThread.value?.channelName || '-'}`,
-    `订单号：${activeThread.value?.bookingId || activeThread.value?.threadId || '-'}`,
-    `会话状态：${activeThread.value?.closed ? '已关闭' : '活跃'}`,
+    t('messageDetail.contextChannel', { value: activeThread.value?.channelName || '-' }),
+    t('messageDetail.contextReservation', {
+      value: activeThread.value?.bookingId || activeThread.value?.threadId || '-',
+    }),
+    t('messageDetail.contextStatus', {
+      value: activeThread.value?.closed
+        ? t('messageDetail.closed')
+        : t('messageDetail.contextActive'),
+    }),
   ].join('；')
 
-  return `${header}\n\n最近会话：\n${historyLines.join('\n') || '暂无历史消息'}`
+  return `${header}\n\n${t('messageDetail.contextHistory')}\n${
+    historyLines.join('\n') || t('messageDetail.noHistory')
+  }`
 }
 
 function parseAiDraft(rawReply: string) {
@@ -855,7 +877,7 @@ async function requestMessageTranslation(message: MessageDTO, signal: AbortSigna
   )
   const translatedText = normalizeTranslatedText(response.data?.translatedContent || '')
   if (!response.success || !translatedText) {
-    throw new Error(response.message || '翻译消息失败')
+    throw new Error(response.message || t('messageDetail.translationFailed'))
   }
   return translatedText
 }
@@ -950,7 +972,7 @@ function ensureMessageTranslation(
       translationFailedMap.value[key] = true
       console.error('翻译消息失败:', error)
       if (options.manual) {
-        showWarningToast(resolveWarningMessage(error, '翻译消息失败'))
+        showWarningToast(resolveWarningMessage(error, t('messageDetail.translationFailed')))
       }
     },
   })
@@ -1087,7 +1109,7 @@ function findThreadById(threadItems: MessageThreadDTO[], targetThreadId: number)
 async function loadThreads(requestToken?: number, expectedThreadId?: number) {
   const response = await getMessageThreads()
   if (!response.success || !response.data) {
-    throw new Error(response.message || '加载会话失败')
+    throw new Error(response.message || t('messageDetail.loadConversationFailed'))
   }
 
   if (
@@ -1106,7 +1128,7 @@ async function loadThreads(requestToken?: number, expectedThreadId?: number) {
 async function loadMessages(expectedThreadId: number, requestToken?: number) {
   const response = await getThreadMessages(expectedThreadId)
   if (!response.success || !response.data) {
-    throw new Error(response.message || '加载消息失败')
+    throw new Error(response.message || t('messageDetail.loadMessagesFailed'))
   }
 
   if (
@@ -1257,7 +1279,7 @@ async function loadPage() {
 
   if (!hasValidThreadId(currentThreadId)) {
     stopPolling()
-    loadNotice.value = '缺少会话编号'
+    loadNotice.value = t('messageDetail.missingThreadId')
     return
   }
 
@@ -1292,7 +1314,7 @@ async function loadPage() {
     if (!isActivePageRequest(requestToken, currentThreadId)) {
       return
     }
-    loadNotice.value = resolveWarningMessage(error, '会话加载失败')
+    loadNotice.value = resolveWarningMessage(error, t('messageDetail.pageLoadFailed'))
     if (!isHandledRequestError(error)) {
       showWarningToast(loadNotice.value)
     }
@@ -1313,10 +1335,10 @@ async function handleSendMessage() {
   try {
     const response = await sendThreadMessage(threadId.value, {
       content,
-      senderName: '酒店客服',
+      senderName: t('messageDetail.staff'),
     })
     if (!response.success || !response.data) {
-      throw new Error(response.message || '发送消息失败')
+      throw new Error(response.message || t('messageDetail.sendMessageFailed'))
     }
 
     composerValue.value = ''
@@ -1325,10 +1347,10 @@ async function handleSendMessage() {
     await scrollToConversationBottom(180)
     await nextTick()
     refreshMessageTranslationObserver()
-    showSuccessToast('消息已发送')
+    showSuccessToast(t('messageDetail.sent'))
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '发送消息失败'))
+      showWarningToast(resolveWarningMessage(error, t('messageDetail.sendMessageFailed')))
     }
   } finally {
     sending.value = false
@@ -1337,7 +1359,7 @@ async function handleSendMessage() {
 
 async function handleOpenReservation() {
   if (!reservationId.value) {
-    showWarningToast('当前会话未匹配到订单')
+    showWarningToast(t('messageDetail.reservationMissing'))
     return
   }
 
@@ -1350,7 +1372,7 @@ async function handleOpenReservation() {
 
 async function handleGenerateAiDraft() {
   if (!activeThread.value || activeThread.value.closed) {
-    showWarningToast('当前会话不可生成 AI 草稿')
+    showWarningToast(t('messageDetail.draftUnavailable'))
     return
   }
 
@@ -1380,17 +1402,17 @@ async function handleGenerateAiDraft() {
       message: promptLines.join('\n'),
     })
     if (!response.success || !response.data?.reply) {
-      throw new Error(response.message || '生成 AI 草稿失败')
+      throw new Error(response.message || t('messageDetail.draftFailed'))
     }
 
     aiSessionId.value = response.data.sessionId || aiSessionId.value
     const parsed = parseAiDraft(response.data.reply)
-    aiContextSummary.value = parsed.contextSummary || '已根据最近会话生成上下文摘要。'
+    aiContextSummary.value = parsed.contextSummary || t('messageDetail.contextSummary')
     aiDraft.value = parsed.draftReply
     clearAiDraftTranslation()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '生成 AI 草稿失败'))
+      showWarningToast(resolveWarningMessage(error, t('messageDetail.draftFailed')))
     }
   } finally {
     draftLoading.value = false
@@ -1430,7 +1452,7 @@ async function handleToggleAiDraftTranslation() {
 
   const draft = aiDraft.value.trim()
   if (!draft) {
-    showWarningToast('当前没有可翻译的草稿')
+    showWarningToast(t('messageDetail.noDraftToTranslate'))
     return
   }
 
@@ -1450,7 +1472,7 @@ async function handleToggleAiDraftTranslation() {
       translationTargetLanguage.value,
     )
     if (!translatedDraft) {
-      throw new Error('翻译结果为空，请重试')
+      throw new Error(t('messageDetail.emptyTranslation'))
     }
 
     aiDraftTranslation.value = translatedDraft
@@ -1459,7 +1481,7 @@ async function handleToggleAiDraftTranslation() {
     isAiDraftTranslationView.value = true
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '翻译草稿失败'))
+      showWarningToast(resolveWarningMessage(error, t('messageDetail.draftTranslationFailed')))
     }
   } finally {
     aiDraftTranslationLoading.value = false
@@ -1469,12 +1491,12 @@ async function handleToggleAiDraftTranslation() {
 async function handlePolishAiDraft() {
   const instruction = aiInstruction.value.trim()
   if (!instruction) {
-    showWarningToast('请输入优化要求')
+    showWarningToast(t('messageDetail.requirementsRequired'))
     return
   }
 
   if (!aiDraft.value.trim()) {
-    showWarningToast('当前没有可优化的草稿')
+    showWarningToast(t('messageDetail.noDraftToPolish'))
     return
   }
 
@@ -1499,7 +1521,7 @@ async function handlePolishAiDraft() {
       message: promptLines.join('\n'),
     })
     if (!response.success || !response.data?.reply) {
-      throw new Error(response.message || '优化 AI 草稿失败')
+      throw new Error(response.message || t('messageDetail.polishFailed'))
     }
 
     aiSessionId.value = response.data.sessionId || aiSessionId.value
@@ -1507,7 +1529,7 @@ async function handlePolishAiDraft() {
     clearAiDraftTranslation()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '优化 AI 草稿失败'))
+      showWarningToast(resolveWarningMessage(error, t('messageDetail.polishFailed')))
     }
   } finally {
     aiPolishLoading.value = false

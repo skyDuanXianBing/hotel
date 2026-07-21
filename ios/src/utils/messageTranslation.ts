@@ -1,4 +1,5 @@
 import { sendAiChatMessage } from '@/api/message'
+import { i18n } from '@/locales'
 
 export type MessageTranslationLanguageValue = 'zh-CN' | 'en' | 'ja' | 'ko'
 
@@ -122,7 +123,7 @@ export async function requestAiMessageTranslation(
   )
 
   if (!response.success || !response.data?.reply) {
-    throw new Error(response.message || '翻译失败')
+    throw new Error(response.message || i18n.global.t('runtime.errors.translationFailed'))
   }
 
   return normalizeTranslatedText(response.data.reply)

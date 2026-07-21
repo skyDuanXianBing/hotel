@@ -5,44 +5,44 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.rooms" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">房情表</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.RoomsRoomTable') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content fullscreen class="mobile-page room-table-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新房情" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('stage5UiAttributes.9')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <section class="mobile-hero room-table-page__hero">
-        <p class="mobile-note room-table-page__eyebrow">住宿运营</p>
-        <h1 class="mobile-title">房情表</h1>
-        <p class="mobile-subtitle">移动端拆为单日统计与远期 7 日视图，避免桌面宽表直接平移。</p>
+        <p class="mobile-note room-table-page__eyebrow">{{ $t('stage5VisibleText.121') }}</p>
+        <h1 class="mobile-title">{{ $t('routes.RoomsRoomTable') }}</h1>
+        <p class="mobile-subtitle">{{ $t('stage5VisibleText.218') }}</p>
         <div class="mobile-chip-row">
           <span class="mobile-chip">{{ formatDateWithWeekday(selectedDate) }}</span>
-          <span class="mobile-chip">{{ activeView === 'daily' ? '单日房情' : '远期房情' }}</span>
+          <span class="mobile-chip">{{ activeView === 'daily' ? $t('stage5DynamicUi.25') : $t('stage5DynamicUi.75') }}</span>
         </div>
       </section>
 
       <div class="mobile-stack">
         <section class="mobile-card room-table-page__toolbar-card">
           <div class="room-table-page__toolbar-row">
-            <ion-button fill="outline" size="small" @click="handleShiftDate(-1)">前一天</ion-button>
-            <ion-button fill="outline" size="small" @click="handleGoToday">今天</ion-button>
-            <ion-button fill="outline" size="small" @click="handleShiftDate(1)">后一天</ion-button>
+            <ion-button fill="outline" size="small" @click="handleShiftDate(-1)">{{ $t('accommodation.roomPrice.previousDay') }}</ion-button>
+            <ion-button fill="outline" size="small" @click="handleGoToday">{{ $t('accommodation.common.today') }}</ion-button>
+            <ion-button fill="outline" size="small" @click="handleShiftDate(1)">{{ $t('accommodation.roomPrice.nextDay') }}</ion-button>
           </div>
 
           <label class="room-table-page__date-field">
-            <span>业务日</span>
+            <span>{{ $t('stage5VisibleText.111') }}</span>
             <input :value="selectedDate" type="date" @input="handleDateInput" />
           </label>
 
           <ion-segment v-model="activeView" @ionChange="handleViewChange">
             <ion-segment-button value="daily">
-              <ion-label>单日</ion-label>
+              <ion-label>{{ $t('stage5VisibleText.144') }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="future">
-              <ion-label>远期</ion-label>
+              <ion-label>{{ $t('stage5VisibleText.234') }}</ion-label>
             </ion-segment-button>
           </ion-segment>
 
@@ -52,8 +52,8 @@
         <section v-if="activeView === 'daily'" class="mobile-card">
           <div class="mobile-inline-row room-table-page__section-header">
             <div>
-              <h2 class="mobile-section-title">单日总览</h2>
-              <p class="mobile-note">按房型拆解总房、可售、在住、关房、脏净与入住率。</p>
+              <h2 class="mobile-section-title">{{ $t('stage5VisibleText.145') }}</h2>
+              <p class="mobile-note">{{ $t('stage5VisibleText.181') }}</p>
             </div>
             <ion-spinner v-if="loading" name="crescent" />
           </div>
@@ -70,41 +70,41 @@
               <div class="room-table-page__statistics-header">
                 <div>
                   <strong>{{ item.roomTypeName }}</strong>
-                  <p>总房 {{ item.totalRooms }} · 可售 {{ item.availableForSale }} · 可用 {{ item.availableRooms }}</p>
+                  <p>{{ $t('stage5DynamicUi.113') }} {{ item.totalRooms }} {{ $t('stage5DynamicUi.82') }} {{ item.availableForSale }} {{ $t('stage5DynamicUi.83') }} {{ item.availableRooms }}</p>
                 </div>
                 <span>{{ formatPercent(item.expectedOccupancyRate) }}</span>
               </div>
 
               <div class="room-table-page__statistics-grid">
-                <span>在住 {{ item.occupiedRooms }}</span>
-                <span>不含预离 {{ item.occupiedWithoutDeparture }}</span>
-                <span>预抵 {{ item.scheduledArrival }}</span>
-                <span>预离 {{ item.scheduledDeparture }}</span>
-                <span>保留房 {{ item.reservedRooms }}</span>
-                <span>维修房 {{ item.maintenanceRooms }}</span>
-                <span>停用房 {{ item.outOfOrderRooms }}</span>
-                <span>链接关房 {{ item.linkedClosedRooms }}</span>
-                <span>净房 {{ item.cleanRooms }}</span>
-                <span>脏房 {{ item.dirtyRooms }}</span>
-                <span>当日取消 {{ item.dailyCancelledRooms }}</span>
+                <span>{{ $t('accommodation.roomTable.columns.occupiedRooms') }} {{ item.occupiedRooms }}</span>
+                <span>{{ $t('stage5DynamicUi.86') }} {{ item.occupiedWithoutDeparture }}</span>
+                <span>{{ $t('accommodation.roomTable.columns.scheduledArrival') }} {{ item.scheduledArrival }}</span>
+                <span>{{ $t('accommodation.roomTable.columns.scheduledDeparture') }} {{ item.scheduledDeparture }}</span>
+                <span>{{ $t('roomStatus.closeRoom.type.retain') }} {{ item.reservedRooms }}</span>
+                <span>{{ $t('roomStatus.closeRoom.type.maintenance') }} {{ item.maintenanceRooms }}</span>
+                <span>{{ $t('roomStatus.closeRoom.type.stop') }} {{ item.outOfOrderRooms }}</span>
+                <span>{{ $t('stage5DynamicUi.139') }} {{ item.linkedClosedRooms }}</span>
+                <span>{{ $t('accommodation.roomTable.columns.cleanRooms') }} {{ item.cleanRooms }}</span>
+                <span>{{ $t('accommodation.roomTable.columns.dirtyRooms') }} {{ item.dirtyRooms }}</span>
+                <span>{{ $t('stage5DynamicUi.111') }} {{ item.dailyCancelledRooms }}</span>
               </div>
             </article>
           </div>
 
-          <p v-else-if="!loading" class="mobile-note">当前日期暂无房情统计。</p>
+          <p v-else-if="!loading" class="mobile-note">{{ $t('stage5VisibleText.164') }}</p>
         </section>
 
         <section v-else class="mobile-card">
           <div class="mobile-inline-row room-table-page__section-header">
             <div>
-              <h2 class="mobile-section-title">远期 7 日房情</h2>
-              <p class="mobile-note">每张房型卡展示可售、占用、不可售三项核心状态。</p>
+              <h2 class="mobile-section-title">{{ $t('stage5VisibleText.235') }}</h2>
+              <p class="mobile-note">{{ $t('stage5VisibleText.208') }}</p>
             </div>
             <ion-spinner v-if="loading" name="crescent" />
           </div>
 
           <p class="mobile-note room-table-page__future-note">
-            说明：可售=可售房间数，占用=已营房间数，不可售=保留+维修+链接关房等不可售房间数。
+            {{ $t('stage5VisibleText.226') }}
           </p>
 
           <div v-if="futureRoomTypes.length > 0" class="mobile-list room-table-page__future-list">
@@ -112,7 +112,7 @@
               <div class="room-table-page__statistics-header">
                 <div>
                   <strong>{{ roomType.roomTypeName }}</strong>
-                  <p>总房 {{ roomType.totalRooms }}</p>
+                  <p>{{ $t('stage5DynamicUi.113') }} {{ roomType.totalRooms }}</p>
                 </div>
               </div>
 
@@ -120,29 +120,29 @@
                 <article v-for="dateItem in roomType.dates" :key="`${roomType.roomTypeName}-${dateItem.date}`" class="room-table-page__future-day">
                   <strong>{{ dateItem.date.slice(5) }}</strong>
                   <span>{{ dateItem.dayOfWeek }}</span>
-                  <small>可售 {{ dateItem.available }}</small>
-                  <small>占用 {{ dateItem.occupied }}</small>
-                  <small>不可售 {{ dateItem.unavailable }}</small>
+                  <small>{{ $t('accommodation.roomTable.future.available') }} {{ dateItem.available }}</small>
+                  <small>{{ $t('accommodation.roomTable.future.occupied') }} {{ dateItem.occupied }}</small>
+                  <small>{{ $t('accommodation.roomTable.future.unavailable') }} {{ dateItem.unavailable }}</small>
                 </article>
               </div>
             </article>
           </div>
 
           <section v-if="futureStatistics.length > 0" class="room-table-page__future-summary">
-            <h3 class="mobile-section-title">区间统计</h3>
+            <h3 class="mobile-section-title">{{ $t('stage5VisibleText.143') }}</h3>
             <div class="room-table-page__future-summary-strip">
               <article v-for="item in futureStatistics" :key="item.date" class="room-table-page__future-summary-card">
                 <strong>{{ item.date.slice(5) }}</strong>
-                <span>有效客房 {{ item.effectiveRooms }}</span>
-                <span>入住率 {{ formatPercent(item.expectedOccupancyRate) }}</span>
-                <span>客房收入 {{ formatCurrency(item.expectedRoomRevenue) }}</span>
-                <span>总房费 {{ formatCurrency(item.expectedTotalRoomFee) }}</span>
-                <span>平均收益 {{ formatCurrency(item.averageRoomRevenue) }}</span>
+                <span>{{ $t('stage5DynamicUi.124') }} {{ item.effectiveRooms }}</span>
+                <span>{{ $t('stage5.statistics.common.occupancyRate') }} {{ formatPercent(item.expectedOccupancyRate) }}</span>
+                <span>{{ $t('stage5DynamicUi.107') }} {{ formatMoney(item.expectedRoomRevenue) }}</span>
+                <span>{{ $t('stage5.statistics.accommodation.totalRoomFee') }} {{ formatMoney(item.expectedTotalRoomFee) }}</span>
+                <span>{{ $t('stage5DynamicUi.109') }} {{ formatMoney(item.averageRoomRevenue) }}</span>
               </article>
             </div>
           </section>
 
-          <p v-if="!loading" class="mobile-note">首期不做明细导出，结构已为后续导出预留。</p>
+          <p v-if="!loading" class="mobile-note">{{ $t('stage5VisibleText.242') }}</p>
         </section>
       </div>
     </ion-content>
@@ -167,6 +167,7 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { onIonViewWillEnter } from '@ionic/vue'
 import {
   getFutureRoomTableData,
@@ -176,7 +177,9 @@ import {
   type RoomStatisticsDTO,
 } from '@/api/roomTable'
 import { ROUTE_PATHS } from '@/router/guards'
-import { formatCurrency, formatDateWithWeekday, formatPercent, getTodayDate, shiftDate } from '@/utils/accommodation'
+import { useStoreStore } from '@/stores/store'
+import { formatDateWithWeekday, formatPercent, getTodayDate, shiftDate } from '@/utils/accommodation'
+import { formatMoney as formatBusinessMoney } from '@/utils/formatters'
 import { showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
@@ -189,12 +192,16 @@ interface SummaryMetric {
 }
 
 const selectedDate = ref(getTodayDate())
+const storeStore = useStoreStore()
+const { t } = useI18n()
 const activeView = ref<RoomTableViewMode>('daily')
 const loading = ref(false)
 const errorMessage = ref('')
 const dailyStatistics = ref<RoomStatisticsDTO[]>([])
 const futureRoomTypes = ref<FutureRoomTypeDataDTO[]>([])
 const futureStatistics = ref<FutureRoomStatisticsDTO[]>([])
+const currentCurrency = computed(() => storeStore.currentStore?.currency || 'CNY')
+const currentMoneyContext = computed(() => ({ country: storeStore.currentStore?.country }))
 
 const dailySummaryMetrics = computed<SummaryMetric[]>(() => {
   if (dailyStatistics.value.length <= 0) {
@@ -207,15 +214,37 @@ const dailySummaryMetrics = computed<SummaryMetric[]>(() => {
   }
 
   return [
-    { key: 'totalRooms', label: '总房数', value: total.totalRooms },
-    { key: 'availableForSale', label: '可售房', value: total.availableForSale },
-    { key: 'availableRooms', label: '可用房', value: total.availableRooms },
-    { key: 'occupiedRooms', label: '在住房', value: total.occupiedRooms },
-    { key: 'cleanRooms', label: '净房', value: total.cleanRooms },
-    { key: 'dirtyRooms', label: '脏房', value: total.dirtyRooms },
-    { key: 'occupancy', label: '预计入住率', value: formatPercent(total.expectedOccupancyRate) },
+    { key: 'totalRooms', label: t('roomStatus.roomTable.metrics.totalRooms'), value: total.totalRooms },
+    {
+      key: 'availableForSale',
+      label: t('roomStatus.roomTable.metrics.availableForSale'),
+      value: total.availableForSale,
+    },
+    {
+      key: 'availableRooms',
+      label: t('roomStatus.roomTable.metrics.availableRooms'),
+      value: total.availableRooms,
+    },
+    {
+      key: 'occupiedRooms',
+      label: t('roomStatus.roomTable.metrics.occupiedRooms'),
+      value: total.occupiedRooms,
+    },
+    { key: 'cleanRooms', label: t('roomStatus.roomTable.metrics.cleanRooms'), value: total.cleanRooms },
+    { key: 'dirtyRooms', label: t('roomStatus.roomTable.metrics.dirtyRooms'), value: total.dirtyRooms },
+    {
+      key: 'occupancy',
+      label: t('roomStatus.roomTable.metrics.occupancy'),
+      value: formatPercent(total.expectedOccupancyRate),
+    },
   ]
 })
+
+function formatMoney(value?: number | null) {
+  return formatBusinessMoney(Number(value || 0), currentCurrency.value, {
+    maximumFractionDigits: 0,
+  }, currentMoneyContext.value)
+}
 
 function resolveWarningMessage(error: unknown, fallbackMessage: string) {
   if (error instanceof Error && error.message) {
@@ -227,13 +256,13 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
 async function loadDailyView() {
   const response = await getRoomTableStatistics(selectedDate.value)
   if (!response.success || !response.data) {
-    throw new Error(response.message || '加载单日房情失败')
+    throw new Error(response.message || t('stage5Pattern.loadFailed'))
   }
 
   const nextStatistics = [...response.data.statistics]
   nextStatistics.push({
     ...response.data.total,
-    roomTypeName: response.data.total.roomTypeName || '合计',
+    roomTypeName: response.data.total.roomTypeName || t('roomStatus.roomTable.total'),
   })
 
   dailyStatistics.value = nextStatistics
@@ -242,7 +271,7 @@ async function loadDailyView() {
 async function loadFutureView() {
   const response = await getFutureRoomTableData(selectedDate.value, 7)
   if (!response.success || !response.data) {
-    throw new Error(response.message || '加载远期房情失败')
+    throw new Error(response.message || t('stage5Pattern.loadFailed'))
   }
 
   futureRoomTypes.value = response.data.roomTypes
@@ -263,7 +292,7 @@ async function loadPageData() {
       dailyStatistics.value = []
     }
   } catch (error) {
-    const message = resolveWarningMessage(error, '加载房情失败')
+    const message = resolveWarningMessage(error, t('stage5Pattern.loadFailed'))
     errorMessage.value = message
     if (!isHandledRequestError(error)) {
       showWarningToast(message)

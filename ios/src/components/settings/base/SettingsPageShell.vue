@@ -5,7 +5,7 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="backHref" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">{{ title }}</ion-title>
+        <ion-title class="app-page-header__title">{{ localizedTitle }}</ion-title>
         <ion-buttons v-if="toolbarActionLabel || slots.toolbarEnd" slot="end">
           <slot name="toolbarEnd">
             <ion-button
@@ -30,7 +30,7 @@
         <p v-if="heroEyebrow" class="mobile-note" :class="eyebrowClass">
           {{ heroEyebrow }}
         </p>
-        <h1 class="mobile-title">{{ heroTitle }}</h1>
+        <h1 class="mobile-title">{{ localizedHeroTitle }}</h1>
         <p v-if="heroSubtitle" class="mobile-subtitle">{{ heroSubtitle }}</p>
         <div v-if="normalizedChips.length > 0" class="mobile-chip-row">
           <span v-for="chip in normalizedChips" :key="chip.label" class="mobile-chip" :class="chip.class">
@@ -68,6 +68,8 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { computed, useSlots } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 
 interface SettingsChip {
   label: string
@@ -113,8 +115,23 @@ const emit = defineEmits<{
   toolbarAction: []
 }>()
 
+const route = useRoute()
+const { t, te } = useI18n()
 const slots = useSlots()
 
+const localizedTitle = computed(() => {
+  const titleKey = typeof route.meta.titleKey === 'string' ? route.meta.titleKey : ''
+  return titleKey && te(titleKey) ? t(titleKey) : props.title
+})
+const localizedHeroTitle = computed(() => {
+  const preserveHeroTitle = [
+    'SettingsStoreProfile',
+    'SettingsStoreDetails',
+    'SettingsPricingTools',
+  ].includes(String(route.name || ''))
+
+  return preserveHeroTitle ? props.heroTitle : localizedTitle.value
+})
 const normalizedChips = computed(() => props.chips.filter((chip) => chip.label))
 const hasBottomActions = computed(() => Boolean(slots.bottomActions))
 const contentClasses = computed(() => [

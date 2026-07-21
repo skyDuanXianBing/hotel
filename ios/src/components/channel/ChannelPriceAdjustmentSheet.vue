@@ -8,9 +8,9 @@
   >
     <ion-header translucent>
       <ion-toolbar class="channel-price-sheet__toolbar">
-        <ion-title>编辑价格比例</ion-title>
+        <ion-title>{{ $t('channel.dialogs.editPriceRatio.title') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="$emit('dismiss')">关闭</ion-button>
+          <ion-button @click="$emit('dismiss')">{{ $t('home.section.close') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -25,12 +25,12 @@
           <ion-select
             :value="form.direction"
             interface="action-sheet"
-            label="价格方向"
+            :label="$t('iosStage5.channel.priceDirection')"
             label-placement="stacked"
             @ionChange="handleDirectionChange"
           >
-            <ion-select-option value="expensive">更贵</ion-select-option>
-            <ion-select-option value="cheaper">更便宜</ion-select-option>
+            <ion-select-option value="expensive">{{ $t('channel.dialogs.editPriceRatio.expensive') }}</ion-select-option>
+            <ion-select-option value="cheaper">{{ $t('channel.dialogs.editPriceRatio.cheaper') }}</ion-select-option>
           </ion-select>
         </ion-item>
 
@@ -39,7 +39,7 @@
             :value="String(form.value)"
             type="number"
             inputmode="decimal"
-            label="调整数值"
+            :label="$t('iosStage5.channel.adjustmentValue')"
             label-placement="stacked"
             @ionInput="handleValueInput"
           />
@@ -49,18 +49,20 @@
           <ion-select
             :value="form.unit"
             interface="action-sheet"
-            label="单位"
+            :label="$t('iosStage5.channel.unit')"
             label-placement="stacked"
             @ionChange="handleUnitChange"
           >
-            <ion-select-option value="%">百分比 %</ion-select-option>
-            <ion-select-option value="¥">固定金额 ¥</ion-select-option>
+            <ion-select-option value="PERCENTAGE">{{ $t('settingsStage4.pricingTools.adjustment.percentage') }} %</ion-select-option>
+            <ion-select-option value="FIXED">
+              {{ $t('settingsStage4.pricingTools.adjustment.fixed') }} {{ currencySymbol }}
+            </ion-select-option>
           </ion-select>
         </ion-item>
 
         <ion-item class="channel-price-sheet__item channel-price-sheet__item--toggle">
           <ion-toggle :checked="form.autoSyncPrice" @ionChange="handleAutoSyncChange">
-            自动同步价格到此渠道
+            {{ $t('iosStage5.channel.syncPrice') }}
           </ion-toggle>
         </ion-item>
       </ion-list>
@@ -69,9 +71,9 @@
     <ion-footer>
       <ion-toolbar class="channel-price-sheet__footer-toolbar">
         <div class="channel-price-sheet__footer">
-          <ion-button fill="outline" @click="$emit('dismiss')">取消</ion-button>
+          <ion-button fill="outline" @click="$emit('dismiss')">{{ $t('accommodation.common.cancel') }}</ion-button>
           <ion-button :disabled="!form || submitting" @click="handleSave">
-            {{ submitting ? '保存中...' : '保存' }}
+            {{ submitting ? $t('channel.mobile.common.saving') : $t('home.manage.save') }}
           </ion-button>
         </div>
       </ion-toolbar>
@@ -80,6 +82,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   IonButton,
   IonButtons,
@@ -97,11 +100,15 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { computed, ref, watch } from 'vue'
+import { useStoreStore } from '@/stores/store'
+import { formatMoney, getCurrencySymbol } from '@/utils/formatters'
 import type {
   PriceAdjustmentDirection,
   PriceAdjustmentEditorValue,
   PriceAdjustmentUnit,
 } from '@/components/channel/channelUtils'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   isOpen: boolean
@@ -114,19 +121,37 @@ const emit = defineEmits<{
   save: [value: PriceAdjustmentEditorValue]
 }>()
 
+const storeStore = useStoreStore()
 const form = ref<PriceAdjustmentEditorValue | null>(null)
+const currentCurrency = computed(() => storeStore.currentStore?.currency || 'CNY')
+const currentMoneyContext = computed(() => ({ country: storeStore.currentStore?.country }))
+const currencySymbol = computed(() =>
+  getCurrencySymbol(currentCurrency.value, currentMoneyContext.value),
+)
 
 const previewText = computed(() => {
   if (!form.value) {
     return ''
   }
   if (form.value.value === 0) {
-    return '当前为等同于基准价'
+    return t('stage5Final.channel.equalBaseline')
   }
 
-  const directionText = form.value.direction === 'expensive' ? '更贵' : '更便宜'
-  const unitText = form.value.unit === '%' ? '%' : '元'
-  return `保存后将变为比基准价${directionText} ${form.value.value}${unitText}`
+  const directionText = form.value.direction === 'expensive' ? t('channel.dialogs.editPriceRatio.expensive') : t('channel.dialogs.editPriceRatio.cheaper')
+  const unitText =
+    form.value.unit === 'PERCENTAGE'
+      ? '%'
+        : formatMoney(
+            form.value.value,
+            currentCurrency.value,
+            { maximumFractionDigits: 2 },
+            currentMoneyContext.value,
+          )
+  return t('stage5Final.channel.adjustmentPreview', {
+    direction: directionText,
+    value: form.value.unit === 'PERCENTAGE' ? form.value.value : '',
+    unit: unitText,
+  })
 })
 
 function resetForm() {
@@ -269,6 +294,8 @@ watch(
 .channel-price-sheet__item ion-select::part(text) {
   color: var(--app-heading);
   font-size: 16px;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .channel-price-sheet__item--number ion-input::part(native) {

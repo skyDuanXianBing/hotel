@@ -11,7 +11,7 @@
         <button
           type="button"
           class="order-card__more-btn"
-          aria-label="更多订单操作"
+          :aria-label="$t('order.mobile.moreActions')"
           @click.stop="$emit('openActions')"
         >
           <ion-icon :icon="ellipsisHorizontal" />
@@ -20,7 +20,7 @@
     </div>
 
     <div class="order-card__stay-band">
-      <span class="order-card__stay-label">入住时段</span>
+      <span class="order-card__stay-label">{{ $t('order.mobile.stayPeriod') }}</span>
       <p class="order-card__stay">{{ stayText }}</p>
     </div>
 
@@ -31,9 +31,11 @@
     </div>
 
     <div v-if="showUnassignedExceptionBlock" class="order-card__alert order-card__alert--warning">
-      <strong>映射异常</strong>
-      <span v-if="reservation.otaRoomId">渠道房型 ID：{{ reservation.otaRoomId }}</span>
-      <span v-else>请尽快核对渠道房型与本地房型的映射关系。</span>
+      <strong>{{ $t('order.mobile.mappingIssue') }}</strong>
+      <span v-if="reservation.otaRoomId">
+        {{ $t('order.mobile.mappingIssueWithId', { id: reservation.otaRoomId }) }}
+      </span>
+      <span v-else>{{ $t('order.mobile.mappingIssueDescription') }}</span>
     </div>
 
     <div v-if="showDeletedRoomExceptionBlock" class="order-card__alert order-card__alert--danger">
@@ -73,6 +75,7 @@
 import { IonIcon } from '@ionic/vue'
 import { ellipsisHorizontal } from 'ionicons/icons'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { OrderBoxItem } from '@/api/orderBox'
 import type { ReservationDTO } from '@/api/reservation'
 import {
@@ -93,8 +96,11 @@ const props = defineProps<{
   reservation: ReservationDTO
   activeTab: string
   channelColor?: string
+  currency?: string
+  country?: string
   orderBoxItem?: OrderBoxItem | null
 }>()
+const { t } = useI18n()
 
 defineEmits<{
   openDetail: []
@@ -102,8 +108,8 @@ defineEmits<{
   openActions: []
 }>()
 
-const guestName = computed(() => props.reservation.guestName || '未命名客人')
-const channelName = computed(() => props.reservation.channelName || '自来客')
+const guestName = computed(() => props.reservation.guestName || t('order.mobile.unnamedGuest'))
+const channelName = computed(() => props.reservation.channelName || t('order.channelLabels.directGuest'))
 const statusText = computed(() => getReservationStatusText(props.reservation.status))
 const statusColor = computed(() => getReservationStatusColor(props.reservation.status))
 const settlementText = computed(() => getSettlementStatusText(props.reservation))
@@ -114,19 +120,28 @@ const assignStatusColor = computed(() => {
   return color === 'warning' ? 'danger' : color
 })
 const channelOrderNumber = computed(() => getDisplayChannelOrderNumber(props.reservation))
-const amountText = computed(() => formatAmount(props.reservation.totalAmount ?? props.reservation.currentRoomPrice))
+const amountText = computed(() =>
+  formatAmount(
+    props.reservation.totalAmount ?? props.reservation.currentRoomPrice,
+    props.currency || 'CNY',
+    { country: props.country },
+  ),
+)
 const movedInAtText = computed(() => formatDateTime(props.orderBoxItem?.movedInAt))
 const createdAtText = computed(() => formatDateTime(props.reservation.createdAt))
 const checkinTypeText = computed(() => getCheckinTypeText(props.reservation.checkinType))
 const phoneText = computed(() => props.reservation.phone?.trim() || '')
 const notesText = computed(() => props.reservation.notes?.trim() || '')
 const roomText = computed(() => {
-  const roomTypeName = props.reservation.roomTypeName || '待排房型'
+  const roomTypeName = props.reservation.roomTypeName || t('order.mobile.pendingRoomType')
   const roomNumber = props.reservation.roomNumber || '-'
   return `${roomTypeName} / ${roomNumber}`
 })
 const stayText = computed(() => {
-  return `${formatDateLabel(props.reservation.checkInDate)} 至 ${formatDateLabel(props.reservation.checkOutDate)}`
+  return t('order.mobile.dateRange', {
+    start: formatDateLabel(props.reservation.checkInDate),
+    end: formatDateLabel(props.reservation.checkOutDate),
+  })
 })
 const shouldShowCheckinType = computed(() => {
   const normalized = (props.reservation.checkinType || '').toLowerCase()
@@ -134,7 +149,7 @@ const shouldShowCheckinType = computed(() => {
 })
 const metaTimestamp = computed(() => {
   if (!createdAtText.value || createdAtText.value === '-') {
-    return '待同步'
+    return t('order.mobile.pendingSync')
   }
   return createdAtText.value
 })
@@ -145,28 +160,28 @@ const supportingLine = computed(() => {
 
   if (notesText.value) {
     return {
-      label: '备注',
+      label: t('order.table.notes'),
       value: notesText.value,
     }
   }
 
   if (props.orderBoxItem) {
     return {
-      label: '移入记录',
+      label: t('order.mobile.movedRecord'),
       value: `${movedInAtText.value} · ${props.orderBoxItem.movedInBy || '-'}`,
     }
   }
 
   if (channelOrderNumber.value !== '-') {
     return {
-      label: '渠道单号',
+      label: t('order.mobile.channelOrderNumber'),
       value: channelOrderNumber.value,
     }
   }
 
   if (phoneText.value) {
     return {
-      label: '手机号',
+      label: t('order.table.phone'),
       value: phoneText.value,
     }
   }
@@ -190,9 +205,9 @@ const showUnassignedExceptionBlock = computed(() => {
 })
 const deletedRoomReasonText = computed(() => {
   if (props.reservation.roomTypeName || props.reservation.roomNumber) {
-    return '关联房型或房间已删除，请核对后重新排房。'
+    return t('order.mobile.deletedRoomReason')
   }
-  return '房型或房间已删除，请核对异常订单。'
+  return t('order.mobile.deletedRoomFallback')
 })
 const showDeletedRoomExceptionBlock = computed(() => props.activeTab === 'deleted-rooms')
 
@@ -443,12 +458,13 @@ function resolveChannelBadgeColor(channel: string, configuredColor?: string) {
 
 .order-card__badge-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   min-width: 0;
   margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
+  white-space: normal;
+  overflow: visible;
 }
 
 .order-card__meta-badge {
@@ -457,18 +473,18 @@ function resolveChannelBadgeColor(channel: string, configuredColor?: string) {
   align-items: center;
   justify-content: center;
   min-width: 0;
-  min-height: 16px;
-  max-width: 88px;
-  padding: 0 6px;
+  min-height: 20px;
+  max-width: 112px;
+  padding: 3px 6px;
   border-radius: 3px;
   background: #eef2f7;
   color: #74829a;
   font-size: 9px;
   font-weight: var(--ios-pms-weight-bold);
-  line-height: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .order-card__meta-badge--channel {
