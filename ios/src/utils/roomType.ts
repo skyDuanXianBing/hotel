@@ -5,31 +5,46 @@ import type {
   RoomTypeDTO,
   RoomTypeWithRoomsDTO,
 } from '@/api/roomType'
+import { i18n } from '@/locales'
+import {
+  formatMoney,
+  type MoneyDisplayContext,
+} from '@/utils/formatters'
 
 export const ROOM_TYPE_DETAIL_LOCALE = 'zh-CN'
 
 export const ROOM_TYPE_SIZE_UNIT_OPTIONS = [
   {
-    label: '平方米（sqm）',
+    labelKey: 'runtime.roomType.sizeUnit.sqm',
     value: 'sqm',
   },
   {
-    label: '平方英尺（sqft）',
+    labelKey: 'runtime.roomType.sizeUnit.sqft',
     value: 'sqft',
   },
 ] as const
 
 export const ROOM_TYPE_DAILY_PRICE_FIELDS = [
-  { key: 'mondayPrice', label: '周一' },
-  { key: 'tuesdayPrice', label: '周二' },
-  { key: 'wednesdayPrice', label: '周三' },
-  { key: 'thursdayPrice', label: '周四' },
-  { key: 'fridayPrice', label: '周五' },
-  { key: 'saturdayPrice', label: '周六' },
-  { key: 'sundayPrice', label: '周日' },
+  { key: 'mondayPrice', labelKey: 'runtime.roomType.weekdayPrice.monday' },
+  { key: 'tuesdayPrice', labelKey: 'runtime.roomType.weekdayPrice.tuesday' },
+  { key: 'wednesdayPrice', labelKey: 'runtime.roomType.weekdayPrice.wednesday' },
+  { key: 'thursdayPrice', labelKey: 'runtime.roomType.weekdayPrice.thursday' },
+  { key: 'fridayPrice', labelKey: 'runtime.roomType.weekdayPrice.friday' },
+  { key: 'saturdayPrice', labelKey: 'runtime.roomType.weekdayPrice.saturday' },
+  { key: 'sundayPrice', labelKey: 'runtime.roomType.weekdayPrice.sunday' },
 ] as const
 
 type DailyPriceKey = (typeof ROOM_TYPE_DAILY_PRICE_FIELDS)[number]['key']
+
+export interface RoomTypeMoneyOptions {
+  currency?: string
+  context?: MoneyDisplayContext
+}
+
+const roomTypeText = (key: string, params?: Record<string, unknown>) => {
+  const path = `runtime.roomType.${key}`
+  return params ? i18n.global.t(path, params) : i18n.global.t(path)
+}
 
 export function extractRoomEntries(roomType: Pick<RoomTypeWithRoomsDTO, 'rooms'>) {
   const rooms: Array<{ roomNumber: string; smartlockPasscode?: string }> = []
@@ -110,45 +125,58 @@ export function buildRoomTypeCode(shortName: string, currentCode?: string) {
   return normalizedShortName.slice(0, 12).toUpperCase()
 }
 
-export function formatPriceValue(value?: number) {
+export function formatPriceValue(value?: number, options: RoomTypeMoneyOptions = {}) {
   if (value === undefined || value === null) {
-    return '待设置'
+    return roomTypeText('priceUnset')
   }
 
   const amount = Number(value)
   if (!Number.isFinite(amount)) {
-    return '待设置'
+    return roomTypeText('priceUnset')
   }
 
-  if (Number.isInteger(amount)) {
-    return `¥${amount}`
-  }
-
-  return `¥${amount.toFixed(2)}`
+  return formatMoney(
+    amount,
+    options.currency || 'CNY',
+    { minimumFractionDigits: 0, maximumFractionDigits: 2 },
+    options.context,
+  )
 }
 
-export function getBasePriceText(roomType: RoomTypeDTO) {
+export function getBasePriceText(roomType: RoomTypeDTO, options: RoomTypeMoneyOptions = {}) {
   if (roomType.defaultPrice !== undefined && roomType.defaultPrice !== null) {
-    return `默认价 ${formatPriceValue(roomType.defaultPrice)}`
+    return roomTypeText('defaultPrice', {
+      price: formatPriceValue(roomType.defaultPrice, options),
+    })
   }
 
   if (roomType.weekdayPrice !== undefined || roomType.weekendPrice !== undefined) {
-    return `平日 ${formatPriceValue(roomType.weekdayPrice)} / 周末 ${formatPriceValue(roomType.weekendPrice)}`
+    return roomTypeText('weekdayWeekendPrice', {
+      weekday: formatPriceValue(roomType.weekdayPrice, options),
+      weekend: formatPriceValue(roomType.weekendPrice, options),
+    })
   }
 
   const mondayPrice = roomType.mondayPrice
   if (mondayPrice !== undefined && mondayPrice !== null) {
-    return `周价起点 ${formatPriceValue(mondayPrice)}`
+    return roomTypeText('weeklyStartPrice', { price: formatPriceValue(mondayPrice, options) })
   }
 
-  return '默认价待设置'
+  return roomTypeText('defaultPriceUnset')
 }
 
-export function buildRoomTypePriceSummary(roomType: RoomTypeDTO) {
+export function buildRoomTypePriceSummary(
+  roomType: RoomTypeDTO,
+  options: RoomTypeMoneyOptions = {},
+) {
   const priceHighlights: string[] = []
 
   if (roomType.defaultPrice !== undefined && roomType.defaultPrice !== null) {
-    priceHighlights.push(`默认 ${formatPriceValue(roomType.defaultPrice)}`)
+    priceHighlights.push(
+      roomTypeText('defaultPriceShort', {
+        price: formatPriceValue(roomType.defaultPrice, options),
+      }),
+    )
   }
 
   for (const field of ROOM_TYPE_DAILY_PRICE_FIELDS) {
@@ -156,11 +184,13 @@ export function buildRoomTypePriceSummary(roomType: RoomTypeDTO) {
     if (priceValue === undefined || priceValue === null) {
       continue
     }
-    priceHighlights.push(`${field.label} ${formatPriceValue(priceValue)}`)
+    priceHighlights.push(
+      `${i18n.global.t(field.labelKey)} ${formatPriceValue(priceValue, options)}`,
+    )
   }
 
   if (priceHighlights.length === 0) {
-    return '未设置默认价与周价格'
+    return roomTypeText('noDefaultOrWeeklyPrice')
   }
 
   return priceHighlights.join(' · ')
@@ -364,12 +394,12 @@ export function buildRoomTypeLocationSummary(
 
   const roomTypeAddress = roomType.roomTypeAddress?.trim()
   if (roomTypeAddress) {
-    labels.push(`地址 ${roomTypeAddress}`)
+    labels.push(roomTypeText('address', { value: roomTypeAddress }))
   }
 
   const nearbyStation = roomType.nearbyStation?.trim()
   if (nearbyStation) {
-    labels.push(`附近车站 ${nearbyStation}`)
+    labels.push(roomTypeText('nearbyStation', { value: nearbyStation }))
   }
 
   return labels.join(' · ')

@@ -2,11 +2,11 @@
   <ion-page>
     <ion-header translucent>
       <ion-toolbar class="app-page-header__toolbar">
-        <ion-title class="app-page-header__title">选择门店</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.StoreSelection') }}</ion-title>
         <ion-buttons slot="end">
           <ion-button class="app-page-header__text-btn" fill="clear" :disabled="isLoggingOut" @click="handleLogout">
             <ion-icon slot="start" :icon="logOutOutline" />
-            <span>退出</span>
+            <span>{{ t('storeSelection.logout') }}</span>
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
@@ -14,11 +14,11 @@
 
     <ion-content fullscreen class="mobile-page store-page">
       <ion-refresher slot="fixed" @ionRefresh="handlePullToRefresh">
-        <ion-refresher-content pulling-text="下拉刷新门店" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="t('storeSelection.pullToRefresh')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <section class="mobile-hero store-hero">
-        <p class="mobile-note store-hero__eyebrow">当前账号</p>
+        <p class="mobile-note store-hero__eyebrow">{{ t('storeSelection.currentAccount') }}</p>
         <h1 class="mobile-title">{{ accountTitle }}</h1>
         <p class="mobile-subtitle">
           {{ accountSubtitle }} · {{ storeCountLabel }}
@@ -29,12 +29,12 @@
         <section class="mobile-card store-toolbar-card">
           <div class="mobile-inline-row store-toolbar-card__header">
             <div>
-              <h2 class="mobile-section-title">门店列表</h2>
+              <h2 class="mobile-section-title">{{ t('storeSelection.storeList') }}</h2>
             </div>
             <div class="store-toolbar-card__actions">
               <ion-button class="store-create-button" size="small" @click="handleOpenCreateStoreModal">
                 <ion-icon slot="start" :icon="addCircleOutline" />
-                <span>创建门店</span>
+                <span>{{ t('storeSelection.createStore') }}</span>
               </ion-button>
               <ion-button fill="clear" size="small" :disabled="storeStore.loading" @click="handleRefreshButton">
                 <ion-icon slot="icon-only" :icon="refreshOutline" />
@@ -46,7 +46,7 @@
             v-model="searchKeyword"
             animated
             class="store-searchbar custom-searchbar"
-            placeholder="搜索门店、城市或国家"
+            :placeholder="t('storeSelection.searchPlaceholder')"
             show-clear-button="focus"
           />
 
@@ -65,28 +65,36 @@
 
           <div v-else-if="showLoadErrorState" class="store-empty-state">
             <ion-icon :icon="alertCircleOutline" class="store-empty-state__icon" />
-            <h3 class="store-empty-state__title">门店列表加载失败</h3>
+            <h3 class="store-empty-state__title">{{ t('storeSelection.loadFailedTitle') }}</h3>
             <p class="mobile-note">{{ loadError }}</p>
             <div class="store-empty-state__actions">
-              <ion-button expand="block" class="primary-action-btn" @click="handleOpenCreateStoreModal">创建门店</ion-button>
-              <ion-button expand="block" fill="outline" @click="handleRefreshButton">重新加载</ion-button>
+              <ion-button expand="block" class="primary-action-btn" @click="handleOpenCreateStoreModal">
+                {{ t('storeSelection.createStore') }}
+              </ion-button>
+              <ion-button expand="block" fill="outline" @click="handleRefreshButton">
+                {{ t('storeSelection.reload') }}
+              </ion-button>
             </div>
           </div>
 
           <div v-else-if="showEmptyState" class="store-empty-state">
             <ion-icon :icon="storefrontOutline" class="store-empty-state__icon" />
-            <h3 class="store-empty-state__title">还没有门店</h3>
-            <p class="mobile-note">现在即可在移动端创建首家门店，创建成功后会自动进入新门店首页。</p>
+            <h3 class="store-empty-state__title">{{ t('storeSelection.emptyTitle') }}</h3>
+            <p class="mobile-note">{{ t('storeSelection.emptyDescription') }}</p>
             <div class="store-empty-state__actions">
-              <ion-button expand="block" class="primary-action-btn" @click="handleOpenCreateStoreModal">创建门店</ion-button>
-              <ion-button expand="block" fill="outline" @click="handleRefreshButton">重新加载</ion-button>
+              <ion-button expand="block" class="primary-action-btn" @click="handleOpenCreateStoreModal">
+                {{ t('storeSelection.createStore') }}
+              </ion-button>
+              <ion-button expand="block" fill="outline" @click="handleRefreshButton">
+                {{ t('storeSelection.reload') }}
+              </ion-button>
             </div>
           </div>
 
           <div v-else-if="showSearchEmptyState" class="store-empty-state store-empty-state--compact">
             <ion-icon :icon="searchOutline" class="store-empty-state__icon" />
-            <h3 class="store-empty-state__title">未找到匹配门店</h3>
-            <p class="mobile-note">请尝试更换关键词，或清空搜索后查看全部门店。</p>
+            <h3 class="store-empty-state__title">{{ t('storeSelection.searchEmptyTitle') }}</h3>
+            <p class="mobile-note">{{ t('storeSelection.searchEmptyDescription') }}</p>
           </div>
 
           <div v-else class="mobile-list store-list">
@@ -97,23 +105,23 @@
                     <ion-card-title>{{ store.name }}</ion-card-title>
                     <ion-card-subtitle>{{ formatLocation(store) }}</ion-card-subtitle>
                   </div>
-                  <ion-chip color="primary" outline>
-                    <ion-label>{{ formatRoleLabel(store.userRole) }}</ion-label>
+                  <ion-chip color="primary" outline class="store-card__role-chip">
+                    <ion-label class="store-card__role-chip-label">{{ formatRoleLabel(store.userRole) }}</ion-label>
                   </ion-chip>
                 </div>
               </ion-card-header>
 
               <ion-card-content>
                 <div class="store-card__detail-row">
-                  <span class="store-card__detail-label">联系人</span>
-                  <span class="store-card__detail-value">{{ store.manager || '未设置' }}</span>
+                  <span class="store-card__detail-label">{{ t('storeSelection.contact') }}</span>
+                  <span class="store-card__detail-value">{{ store.manager || t('storeSelection.notSet') }}</span>
                 </div>
                 <div class="store-card__detail-row">
-                  <span class="store-card__detail-label">更新时间</span>
+                  <span class="store-card__detail-label">{{ t('storeSelection.updatedAt') }}</span>
                   <span class="store-card__detail-value">{{ formatDate(store.updatedAt) }}</span>
                 </div>
                 <div class="store-card__detail-row">
-                  <span class="store-card__detail-label">地址</span>
+                  <span class="store-card__detail-label">{{ t('storeSelection.address') }}</span>
                   <span class="store-card__detail-value">{{ formatAddress(store) }}</span>
                 </div>
 
@@ -124,7 +132,7 @@
                   @click="handleSelectStore(store)"
                 >
                   <ion-spinner v-if="selectingStoreId === store.id" name="crescent" />
-                  <span v-else>进入该门店</span>
+                  <span v-else>{{ t('storeSelection.enterStore') }}</span>
                 </ion-button>
 
                 <ion-button
@@ -137,7 +145,7 @@
                   @click="handleDeleteStore(store)"
                 >
                   <ion-spinner v-if="deletingStoreId === store.id" name="crescent" />
-                  <span v-else>删除门店</span>
+                  <span v-else>{{ t('storeSelection.deleteStore') }}</span>
                 </ion-button>
               </ion-card-content>
             </ion-card>
@@ -149,9 +157,11 @@
     <ion-modal :is-open="createStoreModalOpen" :backdrop-dismiss="!creatingStore" @didDismiss="handleDismissCreateStoreModal">
       <ion-header>
         <ion-toolbar>
-          <ion-title>创建门店</ion-title>
+          <ion-title>{{ t('storeSelection.createStore') }}</ion-title>
           <ion-buttons slot="end">
-            <ion-button :disabled="creatingStore" @click="handleCloseCreateStoreModal">关闭</ion-button>
+            <ion-button :disabled="creatingStore" @click="handleCloseCreateStoreModal">
+              {{ t('storeSelection.close') }}
+            </ion-button>
           </ion-buttons>
         </ion-toolbar>
       </ion-header>
@@ -159,56 +169,66 @@
       <ion-content class="mobile-page store-modal-page">
         <section class="mobile-card">
           <div class="store-create-panel">
-            <h2 class="mobile-section-title">基础信息</h2>
-            <p class="mobile-note">创建成功后会刷新门店列表、自动选中新门店并进入首页。</p>
+            <h2 class="mobile-section-title">{{ t('storeSelection.basicInfo') }}</h2>
+            <p class="mobile-note">{{ t('storeSelection.createDescription') }}</p>
           </div>
 
           <div class="store-form-grid">
             <label class="store-form-field">
-              <span>门店名称</span>
+              <span>{{ t('storeSelection.field.name') }}</span>
               <ion-input
                 v-model="createForm.name"
                 fill="outline"
                 :maxlength="STORE_NAME_MAX_LENGTH"
-                placeholder="请输入门店名称"
+                :placeholder="t('storeSelection.placeholder.name')"
               />
             </label>
 
             <label class="store-form-field">
-              <span>房产类型</span>
-              <ion-select v-model="createForm.type" fill="outline" interface="action-sheet" placeholder="请选择房产类型">
-                <ion-select-option v-for="option in PROPERTY_TYPE_OPTIONS" :key="option.value" :value="option.value">
+              <span>{{ t('storeSelection.field.type') }}</span>
+              <ion-select
+                v-model="createForm.type"
+                fill="outline"
+                interface="action-sheet"
+                :placeholder="t('storeSelection.placeholder.type')"
+              >
+                <ion-select-option v-for="option in propertyTypeOptions" :key="option.value" :value="option.value">
                   {{ option.label }}
                 </ion-select-option>
               </ion-select>
             </label>
 
             <label class="store-form-field">
-              <span>国家</span>
+              <span>{{ t('storeSelection.field.country') }}</span>
               <ion-select
                 v-model="createForm.country"
                 fill="outline"
                 interface="action-sheet"
-                placeholder="请选择国家"
+                :placeholder="t('storeSelection.placeholder.country')"
               >
-                <ion-select-option v-for="option in COUNTRY_OPTIONS" :key="option.value" :value="option.value">
+                <ion-select-option v-for="option in countryOptions" :key="option.value" :value="option.value">
                   {{ option.label }}
                 </ion-select-option>
               </ion-select>
             </label>
 
             <label class="store-form-field">
-              <span>城市</span>
-              <ion-input v-model="createForm.city" fill="outline" placeholder="请输入城市" />
+              <span>{{ t('storeSelection.field.city') }}</span>
+              <ion-input v-model="createForm.city" fill="outline" :placeholder="t('storeSelection.placeholder.city')" />
             </label>
 
             <label class="store-form-field store-form-field--full">
-              <span>详细地址</span>
-              <ion-textarea v-model="createForm.address" :rows="3" fill="outline" placeholder="请输入详细地址" />
+              <span>{{ t('storeSelection.field.address') }}</span>
+              <ion-textarea
+                v-model="createForm.address"
+                :rows="3"
+                fill="outline"
+                :placeholder="t('storeSelection.placeholder.address')"
+              />
             </label>
 
             <label class="store-form-field store-form-field--full">
-              <span>联系电话</span>
+              <span>{{ t('storeSelection.field.phone') }}</span>
               <div class="store-phone-row">
                 <ion-select v-model="createForm.phonePrefix" class="store-phone-prefix" fill="outline" interface="action-sheet">
                   <ion-select-option v-for="option in PHONE_PREFIX_OPTIONS" :key="option.value" :value="option.value">
@@ -220,19 +240,28 @@
                   class="store-phone-input"
                   fill="outline"
                   inputmode="tel"
-                  placeholder="请输入联系电话"
+                  :placeholder="t('storeSelection.placeholder.phone')"
                 />
               </div>
             </label>
 
             <label class="store-form-field">
-              <span>联系人姓名</span>
-              <ion-input v-model="createForm.manager" fill="outline" placeholder="请输入联系人姓名" />
+              <span>{{ t('storeSelection.field.manager') }}</span>
+              <ion-input
+                v-model="createForm.manager"
+                fill="outline"
+                :placeholder="t('storeSelection.placeholder.manager')"
+              />
             </label>
 
             <label class="store-form-field">
-              <span>时区</span>
-              <ion-select v-model="createForm.timezone" fill="outline" interface="action-sheet" placeholder="请选择时区">
+              <span>{{ t('storeSelection.field.timezone') }}</span>
+              <ion-select
+                v-model="createForm.timezone"
+                fill="outline"
+                interface="action-sheet"
+                :placeholder="t('storeSelection.placeholder.timezone')"
+              >
                 <ion-select-option v-for="option in TIMEZONE_OPTIONS" :key="option.value" :value="option.value">
                   {{ option.label }}
                 </ion-select-option>
@@ -240,17 +269,27 @@
             </label>
 
             <label class="store-form-field">
-              <span>货币</span>
-              <ion-select v-model="createForm.currency" fill="outline" interface="action-sheet" placeholder="请选择货币">
-                <ion-select-option v-for="option in CURRENCY_OPTIONS" :key="option.value" :value="option.value">
+              <span>{{ t('storeSelection.field.currency') }}</span>
+              <ion-select
+                v-model="createForm.currency"
+                fill="outline"
+                interface="action-sheet"
+                :placeholder="t('storeSelection.placeholder.currency')"
+              >
+                <ion-select-option v-for="option in currencyOptions" :key="option.value" :value="option.value">
                   {{ option.label }}
                 </ion-select-option>
               </ion-select>
             </label>
 
             <label class="store-form-field">
-              <span>语言</span>
-              <ion-select v-model="createForm.language" fill="outline" interface="action-sheet" placeholder="请选择语言">
+              <span>{{ t('storeSelection.field.language') }}</span>
+              <ion-select
+                v-model="createForm.language"
+                fill="outline"
+                interface="action-sheet"
+                :placeholder="t('storeSelection.placeholder.language')"
+              >
                 <ion-select-option v-for="option in LANGUAGE_OPTIONS" :key="option.value" :value="option.value">
                   {{ option.label }}
                 </ion-select-option>
@@ -258,12 +297,12 @@
             </label>
 
             <label class="store-form-field">
-              <span>入住时间</span>
+              <span>{{ t('storeSelection.field.checkinTime') }}</span>
               <ion-select
                 v-model="createForm.checkinTime"
                 fill="outline"
                 interface="action-sheet"
-                placeholder="请选择入住时间"
+                :placeholder="t('storeSelection.placeholder.checkinTime')"
               >
                 <ion-select-option v-for="option in STORE_TIME_OPTIONS" :key="option.value" :value="option.value">
                   {{ option.label }}
@@ -272,12 +311,12 @@
             </label>
 
             <label class="store-form-field">
-              <span>退房时间</span>
+              <span>{{ t('storeSelection.field.checkoutTime') }}</span>
               <ion-select
                 v-model="createForm.checkoutTime"
                 fill="outline"
                 interface="action-sheet"
-                placeholder="请选择退房时间"
+                :placeholder="t('storeSelection.placeholder.checkoutTime')"
               >
                 <ion-select-option v-for="option in STORE_TIME_OPTIONS" :key="option.value" :value="option.value">
                   {{ option.label }}
@@ -286,11 +325,11 @@
             </label>
 
             <label class="store-form-field store-form-field--full">
-              <span>渠道直连</span>
+              <span>{{ t('storeSelection.field.channelConnection') }}</span>
               <div class="store-switch-row">
                 <div>
-                  <strong>同步创建渠道物业</strong>
-                  <p class="mobile-note store-switch-row__note">创建门店后同步创建/覆盖渠道物业（用于后续打开授权 Widget）</p>
+                  <strong>{{ t('storeSelection.syncChannelProperty') }}</strong>
+                  <p class="mobile-note store-switch-row__note">{{ t('storeSelection.syncChannelDescription') }}</p>
                 </div>
                 <ion-toggle v-model="createForm.createSuProperty" />
               </div>
@@ -298,9 +337,11 @@
           </div>
 
           <div class="store-form-actions">
-            <ion-button fill="outline" :disabled="creatingStore" @click="handleCloseCreateStoreModal">取消</ion-button>
+            <ion-button fill="outline" :disabled="creatingStore" @click="handleCloseCreateStoreModal">
+              {{ t('storeSelection.cancel') }}
+            </ion-button>
             <ion-button :disabled="creatingStore" @click="handleCreateStore">
-              {{ creatingStore ? '创建中...' : '创建门店' }}
+              {{ creatingStore ? t('storeSelection.creating') : t('storeSelection.createStore') }}
             </ion-button>
           </div>
         </section>
@@ -340,6 +381,7 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import {
   addCircleOutline,
@@ -387,17 +429,12 @@ interface CreateStoreFormState {
   createSuProperty: boolean
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  owner: '所有者',
-  admin: '管理员',
-  member: '成员',
-}
-
 const PHONE_NUMBER_PATTERN = /^\d+$/
 
 const router = useRouter()
 const storeStore = useStoreStore()
 const userStore = useUserStore()
+const { t } = useI18n()
 
 const searchKeyword = ref('')
 const loadError = ref('')
@@ -409,6 +446,35 @@ const createStoreModalOpen = ref(false)
 const creatingStore = ref(false)
 const createForm = ref<CreateStoreFormState>(createCreateStoreForm())
 
+const COUNTRY_OPTION_KEYS: Record<string, string> = {
+  China: 'China',
+  Japan: 'Japan',
+  'South Korea': 'SouthKorea',
+  'United Kingdom': 'UnitedKingdom',
+  USA: 'USA',
+}
+
+const propertyTypeOptions = computed(() =>
+  PROPERTY_TYPE_OPTIONS.map((option) => ({
+    ...option,
+    label: t(`storeSelection.option.propertyType.${option.value}`),
+  })),
+)
+
+const countryOptions = computed(() =>
+  COUNTRY_OPTIONS.map((option) => ({
+    ...option,
+    label: t(`storeSelection.option.country.${COUNTRY_OPTION_KEYS[option.value] || option.value}`),
+  })),
+)
+
+const currencyOptions = computed(() =>
+  CURRENCY_OPTIONS.map((option) => ({
+    ...option,
+    label: t(`storeSelection.option.currency.${option.value}`),
+  })),
+)
+
 const accountTitle = computed(() => {
   if (userStore.currentUser?.nickname) {
     return userStore.currentUser.nickname
@@ -418,7 +484,7 @@ const accountTitle = computed(() => {
     return userStore.currentUser.email
   }
 
-  return '请选择要进入的门店'
+  return t('storeSelection.chooseStore')
 })
 
 const accountSubtitle = computed(() => {
@@ -426,11 +492,11 @@ const accountSubtitle = computed(() => {
     return userStore.currentUser.email
   }
 
-  return '已完成登录'
+  return t('storeSelection.signedIn')
 })
 
 const storeCountLabel = computed(() => {
-  return `共 ${storeStore.stores.length} 家门店`
+  return t('storeSelection.storeCount', { count: storeStore.stores.length })
 })
 
 const filteredStores = computed(() => {
@@ -528,82 +594,87 @@ function validateCreateStoreForm() {
   const checkoutTime = createForm.value.checkoutTime
 
   if (!name) {
-    showWarningToast('请输入门店名称')
+    showWarningToast(t('storeSelection.validation.nameRequired'))
     return false
   }
 
   if (name.length > STORE_NAME_MAX_LENGTH) {
-    showWarningToast(`门店名称长度不能超过 ${STORE_NAME_MAX_LENGTH} 个字符`)
+    showWarningToast(t('storeSelection.validation.nameMax', { max: STORE_NAME_MAX_LENGTH }))
     return false
   }
 
   if (!type) {
-    showWarningToast('请选择房产类型')
+    showWarningToast(t('storeSelection.validation.typeRequired'))
     return false
   }
 
   if (!country) {
-    showWarningToast('请选择国家')
+    showWarningToast(t('storeSelection.validation.countryRequired'))
     return false
   }
 
   if (!city) {
-    showWarningToast('请输入城市')
+    showWarningToast(t('storeSelection.validation.cityRequired'))
     return false
   }
 
   if (!address) {
-    showWarningToast('请输入详细地址')
+    showWarningToast(t('storeSelection.validation.addressRequired'))
     return false
   }
 
   if (!manager) {
-    showWarningToast('请输入联系人姓名')
+    showWarningToast(t('storeSelection.validation.managerRequired'))
     return false
   }
 
   if (!createForm.value.phonePrefix) {
-    showWarningToast('请选择电话区号')
+    showWarningToast(t('storeSelection.validation.phonePrefixRequired'))
     return false
   }
 
   if (!phone) {
-    showWarningToast('请输入联系电话')
+    showWarningToast(t('storeSelection.validation.phoneRequired'))
     return false
   }
 
   if (!PHONE_NUMBER_PATTERN.test(phone)) {
-    showWarningToast('联系电话仅支持数字、空格或短横线')
+    showWarningToast(t('storeSelection.validation.phoneFormat'))
     return false
   }
 
   if (phone.length < STORE_PHONE_MIN_LENGTH || phone.length > STORE_PHONE_MAX_LENGTH) {
-    showWarningToast(`联系电话长度需为 ${STORE_PHONE_MIN_LENGTH}-${STORE_PHONE_MAX_LENGTH} 位`)
+    showWarningToast(
+      t('storeSelection.validation.phoneLength', {
+        min: STORE_PHONE_MIN_LENGTH,
+        max: STORE_PHONE_MAX_LENGTH,
+      }),
+    )
     return false
   }
 
   if (!timezone) {
-    showWarningToast('请选择时区')
+    showWarningToast(t('storeSelection.validation.timezoneRequired'))
     return false
   }
 
   if (!currency) {
-    showWarningToast('请选择货币')
+    showWarningToast(t('storeSelection.validation.currencyRequired'))
     return false
   }
 
   if (!language) {
-    showWarningToast('请选择语言')
+    showWarningToast(t('storeSelection.validation.languageRequired'))
     return false
   }
 
   if (!checkinTime) {
-    showWarningToast('请选择入住时间')
+    showWarningToast(t('storeSelection.validation.checkinRequired'))
     return false
   }
 
   if (!checkoutTime) {
-    showWarningToast('请选择退房时间')
+    showWarningToast(t('storeSelection.validation.checkoutRequired'))
     return false
   }
 
@@ -636,12 +707,12 @@ function resolveDeleteStoreCode(error: unknown) {
 }
 
 function formatRoleLabel(role: string) {
-  if (ROLE_LABELS[role]) {
-    return ROLE_LABELS[role]
+  if (role === 'owner' || role === 'admin' || role === 'member') {
+    return t(`storeSelection.role.${role}`)
   }
 
   if (!role) {
-    return '未标注角色'
+    return t('storeSelection.role.unknown')
   }
 
   return role
@@ -651,7 +722,7 @@ function formatLocation(store: StoreDTO) {
   const parts = [store.city, store.country].filter(Boolean)
 
   if (parts.length === 0) {
-    return '未设置地区'
+    return t('storeSelection.unknownLocation')
   }
 
   return parts.join(' · ')
@@ -661,7 +732,7 @@ function formatAddress(store: StoreDTO) {
   const parts = [store.address, store.city, store.country].filter(Boolean)
 
   if (parts.length === 0) {
-    return '未设置地址'
+    return t('storeSelection.unknownAddress')
   }
 
   return parts.join(' · ')
@@ -669,7 +740,7 @@ function formatAddress(store: StoreDTO) {
 
 function formatDate(rawValue: string) {
   if (!rawValue) {
-    return '未知'
+    return t('storeSelection.unknownDate')
   }
 
   const date = new Date(rawValue)
@@ -690,7 +761,7 @@ async function loadStores(force: boolean) {
   try {
     await storeStore.fetchUserStores(force)
   } catch (error) {
-    loadError.value = resolveErrorMessage(error, '获取门店列表失败')
+    loadError.value = resolveErrorMessage(error, t('storeSelection.loadFailed'))
 
     if (!isHandledRequestError(error)) {
       showWarningToast(loadError.value)
@@ -702,15 +773,15 @@ async function loadStores(force: boolean) {
 
 async function confirmDeleteStore(store: StoreDTO) {
   const alert = await alertController.create({
-    header: '删除门店',
-    message: `确认删除 ${store.name} 吗？删除后该门店将从列表中移除。`,
+    header: t('storeSelection.deleteTitle'),
+    message: t('storeSelection.deleteConfirm', { name: store.name }),
     buttons: [
       {
-        text: '取消',
+        text: t('storeSelection.cancel'),
         role: 'cancel',
       },
       {
-        text: '确认删除',
+        text: t('storeSelection.confirmDelete'),
         role: 'destructive',
       },
     ],
@@ -723,9 +794,9 @@ async function confirmDeleteStore(store: StoreDTO) {
 
 async function showDeleteStoreBlockedAlert() {
   const alert = await alertController.create({
-    header: '无法删除门店',
-    message: '该 Property 仍与渠道存在映射，请先解绑后再删除门店。',
-    buttons: ['知道了'],
+    header: t('storeSelection.deleteBlockedTitle'),
+    message: t('storeSelection.deleteBlockedMessage'),
+    buttons: [t('storeSelection.understood')],
   })
 
   await alert.present()
@@ -772,14 +843,14 @@ async function handleCreateStore() {
   }
 
   let createdStore: StoreDTO | null = null
-  let successMessage = '门店创建成功'
+  let successMessage = t('storeSelection.createSuccess')
 
   creatingStore.value = true
 
   try {
     const result = await storeStore.createStore(buildCreateStorePayload())
     createdStore = result.store
-    successMessage = result.message || '门店创建成功'
+    successMessage = result.message || t('storeSelection.createSuccess')
     createStoreModalOpen.value = false
     loadError.value = ''
     hasLoaded.value = true
@@ -787,24 +858,22 @@ async function handleCreateStore() {
     resetCreateStoreForm()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveErrorMessage(error, '创建门店失败'))
+      showWarningToast(resolveErrorMessage(error, t('storeSelection.createFailed')))
     }
     return
   } finally {
     creatingStore.value = false
   }
 
-  if (successMessage.includes('失败')) {
-    showWarningToast(successMessage)
-  } else {
-    showSuccessToast(successMessage)
-  }
+  showSuccessToast(successMessage)
 
   try {
     await router.replace(ROUTE_PATHS.home)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      const fallbackMessage = createdStore ? `门店已创建，请手动进入 ${createdStore.name}` : '门店已创建，请手动进入首页'
+      const fallbackMessage = createdStore
+        ? t('storeSelection.createdManualStore', { name: createdStore.name })
+        : t('storeSelection.createdManualHome')
       showWarningToast(resolveErrorMessage(error, fallbackMessage))
     }
   }
@@ -819,11 +888,11 @@ async function handleSelectStore(store: StoreDTO) {
 
   try {
     storeStore.setCurrentStore(store)
-    showSuccessToast(`已进入 ${store.name}`)
+    showSuccessToast(t('storeSelection.entered', { name: store.name }))
     await router.replace(ROUTE_PATHS.home)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveErrorMessage(error, '进入门店失败'))
+      showWarningToast(resolveErrorMessage(error, t('storeSelection.enterFailed')))
     }
   } finally {
     selectingStoreId.value = null
@@ -845,7 +914,7 @@ async function handleDeleteStore(store: StoreDTO) {
   try {
     const successMessage = await storeStore.deleteStore(store.id)
     await loadStores(true)
-    showSuccessToast(successMessage || '门店已删除')
+    showSuccessToast(successMessage || t('storeSelection.deleted'))
   } catch (error) {
     const errorCode = resolveDeleteStoreCode(error)
 
@@ -855,7 +924,7 @@ async function handleDeleteStore(store: StoreDTO) {
     }
 
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveErrorMessage(error, '删除门店失败'))
+      showWarningToast(resolveErrorMessage(error, t('storeSelection.deleteFailed')))
     }
   } finally {
     deletingStoreId.value = null
@@ -871,7 +940,7 @@ async function handleLogout() {
 
   try {
     await userStore.logout()
-    showSuccessToast('已退出登录')
+    showSuccessToast(t('storeSelection.loggedOut'))
     await router.replace(ROUTE_PATHS.login)
   } finally {
     isLoggingOut.value = false
@@ -1064,6 +1133,21 @@ onMounted(() => {
   gap: 12px;
 }
 
+.store-card__header-row > div {
+  min-width: 0;
+}
+
+.store-card__role-chip {
+  flex: 0 0 auto;
+  max-width: 100%;
+  margin: 0;
+}
+
+.store-card__role-chip-label {
+  display: block;
+  white-space: nowrap;
+}
+
 .store-card__detail-row {
   display: flex;
   justify-content: space-between;
@@ -1194,6 +1278,18 @@ onMounted(() => {
   margin-top: 4px;
   color: var(--app-muted);
   font-size: 13px;
+}
+
+:deep(.store-card__role-chip ion-label) {
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+@media (max-width: 360px) {
+  :deep(.store-card__role-chip ion-label) {
+    font-size: 11px;
+  }
 }
 
 @media (max-width: 480px) {

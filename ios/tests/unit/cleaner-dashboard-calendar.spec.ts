@@ -1,7 +1,9 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import type { CleaningTaskDTO } from '@/api/cleaning'
+import { i18n } from '@/locales'
 import CleanerDashboardPage from '@/views/cleaner/CleanerDashboardPage.vue'
+import { createTestI18n } from './helpers/i18n'
 
 const apiMocks = vi.hoisted(() => ({
   getCalendarViewData: vi.fn(),
@@ -117,9 +119,20 @@ function buildTask(overrides: Partial<CleaningTaskDTO> = {}): CleaningTaskDTO {
   }
 }
 
+const mountPage = () =>
+  mount(CleanerDashboardPage, {
+    global: {
+      plugins: [createTestI18n()],
+      mocks: {
+        $tx: (source: string) => source,
+      },
+    },
+  })
+
 describe('CleanerDashboardPage calendar tasks', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    i18n.global.locale.value = 'zh-CN'
     cleanerSessionMocks.readCleanerUser.mockReturnValue({
       userId: 10,
       cleanerId: 20,
@@ -182,7 +195,7 @@ describe('CleanerDashboardPage calendar tasks', () => {
       },
     })
 
-    const wrapper = mount(CleanerDashboardPage)
+    const wrapper = mountPage()
     await flushPromises()
 
     const taskDayButton = wrapper.find('.cleaner-dashboard-page__day-cell')
@@ -192,14 +205,16 @@ describe('CleanerDashboardPage calendar tasks', () => {
     await flushPromises()
 
     const tabTexts = wrapper.findAll('.cleaner-dashboard-page__status-tab').map((tab) => tab.text())
-    expect(tabTexts.some((text) => text.includes('待接受') && text.includes('1'))).toBe(true)
-    expect(tabTexts.some((text) => text.includes('待打扫') && text.includes('1'))).toBe(true)
+    const assignedLabel = i18n.global.t('iosStage5.cleaning.status.assigned')
+    const inProgressLabel = i18n.global.t('iosStage5.cleaning.status.inProgress')
+    expect(tabTexts.some((text) => text.includes(assignedLabel) && text.includes('1'))).toBe(true)
+    expect(tabTexts.some((text) => text.includes(inProgressLabel) && text.includes('1'))).toBe(true)
     expect(wrapper.findAll('.cleaner-dashboard-page__task-item')).toHaveLength(1)
     expect(wrapper.text()).toContain('101')
 
     const inProgressTab = wrapper
       .findAll('.cleaner-dashboard-page__status-tab')
-      .find((tab) => tab.text().includes('待打扫'))
+      .find((tab) => tab.text().includes(inProgressLabel))
     expect(inProgressTab).toBeDefined()
 
     await inProgressTab?.trigger('click')
@@ -231,7 +246,7 @@ describe('CleanerDashboardPage calendar tasks', () => {
       },
     })
 
-    const wrapper = mount(CleanerDashboardPage)
+    const wrapper = mountPage()
     await flushPromises()
 
     const dayButtons = wrapper.findAll('.cleaner-dashboard-page__day-cell')
@@ -283,7 +298,7 @@ describe('CleanerDashboardPage calendar tasks', () => {
       },
     })
 
-    const wrapper = mount(CleanerDashboardPage)
+    const wrapper = mountPage()
     await flushPromises()
 
     const dayButtons = wrapper.findAll('.cleaner-dashboard-page__day-cell')

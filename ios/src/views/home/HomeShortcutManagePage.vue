@@ -7,9 +7,11 @@
             <ion-icon slot="icon-only" :icon="chevronBackOutline" />
           </ion-button>
         </ion-buttons>
-        <ion-title class="app-page-header__title">管理</ion-title>
+        <ion-title class="app-page-header__title">{{ t('home.manage.title') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button class="app-page-header__text-btn" fill="clear" :disabled="!hasChanges" @click="handleSave">保存</ion-button>
+          <ion-button class="app-page-header__text-btn" fill="clear" :disabled="!hasChanges" @click="handleSave">
+            {{ t('home.manage.save') }}
+          </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -17,7 +19,7 @@
     <ion-content fullscreen class="mobile-page shortcut-manage-page">
       <div class="shortcut-manage-shell">
         <section class="shortcut-manage-section">
-          <h2 class="shortcut-manage-section__title">显示</h2>
+          <h2 class="shortcut-manage-section__title">{{ t('home.manage.visible') }}</h2>
 
           <div v-if="visibleItems.length > 0" class="shortcut-manage-grid">
             <button
@@ -25,7 +27,7 @@
               :key="item.key"
               type="button"
               class="shortcut-manage-item"
-              :aria-label="`隐藏${item.title}`"
+              :aria-label="t('home.manage.hideItem', { title: item.title })"
               @click="handleHide(item.key)"
             >
               <span class="shortcut-manage-item__action shortcut-manage-item__action--remove" aria-hidden="true">
@@ -43,11 +45,11 @@
             </button>
           </div>
 
-          <p v-else class="mobile-note shortcut-manage-section__empty">当前未显示任何快捷方式。</p>
+          <p v-else class="mobile-note shortcut-manage-section__empty">{{ t('home.manage.noVisible') }}</p>
         </section>
 
         <section class="shortcut-manage-section">
-          <h2 class="shortcut-manage-section__title">隐藏</h2>
+          <h2 class="shortcut-manage-section__title">{{ t('home.manage.hidden') }}</h2>
 
           <div v-if="hiddenItems.length > 0" class="shortcut-manage-grid">
             <button
@@ -55,7 +57,7 @@
               :key="item.key"
               type="button"
               class="shortcut-manage-item"
-              :aria-label="`显示${item.title}`"
+              :aria-label="t('home.manage.showItem', { title: item.title })"
               @click="handleShow(item.key)"
             >
               <span class="shortcut-manage-item__action shortcut-manage-item__action--add" aria-hidden="true">
@@ -73,7 +75,7 @@
             </button>
           </div>
 
-          <p v-else class="mobile-note shortcut-manage-section__empty">当前没有已隐藏的快捷方式。</p>
+          <p v-else class="mobile-note shortcut-manage-section__empty">{{ t('home.manage.noHidden') }}</p>
         </section>
       </div>
     </ion-content>
@@ -95,9 +97,11 @@ import {
 } from '@ionic/vue'
 import { addOutline, chevronBackOutline, removeOutline } from 'ionicons/icons'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import {
   HOME_QUICK_ACTION_DEFINITIONS,
+  localizeHomeQuickAction,
   normalizeHomeQuickActionKeys,
 } from '@/constants/homeQuickActions'
 import { ROUTE_PATHS } from '@/router/guards'
@@ -105,6 +109,7 @@ import { useHomeShortcutsStore } from '@/stores/homeShortcuts'
 import { showSuccessToast } from '@/utils/notify'
 
 const router = useRouter()
+const { t } = useI18n()
 const homeShortcutsStore = useHomeShortcutsStore()
 
 const allowRouteLeave = ref(false)
@@ -116,12 +121,16 @@ const normalizedDraftVisibleKeys = computed(() => {
 
 const visibleItems = computed(() => {
   const visibleKeySet = new Set(normalizedDraftVisibleKeys.value)
-  return HOME_QUICK_ACTION_DEFINITIONS.filter((item) => visibleKeySet.has(item.key))
+  return HOME_QUICK_ACTION_DEFINITIONS
+    .filter((item) => visibleKeySet.has(item.key))
+    .map((item) => localizeHomeQuickAction(item, t))
 })
 
 const hiddenItems = computed(() => {
   const visibleKeySet = new Set(normalizedDraftVisibleKeys.value)
-  return HOME_QUICK_ACTION_DEFINITIONS.filter((item) => !visibleKeySet.has(item.key))
+  return HOME_QUICK_ACTION_DEFINITIONS
+    .filter((item) => !visibleKeySet.has(item.key))
+    .map((item) => localizeHomeQuickAction(item, t))
 })
 
 const hasChanges = computed(() => {
@@ -135,11 +144,11 @@ const syncDraftWithStore = () => {
 
 const confirmDiscardChanges = async () => {
   const alert = await alertController.create({
-    header: '放弃修改',
-    message: '当前快捷方式调整尚未保存，确定返回吗？',
+    header: t('home.manage.discardTitle'),
+    message: t('home.manage.discardMessage'),
     buttons: [
-      { text: '继续编辑', role: 'cancel' },
-      { text: '放弃修改', role: 'confirm' },
+      { text: t('home.manage.continueEditing'), role: 'cancel' },
+      { text: t('home.manage.discard'), role: 'confirm' },
     ],
   })
 
@@ -171,7 +180,7 @@ const handleBack = async () => {
 
 const handleSave = async () => {
   homeShortcutsStore.setVisibleKeys(normalizedDraftVisibleKeys.value)
-  showSuccessToast('快捷方式已更新')
+  showSuccessToast(t('home.manage.saved'))
   await navigateBackToHome()
 }
 

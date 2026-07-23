@@ -1,4 +1,6 @@
-export type PublicRegistrationLanguage = 'en' | 'ja' | 'zh' | 'ko'
+import type { SupportedLocale } from '@/locales'
+
+export type PublicRegistrationLanguage = SupportedLocale
 
 export type RegistrationFormStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
 

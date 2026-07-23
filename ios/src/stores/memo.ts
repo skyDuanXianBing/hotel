@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { getMemo, saveMemo } from '@/api/home'
+import { i18n } from '@/locales'
+import { formatDateTime } from '@/utils/formatters'
 import { showErrorToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
@@ -31,32 +33,37 @@ export const useMemoStore = defineStore('memo', () => {
       return ''
     }
 
-    const hours = String(lastSavedAt.value.getHours()).padStart(2, '0')
-    const minutes = String(lastSavedAt.value.getMinutes()).padStart(2, '0')
-    const seconds = String(lastSavedAt.value.getSeconds()).padStart(2, '0')
-
-    return `${hours}:${minutes}:${seconds}`
+    return formatDateTime(lastSavedAt.value, {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      year: undefined,
+      month: undefined,
+      day: undefined,
+    })
   }
 
   const saveStatusText = computed(() => {
+    const translate = i18n.global.t
+
     if (loading.value) {
-      return '加载中'
+      return translate('home.memoStatus.loading')
     }
 
     if (autoSaving.value) {
-      return '自动保存中'
+      return translate('home.memoStatus.saving')
     }
 
     const formattedTime = getFormattedSaveTime()
     if (formattedTime) {
-      return `已保存 ${formattedTime}`
+      return translate('home.memoStatus.saved', { time: formattedTime })
     }
 
     if (hasLoaded.value) {
-      return '输入后自动保存'
+      return translate('home.memoStatus.ready')
     }
 
-    return '等待加载'
+    return translate('home.memoStatus.waiting')
   })
 
   const loadMemo = async (force = false) => {
@@ -70,7 +77,7 @@ export const useMemoStore = defineStore('memo', () => {
     try {
       const response = await getMemo()
       if (!response.success) {
-        throw new Error(response.message || '加载备忘录失败')
+        throw new Error(response.message || i18n.global.t('home.error.memo'))
       }
 
       memoContent.value = response.data || ''
@@ -78,7 +85,7 @@ export const useMemoStore = defineStore('memo', () => {
       hasLoaded.value = true
     } catch (error) {
       if (!isHandledRequestError(error)) {
-        showErrorToast(error instanceof Error ? error.message : '加载备忘录失败')
+        showErrorToast(error instanceof Error ? error.message : i18n.global.t('home.error.memo'))
       }
 
       throw error
@@ -103,14 +110,14 @@ export const useMemoStore = defineStore('memo', () => {
     try {
       const response = await saveMemo(memoContent.value)
       if (!response.success) {
-        throw new Error(response.message || '保存备忘录失败')
+        throw new Error(response.message || i18n.global.t('home.error.memoSave'))
       }
 
       lastSavedAt.value = new Date()
       lastSavedContent = memoContent.value
     } catch (error) {
       if (!isHandledRequestError(error)) {
-        showErrorToast(error instanceof Error ? error.message : '保存备忘录失败')
+        showErrorToast(error instanceof Error ? error.message : i18n.global.t('home.error.memoSave'))
       }
 
       throw error

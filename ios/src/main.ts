@@ -2,10 +2,10 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { IonicVue } from '@ionic/vue'
 import App from './App.vue'
+import { i18n, initializeI18n } from './locales'
 import router from './router'
+import { useLanguageStore } from '@/stores/language'
 import { applyLightTheme } from '@/utils/theme'
-
-const pinia = createPinia()
 
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/vue/css/core.css'
@@ -31,18 +31,27 @@ import '@ionic/vue/css/display.css'
 /* Theme variables */
 import './theme/variables.css'
 import './theme/settings-shared.css'
+import './theme/i18n-responsive.css'
 
 applyLightTheme()
 
-const app = createApp(App)
+const bootstrap = async () => {
+  await initializeI18n()
 
-app.use(IonicVue, {
-  mode: 'ios',
-  backButtonText: '返回',
-})
-app.use(pinia)
-app.use(router)
+  const pinia = createPinia()
+  const app = createApp(App)
 
-router.isReady().then(() => {
+  app.use(IonicVue, {
+    mode: 'ios',
+    backButtonText: i18n.global.t('common.back'),
+  })
+  app.use(pinia)
+  app.use(i18n)
+  app.use(router)
+
+  await useLanguageStore(pinia).initialize()
+  await router.isReady()
   app.mount('#app')
-})
+}
+
+void bootstrap()

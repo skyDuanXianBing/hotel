@@ -10,7 +10,12 @@ export interface HomeQuickActionItem {
   tone: HomeQuickActionTone
 }
 
-export interface HomeQuickActionDefinition extends HomeQuickActionItem {
+export interface HomeQuickActionDefinition {
+  key: string
+  titleKey: string
+  descriptionKey: string
+  iconSrc: string
+  tone: HomeQuickActionTone
   path: string
   query?: Record<string, string>
   defaultVisible: boolean
@@ -21,8 +26,8 @@ export const HOME_QUICK_ACTION_CUSTOMIZE_KEY = 'customize'
 export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
   {
     key: 'orders',
-    title: '订单',
-    description: '快速进入订单页，继续处理预抵、预离与待处理订单。',
+    titleKey: 'home.quick.orders.0',
+    descriptionKey: 'home.quick.orders.1',
     iconSrc: '/home-shortcuts/orders.png',
     tone: 'warning',
     path: ROUTE_PATHS.orders,
@@ -30,8 +35,8 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
   },
   {
     key: 'rooms',
-    title: '房态',
-    description: '查看今日可售与房间状态，衔接房态核心操作。',
+    titleKey: 'home.quick.rooms.0',
+    descriptionKey: 'home.quick.rooms.1',
     iconSrc: '/home-shortcuts/rooms.png',
     tone: 'primary',
     path: ROUTE_PATHS.rooms,
@@ -39,8 +44,8 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
   },
   {
     key: 'channels',
-    title: '渠道',
-    description: '跳到渠道管理，查看连接、映射和后续操作入口。',
+    titleKey: 'home.quick.channels.0',
+    descriptionKey: 'home.quick.channels.1',
     iconSrc: '/home-shortcuts/channels.png',
     tone: 'secondary',
     path: ROUTE_PATHS.channels,
@@ -48,8 +53,8 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
   },
   {
     key: 'statistics',
-    title: '统计',
-    description: '进入统计工作台，查看经营概况、报表和数据中心。',
+    titleKey: 'home.quick.statistics.0',
+    descriptionKey: 'home.quick.statistics.1',
     iconSrc: '/home-shortcuts/statistics.png',
     tone: 'primary',
     path: ROUTE_PATHS.statistics,
@@ -57,8 +62,8 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
   },
   {
     key: 'reviews',
-    title: '审查',
-    description: '进入审查列表，处理入住登记与审核相关任务。',
+    titleKey: 'home.quick.reviews.0',
+    descriptionKey: 'home.quick.reviews.1',
     iconSrc: '/home-shortcuts/reviews.png',
     tone: 'secondary',
     path: ROUTE_PATHS.reviews,
@@ -66,8 +71,8 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
   },
   {
     key: 'messages',
-    title: '消息',
-    description: '查看住客会话、未读消息与待处理聊天。',
+    titleKey: 'home.quick.messages.0',
+    descriptionKey: 'home.quick.messages.1',
     iconSrc: '/home-shortcuts/messages.png',
     tone: 'primary',
     path: ROUTE_PATHS.messages,
@@ -75,8 +80,8 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
   },
   {
     key: 'system-notifications',
-    title: '系统通知',
-    description: '查看系统、保洁与任务相关通知。',
+    titleKey: 'home.quick.systemNotifications.0',
+    descriptionKey: 'home.quick.systemNotifications.1',
     iconSrc: '/home-shortcuts/system-notifications.png',
     tone: 'warning',
     path: ROUTE_PATHS.systemNotifications,
@@ -84,8 +89,8 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
   },
   {
     key: 'order-notifications',
-    title: '订单通知',
-    description: '集中处理订单类提醒与未读通知。',
+    titleKey: 'home.quick.orderNotifications.0',
+    descriptionKey: 'home.quick.orderNotifications.1',
     iconSrc: '/home-shortcuts/order-notifications.png',
     tone: 'secondary',
     path: ROUTE_PATHS.orderNotifications,
@@ -93,8 +98,8 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
   },
   {
     key: 'wallet',
-    title: '钱包',
-    description: '查看余额、流水、提现记录与认证说明。',
+    titleKey: 'home.quick.wallet.0',
+    descriptionKey: 'home.quick.wallet.1',
     iconSrc: '/home-shortcuts/wallet.png',
     tone: 'success',
     path: ROUTE_PATHS.wallet,
@@ -102,8 +107,8 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
   },
   {
     key: 'profile',
-    title: '个人中心',
-    description: '更新昵称、头像、性别并修改密码。',
+    titleKey: 'home.quick.profile.0',
+    descriptionKey: 'home.quick.profile.1',
     iconSrc: '/home-shortcuts/profile.png',
     tone: 'primary',
     path: ROUTE_PATHS.profile,
@@ -111,22 +116,14 @@ export const HOME_QUICK_ACTION_DEFINITIONS: HomeQuickActionDefinition[] = [
   },
   {
     key: 'settings',
-    title: '设置',
-    description: '继续进入门店、账户与业务配置的移动端入口。',
+    titleKey: 'home.quick.settings.0',
+    descriptionKey: 'home.quick.settings.1',
     iconSrc: '/home-shortcuts/settings.png',
     tone: 'success',
     path: ROUTE_PATHS.settings,
     defaultVisible: true,
   },
 ]
-
-export const HOME_QUICK_ACTION_CUSTOMIZE_ITEM: HomeQuickActionItem = {
-  key: HOME_QUICK_ACTION_CUSTOMIZE_KEY,
-  title: '定制',
-  description: '个性化调整首页快捷方式的显示与隐藏。',
-  iconSrc: '/home-shortcuts/customize.png',
-  tone: 'secondary',
-}
 
 export const HOME_QUICK_ACTION_DEFAULT_VISIBLE_KEYS = HOME_QUICK_ACTION_DEFINITIONS.filter((item) => item.defaultVisible).map(
   (item) => item.key,
@@ -137,9 +134,34 @@ export const normalizeHomeQuickActionKeys = (keys: string[]) => {
   return HOME_QUICK_ACTION_DEFINITIONS.filter((item) => keySet.has(item.key)).map((item) => item.key)
 }
 
-export const buildHomeQuickActionItems = (keys: string[]) => {
+type Translate = (key: string) => string
+
+export const localizeHomeQuickAction = (
+  definition: HomeQuickActionDefinition,
+  translate: Translate,
+): HomeQuickActionItem => ({
+  key: definition.key,
+  title: translate(definition.titleKey),
+  description: translate(definition.descriptionKey),
+  iconSrc: definition.iconSrc,
+  tone: definition.tone,
+})
+
+export const buildHomeQuickActionItems = (keys: string[], translate: Translate) => {
   const keySet = new Set(normalizeHomeQuickActionKeys(keys))
-  return HOME_QUICK_ACTION_DEFINITIONS.filter((item) => keySet.has(item.key)).map(({ path, query, defaultVisible, ...action }) => action)
+  return HOME_QUICK_ACTION_DEFINITIONS.filter((item) => keySet.has(item.key)).map((item) =>
+    localizeHomeQuickAction(item, translate),
+  )
+}
+
+export const buildHomeQuickActionCustomizeItem = (translate: Translate): HomeQuickActionItem => {
+  return {
+    key: HOME_QUICK_ACTION_CUSTOMIZE_KEY,
+    title: translate('home.quick.customize.0'),
+    description: translate('home.quick.customize.1'),
+    iconSrc: '/home-shortcuts/customize.png',
+    tone: 'secondary',
+  }
 }
 
 export const findHomeQuickActionDefinition = (key: string) => {

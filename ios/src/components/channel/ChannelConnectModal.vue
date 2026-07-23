@@ -4,24 +4,24 @@
       <ion-toolbar>
         <ion-title>{{ title }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="$emit('dismiss')">关闭</ion-button>
+          <ion-button @click="$emit('dismiss')">{{ $t('home.section.close') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
     <ion-content class="channel-connect-modal__content">
       <section class="channel-connect-modal__hero">
-        <span class="channel-connect-modal__eyebrow">准备连接</span>
+        <span class="channel-connect-modal__eyebrow">{{ $t('iosStage5.channel.prepareConnection') }}</span>
         <strong>{{ channelName }}</strong>
-        <p>授权完成后会自动回到当前页面，并刷新当前渠道的状态。</p>
+        <p>{{ $t('iosStage5.channel.connectionDescription') }}</p>
       </section>
 
       <section class="channel-connect-modal__section">
-        <h3>开始前请确认</h3>
+        <h3>{{ $t('iosStage5.channel.confirmBeforeStart') }}</h3>
         <ul>
-          <li>请使用拥有渠道酒店 / 账号权限的正式账号授权。</li>
-          <li>授权完成后，返回应用会自动刷新当前渠道状态。</li>
-          <li>若显示“映射未完成”，请继续进入 Su 向导补齐房型与价盘映射。</li>
+          <li>{{ $t('iosStage5.channel.authorizedAccount') }}</li>
+          <li>{{ $t('iosStage5.channel.refreshAfterAuthorization') }}</li>
+          <li>{{ $t('iosStage5.channel.mappingReminder') }}</li>
         </ul>
       </section>
     </ion-content>
@@ -29,8 +29,8 @@
     <ion-footer>
       <ion-toolbar>
         <div class="channel-connect-modal__footer">
-          <ion-button fill="outline" @click="$emit('dismiss')">稍后再说</ion-button>
-          <ion-button @click="$emit('confirm')">同意并开始授权</ion-button>
+          <ion-button fill="outline" @click="$emit('dismiss')">{{ $t('iosStage5.channel.later') }}</ion-button>
+          <ion-button @click="$emit('confirm')">{{ $t('channel.dialogs.connectNotice.agree') }}</ion-button>
         </div>
       </ion-toolbar>
     </ion-footer>
@@ -38,6 +38,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   IonButton,
   IonButtons,
@@ -50,6 +51,8 @@ import {
 } from '@ionic/vue'
 import { computed } from 'vue'
 
+const { t } = useI18n()
+
 const props = defineProps<{
   isOpen: boolean
   channelName: string
@@ -60,7 +63,11 @@ defineEmits<{
   confirm: []
 }>()
 
-const title = computed(() => `${props.channelName || '渠道'}授权说明`)
+const title = computed(() =>
+  t('stage5Final.channel.authorizationTitle', {
+    name: props.channelName || t('home.quick.channels.0'),
+  }),
+)
 </script>
 
 <style scoped>

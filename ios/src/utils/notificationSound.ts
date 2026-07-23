@@ -1,3 +1,5 @@
+import { i18n } from '@/locales'
+
 export type NotificationPreviewSoundType = 'order' | 'chat'
 
 interface NotificationPreviewStep {
@@ -102,7 +104,7 @@ export async function playNotificationPreviewSound(soundType: NotificationPrevie
   const AudioContextConstructor = resolveAudioContextConstructor()
 
   if (!AudioContextConstructor) {
-    throw new Error('当前环境暂不支持试听提示音')
+    throw new Error(i18n.global.t('runtime.errors.notificationPreviewUnsupported'))
   }
 
   await closeAudioContext(activeAudioContext)

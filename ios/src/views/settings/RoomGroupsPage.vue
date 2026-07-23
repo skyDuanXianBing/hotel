@@ -1,20 +1,20 @@
 <template>
   <SettingsCrudPage
     :back-href="ROUTE_PATHS.settings"
-    title="房间分组"
-    hero-eyebrow="住宿设置"
-    hero-title="房间分组"
+    :title="$t('stage5.common.filters.roomGroup')"
+    :hero-eyebrow="$t('settings.groups.accommodation')"
+    :hero-title="$t('stage5.common.filters.roomGroup')"
     :chips="[
-      { label: `分组 ${groups.length}` },
-      { label: `房间 ${rooms.length}` },
+      { label: `${$t('channel.mobile.mapping.groups')} ${groups.length}` },
+      { label: `${$t('accommodation.common.room')} ${rooms.length}` },
     ]"
-    toolbar-action-label="新增"
+    :toolbar-action-label="$t('settingsStage4.roomGroup.addGroup')"
     :show-refresher="true"
-    refresher-pulling-text="下拉刷新房间分组"
-    section-title="分组列表"
+    :refresher-pulling-text="$t('stage5UiAttributes.10')"
+    :section-title="$t('stage5UiAttributes.31')"
     :loading="loading"
     :modal-open="editorOpen"
-    :modal-title="editingGroupId ? '编辑房间分组' : '新增房间分组'"
+    :modal-title="editingGroupId ? $t('stage5DynamicUi.65') : $t('stage5DynamicUi.37')"
     @toolbar-action="handleCreateGroup"
     @refresh="handleRefresh"
     @dismiss-editor="handleDismissEditor"
@@ -26,7 +26,7 @@
             <strong>{{ group.name }}</strong>
             <p class="settings-minimal-card__summary">{{ group.description || formatGroupPreview(group.memberRoomIds) }}</p>
           </div>
-          <span class="settings-minimal-card__badge">房间 {{ group.memberRoomIds.length }}</span>
+          <span class="settings-minimal-card__badge">{{ $t('accommodation.common.room') }} {{ group.memberRoomIds.length }}</span>
         </div>
 
         <div v-if="group.description && group.memberRoomIds.length > 0" class="settings-minimal-card__meta">
@@ -34,28 +34,28 @@
         </div>
 
         <div class="settings-minimal-card__actions">
-          <ion-button size="small" fill="outline" @click="handleEditGroup(group)">编辑</ion-button>
-          <ion-button size="small" color="danger" fill="clear" @click="handleDeleteGroup(group)">删除</ion-button>
+          <ion-button size="small" fill="outline" @click="handleEditGroup(group)">{{ $t('accommodation.roomPrice.editTitle') }}</ion-button>
+          <ion-button size="small" color="danger" fill="clear" @click="handleDeleteGroup(group)">{{ $t('roomStatus.roomLock.actions.delete') }}</ion-button>
         </div>
       </article>
     </div>
 
-    <p v-else-if="!loading" class="mobile-note">当前暂无房间分组。</p>
+    <p v-else-if="!loading" class="mobile-note">{{ $t('stage5SourceText.79') }}</p>
 
     <template #modalContent>
       <div class="settings-form-grid">
         <label class="settings-form-field">
-          <span>分组名称</span>
-          <ion-input v-model="groupForm.name" fill="outline" placeholder="请输入分组名称" />
+          <span>{{ $t('settingsStage4.roomGroup.placeholders.groupName') }}</span>
+          <ion-input v-model="groupForm.name" fill="outline" :placeholder="$t('settingsStage4.roomGroup.messages.groupNameRequired')" />
         </label>
 
         <label class="settings-form-field settings-form-field--full">
-          <span>分组说明</span>
-          <ion-textarea v-model="groupForm.description" :rows="4" fill="outline" placeholder="请输入分组说明" />
+          <span>{{ $t('stage5SourceText.20') }}</span>
+          <ion-textarea v-model="groupForm.description" :rows="4" fill="outline" :placeholder="$t('stage5UiAttributes.65')" />
         </label>
 
         <label class="settings-form-field settings-form-field--full">
-          <span>房间成员</span>
+          <span>{{ $t('stage5SourceText.107') }}</span>
           <ion-select v-model="groupForm.roomIds" fill="outline" interface="modal" multiple>
             <ion-select-option v-for="room in rooms" :key="room.id" :value="room.id">
               {{ room.roomNumber }} · {{ room.roomType.name }}
@@ -66,15 +66,16 @@
     </template>
 
     <template #modalActions>
-      <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
+      <ion-button fill="outline" @click="handleDismissEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
       <ion-button :disabled="submitting" @click="handleSaveGroup">
-        {{ submitting ? '提交中...' : '保存分组' }}
+        {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.8') }}
       </ion-button>
     </template>
   </SettingsCrudPage>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   alertController,
   IonButton,
@@ -100,6 +101,8 @@ import { ROUTE_PATHS } from '@/router/guards'
 import type { RoomDTO, RoomGroupDTO } from '@/types/settings'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
+
+const { t } = useI18n()
 
 interface RoomGroupView extends RoomGroupDTO {
   id: number
@@ -137,7 +140,7 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
 
 function formatGroupPreview(roomIds: number[]) {
   if (roomIds.length === 0) {
-    return '当前分组未分配房间'
+    return t('settingsResidual.common.noRooms')
   }
 
   const labels: string[] = []
@@ -149,23 +152,25 @@ function formatGroupPreview(roomIds: number[]) {
   }
 
   if (labels.length === 0) {
-    return `已关联 ${roomIds.length} 间房`
+    return t('settingsResidual.common.roomsLinked', { count: roomIds.length })
   }
 
   const preview = labels.slice(0, 3).join('、')
   if (labels.length > 3) {
-    return `房间 ${preview} 等 ${labels.length} 间`
+    return t('settingsResidual.common.roomPreview', {
+      value: `${preview} · ${labels.length}`,
+    })
   }
-  return `房间 ${preview}`
+  return t('settingsResidual.common.roomPreview', { value: preview })
 }
 
 async function confirmDelete(name: string) {
   const alert = await alertController.create({
-    header: '删除分组',
-    message: `确认删除 ${name} 吗？`,
+    header: t('settingsStage4.roomGroup.deleteGroup'),
+    message: t('settingsResidual.common.confirmDelete', { name }),
     buttons: [
-      { text: '取消', role: 'cancel' },
-      { text: '确认删除', role: 'destructive' },
+      { text: t('accommodation.common.cancel'), role: 'cancel' },
+      { text: t('settingsStage4.roomSettings.messages.deleteTitle'), role: 'destructive' },
     ],
   })
   await alert.present()
@@ -178,10 +183,10 @@ async function loadPageData() {
   try {
     const [groupResponse, roomResponse] = await Promise.all([getAllRoomGroups(), getRooms()])
     if (!groupResponse.success || !groupResponse.data) {
-      throw new Error(groupResponse.message || '加载分组失败')
+      throw new Error(groupResponse.message || t('settingsStage4.roomSort.messages.loadGroupsFailed'))
     }
     if (!roomResponse.success || !roomResponse.data) {
-      throw new Error(roomResponse.message || '加载房间失败')
+      throw new Error(roomResponse.message || t('settingsStage4.roomSort.messages.loadRoomsFailed'))
     }
 
     rooms.value = roomResponse.data
@@ -197,7 +202,7 @@ async function loadPageData() {
     groups.value = nextGroups
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载房间分组失败'))
+      showWarningToast(resolveWarningMessage(error, t('settingsStage4.roomGroup.messages.loadGroupsFailed')))
     }
   } finally {
     loading.value = false
@@ -228,7 +233,7 @@ function handleDismissEditor() {
 
 async function handleSaveGroup() {
   if (!groupForm.value.name.trim()) {
-    showWarningToast('请输入分组名称')
+    showWarningToast(t('settingsStage4.roomGroup.messages.groupNameRequired'))
     return
   }
 
@@ -245,7 +250,7 @@ async function handleSaveGroup() {
         description: groupForm.value.description.trim(),
       })
       if (!response.success || !response.data) {
-        throw new Error(response.message || '更新分组失败')
+        throw new Error(response.message || t('stage5Pattern.updateFailed'))
       }
     } else {
       const response = await createRoomGroup({
@@ -253,13 +258,13 @@ async function handleSaveGroup() {
         description: groupForm.value.description.trim(),
       })
       if (!response.success || !response.data?.id) {
-        throw new Error(response.message || '创建分组失败')
+        throw new Error(response.message || t('stage5Pattern.createFailed'))
       }
       groupId = Number(response.data.id)
     }
 
     if (!groupId) {
-      throw new Error('未获取到分组 ID')
+      throw new Error(t('stage5Pattern.missing'))
     }
 
     const nextRoomIds = [...groupForm.value.roomIds]
@@ -269,23 +274,23 @@ async function handleSaveGroup() {
     if (roomsToAdd.length > 0) {
       const addResponse = await addRoomsToGroup(groupId, { roomIds: roomsToAdd })
       if (!addResponse.success) {
-        throw new Error(addResponse.message || '添加房间失败')
+        throw new Error(addResponse.message || t('stage5Pattern.createFailed'))
       }
     }
 
     if (roomsToRemove.length > 0) {
       const removeResponse = await removeRoomsFromGroup(groupId, { roomIds: roomsToRemove })
       if (!removeResponse.success) {
-        throw new Error(removeResponse.message || '移除房间失败')
+        throw new Error(removeResponse.message || t('stage5Pattern.deleteFailed'))
       }
     }
 
-    showSuccessToast('房间分组已保存')
+    showSuccessToast(t('stage5Pattern.saveCompleted'))
     handleDismissEditor()
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存房间分组失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     submitting.value = false
@@ -301,13 +306,13 @@ async function handleDeleteGroup(group: RoomGroupView) {
   try {
     const response = await deleteRoomGroup(group.id)
     if (!response.success) {
-      throw new Error(response.message || '删除分组失败')
+      throw new Error(response.message || t('stage5Pattern.deleteFailed'))
     }
-    showSuccessToast('房间分组已删除')
+    showSuccessToast(t('stage5Pattern.deleteCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '删除分组失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.deleteFailed')))
     }
   }
 }

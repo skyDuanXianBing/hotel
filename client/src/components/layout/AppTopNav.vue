@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import {
   ArrowDown,
-  HomeFilled,
   Message,
   User,
   Wallet,
@@ -105,7 +104,7 @@ const getStoreRoleBadge = (role?: string) => {
       >
         <button type="button" class="store-trigger">
           <span class="store-icon-shell">
-            <el-icon><HomeFilled /></el-icon>
+            <img src="/auth-logo.png" alt="" aria-hidden="true" class="store-logo" />
           </span>
           <span class="store-name">{{ storeName }}</span>
           <el-icon class="store-arrow"><ArrowDown /></el-icon>
@@ -336,9 +335,15 @@ const getStoreRoleBadge = (role?: string) => {
   align-items: center;
   justify-content: center;
   background: transparent;
-  color: #2f7cf6;
-  font-size: 28px;
   flex: 0 0 auto;
+}
+
+.store-logo {
+  width: 22px;
+  height: 22px;
+  display: block;
+  object-fit: contain;
+  transform: translateY(-1px);
 }
 
 .store-name {

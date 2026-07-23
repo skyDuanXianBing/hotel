@@ -1,6 +1,8 @@
+import { i18n } from '@/locales'
+
 export const copyTextToClipboard = async (text: string) => {
   if (!text) {
-    throw new Error('复制内容为空')
+    throw new Error(i18n.global.t('runtime.errors.copyContentEmpty'))
   }
 
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
@@ -9,7 +11,7 @@ export const copyTextToClipboard = async (text: string) => {
   }
 
   if (typeof document === 'undefined') {
-    throw new Error('当前环境不支持复制')
+    throw new Error(i18n.global.t('runtime.errors.copyUnsupported'))
   }
 
   const textArea = document.createElement('textarea')
@@ -24,13 +26,13 @@ export const copyTextToClipboard = async (text: string) => {
   document.body.removeChild(textArea)
 
   if (!didCopy) {
-    throw new Error('复制失败，请稍后重试')
+    throw new Error(i18n.global.t('runtime.errors.copyFailed'))
   }
 }
 
 export const downloadBlobFile = (blob: Blob, fileName: string) => {
   if (typeof document === 'undefined' || typeof window === 'undefined') {
-    throw new Error('当前环境不支持下载文件')
+    throw new Error(i18n.global.t('runtime.errors.downloadUnsupported'))
   }
 
   const objectUrl = window.URL.createObjectURL(blob)

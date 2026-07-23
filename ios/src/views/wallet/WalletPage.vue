@@ -5,23 +5,23 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.home" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">钱包</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.Wallet') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content fullscreen class="mobile-page wallet-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新钱包" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('iosStage5.wallet.pullToRefresh')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <section class="mobile-hero wallet-hero">
-        <p class="mobile-note wallet-hero__eyebrow">钱包迁移</p>
-        <h1 class="mobile-title">订单钱包</h1>
-        <p class="mobile-subtitle">移动端以查询和提交为主，保留账户、提现和认证三块核心语义。</p>
+        <p class="mobile-note wallet-hero__eyebrow">{{ $t('iosStage5.wallet.eyebrow') }}</p>
+        <h1 class="mobile-title">{{ $t('routes.Wallet') }}</h1>
+        <p class="mobile-subtitle">{{ $t('iosStage5.wallet.subtitle') }}</p>
         <div class="mobile-chip-row">
-          <span class="mobile-chip">余额 ¥{{ formatCurrency(stats.balance) }}</span>
-          <span class="mobile-chip">提现中 ¥{{ formatCurrency(stats.withdrawing) }}</span>
-          <span class="mobile-chip">待入账 ¥{{ formatCurrency(stats.pending) }}</span>
+        <span class="mobile-chip">{{ $t('iosStage5.wallet.balance') }} {{ formatWalletMoney(stats.balance) }}</span>
+        <span class="mobile-chip">{{ $t('iosStage5.wallet.withdrawing') }} {{ formatWalletMoney(stats.withdrawing) }}</span>
+        <span class="mobile-chip">{{ $t('iosStage5.wallet.pendingDeposit') }} {{ formatWalletMoney(stats.pending) }}</span>
         </div>
       </section>
 
@@ -29,13 +29,13 @@
         <section class="mobile-card">
           <ion-segment :value="activeSegment" @ionChange="handleSegmentChange">
             <ion-segment-button value="account">
-              <ion-label>账户</ion-label>
+              <ion-label>{{ $t('iosStage5.wallet.account') }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="withdraw">
-              <ion-label>提现</ion-label>
+              <ion-label>{{ $t('iosStage5.wallet.withdraw') }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="identity">
-              <ion-label>认证</ion-label>
+              <ion-label>{{ $t('iosStage5.wallet.verification') }}</ion-label>
             </ion-segment-button>
           </ion-segment>
         </section>
@@ -43,20 +43,20 @@
         <section class="mobile-card wallet-summary-card">
           <div class="wallet-summary-grid">
             <article class="wallet-stat-card">
-              <span>可用余额</span>
-              <strong>¥{{ formatCurrency(stats.balance) }}</strong>
+              <span>{{ $t('iosStage5.wallet.availableBalance') }}</span>
+              <strong>{{ formatWalletMoney(stats.balance) }}</strong>
             </article>
             <article class="wallet-stat-card">
-              <span>提现中</span>
-              <strong>¥{{ formatCurrency(stats.withdrawing) }}</strong>
+              <span>{{ $t('iosStage5.wallet.withdrawing') }}</span>
+              <strong>{{ formatWalletMoney(stats.withdrawing) }}</strong>
             </article>
             <article class="wallet-stat-card">
-              <span>待入账</span>
-              <strong>¥{{ formatCurrency(stats.pending) }}</strong>
+              <span>{{ $t('iosStage5.wallet.pendingDeposit') }}</span>
+              <strong>{{ formatWalletMoney(stats.pending) }}</strong>
             </article>
             <article class="wallet-stat-card">
-              <span>累计提现</span>
-              <strong>¥{{ formatCurrency(stats.totalWithdrawn) }}</strong>
+              <span>{{ $t('iosStage5.wallet.totalWithdrawn') }}</span>
+              <strong>{{ formatWalletMoney(stats.totalWithdrawn) }}</strong>
             </article>
           </div>
 
@@ -66,40 +66,40 @@
         <section v-if="activeSegment === 'account'" class="mobile-card wallet-account-card">
           <div class="mobile-inline-row">
             <div>
-              <h2 class="mobile-section-title">账户流水</h2>
-              <p class="mobile-note">按移动端展示清算流水与入账明细，避免桌面大表格。</p>
+              <h2 class="mobile-section-title">{{ $t('iosStage5.wallet.accountActivity') }}</h2>
+              <p class="mobile-note">{{ $t('iosStage5.wallet.activityDescription') }}</p>
             </div>
             <ion-spinner v-if="loading" name="crescent" />
           </div>
 
           <ion-segment :value="accountSegment" @ionChange="handleAccountSegmentChange">
             <ion-segment-button value="balance">
-              <ion-label>余额流水</ion-label>
+              <ion-label>{{ $t('iosStage5.wallet.balanceActivity') }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="deposit">
-              <ion-label>入账明细</ion-label>
+              <ion-label>{{ $t('iosStage5.wallet.depositDetails') }}</ion-label>
             </ion-segment-button>
           </ion-segment>
 
           <div v-if="accountSegment === 'balance' && balanceRecords.length > 0" class="mobile-list wallet-list">
             <article v-for="item in balanceRecords" :key="item.id" class="wallet-record-card">
               <div class="wallet-record-card__header">
-                <strong>{{ item.type || '余额变动' }}</strong>
-                <strong>¥{{ formatCurrency(item.amount) }}</strong>
+                <strong>{{ item.type || $t('iosStage5.wallet.balanceChange') }}</strong>
+                    <strong>{{ formatWalletMoney(item.amount) }}</strong>
               </div>
-              <p>{{ item.channel || '未知渠道' }} · {{ item.paymentMethod || '支付方式待确认' }}</p>
-              <p>{{ item.orderNo || item.transactionNo || '无订单号' }} · {{ item.time || '时间未知' }}</p>
+              <p>{{ item.channel || $t('iosStage5.wallet.unknownChannel') }} · {{ item.paymentMethod || $t('iosStage5.wallet.paymentPending') }}</p>
+              <p>{{ item.orderNo || item.transactionNo || $t('iosStage5.wallet.noOrderNumber') }} · {{ item.time || $t('iosStage5.wallet.unknownTime') }}</p>
             </article>
           </div>
 
           <div v-if="accountSegment === 'deposit' && depositRecords.length > 0" class="mobile-list wallet-list">
             <article v-for="item in depositRecords" :key="item.id" class="wallet-record-card">
               <div class="wallet-record-card__header">
-                <strong>{{ item.type || '入账明细' }}</strong>
-                <strong>¥{{ formatCurrency(item.settlementAmount) }}</strong>
+                <strong>{{ item.type || $t('iosStage5.wallet.depositDetails') }}</strong>
+                    <strong>{{ formatWalletMoney(item.settlementAmount) }}</strong>
               </div>
-              <p>{{ item.channel || '未知渠道' }} · {{ item.orderType || '订单类型待确认' }}</p>
-              <p>{{ item.orderNo || '无订单号' }} · {{ item.occurTime || '时间未知' }}</p>
+              <p>{{ item.channel || $t('iosStage5.wallet.unknownChannel') }} · {{ item.orderType || $t('iosStage5.wallet.orderTypePending') }}</p>
+              <p>{{ item.orderNo || $t('iosStage5.wallet.noOrderNumber') }} · {{ item.occurTime || $t('iosStage5.wallet.unknownTime') }}</p>
             </article>
           </div>
 
@@ -107,9 +107,9 @@
             v-if="accountSegment === 'balance' && balanceRecords.length === 0 && !loading"
             class="wallet-empty-state"
           >
-            <h3>暂无余额流水</h3>
+            <h3>{{ $t('iosStage5.wallet.noBalanceActivity') }}</h3>
             <p class="mobile-note">
-              {{ walletServiceUnavailable ? WALLET_SERVICE_UNAVAILABLE_NOTICE : '当前没有可展示的余额变动记录。' }}
+              {{ walletServiceUnavailable ? walletServiceUnavailableNotice : $t('iosStage5.wallet.noBalanceDescription') }}
             </p>
           </div>
 
@@ -117,9 +117,9 @@
             v-if="accountSegment === 'deposit' && depositRecords.length === 0 && !loading"
             class="wallet-empty-state"
           >
-            <h3>暂无入账明细</h3>
+            <h3>{{ $t('iosStage5.wallet.noDepositDetails') }}</h3>
             <p class="mobile-note">
-              {{ walletServiceUnavailable ? WALLET_SERVICE_UNAVAILABLE_NOTICE : '当前没有可展示的入账记录。' }}
+              {{ walletServiceUnavailable ? walletServiceUnavailableNotice : $t('iosStage5.wallet.noDepositDescription') }}
             </p>
           </div>
         </section>
@@ -127,91 +127,91 @@
         <section v-if="activeSegment === 'withdraw'" class="mobile-card wallet-withdraw-card">
           <div class="mobile-inline-row">
             <div>
-              <h2 class="mobile-section-title">提现申请</h2>
-              <p class="mobile-note">移动端保留申请入口和历史记录，适合快速提交提现。</p>
+              <h2 class="mobile-section-title">{{ $t('iosStage5.wallet.withdrawRequest') }}</h2>
+              <p class="mobile-note">{{ $t('iosStage5.wallet.withdrawDescription') }}</p>
             </div>
             <ion-spinner v-if="submittingWithdraw" name="crescent" />
           </div>
 
           <div class="wallet-withdraw-overview">
             <article class="wallet-withdraw-overview__item">
-              <span>当前可提现</span>
-              <strong>¥{{ formatCurrency(stats.balance) }}</strong>
+              <span>{{ $t('iosStage5.wallet.currentlyAvailable') }}</span>
+              <strong>{{ formatWalletMoney(stats.balance) }}</strong>
             </article>
             <article class="wallet-withdraw-overview__item">
-              <span>累计提现</span>
-              <strong>¥{{ formatCurrency(stats.totalWithdrawn) }}</strong>
+              <span>{{ $t('iosStage5.wallet.totalWithdrawn') }}</span>
+              <strong>{{ formatWalletMoney(stats.totalWithdrawn) }}</strong>
             </article>
           </div>
 
           <div class="wallet-form-grid">
             <label class="wallet-form-field">
-              <span>提现金额</span>
-              <ion-input v-model="withdrawForm.amount" fill="outline" inputmode="decimal" placeholder="请输入提现金额" />
+              <span>{{ $t('iosStage5.wallet.withdrawAmount') }}</span>
+              <ion-input v-model="withdrawForm.amount" fill="outline" inputmode="decimal" :placeholder="$t('iosStage5.wallet.withdrawAmountPlaceholder')" />
             </label>
 
             <label class="wallet-form-field">
-              <span>账户类型</span>
+              <span>{{ $t('iosStage5.wallet.accountType') }}</span>
               <ion-select v-model="withdrawForm.accountType" fill="outline" interface="action-sheet">
-                <ion-select-option value="bank">银行卡</ion-select-option>
-                <ion-select-option value="alipay">支付宝</ion-select-option>
-                <ion-select-option value="wechat">微信</ion-select-option>
+                <ion-select-option value="bank">{{ $t('roomStatus.payment.methodOptions.bankCard') }}</ion-select-option>
+                <ion-select-option value="alipay">{{ $t('accommodation.paymentMethods.alipay') }}</ion-select-option>
+                <ion-select-option value="wechat">{{ $t('accommodation.paymentMethods.wechat') }}</ion-select-option>
               </ion-select>
             </label>
 
             <label class="wallet-form-field wallet-form-field--full">
-              <span>到账账户</span>
-              <ion-input v-model="withdrawForm.accountInfo" fill="outline" placeholder="请输入银行卡号或收款账号" />
+              <span>{{ $t('iosStage5.wallet.receivingAccount') }}</span>
+              <ion-input v-model="withdrawForm.accountInfo" fill="outline" :placeholder="$t('iosStage5.wallet.receivingAccountPlaceholder')" />
             </label>
           </div>
 
           <div class="wallet-form-actions">
-            <ion-button fill="outline" @click="resetWithdrawForm">重置</ion-button>
+            <ion-button fill="outline" @click="resetWithdrawForm">{{ $t('accommodation.common.reset') }}</ion-button>
             <ion-button :disabled="submittingWithdraw || walletServiceUnavailable" @click="handleSubmitWithdraw">
-              {{ submittingWithdraw ? '提交中...' : '提交提现申请' }}
+              {{ submittingWithdraw ? $t('iosStage5.cleaning.submitting') : $t('iosStage5.wallet.submitRequest') }}
             </ion-button>
           </div>
 
-          <p v-if="walletServiceUnavailable" class="mobile-note">{{ WALLET_WITHDRAW_UNAVAILABLE_NOTICE }}</p>
+          <p v-if="walletServiceUnavailable" class="mobile-note">{{ walletWithdrawUnavailableNotice }}</p>
 
           <div v-if="withdrawRecords.length > 0" class="mobile-list wallet-list wallet-withdraw-history">
             <article v-for="item in withdrawRecords" :key="item.id" class="wallet-record-card">
               <div class="wallet-record-card__header">
-                <strong>{{ item.accountType || '提现记录' }}</strong>
-                <strong>¥{{ formatCurrency(item.amount) }}</strong>
+                <strong>{{ item.accountType || $t('iosStage5.wallet.withdrawRecord') }}</strong>
+                    <strong>{{ formatWalletMoney(item.amount) }}</strong>
               </div>
-              <p>{{ item.accountInfo || '账户未记录' }} · {{ item.applicant || '申请人未记录' }}</p>
-              <p>{{ item.status || '状态待确认' }} · {{ item.applyTime || '时间未知' }}</p>
+              <p>{{ item.accountInfo || $t('iosStage5.wallet.accountNotRecorded') }} · {{ item.applicant || $t('iosStage5.wallet.applicantNotRecorded') }}</p>
+              <p>{{ item.status || $t('iosStage5.wallet.statusPending') }} · {{ item.applyTime || $t('iosStage5.wallet.unknownTime') }}</p>
             </article>
           </div>
 
           <div v-else-if="!loading" class="wallet-empty-state">
-            <h3>暂无提现记录</h3>
+            <h3>{{ $t('iosStage5.wallet.noWithdrawRecords') }}</h3>
             <p class="mobile-note">
-              {{ walletServiceUnavailable ? WALLET_SERVICE_UNAVAILABLE_NOTICE : '提交提现后会在这里展示处理进度。' }}
+              {{ walletServiceUnavailable ? walletServiceUnavailableNotice : $t('iosStage5.wallet.noWithdrawDescription') }}
             </p>
           </div>
         </section>
 
         <section v-if="activeSegment === 'identity'" class="mobile-card wallet-identity-card">
-          <h2 class="mobile-section-title">身份认证</h2>
-          <p class="mobile-note">认证模块在 Web 端仍以材料提交为主，iOS 首版先提供状态说明和材料准备清单。</p>
+          <h2 class="mobile-section-title">{{ $t('iosStage5.wallet.identityVerification') }}</h2>
+          <p class="mobile-note">{{ $t('iosStage5.wallet.identityDescription') }}</p>
 
           <div class="wallet-identity-status">
-            <span class="wallet-identity-status__badge">待认证</span>
-            <p>请先准备收款主体信息、联系人信息和开户地址等资料，再进行正式认证。</p>
+            <span class="wallet-identity-status__badge">{{ $t('iosStage5.wallet.verificationPending') }}</span>
+            <p>{{ $t('iosStage5.wallet.prepareMaterials') }}</p>
           </div>
 
           <ul class="mobile-bullet-list">
-            <li>公司或个人收款主体名称</li>
-            <li>联系人姓名与联系电话</li>
-            <li>开户地址与收款账户</li>
-            <li>若后端开放接口，可在此页继续补齐在线提交</li>
+            <li>{{ $t('iosStage5.wallet.recipientName') }}</li>
+            <li>{{ $t('iosStage5.wallet.contactDetails') }}</li>
+            <li>{{ $t('iosStage5.wallet.bankAndAccount') }}</li>
+            <li>{{ $t('iosStage5.wallet.onlineSubmissionNote') }}</li>
           </ul>
 
           <section class="wallet-identity-placeholder">
-            <h3>当前说明</h3>
-            <p class="mobile-note">本次迁移不伪造服务端认证提交接口，先保证移动端可查看状态与操作准备说明。</p>
+            <h3>{{ $t('iosStage5.wallet.currentNotice') }}</h3>
+            <p class="mobile-note">{{ $t('iosStage5.wallet.noFakeApi') }}</p>
           </section>
         </section>
       </div>
@@ -241,9 +241,12 @@ import {
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { computed, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getBalanceRecords, getDepositRecords, getWalletStats, getWithdrawRecords, withdrawOrder } from '@/api/wallet'
 import { ROUTE_PATHS } from '@/router/guards'
+import { useStoreStore } from '@/stores/store'
 import type { BalanceRecord, DepositRecord, WalletStats, WithdrawRecord } from '@/types/wallet'
+import { formatMoney } from '@/utils/formatters'
 import { getRequestErrorStatus, isHandledRequestError } from '@/utils/request'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 
@@ -254,8 +257,10 @@ const EMPTY_STATS: WalletStats = {
   totalWithdrawn: 0,
 }
 
-const WALLET_SERVICE_UNAVAILABLE_NOTICE = '钱包服务暂未开通，当前仅支持查看页面结构。'
-const WALLET_WITHDRAW_UNAVAILABLE_NOTICE = '钱包服务暂未开通，暂不支持提现申请。'
+const { t } = useI18n()
+const storeStore = useStoreStore()
+const walletServiceUnavailableNotice = computed(() => t('iosStage5.wallet.serviceUnavailable'))
+const walletWithdrawUnavailableNotice = computed(() => t('iosStage5.wallet.withdrawUnavailable'))
 
 type WalletServiceState = 'unknown' | 'available' | 'unavailable'
 
@@ -286,8 +291,13 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
   return fallbackMessage
 }
 
-function formatCurrency(value: number) {
-  return Number(value || 0).toFixed(2)
+function formatWalletMoney(value: number) {
+  return formatMoney(
+    value,
+    storeStore.currentStore?.currency || 'CNY',
+    {},
+    { country: storeStore.currentStore?.country },
+  )
 }
 
 function applyEmptyWalletState() {
@@ -305,10 +315,10 @@ function markWalletServiceAvailable() {
 function markWalletServiceUnavailable(shouldToast: boolean, toastMessage?: string) {
   applyEmptyWalletState()
   walletServiceState.value = 'unavailable'
-  loadNotice.value = WALLET_SERVICE_UNAVAILABLE_NOTICE
+  loadNotice.value = walletServiceUnavailableNotice.value
 
   if (shouldToast && !hasShownUnavailableNotice.value) {
-    showWarningToast(toastMessage || WALLET_SERVICE_UNAVAILABLE_NOTICE)
+    showWarningToast(toastMessage || walletServiceUnavailableNotice.value)
     hasShownUnavailableNotice.value = true
   }
 }
@@ -324,13 +334,13 @@ async function loadPage(options: { forceProbe?: boolean } = {}) {
   try {
     if (walletServiceState.value === 'unavailable' && !options.forceProbe) {
       applyEmptyWalletState()
-      loadNotice.value = WALLET_SERVICE_UNAVAILABLE_NOTICE
+      loadNotice.value = walletServiceUnavailableNotice.value
       return
     }
 
     const statsResponse = await getWalletStats({ suppressErrorStatuses: [404] })
     if (!statsResponse.success || !statsResponse.data) {
-      throw new Error(statsResponse.message || '钱包统计加载失败')
+      throw new Error(statsResponse.message || t('iosStage5.wallet.statsLoadFailed'))
     }
 
     markWalletServiceAvailable()
@@ -363,30 +373,30 @@ async function loadPage(options: { forceProbe?: boolean } = {}) {
       if (balanceResult.value.success && balanceResult.value.data) {
         balanceRecords.value = balanceResult.value.data.records || []
       } else {
-        warnings.push(balanceResult.value.message || '余额流水加载失败')
+        warnings.push(balanceResult.value.message || t('iosStage5.wallet.balanceLoadFailed'))
       }
     } else {
-      warnings.push(resolveWarningMessage(balanceResult.reason, '余额流水加载失败'))
+      warnings.push(resolveWarningMessage(balanceResult.reason, t('iosStage5.wallet.balanceLoadFailed')))
     }
 
     if (depositResult.status === 'fulfilled') {
       if (depositResult.value.success && depositResult.value.data) {
         depositRecords.value = depositResult.value.data.records || []
       } else {
-        warnings.push(depositResult.value.message || '入账明细加载失败')
+        warnings.push(depositResult.value.message || t('iosStage5.wallet.depositLoadFailed'))
       }
     } else {
-      warnings.push(resolveWarningMessage(depositResult.reason, '入账明细加载失败'))
+      warnings.push(resolveWarningMessage(depositResult.reason, t('iosStage5.wallet.depositLoadFailed')))
     }
 
     if (withdrawResult.status === 'fulfilled') {
       if (withdrawResult.value.success && withdrawResult.value.data) {
         withdrawRecords.value = withdrawResult.value.data.records || []
       } else {
-        warnings.push(withdrawResult.value.message || '提现记录加载失败')
+        warnings.push(withdrawResult.value.message || t('iosStage5.wallet.withdrawLoadFailed'))
       }
     } else {
-      warnings.push(resolveWarningMessage(withdrawResult.reason, '提现记录加载失败'))
+      warnings.push(resolveWarningMessage(withdrawResult.reason, t('iosStage5.wallet.withdrawLoadFailed')))
     }
 
     if (warnings.length > 0) {
@@ -399,7 +409,7 @@ async function loadPage(options: { forceProbe?: boolean } = {}) {
       return
     }
 
-    loadNotice.value = resolveWarningMessage(error, '钱包页面加载失败')
+    loadNotice.value = resolveWarningMessage(error, t('iosStage5.wallet.pageLoadFailed'))
     if (!isHandledRequestError(error)) {
       showWarningToast(loadNotice.value)
     }
@@ -416,18 +426,18 @@ function resetWithdrawForm() {
 
 async function handleSubmitWithdraw() {
   if (walletServiceUnavailable.value) {
-    showWarningToast(WALLET_WITHDRAW_UNAVAILABLE_NOTICE)
+    showWarningToast(walletWithdrawUnavailableNotice.value)
     return
   }
 
   const amount = Number(withdrawForm.amount)
   if (!Number.isFinite(amount) || amount <= 0) {
-    showWarningToast('请输入有效的提现金额')
+    showWarningToast(t('iosStage5.wallet.invalidAmount'))
     return
   }
 
   if (!withdrawForm.accountInfo.trim()) {
-    showWarningToast('请输入到账账户')
+    showWarningToast(t('iosStage5.wallet.accountRequired'))
     return
   }
 
@@ -442,20 +452,20 @@ async function handleSubmitWithdraw() {
       { suppressErrorStatuses: [404] },
     )
     if (!response.success) {
-      throw new Error(response.message || '提现申请失败')
+      throw new Error(response.message || t('iosStage5.wallet.requestFailed'))
     }
 
-    showSuccessToast('提现申请已提交')
+    showSuccessToast(t('iosStage5.wallet.requestSubmitted'))
     resetWithdrawForm()
     await loadPage()
   } catch (error) {
     if (isWalletServiceUnavailableError(error)) {
-      markWalletServiceUnavailable(true, WALLET_WITHDRAW_UNAVAILABLE_NOTICE)
+      markWalletServiceUnavailable(true, walletWithdrawUnavailableNotice.value)
       return
     }
 
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '提现申请失败'))
+      showWarningToast(resolveWarningMessage(error, t('iosStage5.wallet.requestFailed')))
     }
   } finally {
     submittingWithdraw.value = false

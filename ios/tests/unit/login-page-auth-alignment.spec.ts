@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import LoginPage from '@/views/auth/LoginPage.vue'
+import { createTestI18n } from './helpers/i18n'
 
 const apiMocks = vi.hoisted(() => ({
   loginByPassword: vi.fn(),
@@ -113,8 +114,14 @@ vi.mock('@/components/auth/AuthBrandHeader.vue', async () => {
   return {
     default: defineComponent({
       name: 'AuthBrandHeader',
-      setup() {
-        return () => h('header')
+      props: {
+        showLanguageSwitcher: Boolean,
+      },
+      setup(props) {
+        return () =>
+          h('header', {
+            'data-language-switcher': String(props.showLanguageSwitcher),
+          })
       },
     }),
   }
@@ -233,6 +240,13 @@ const findButtonByText = (wrapper: ReturnType<typeof mount>, text: string) => {
   return button
 }
 
+const mountLoginPage = () =>
+  mount(LoginPage, {
+    global: {
+      plugins: [createTestI18n()],
+    },
+  })
+
 describe('LoginPage Web alignment', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -242,9 +256,10 @@ describe('LoginPage Web alignment', () => {
   })
 
   test('shows no graphic captcha and leaves remember/agreement unchecked by default', () => {
-    const wrapper = mount(LoginPage)
+    const wrapper = mountLoginPage()
     const checkboxes = wrapper.findAll<HTMLInputElement>('input[type="checkbox"]')
 
+    expect(wrapper.get('header').attributes('data-language-switcher')).toBe('true')
     expect(wrapper.text()).not.toContain('图形验证码')
     expect(checkboxes).toHaveLength(2)
     expect(checkboxes[0].element.checked).toBe(false)
@@ -252,7 +267,7 @@ describe('LoginPage Web alignment', () => {
   })
 
   test('submits the original password without trimming it', async () => {
-    const wrapper = mount(LoginPage)
+    const wrapper = mountLoginPage()
 
     await wrapper.find('input[placeholder="请输入邮箱"]').setValue('owner@example.com')
     await wrapper.find('input[placeholder="请输入密码"]').setValue(' 123456 ')
@@ -271,7 +286,7 @@ describe('LoginPage Web alignment', () => {
     apiMocks.loginByPassword
       .mockResolvedValueOnce(buildPmsLoginResponse(['PMS', 'CLEANER']))
       .mockResolvedValueOnce(buildPmsLoginResponse(['PMS', 'CLEANER']))
-    const wrapper = mount(LoginPage)
+    const wrapper = mountLoginPage()
 
     await wrapper.find('input[placeholder="请输入邮箱"]').setValue('owner@example.com')
     await wrapper.find('input[placeholder="请输入密码"]').setValue('123456')
@@ -292,7 +307,7 @@ describe('LoginPage Web alignment', () => {
   })
 
   test('sends code without a captcha and preserves the false remember choice', async () => {
-    const wrapper = mount(LoginPage)
+    const wrapper = mountLoginPage()
 
     await wrapper.find('input[placeholder="请输入邮箱"]').setValue('owner@example.com')
     await wrapper.findAll('input[type="checkbox"]')[1].setValue(true)

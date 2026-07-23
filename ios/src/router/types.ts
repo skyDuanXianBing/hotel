@@ -13,6 +13,7 @@ export type AppTabKey =
 declare module 'vue-router' {
   interface RouteMeta {
     title?: string
+    titleKey?: string
     publicAccess?: boolean
     requiresAuth?: boolean
     requiresStore?: boolean

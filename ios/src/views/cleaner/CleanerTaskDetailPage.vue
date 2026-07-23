@@ -5,33 +5,33 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.cleanerDashboard" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">任务详情</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.CleanerTaskDetail') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content fullscreen class="mobile-page cleaner-task-detail-page">
       <section class="mobile-hero cleaner-task-detail-page__hero">
-        <p class="mobile-note cleaner-task-detail-page__eyebrow">Task Detail</p>
+        <p class="mobile-note cleaner-task-detail-page__eyebrow">{{ $t('iosStage5.cleaning.taskDetails') }}</p>
         <h1 class="mobile-title">{{ taskTitle }}</h1>
-        <p class="mobile-subtitle">查看任务状态与详情，并按状态执行接受、拒绝或完成打扫。</p>
+        <p class="mobile-subtitle">{{ $t('iosStage5.cleanerWorkspace.detailSubtitle') }}</p>
       </section>
 
       <div class="mobile-stack">
         <section class="mobile-card cleaner-task-detail-page__detail-card">
           <div class="cleaner-task-detail-page__detail-grid">
-            <span>任务日期 {{ task?.taskDate || '-' }}</span>
-            <span>房型 {{ task?.roomType || '-' }}</span>
-            <span>房间 {{ task?.roomNumber || '-' }}</span>
-            <span>任务类型 {{ taskTypeText }}</span>
-            <span>任务状态 {{ taskStatusText }}</span>
-            <span>预计时间 {{ task?.estimatedTime || '-' }}</span>
-            <span>保洁员 {{ task?.cleanerName || cleanerDisplayName }}</span>
-            <span>审批人 {{ task?.approverName || '-' }}</span>
-            <span>开始时间 {{ task?.startTime || '-' }}</span>
-            <span>完成时间 {{ task?.completeTime || '-' }}</span>
+            <span>{{ $t('iosStage5.cleanerWorkspace.taskDate') }} {{ task?.taskDate || '-' }}</span>
+            <span>{{ $t('iosStage5.cleanerWorkspace.roomType') }} {{ task?.roomType || '-' }}</span>
+            <span>{{ $t('iosStage5.cleanerWorkspace.room') }} {{ task?.roomNumber || '-' }}</span>
+            <span>{{ $t('iosStage5.cleanerWorkspace.taskType') }} {{ taskTypeText }}</span>
+            <span>{{ $t('iosStage5.cleanerWorkspace.taskStatus') }} {{ taskStatusText }}</span>
+            <span>{{ $t('iosStage5.cleanerWorkspace.estimatedTime') }} {{ task?.estimatedTime || '-' }}</span>
+            <span>{{ $t('iosStage5.cleanerWorkspace.cleaner') }} {{ task?.cleanerName || cleanerDisplayName }}</span>
+            <span>{{ $t('iosStage5.cleanerWorkspace.approver') }} {{ task?.approverName || '-' }}</span>
+            <span>{{ $t('iosStage5.cleanerWorkspace.startTime') }} {{ task?.startTime || '-' }}</span>
+            <span>{{ $t('iosStage5.cleanerWorkspace.completeTime') }} {{ task?.completeTime || '-' }}</span>
           </div>
 
-          <p v-if="task?.notes" class="mobile-note">备注：{{ task.notes }}</p>
+          <p v-if="task?.notes" class="mobile-note">{{ $t('iosStage5.cleanerWorkspace.notes') }}{{ task.notes }}</p>
           <p v-if="errorMessage" class="mobile-note cleaner-task-detail-page__error">{{ errorMessage }}</p>
         </section>
       </div>
@@ -45,7 +45,7 @@
           :disabled="submitting"
           @click="handleReject"
         >
-          拒绝任务
+          {{ $t('iosStage5.cleanerWorkspace.rejectTask') }}
         </ion-button>
 
         <ion-button
@@ -54,7 +54,7 @@
           :disabled="submitting"
           @click="handleAccept"
         >
-          {{ submitting ? '提交中...' : '接受任务' }}
+          {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('iosStage5.cleanerWorkspace.acceptTask') }}
         </ion-button>
 
         <ion-button
@@ -63,11 +63,11 @@
           :disabled="submitting"
           @click="handleComplete"
         >
-          {{ submitting ? '提交中...' : '完成打扫' }}
+          {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('iosStage5.cleanerWorkspace.completeCleaning') }}
         </ion-button>
 
         <ion-button v-if="!task || task.status === 'completed' || task.status === 'pending'" fill="outline" @click="handleBack">
-          返回工作台
+          {{ $t('iosStage5.cleanerWorkspace.backToWorkspace') }}
         </ion-button>
       </div>
     </ion-content>
@@ -86,6 +86,7 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { onIonViewWillEnter } from '@ionic/vue'
 import {
   acceptCleaningTask,
@@ -103,6 +104,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const cleanerUser = ref(readCleanerUser())
 const task = ref<CleaningTaskDTO | null>(null)
@@ -118,15 +120,15 @@ const cleanerDisplayName = computed(() => {
     return cleanerUser.value.email
   }
 
-  return '保洁员'
+  return t('iosStage5.cleanerWorkspace.cleaner')
 })
 
 const taskTitle = computed(() => {
   if (!task.value) {
-    return '任务详情'
+    return t('routes.CleanerTaskDetail')
   }
 
-  return `房间 ${task.value.roomNumber || '-'} · ${taskTypeText.value}`
+  return `${t('iosStage5.cleanerWorkspace.room')} ${task.value.roomNumber || '-'} · ${taskTypeText.value}`
 })
 
 const taskStatusText = computed(() => {
@@ -134,7 +136,8 @@ const taskStatusText = computed(() => {
     return '-'
   }
 
-  return CLEANER_STATUS_LABELS[task.value.status] || task.value.status
+  const labelKey = CLEANER_STATUS_LABELS[task.value.status]
+  return (labelKey ? t(labelKey) : '') || task.value.status
 })
 
 const taskTypeText = computed(() => {
@@ -142,7 +145,8 @@ const taskTypeText = computed(() => {
     return '-'
   }
 
-  return CLEANER_TASK_TYPE_LABELS[task.value.taskType] || task.value.taskType
+  const labelKey = CLEANER_TASK_TYPE_LABELS[task.value.taskType]
+  return (labelKey ? t(labelKey) : '') || task.value.taskType
 })
 
 function resolveTaskId() {
@@ -160,7 +164,7 @@ function resolveTaskId() {
 async function loadTaskDetail() {
   const taskId = resolveTaskId()
   if (!taskId) {
-    showWarningToast('任务 ID 无效')
+    showWarningToast(t('iosStage5.cleanerWorkspace.invalidTaskId'))
     await router.replace(ROUTE_PATHS.cleanerDashboard)
     return
   }
@@ -170,13 +174,13 @@ async function loadTaskDetail() {
   try {
     const response = await getCleaningTaskById(taskId)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载任务详情失败')
+      throw new Error(response.message || t('iosStage5.cleanerWorkspace.detailLoadFailed'))
     }
 
     task.value = response.data
   } catch (error) {
     task.value = null
-    errorMessage.value = error instanceof Error ? error.message : '加载任务详情失败'
+    errorMessage.value = error instanceof Error ? error.message : t('iosStage5.cleanerWorkspace.detailLoadFailed')
 
     if (!isHandledRequestError(error)) {
       showWarningToast(errorMessage.value)
@@ -194,14 +198,14 @@ async function handleAccept() {
   try {
     const response = await acceptCleaningTask(task.value.id)
     if (!response.success) {
-      throw new Error(response.message || '接受任务失败')
+      throw new Error(response.message || t('iosStage5.cleanerWorkspace.acceptFailed'))
     }
 
-    showSuccessToast('已接受任务')
+    showSuccessToast(t('iosStage5.cleanerWorkspace.accepted'))
     await loadTaskDetail()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showErrorToast(error instanceof Error ? error.message : '接受任务失败')
+      showErrorToast(error instanceof Error ? error.message : t('iosStage5.cleanerWorkspace.acceptFailed'))
     }
   } finally {
     submitting.value = false
@@ -214,7 +218,7 @@ async function handleReject() {
   }
 
   if (typeof window !== 'undefined') {
-    const confirmed = window.confirm('确定要拒绝这个任务吗？')
+    const confirmed = window.confirm(t('iosStage5.cleanerWorkspace.rejectConfirm'))
     if (!confirmed) {
       return
     }
@@ -225,14 +229,14 @@ async function handleReject() {
   try {
     const response = await rejectCleaningTask(task.value.id)
     if (!response.success) {
-      throw new Error(response.message || '拒绝任务失败')
+      throw new Error(response.message || t('iosStage5.cleanerWorkspace.rejectFailed'))
     }
 
-    showSuccessToast('已拒绝任务')
+    showSuccessToast(t('iosStage5.cleanerWorkspace.rejected'))
     await router.replace(ROUTE_PATHS.cleanerDashboard)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showErrorToast(error instanceof Error ? error.message : '拒绝任务失败')
+      showErrorToast(error instanceof Error ? error.message : t('iosStage5.cleanerWorkspace.rejectFailed'))
     }
   } finally {
     submitting.value = false
@@ -246,12 +250,12 @@ async function handleComplete() {
 
   const cleanerId = cleanerUser.value?.cleanerId
   if (!cleanerId) {
-    showWarningToast('未获取到当前保洁员信息')
+    showWarningToast(t('iosStage5.cleanerWorkspace.cleanerMissing'))
     return
   }
 
   if (typeof window !== 'undefined') {
-    const confirmed = window.confirm('确认已完成打扫吗？')
+    const confirmed = window.confirm(t('iosStage5.cleanerWorkspace.completeConfirm'))
     if (!confirmed) {
       return
     }
@@ -262,14 +266,14 @@ async function handleComplete() {
   try {
     const response = await completeCleaningTask(task.value.id, cleanerId)
     if (!response.success) {
-      throw new Error(response.message || '完成任务失败')
+      throw new Error(response.message || t('iosStage5.cleanerWorkspace.completeFailed'))
     }
 
-    showSuccessToast('任务已完成')
+    showSuccessToast(t('iosStage5.cleanerWorkspace.completed'))
     await router.replace(ROUTE_PATHS.cleanerDashboard)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showErrorToast(error instanceof Error ? error.message : '完成任务失败')
+      showErrorToast(error instanceof Error ? error.message : t('iosStage5.cleanerWorkspace.completeFailed'))
     }
   } finally {
     submitting.value = false
@@ -332,10 +336,12 @@ onIonViewWillEnter(async () => {
   padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
   background: rgba(255, 255, 255, 0.96);
   border-top: 1px solid var(--app-border);
+  flex-wrap: wrap;
 }
 
 .cleaner-task-detail-page__action {
   flex: 1;
+  min-width: min(150px, 100%);
 }
 
 @media (max-width: 520px) {

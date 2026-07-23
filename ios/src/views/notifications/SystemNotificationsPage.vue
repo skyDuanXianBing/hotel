@@ -3,9 +3,9 @@
     <ion-header translucent>
       <ion-toolbar class="orders-header__toolbar">
         <ion-buttons slot="start">
-          <ion-back-button class="notifications-header__back-btn" :default-href="ROUTE_PATHS.home" text="" />
+          <ion-back-button class="notifications-header__back-btn" :default-href="ROUTE_PATHS.home" />
         </ion-buttons>
-        <ion-title class="orders-header__title">系统通知</ion-title>
+        <ion-title class="orders-header__title">{{ $t('routes.SystemNotifications') }}</ion-title>
         <ion-buttons slot="end">
           <ion-button class="orders-header__icon-btn" fill="clear" @click="handleToggleSearch">
             <ion-icon :icon="searchOutline" />
@@ -16,7 +16,10 @@
 
     <ion-content fullscreen class="mobile-page notifications-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新系统通知" refreshing-spinner="crescent" />
+        <ion-refresher-content
+          :pulling-text="t('notifications.system.pullToRefresh')"
+          refreshing-spinner="crescent"
+        />
       </ion-refresher>
 
       <div class="orders-page__shell">
@@ -26,9 +29,11 @@
               v-model="searchKeyword"
               :debounce="0"
               class="orders-searchbar"
-              placeholder="搜索通知标题或内容"
+              :placeholder="t('notifications.searchPlaceholder')"
             />
-            <button type="button" class="orders-search-panel__cancel" @click="handleHideSearch">取消</button>
+            <button type="button" class="orders-search-panel__cancel" @click="handleHideSearch">
+              {{ t('notifications.cancel') }}
+            </button>
           </div>
         </section>
 
@@ -67,7 +72,9 @@
         <section class="orders-list-section">
           <div class="orders-list-header">
             <div class="orders-list-header__heading">
-              <p class="orders-list-header__summary">{{ activeTabLabel }} {{ totalElements }}条结果</p>
+              <p class="orders-list-header__summary">
+                {{ t('notifications.system.results', { tab: activeTabLabel, count: totalElements }) }}
+              </p>
               <div v-if="selectedType || activeTab !== 'all' || committedKeyword" class="orders-list-header__tags">
                 <span v-if="activeTab !== 'all'" class="orders-list-header__tag">{{ activeTabTag }}</span>
                 <span v-if="selectedType" class="orders-list-header__tag">{{ typeFilterTag }}</span>
@@ -121,6 +128,7 @@ import {
 } from '@ionic/vue'
 import { searchOutline } from 'ionicons/icons'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import SystemNotificationCard from '@/components/notification/SystemNotificationCard.vue'
 import {
   deleteNotificationMessage,
@@ -139,6 +147,7 @@ const SEARCH_DEBOUNCE = 280
 type SystemNotificationType = (typeof SYSTEM_TYPES)[number]
 
 const userStore = useUserStore()
+const { t } = useI18n()
 
 const loading = ref(false)
 const loadNotice = ref('')
@@ -152,58 +161,58 @@ const notifications = ref<NotificationMessageDTO[]>([])
 
 let searchTimer = 0
 
-const displayTabs: Array<{ label: string; value: NotificationReadFilter }> = [
-  { label: '全部', value: 'all' },
-  { label: '未读', value: 'unread' },
-  { label: '已读', value: 'read' },
-]
+const displayTabs = computed<Array<{ label: string; value: NotificationReadFilter }>>(() => [
+  { label: t('notifications.tabs.all'), value: 'all' },
+  { label: t('notifications.tabs.unread'), value: 'unread' },
+  { label: t('notifications.tabs.read'), value: 'read' },
+])
 
-const typeOptions: Array<{ label: string; value: SystemNotificationType | '' }> = [
-  { label: '全部类型', value: '' },
-  { label: '系统通知', value: 'SYSTEM' },
-  { label: '保洁通知', value: 'CLEANING' },
-  { label: '任务通知', value: 'TASK' },
-]
+const typeOptions = computed<Array<{ label: string; value: SystemNotificationType | '' }>>(() => [
+  { label: t('notifications.system.allTypes'), value: '' },
+  { label: t('notifications.system.type.system'), value: 'SYSTEM' },
+  { label: t('notifications.system.type.cleaning'), value: 'CLEANING' },
+  { label: t('notifications.system.type.task'), value: 'TASK' },
+])
 
 const totalElements = computed(() => notifications.value.length)
 const activeTabLabel = computed(() => {
   if (activeTab.value === 'unread') {
-    return '未读提醒'
+    return t('notifications.tabLabel.unread')
   }
   if (activeTab.value === 'read') {
-    return '已读提醒'
+    return t('notifications.tabLabel.read')
   }
-  return '全部提醒'
+  return t('notifications.tabLabel.all')
 })
 const activeTabTag = computed(() => {
   if (activeTab.value === 'unread') {
-    return '仅看未读'
+    return t('notifications.tabTag.unread')
   }
   if (activeTab.value === 'read') {
-    return '仅看已读'
+    return t('notifications.tabTag.read')
   }
-  return '全部'
+  return t('notifications.tabTag.all')
 })
 const typeFilterTag = computed(() => {
   if (!selectedType.value) {
-    return '全部类型'
+    return t('notifications.system.allTypes')
   }
   return formatTypeLabel(selectedType.value)
 })
 const emptyTitle = computed(() => {
   if (committedKeyword.value) {
-    return '没有匹配的系统通知'
+    return t('notifications.system.emptySearch')
   }
   if (activeTab.value === 'unread') {
-    return '暂无未读系统通知'
+    return t('notifications.system.emptyUnread')
   }
   if (activeTab.value === 'read') {
-    return '暂无已读系统通知'
+    return t('notifications.system.emptyRead')
   }
   if (selectedType.value) {
-    return `${formatTypeLabel(selectedType.value)}暂时为空`
+    return t('notifications.system.emptyType', { type: formatTypeLabel(selectedType.value) })
   }
-  return '暂无系统通知'
+  return t('notifications.system.emptyDefault')
 })
 
 function resolveWarningMessage(error: unknown, fallbackMessage: string) {
@@ -216,15 +225,15 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
 
 function formatTypeLabel(type: string) {
   if (type === 'SYSTEM') {
-    return '系统通知'
+    return t('notifications.system.type.system')
   }
   if (type === 'CLEANING') {
-    return '保洁通知'
+    return t('notifications.system.type.cleaning')
   }
   if (type === 'TASK') {
-    return '任务通知'
+    return t('notifications.system.type.task')
   }
-  return type || '系统通知'
+  return type || t('notifications.system.type.system')
 }
 
 function isSystemNotificationType(type: string): type is SystemNotificationType {
@@ -264,7 +273,7 @@ async function ensureUserId() {
 
   const user = await userStore.fetchCurrentUser(true)
   if (!user?.id) {
-    throw new Error('未获取到当前用户')
+    throw new Error(t('notifications.userMissing'))
   }
 
   return user.id
@@ -278,7 +287,7 @@ async function loadPage() {
     const userId = await ensureUserId()
     const response = await getNotificationMessages(userId, 0, 100)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载系统通知失败')
+      throw new Error(response.message || t('notifications.system.loadFailed'))
     }
 
     allNotifications.value = (response.data.content || []).filter((item) =>
@@ -286,7 +295,7 @@ async function loadPage() {
     )
     applyLocalFilter()
   } catch (error) {
-    loadNotice.value = resolveWarningMessage(error, '加载系统通知失败')
+    loadNotice.value = resolveWarningMessage(error, t('notifications.system.loadFailed'))
     if (!isHandledRequestError(error)) {
       showWarningToast(loadNotice.value)
     }
@@ -299,25 +308,25 @@ async function handleMarkAsRead(id: number) {
   try {
     const response = await markNotificationAsRead(id)
     if (!response.success) {
-      throw new Error(response.message || '标记已读失败')
+      throw new Error(response.message || t('notifications.markReadFailed'))
     }
 
-    showSuccessToast('已标记为已读')
+    showSuccessToast(t('notifications.markReadSuccess'))
     await loadPage()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '标记已读失败'))
+      showWarningToast(resolveWarningMessage(error, t('notifications.markReadFailed')))
     }
   }
 }
 
 async function handleDelete(id: number) {
   const alert = await alertController.create({
-    header: '删除通知',
-    message: '确认删除这条系统通知吗？',
+    header: t('notifications.system.deleteTitle'),
+    message: t('notifications.system.deleteConfirm'),
     buttons: [
-      { text: '取消', role: 'cancel' },
-      { text: '删除', role: 'destructive' },
+      { text: t('notifications.cancel'), role: 'cancel' },
+      { text: t('notifications.delete'), role: 'destructive' },
     ],
   })
 
@@ -330,14 +339,14 @@ async function handleDelete(id: number) {
   try {
     const response = await deleteNotificationMessage(id)
     if (!response.success) {
-      throw new Error(response.message || '删除通知失败')
+      throw new Error(response.message || t('notifications.deleteFailed'))
     }
 
-    showSuccessToast('通知已删除')
+    showSuccessToast(t('notifications.deleted'))
     await loadPage()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '删除通知失败'))
+      showWarningToast(resolveWarningMessage(error, t('notifications.deleteFailed')))
     }
   }
 }
@@ -347,7 +356,7 @@ async function presentNotificationActions(item: NotificationMessageDTO) {
 
   if (!item.isRead) {
     buttons.push({
-      text: '标记已读',
+      text: t('notifications.markRead'),
       handler: () => {
         void handleMarkAsRead(item.id)
       },
@@ -355,7 +364,7 @@ async function presentNotificationActions(item: NotificationMessageDTO) {
   }
 
   buttons.push({
-    text: '删除通知',
+    text: t('notifications.system.deleteTitle'),
     role: 'destructive',
     handler: () => {
       void handleDelete(item.id)
@@ -363,12 +372,12 @@ async function presentNotificationActions(item: NotificationMessageDTO) {
   })
 
   buttons.push({
-    text: '取消',
+    text: t('notifications.cancel'),
     role: 'cancel',
   })
 
   const actionSheet = await actionSheetController.create({
-    header: item.title || '系统通知',
+    header: item.title || t('notifications.system.type.system'),
     subHeader: formatTypeLabel(item.notificationType),
     buttons,
   })

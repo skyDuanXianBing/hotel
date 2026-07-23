@@ -5,14 +5,16 @@
       <span class="auth-brand-header__name">THE HOST HUB</span>
     </div>
 
-    <nav v-if="showTabs" class="auth-page-tabs" aria-label="账户入口">
+    <AuthLanguageSwitcher v-if="showLanguageSwitcher" />
+
+    <nav v-if="showTabs" class="auth-page-tabs" :aria-label="t('auth.tabs.accountEntry')">
       <button
         :class="['auth-page-tabs__button', { 'auth-page-tabs__button--active': activeTab === 'login' }]"
         :aria-current="activeTab === 'login' ? 'page' : undefined"
         type="button"
         @click="emit('select-login')"
       >
-        登录
+        {{ t('auth.tabs.login') }}
       </button>
       <button
         :class="['auth-page-tabs__button', { 'auth-page-tabs__button--active': activeTab === 'register' }]"
@@ -20,11 +22,11 @@
         type="button"
         @click="emit('select-register')"
       >
-        注册
+        {{ t('auth.tabs.register') }}
       </button>
     </nav>
 
-    <nav v-else-if="backLabel" class="auth-page-tabs auth-page-tabs--back" aria-label="返回登录">
+    <nav v-else-if="backLabel" class="auth-page-tabs auth-page-tabs--back" :aria-label="t('auth.tabs.backToLogin')">
       <button
         class="auth-page-tabs__button auth-page-tabs__button--active auth-page-tabs__button--back"
         type="button"
@@ -39,15 +41,22 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+import AuthLanguageSwitcher from './AuthLanguageSwitcher.vue'
+
+const { t } = useI18n()
+
 withDefaults(
   defineProps<{
     activeTab?: 'login' | 'register'
     backLabel?: string
+    showLanguageSwitcher?: boolean
     showTabs?: boolean
   }>(),
   {
     activeTab: 'login',
     backLabel: '',
+    showLanguageSwitcher: false,
     showTabs: false,
   },
 )
@@ -62,8 +71,8 @@ const emit = defineEmits<{
 <style scoped>
 .auth-brand-header {
   position: relative;
-  flex: 0 0 264px;
-  height: 264px;
+  flex: 0 0 304px;
+  height: 304px;
   overflow: hidden;
   background: linear-gradient(145deg, #edf9ff 0%, #eff7ff 56%, #f5f9ff 100%);
 }

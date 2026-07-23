@@ -5,22 +5,22 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.settingsRoomTypes" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">房型详情</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.SettingsRoomTypeDetail') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content fullscreen class="mobile-page room-type-detail-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新详情" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('stage5UiAttributes.18')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <section class="mobile-hero room-type-detail-hero">
-        <p class="mobile-note room-type-detail-hero__eyebrow">房型详情</p>
-        <h1 class="mobile-title">{{ roomType?.name || '房型详情' }}</h1>
+        <p class="mobile-note room-type-detail-hero__eyebrow">{{ $t('settingsStage4.roomTypeDetails.breadcrumb.details') }}</p>
+        <h1 class="mobile-title">{{ roomType?.name || $t('routes.SettingsRoomTypeDetail') }}</h1>
         <div class="mobile-chip-row">
           <span class="mobile-chip">{{ shortNameText }}</span>
-          <span class="mobile-chip">{{ getBasePriceText(roomType || emptyRoomType) }}</span>
-          <span class="mobile-chip">房间 {{ roomNumbers.length }}</span>
+        <span class="mobile-chip">{{ getBasePriceText(roomType || emptyRoomType, roomTypeMoneyOptions) }}</span>
+          <span class="mobile-chip">{{ $t('accommodation.common.room') }} {{ roomNumbers.length }}</span>
         </div>
       </section>
 
@@ -28,105 +28,105 @@
         <section class="mobile-card room-type-detail-card">
           <div class="mobile-inline-row room-type-detail-card__header">
             <div>
-              <h2 class="mobile-section-title">基本信息</h2>
+              <h2 class="mobile-section-title">{{ $t('accommodation.cleaning.basicInfo') }}</h2>
             </div>
             <ion-spinner v-if="loading" name="crescent" />
           </div>
 
           <div v-if="roomType" class="detail-info-grid">
             <div class="detail-info-item">
-              <span>房型名称</span>
+              <span>{{ $t('accommodation.roomTable.columns.roomTypeName') }}</span>
               <strong>{{ roomType.name }}</strong>
             </div>
             <div class="detail-info-item">
-              <span>简称</span>
+              <span>{{ $t('settingsStage4.roomSettings.columns.shortName') }}</span>
               <strong>{{ shortNameText }}</strong>
             </div>
             <div class="detail-info-item">
-              <span>房型代码</span>
+              <span>{{ $t('stage5SourceText.100') }}</span>
               <strong>{{ roomType.code }}</strong>
             </div>
             <div class="detail-info-item">
-              <span>最大入住人数</span>
-              <strong>{{ roomType.maxGuests || 1 }} 人</strong>
+              <span>{{ $t('settingsStage4.roomSettings.fields.maxGuests') }}</span>
+              <strong>{{ roomType.maxGuests || 1 }} {{ $t('settingsStage4.roomTypeManagement.editor.units.people') }}</strong>
             </div>
             <div class="detail-info-item">
-              <span>儿童最大入住</span>
-              <strong>{{ roomType.maxChildOccupancy ?? 0 }} 人</strong>
+              <span>{{ $t('settingsStage4.roomTypeDetails.fields.maxChildren') }}</span>
+              <strong>{{ roomType.maxChildOccupancy ?? 0 }} {{ $t('settingsStage4.roomTypeManagement.editor.units.people') }}</strong>
             </div>
             <div class="detail-info-item detail-info-item--full">
-              <span>房型地址</span>
-              <strong>{{ roomType.roomTypeAddress || '未设置' }}</strong>
+              <span>{{ $t('settingsStage4.roomSettings.fields.roomTypeAddress') }}</span>
+              <strong>{{ roomType.roomTypeAddress || $t('channel.list.disconnected') }}</strong>
             </div>
             <div class="detail-info-item detail-info-item--full">
-              <span>附近车站</span>
-              <strong>{{ roomType.nearbyStation || '未设置' }}</strong>
+              <span>{{ $t('settingsStage4.roomSettings.fields.nearbyStation') }}</span>
+              <strong>{{ roomType.nearbyStation || $t('channel.list.disconnected') }}</strong>
             </div>
             <div class="detail-info-item">
-              <span>面积</span>
+              <span>{{ $t('settingsStage4.roomTypeManagement.editor.fields.area') }}</span>
               <strong>{{ sizeText }}</strong>
             </div>
             <div class="detail-info-item detail-info-item--full">
-              <span>房型描述</span>
+              <span>{{ $t('stage5SourceText.102') }}</span>
               <p>{{ roomDescriptionText }}</p>
             </div>
             <div class="detail-info-item detail-info-item--full">
-              <span>入住指南</span>
+              <span>{{ $t('stage5.publicRegistration.form.checkInGuide') }}</span>
               <a v-if="roomType.checkInGuideLink" :href="roomType.checkInGuideLink" target="_blank" rel="noreferrer">
                 {{ roomType.checkInGuideLink }}
               </a>
-              <strong v-else>未设置</strong>
+              <strong v-else>{{ $t('channel.list.disconnected') }}</strong>
             </div>
           </div>
         </section>
 
         <section class="mobile-card room-type-detail-card">
           <div>
-            <h2 class="mobile-section-title">价格信息</h2>
+            <h2 class="mobile-section-title">{{ $t('roomStatus.detail.channelInfo.priceInfo') }}</h2>
           </div>
 
           <div class="detail-price-grid">
             <div class="detail-price-item">
-              <span>默认价</span>
-              <strong>{{ formatPriceValue(roomType?.defaultPrice) }}</strong>
+              <span>{{ $t('settingsStage4.roomOwnership.columns.defaultPrice') }}</span>
+              <strong>{{ formatPriceValue(roomType?.defaultPrice, roomTypeMoneyOptions) }}</strong>
             </div>
             <div v-for="field in ROOM_TYPE_DAILY_PRICE_FIELDS" :key="field.key" class="detail-price-item">
-              <span>{{ field.label }}</span>
-              <strong>{{ formatPriceValue(resolveDailyPrice(roomType || emptyRoomType, field.key)) }}</strong>
+              <span>{{ $t(field.labelKey) }}</span>
+              <strong>{{ formatPriceValue(resolveDailyPrice(roomType || emptyRoomType, field.key), roomTypeMoneyOptions) }}</strong>
             </div>
           </div>
         </section>
 
         <section class="mobile-card room-type-detail-card">
           <div>
-            <h2 class="mobile-section-title">设施与房间号</h2>
+            <h2 class="mobile-section-title">{{ $t('stage5SourceText.204') }}</h2>
           </div>
 
           <div class="detail-tags">
             <span v-for="facility in facilities" :key="facility" class="detail-tag">{{ facility }}</span>
-            <span v-if="facilities.length === 0" class="mobile-note">未设置设施信息</span>
+            <span v-if="facilities.length === 0" class="mobile-note">{{ $t('stage5SourceText.143') }}</span>
           </div>
 
           <div class="detail-tags detail-tags--rooms">
             <span v-for="roomNumber in roomNumbers" :key="roomNumber" class="detail-tag detail-tag--room">
               {{ roomNumber }}
             </span>
-            <span v-if="roomNumbers.length === 0" class="mobile-note">未设置房间号</span>
+            <span v-if="roomNumbers.length === 0" class="mobile-note">{{ $t('stage5SourceText.142') }}</span>
           </div>
         </section>
 
         <section class="mobile-card room-type-detail-card">
           <div>
-            <h2 class="mobile-section-title">图片信息</h2>
+            <h2 class="mobile-section-title">{{ $t('stage5SourceText.38') }}</h2>
           </div>
 
           <div v-if="photoUrls.length > 0" class="detail-photo-grid">
             <figure v-for="photoUrl in photoUrls" :key="photoUrl" class="detail-photo-item">
-              <img :src="photoUrl" :alt="roomType?.name || '房型图片'" loading="lazy" />
+              <img :src="photoUrl" :alt="roomType?.name || $t('settingsStage4.roomTypeManagement.editor.fields.roomImages')" loading="lazy" />
               <figcaption>{{ photoUrl }}</figcaption>
             </figure>
           </div>
-          <p v-else class="mobile-note">未设置图片信息</p>
+          <p v-else class="mobile-note">{{ $t('stage5SourceText.141') }}</p>
         </section>
       </div>
     </ion-content>
@@ -134,6 +134,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   IonBackButton,
   IonButtons,
@@ -155,6 +156,7 @@ import {
   type RoomTypeDTO,
 } from '@/api/roomType'
 import { ROUTE_PATHS } from '@/router/guards'
+import { useStoreStore } from '@/stores/store'
 import { showWarningToast } from '@/utils/notify'
 import {
   formatPriceValue,
@@ -167,8 +169,15 @@ import {
 } from '@/utils/roomType'
 import { isHandledRequestError } from '@/utils/request'
 
+const { t } = useI18n()
+
 const route = useRoute()
 const router = useRouter()
+const storeStore = useStoreStore()
+const roomTypeMoneyOptions = computed(() => ({
+  currency: storeStore.currentStore?.currency || 'CNY',
+  context: { country: storeStore.currentStore?.country },
+}))
 
 const loading = ref(false)
 const roomType = ref<RoomTypeDTO | null>(null)
@@ -185,12 +194,12 @@ const emptyRoomType: RoomTypeDTO = {
 
 const shortNameText = computed(() => {
   if (!roomType.value) {
-    return '简称待设置'
+    return t('settingsResidual.roomType.shortNameUnset')
   }
 
   const shortName = resolveRoomTypeShortName(roomType.value)
   if (!shortName) {
-    return '简称待设置'
+    return t('settingsResidual.roomType.shortNameUnset')
   }
 
   return shortName
@@ -198,12 +207,12 @@ const shortNameText = computed(() => {
 
 const roomDescriptionText = computed(() => {
   if (!roomType.value) {
-    return '未设置描述'
+    return t('settingsResidual.roomType.descriptionUnset')
   }
 
   const description = resolveRoomTypeLongDescription(roomType.value)
   if (!description) {
-    return '未设置描述'
+    return t('settingsResidual.roomType.descriptionUnset')
   }
 
   return description
@@ -211,7 +220,7 @@ const roomDescriptionText = computed(() => {
 
 const sizeText = computed(() => {
   if (roomType.value?.sizeMeasurement === undefined || roomType.value?.sizeMeasurement === null) {
-    return '未设置'
+    return t('settingsResidual.common.unset')
   }
 
   const unit = roomType.value.sizeMeasurementUnit || ''
@@ -263,7 +272,7 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
 async function loadRoomTypeDetails() {
   const roomTypeId = Number(route.params.id)
   if (!roomTypeId) {
-    showWarningToast('缺少房型 ID，已返回房型列表')
+    showWarningToast(t('stage5Pattern.missing'))
     await router.replace(ROUTE_PATHS.settingsRoomTypes)
     return
   }
@@ -276,7 +285,7 @@ async function loadRoomTypeDetails() {
     ])
 
     if (!detailResponse.success || !detailResponse.data) {
-      throw new Error(detailResponse.message || '加载房型详情失败')
+      throw new Error(detailResponse.message || t('settingsStage4.roomTypeDetails.messages.loadFailed'))
     }
 
     roomType.value = detailResponse.data
@@ -289,7 +298,7 @@ async function loadRoomTypeDetails() {
     }
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载房型详情失败'))
+      showWarningToast(resolveWarningMessage(error, t('settingsStage4.roomTypeDetails.messages.loadFailed')))
     }
   } finally {
     loading.value = false

@@ -9,16 +9,16 @@
         @click="handleTogglePrice"
       >
         <ion-icon :icon="pricetagOutline" aria-hidden="true" />
-        <span>{{ roomStatusStore.showCellPrice ? '隐藏房价' : '显示房价' }}</span>
+        <span>{{ roomStatusStore.showCellPrice ? $t('stage5DynamicUi.78') : $t('stage5DynamicUi.42') }}</span>
       </button>
 
       <label v-if="roomStatusStore.showCellPrice" class="room-calendar__price-source">
-        <span class="room-calendar__price-source-label">价格来源</span>
+        <span class="room-calendar__price-source-label">{{ $t('stage5VisibleText.115') }}</span>
         <select
           class="room-calendar__price-source-select"
           :value="roomStatusStore.cellPriceSource"
           :disabled="roomStatusStore.pricePlanOptionsLoading"
-          aria-label="房态价格来源"
+          :aria-label="$t('stage5UiAttributes.44')"
           @change="handlePriceSourceChange"
         >
           <option
@@ -43,7 +43,7 @@
             <button
               class="room-calendar__corner"
               type="button"
-              aria-label="选择日期"
+              :aria-label="$t('accommodation.roomPrice.selectDate')"
               @click="openDatePicker"
             >
               <input
@@ -89,7 +89,7 @@
           <button
             class="room-calendar__corner"
             type="button"
-            aria-label="选择日期"
+            :aria-label="$t('accommodation.roomPrice.selectDate')"
             @click="openDatePicker"
           >
             <input
@@ -111,14 +111,14 @@
               'is-selected': day.isSelected,
               'is-focused': day.isFocused,
               'is-today': day.isToday,
-              'is-weekend': day.weekday === '六' || day.weekday === '日',
+                'is-weekend': isWeekend(day),
             }"
             type="button"
             @click="$emit('select-date', day.date)"
           >
             <span class="room-calendar__day-number">{{ getDayDateLabel(day) }}</span>
-            <strong class="room-calendar__day-weekday">周{{ day.weekday }}</strong>
-            <span class="room-calendar__day-capacity">余 {{ day.availableRooms }}</span>
+              <strong class="room-calendar__day-weekday">{{ getDayWeekdayLabel(day) }}</strong>
+              <span class="room-calendar__day-capacity">{{ getDayCapacityLabel(day) }}</span>
           </button>
         </div>
 
@@ -139,7 +139,7 @@
                 'is-today': day.isToday,
               }"
             >
-              余 {{ getGroupAvailableCount(group, day.date) }}
+              {{ getGroupAvailableLabel(group, day.date) }}
             </div>
           </div>
 
@@ -169,7 +169,7 @@
                   v-if="room.isDirty"
                   :icon="notificationsOutline"
                   class="room-calendar__room-flag"
-                  aria-label="脏房"
+                  :aria-label="$t('accommodation.roomTable.columns.dirtyRooms')"
                 />
               </div>
             </button>
@@ -195,7 +195,7 @@
                 @click="$emit('select-reservation', cell.reservation.id)"
               >
                 <strong class="room-calendar__reservation-guest">
-                  {{ cell.reservation.guestName || '未命名客人' }}
+                  {{ cell.reservation.guestName || $t('order.mobile.unnamedGuest') }}
                 </strong>
                 <span class="room-calendar__reservation-channel">
                   {{ getReservationChannelLabel(cell.reservation, cell.span) }}
@@ -204,12 +204,12 @@
                   v-if="hasReservationNotes(cell.reservation) && cell.span > 1"
                   class="room-calendar__reservation-note-badge"
                 >
-                  有备注
+                  {{ $t('stage5VisibleText.202') }}
                 </span>
                 <span
                   v-else-if="hasReservationNotes(cell.reservation)"
                   class="room-calendar__reservation-note-dot"
-                  aria-label="有备注"
+                  :aria-label="$t('stage5VisibleText.202')"
                 ></span>
               </button>
 
@@ -251,12 +251,14 @@ import {
   pricetagOutline,
 } from 'ionicons/icons'
 import { computed, nextTick, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type {
   RoomStatusDateItem,
   RoomStatusRoomItem,
   RoomTimelineItem,
 } from '@/stores/roomStatus'
 import { useRoomStatusStore } from '@/stores/roomStatus'
+import { useStoreStore } from '@/stores/store'
 import type { ReservationDTO } from '@/api/reservation'
 import {
   formatRoomStatusPrice,
@@ -292,7 +294,9 @@ type RowCell =
 const ROOM_COLUMN_WIDTH = 58
 const DAY_MIN_WIDTH = 63
 const LOAD_NEXT_WINDOW_THRESHOLD_PX = DAY_MIN_WIDTH
+const { t } = useI18n()
 const roomStatusStore = useRoomStatusStore()
+const storeStore = useStoreStore()
 
 const props = withDefaults(
   defineProps<{
@@ -349,6 +353,8 @@ const selectedDateLabel = computed(() => {
 })
 
 const visibleDateKey = computed(() => props.days.map((item) => item.date).join('|'))
+
+const currentCurrency = computed(() => storeStore.currentStore?.currency || 'CNY')
 
 function alignSelectedDateIntoView() {
   const container = scrollContainer.value
@@ -619,15 +625,22 @@ function getDayDateLabel(day: RoomStatusDateItem) {
 }
 
 function isWeekend(day: RoomStatusDateItem) {
-  return day.weekday === '六' || day.weekday === '日'
+  const [, month, date] = day.date.split('-').map(Number)
+  const year = Number(day.date.slice(0, 4))
+  if (!year || !month || !date) {
+    return false
+  }
+
+  const weekday = new Date(Date.UTC(year, month - 1, date)).getUTCDay()
+  return weekday === 0 || weekday === 6
 }
 
 function getDayWeekdayLabel(day: RoomStatusDateItem) {
-  return `周${day.weekday}`
+  return t('roomStatus.calendar.weekdayLabel', { weekday: day.weekday })
 }
 
 function getDayCapacityLabel(day: RoomStatusDateItem) {
-  return `余 ${day.availableRooms}`
+  return t('roomStatus.calendar.availableShort', { count: day.availableRooms })
 }
 
 function getGroupAvailableCount(group: RoomStatusRoomGroup, date: string) {
@@ -641,6 +654,12 @@ function getGroupAvailableCount(group: RoomStatusRoomGroup, date: string) {
   }
 
   return count
+}
+
+function getGroupAvailableLabel(group: RoomStatusRoomGroup, date: string) {
+  return t('roomStatus.calendar.availableShort', {
+    count: getGroupAvailableCount(group, date),
+  })
 }
 
 function resolveReservationTone(reservation: ReservationDTO) {
@@ -687,7 +706,7 @@ function hasReservationNotes(reservation: ReservationDTO) {
 }
 
 function getReservationChannelLabel(reservation: ReservationDTO, span: number) {
-  const channelName = (reservation.channelName || '自来客').trim()
+  const channelName = (reservation.channelName || t('roomStatus.common.defaultChannel')).trim()
 
   if (span > 1) {
     return channelName
@@ -759,30 +778,34 @@ function hasPositivePrice(item: RoomTimelineItem) {
 
 function getEmptyCellLabel(item: RoomTimelineItem) {
   if (item.businessState === 'available') {
-    return formatRoomStatusPrice(item.price) || item.statusText
+  return (
+    formatRoomStatusPrice(item.price, currentCurrency.value, {
+      country: storeStore.currentStore?.country,
+    }) || item.statusText
+  )
   }
   if (item.businessState === 'maintenance') {
-    return '维修'
+    return t('roomStatus.calendar.cell.maintenance')
   }
   if (item.businessState === 'retain') {
-    return '保留'
+    return t('roomStatus.calendar.cell.retain')
   }
   if (item.businessState === 'closed' || item.businessState === 'out_of_order') {
-    return '关房'
+    return t('roomStatus.calendar.cell.closed')
   }
   return item.statusText
 }
 
 function getRoomCloseBadgeText(room: RoomStatusRoomItem) {
   if (room.closeType === 'maintenance') {
-    return '维修'
+    return t('roomStatus.calendar.cell.maintenance')
   }
 
   if (room.closeType === 'retain') {
-    return '保留'
+    return t('roomStatus.calendar.cell.retain')
   }
 
-  return '关房'
+  return t('roomStatus.calendar.cell.closed')
 }
 
 function getRoomCloseBadgeClass(room: RoomStatusRoomItem) {
@@ -803,17 +826,17 @@ function getRoomCellClass(room: RoomStatusRoomItem) {
 }
 
 function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
-  const labels = [`房间 ${room.roomNumber}`]
+  const labels = [t('roomStatus.calendar.roomAria', { room: room.roomNumber })]
 
   if (room.focusedClosed) {
     labels.push(getRoomCloseBadgeText(room))
   }
 
   if (room.isDirty) {
-    labels.push('脏房')
+    labels.push(t('roomStatus.calendar.cell.dirty'))
   }
 
-  return labels.join('，')
+  return labels.join(t('roomStatus.calendar.ariaSeparator'))
 }
 </script>
 
@@ -832,6 +855,7 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   min-height: 44px;
   padding: 6px 10px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
@@ -840,6 +864,7 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 }
 
 .room-calendar__price-toggle {
+  min-width: 0;
   min-height: 32px;
   padding: 0 11px;
   display: inline-flex;
@@ -860,6 +885,7 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 }
 
 .room-calendar__price-toggle ion-icon {
+  flex-shrink: 0;
   width: 15px;
   height: 15px;
 }
@@ -878,7 +904,7 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 }
 
 .room-calendar__price-source-select {
-  max-width: 148px;
+  max-width: min(184px, 52vw);
   min-height: 32px;
   padding: 0 28px 0 9px;
   border: 1px solid #d9dde5;
@@ -1039,13 +1065,18 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 }
 
 .room-calendar__day-weekday {
+  max-width: 100%;
   font-size: 12px;
   font-weight: 400;
   color: #333333;
-  line-height: 1;
+  line-height: 14px;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .room-calendar__day-capacity {
+  max-width: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1056,6 +1087,9 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   color: #333333;
   font-size: 11px;
   font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .room-calendar__day.is-weekend .room-calendar__day-weekday,
@@ -1165,6 +1199,9 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   color: #333333;
   font-size: 12px;
   font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .room-calendar__group-cell.is-selected {
@@ -1238,6 +1275,7 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 }
 
 .room-calendar__room-close-badge {
+  max-width: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1249,6 +1287,9 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   font-size: 8px;
   font-weight: 700;
   line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .room-calendar__room-close-badge.is-maintenance {
@@ -1328,16 +1369,26 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 }
 
 .room-calendar__cell-content {
+  min-width: 0;
+  max-width: 100%;
   line-height: 1.1;
+  text-align: center;
   white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .room-calendar__cell-content--available {
+  width: 100%;
+  max-height: 42px;
   display: grid;
   justify-items: center;
   gap: 2px;
   color: #639a49;
-  line-height: 1.1;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+  overflow: hidden;
 }
 
 .room-calendar__cell-meta {

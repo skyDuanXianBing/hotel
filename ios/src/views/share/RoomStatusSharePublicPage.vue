@@ -2,7 +2,7 @@
   <ion-page>
     <ion-header translucent>
       <ion-toolbar class="app-page-header__toolbar">
-        <ion-title class="app-page-header__title">房态分享</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.PublicRoomStatusShare') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -12,29 +12,29 @@
         <h1 class="mobile-title">{{ share.shareTitle }}</h1>
         <p class="mobile-subtitle">{{ todayText }}</p>
         <div class="mobile-chip-row">
-          <span class="mobile-chip">{{ share.viewType === 'blurred' ? '模糊视图' : '普通视图' }}</span>
-          <span class="mobile-chip">7 日房态</span>
+          <span class="mobile-chip">{{ share.viewType === 'blurred' ? $t('stage5DynamicUi.53') : $t('stage5DynamicUi.43') }}</span>
+          <span class="mobile-chip">{{ $t('stage5SourceText.1') }}</span>
         </div>
       </section>
 
       <div class="mobile-stack">
         <section v-if="loading" class="mobile-card public-state-card">
           <ion-spinner name="crescent" />
-          <p class="mobile-note">正在加载分享信息...</p>
+          <p class="mobile-note">{{ $t('stage5SourceText.155') }}</p>
         </section>
 
         <section v-else-if="errorMessage" class="mobile-card public-state-card public-state-card--error">
-          <h2 class="mobile-section-title">分享页加载失败</h2>
+          <h2 class="mobile-section-title">{{ $t('stage5SourceText.17') }}</h2>
           <p class="mobile-note">{{ errorMessage }}</p>
-          <ion-button @click="loadPage">重试</ion-button>
+          <ion-button @click="loadPage">{{ $t('channel.mappingPriceSettings.actions.retry') }}</ion-button>
         </section>
 
         <template v-else-if="share">
           <section v-if="visibleStatistics.length > 0" class="mobile-card">
             <div class="mobile-inline-row public-share-header-row">
               <div>
-                <h2 class="mobile-section-title">房态统计</h2>
-                <p class="mobile-note">按分享配置展示今日关键数据。</p>
+                <h2 class="mobile-section-title">{{ $t('stage5SourceText.105') }}</h2>
+                <p class="mobile-note">{{ $t('stage5SourceText.113') }}</p>
               </div>
             </div>
 
@@ -49,8 +49,8 @@
           <section class="mobile-card public-calendar-card">
             <div class="public-calendar-card__toolbar">
               <div>
-                <h2 class="mobile-section-title">房态详情</h2>
-                <p class="mobile-note">横向滚动查看 7 天矩阵，点击住客单元格查看详情。</p>
+                <h2 class="mobile-section-title">{{ $t('stage5SourceText.106') }}</h2>
+                <p class="mobile-note">{{ $t('stage5SourceText.153') }}</p>
               </div>
               <input v-model="selectedDate" class="public-date-input" type="date" @change="handleDateChange" />
             </div>
@@ -58,7 +58,7 @@
             <div class="public-calendar-wrapper">
               <div class="public-calendar-table">
                 <div class="public-calendar-header">
-                  <div class="public-sticky-column public-room-column">房间</div>
+                  <div class="public-sticky-column public-room-column">{{ $t('accommodation.common.room') }}</div>
                   <div v-for="dateItem in dateRange" :key="dateItem" class="public-date-column">
                     {{ formatDateHeader(dateItem) }}
                   </div>
@@ -91,18 +91,18 @@
         <ion-content class="public-share-modal">
           <div v-if="selectedReservation" class="mobile-stack public-share-modal__body">
             <section class="mobile-card">
-              <h2 class="mobile-section-title">住客信息</h2>
+              <h2 class="mobile-section-title">{{ $t('stage5SourceText.9') }}</h2>
               <div class="public-detail-grid">
-                <div>预订人：{{ formatGuestName(selectedReservation.guestName) }}</div>
-                <div>渠道：{{ selectedReservation.channel || '自来客' }}</div>
-                <div>入住：{{ formatPublicDate(selectedReservation.checkIn) }}</div>
-                <div>退房：{{ formatPublicDate(selectedReservation.checkOut) }}</div>
-                <div>订单号：{{ selectedReservation.orderNumber || '-' }}</div>
-                <div>备注：{{ selectedReservation.notes || selectedReservation.specialRequests || '-' }}</div>
+                <div>{{ $t('stage5DynamicUi.143') }}{{ formatGuestName(selectedReservation.guestName) }}</div>
+                <div>{{ $t('stage5SourceText.168') }}{{ selectedReservation.channel || $t('roomStatus.common.defaultChannel') }}</div>
+                <div>{{ $t('stage5DynamicUi.94') }}{{ formatPublicDate(selectedReservation.checkIn) }}</div>
+                <div>{{ $t('stage5DynamicUi.138') }}{{ formatPublicDate(selectedReservation.checkOut) }}</div>
+                <div>{{ $t('stage5.dataCenter.detail.metaOrderNumber') }}{{ selectedReservation.orderNumber || '-' }}</div>
+                <div>{{ $t('roomStatus.hoverCard.notes') }}{{ selectedReservation.notes || selectedReservation.specialRequests || '-' }}</div>
               </div>
             </section>
             <div class="public-action-row">
-              <ion-button expand="block" @click="handleCloseDetailModal">关闭</ion-button>
+              <ion-button expand="block" @click="handleCloseDetailModal">{{ $t('home.section.close') }}</ion-button>
             </div>
           </div>
         </ion-content>
@@ -114,6 +114,7 @@
 <script setup lang="ts">
 import { IonButton, IonContent, IonHeader, IonModal, IonPage, IonSpinner, IonTitle, IonToolbar } from '@ionic/vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import {
   getPublicRoomStatusCalendar,
@@ -128,6 +129,7 @@ import type {
   RoomStatusReservationInfo,
 } from '@/types/publicRoomStatusShare'
 import { formatPublicDate } from '@/utils/publicRegistration'
+import { getIntlLocale } from '@/utils/formatters'
 import {
   buildBusinessDateRange,
   getBusinessDateWeekdayIndex,
@@ -135,6 +137,7 @@ import {
 } from '@/utils/storeBusinessDate'
 
 const route = useRoute()
+const { locale, t } = useI18n()
 
 const loading = ref(false)
 const errorMessage = ref('')
@@ -152,9 +155,10 @@ const todayText = computed(() => {
     return ''
   }
 
-  const weekdayList = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
-  const weekday = weekdayList[getBusinessDateWeekdayIndex(selectedDate.value)]
-  return `${parts.year}年${parts.month}月${parts.day}日 ${weekday}`
+  const weekday = new Intl.DateTimeFormat(getIntlLocale(locale.value), { weekday: 'long' }).format(
+    new Date(parts.year, parts.month - 1, parts.day),
+  )
+  return t('stage5Final.share.fullDate', { ...parts, weekday })
 })
 const dateRange = computed(() => {
   if (!isBusinessDateValue(selectedDate.value)) {
@@ -186,12 +190,12 @@ const visibleStatistics = computed(() => {
   const filterItems = parseItems(share.value.filterItems)
   const result: Array<{ key: string; label: string; value: number }> = []
 
-  appendStatistic(result, filterItems, 'arrivals', '今日预抵', statistics.value.todayArrivals)
-  appendStatistic(result, filterItems, 'departures', '今日预离', statistics.value.todayDepartures)
-  appendStatistic(result, filterItems, 'new_orders', '今日新办', statistics.value.todayNewOrders)
-  appendStatistic(result, filterItems, 'available', '今日可售', statistics.value.availableRooms)
-  appendStatistic(result, filterItems, 'unassigned', '未排房', statistics.value.unassignedOrders)
-  appendStatistic(result, filterItems, 'pending', '待处理', statistics.value.pendingOrders)
+  appendStatistic(result, filterItems, 'arrivals', t('stage5Final.share.todayArrivals'), statistics.value.todayArrivals)
+  appendStatistic(result, filterItems, 'departures', t('stage5Final.share.todayDepartures'), statistics.value.todayDepartures)
+  appendStatistic(result, filterItems, 'new_orders', t('stage5Final.share.todayNewOrders'), statistics.value.todayNewOrders)
+  appendStatistic(result, filterItems, 'available', t('stage5Final.share.todayAvailable'), statistics.value.availableRooms)
+  appendStatistic(result, filterItems, 'unassigned', t('stage5Final.share.unassigned'), statistics.value.unassignedOrders)
+  appendStatistic(result, filterItems, 'pending', t('stage5Final.share.pending'), statistics.value.pendingOrders)
 
   return result
 })
@@ -230,6 +234,7 @@ function appendStatistic(
     filterItems.length === 0 ||
     filterItems.includes(key) ||
     filterItems.includes(label) ||
+    filterItems.includes(t('stage5Final.share.all')) ||
     filterItems.includes('全部')
 
   if (!shouldAppend) {
@@ -247,9 +252,10 @@ function formatDateHeader(dateValue: string) {
   const currentDate = parseBusinessDateParts(dateValue)
   const month = currentDate?.month || 1
   const day = currentDate?.day || 1
-  const weekList = ['日', '一', '二', '三', '四', '五', '六']
-  const weekday = weekList[getBusinessDateWeekdayIndex(dateValue)]
-  return `${month}/${day} 周${weekday}`
+  const weekday = new Intl.DateTimeFormat(getIntlLocale(locale.value), { weekday: 'short' }).format(
+    new Date(currentDate?.year || 1970, month - 1, day),
+  )
+  return t('stage5Final.share.shortDate', { month, day, weekday })
 }
 
 function resolveDailyStatus(room: RoomStatusCalendarRoom, dateValue: string) {
@@ -281,23 +287,23 @@ function resolveStatusCellText(room: RoomStatusCalendarRoom, dateValue: string) 
   }
 
   if (status === 'AVAILABLE') {
-    return '空房'
+    return t('stage5Final.share.available')
   }
 
   if (status === 'OCCUPIED') {
-    return dailyStatus?.reservation?.guestName || '在住'
+    return dailyStatus?.reservation?.guestName || t('stage5Final.share.occupied')
   }
 
   if (status === 'RESERVED') {
-    return dailyStatus?.reservation?.guestName || '已预订'
+    return dailyStatus?.reservation?.guestName || t('stage5Final.share.reserved')
   }
 
   if (status === 'MAINTENANCE') {
-    return '维修'
+    return t('stage5Final.share.maintenance')
   }
 
   if (status === 'OUT_OF_ORDER') {
-    return '停用'
+    return t('stage5Final.share.outOfOrder')
   }
 
   return status
@@ -355,7 +361,7 @@ async function loadCalendarAndStatistics(shouldSendSelectedDate = true) {
 
 async function loadPage() {
   if (!shareToken.value) {
-    errorMessage.value = '缺少分享 token'
+    errorMessage.value = t('stage5Final.share.missingToken')
     return
   }
 
@@ -365,14 +371,14 @@ async function loadPage() {
   try {
     const shareResponse = await getPublicRoomStatusShare(shareToken.value)
     if (!shareResponse.success || !shareResponse.data) {
-      errorMessage.value = shareResponse.message || '获取分享信息失败'
+      errorMessage.value = shareResponse.message || t('stage5Final.share.loadInfoFailed')
       return
     }
 
     share.value = shareResponse.data
     await loadCalendarAndStatistics(false)
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '分享页加载失败'
+    errorMessage.value = error instanceof Error ? error.message : t('stage5Final.share.loadPageFailed')
   } finally {
     loading.value = false
   }

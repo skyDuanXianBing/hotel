@@ -10,7 +10,7 @@
           <ion-button
             class="app-page-header__icon-btn"
             fill="clear"
-            aria-label="刷新数据"
+            :aria-label="$t('stage5UiAttributes.34')"
             @click="handleRefreshTap"
           >
             <img src="/statistics-refresh.png" alt="" aria-hidden="true" />
@@ -21,7 +21,7 @@
 
     <ion-content fullscreen class="mobile-page data-center-page">
       <ion-refresher slot="fixed" @ionRefresh="handlePullRefresh">
-        <ion-refresher-content pulling-text="下拉刷新数据中心" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('stage5UiAttributes.14')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <div class="mobile-stack">
@@ -40,13 +40,13 @@
             @ionChange="handlePrimarySectionChange"
           >
             <ion-segment-button value="overview">
-              <ion-label>总览</ion-label>
+              <ion-label>{{ $t('stage5.dataCenter.layout.menu.overview') }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="accommodation">
-              <ion-label>住宿</ion-label>
+              <ion-label>{{ $t('stage5.dataCenter.layout.menu.accommodation') }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="notes">
-              <ion-label>记一笔</ion-label>
+              <ion-label>{{ $t('stage5.dataCenter.layout.menu.notes') }}</ion-label>
             </ion-segment-button>
           </ion-segment>
 
@@ -64,18 +64,18 @@
               </button>
             </div>
 
-            <div class="data-center-page__date-grid" role="group" aria-label="日期范围">
+            <div class="data-center-page__date-grid" role="group" :aria-label="$t('settingsStage4.pricingTools.fields.dateRange')">
               <input
                 v-model="startDate"
-                aria-label="开始日期"
+                :aria-label="$t('stage5.common.date.startDate')"
                 type="date"
                 class="data-center-page__date-input"
                 @change="handleManualDateChange"
               />
-              <span class="data-center-page__date-separator">至</span>
+              <span class="data-center-page__date-separator">{{ $t('stage5.common.date.rangeTo') }}</span>
               <input
                 v-model="endDate"
-                aria-label="结束日期"
+                :aria-label="$t('stage5.common.date.endDate')"
                 type="date"
                 class="data-center-page__date-input"
                 @change="handleManualDateChange"
@@ -85,12 +85,12 @@
         </section>
 
         <section v-if="loadNotice" class="mobile-card data-center-page__notice-card">
-          <h2 class="mobile-section-title">同步提示</h2>
+          <h2 class="mobile-section-title">{{ $t('stage5SourceText.31') }}</h2>
           <p class="mobile-note">{{ loadNotice }}</p>
         </section>
 
         <section v-if="activePrimarySection === 'overview'" class="data-center-page__overview-tabs">
-          <div class="data-center-page__tab-grid" role="tablist" aria-label="总览分类">
+          <div class="data-center-page__tab-grid" role="tablist" :aria-label="$t('stage5UiAttributes.42')">
             <button
               v-for="tab in OVERVIEW_TABS"
               :key="tab.value"
@@ -107,14 +107,14 @@
         </section>
 
         <section v-if="pageError" class="mobile-card data-center-page__error-card">
-          <h2 class="mobile-section-title">加载失败</h2>
+          <h2 class="mobile-section-title">{{ $t('stage5.common.messages.dataLoadFailed') }}</h2>
           <p class="mobile-note">{{ pageError }}</p>
-          <ion-button expand="block" fill="outline" @click="reloadCurrentSection">重新加载</ion-button>
+          <ion-button expand="block" fill="outline" @click="reloadCurrentSection">{{ $t('storeSelection.reload') }}</ion-button>
         </section>
 
         <section v-else-if="loading" class="mobile-card data-center-page__loading-card">
           <ion-spinner name="crescent" />
-          <p class="mobile-note">正在加载{{ activePrimaryLabel }}数据…</p>
+          <p class="mobile-note">{{ $t('stage5DynamicUi.131') }}{{ activePrimaryLabel }}{{ $t('stage5DynamicUi.119') }}</p>
         </section>
 
         <template v-else>
@@ -122,30 +122,30 @@
             <section v-if="activeOverviewTab === 'business'" class="mobile-card data-center-page__overview-card">
               <div class="mobile-inline-row">
                 <div>
-                  <h2 class="mobile-section-title">营业概况</h2>
-                  <p class="mobile-note">营业额与住宿消费结构，按日期范围实时刷新。</p>
+                  <h2 class="mobile-section-title">{{ $t('stage5.dataCenter.overview.tabs.business') }}</h2>
+                  <p class="mobile-note">{{ $t('stage5SourceText.188') }}</p>
                 </div>
               </div>
 
               <div class="data-center-page__metric-grid">
                 <article class="data-center-page__metric-card is-primary">
-                  <span class="data-center-page__metric-label">住宿总营业额</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5.statistics.business.totalAccommodationRevenue') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCurrency(businessOverview.totalRevenue) }}</strong>
                 </article>
                 <article class="data-center-page__metric-card">
-                  <span class="data-center-page__metric-label">房费</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5.statistics.common.roomFee') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCurrency(businessOverview.roomFee) }}</strong>
                 </article>
                 <article class="data-center-page__metric-card">
-                  <span class="data-center-page__metric-label">押金</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5.statistics.common.deposit') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCurrency(businessOverview.deposit) }}</strong>
                 </article>
                 <article class="data-center-page__metric-card">
-                  <span class="data-center-page__metric-label">退房金</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5SourceText.220') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCurrency(businessOverview.checkoutFee) }}</strong>
                 </article>
                 <article class="data-center-page__metric-card">
-                  <span class="data-center-page__metric-label">餐食/客房消费</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5.dataCenter.overview.roomService') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCurrency(businessOverview.roomServiceFee) }}</strong>
                 </article>
               </div>
@@ -154,7 +154,7 @@
             <section v-if="activeOverviewTab === 'business'" class="mobile-card data-center-page__overview-card">
               <div class="mobile-inline-row">
                 <div>
-                  <h2 class="mobile-section-title">消费分类分布</h2>
+                  <h2 class="mobile-section-title">{{ $t('stage5.dataCenter.overview.spendCategoryDistribution') }}</h2>
                 </div>
               </div>
 
@@ -169,17 +169,17 @@
                 >
                   <div>
                     <strong>{{ item.category }}</strong>
-                    <p class="mobile-note">占比 {{ formatPercent(item.percentage) }}</p>
+                    <p class="mobile-note">{{ $t('stage5.statistics.common.ratio') }} {{ formatPercent(item.percentage) }}</p>
                   </div>
                   <strong>{{ formatCurrency(item.value) }}</strong>
                 </article>
               </div>
-              <p v-else class="mobile-note">当前日期范围暂无消费分类分布数据。</p>
+              <p v-else class="mobile-note">{{ $t('stage5SourceText.63') }}</p>
             </section>
 
             <section v-if="activeOverviewTab === 'business'" class="mobile-card data-center-page__overview-card">
               <h2 class="mobile-section-title data-center-page__chart-title">
-                住宿消费趋势
+                {{ $t('stage5.dataCenter.overview.accommodationSpendTrend') }}
                 <span>{{ chartDateRangeLabel }}</span>
               </h2>
               <div
@@ -204,11 +204,11 @@
                   <span class="data-center-page__trend-label">{{ item.label }}</span>
                 </article>
               </div>
-              <p v-else class="mobile-note">当前日期范围暂无趋势数据。</p>
+              <p v-else class="mobile-note">{{ $t('stage5SourceText.71') }}</p>
             </section>
 
             <section v-if="activeOverviewTab === 'business'" class="mobile-card data-center-page__overview-card">
-              <h2 class="mobile-section-title">住宿消费明细</h2>
+              <h2 class="mobile-section-title">{{ $t('stage5.dataCenter.overview.accommodationSpendDetails') }}</h2>
               <div
                 v-if="businessOverview.consumptionDetails.length > 0"
                 class="data-center-page__summary-list data-center-page__summary-list--table"
@@ -224,29 +224,29 @@
                   <strong>{{ formatCurrency(item.total) }}</strong>
                 </article>
               </div>
-              <p v-else class="mobile-note">当前日期范围暂无消费明细。</p>
+              <p v-else class="mobile-note">{{ $t('stage5SourceText.64') }}</p>
             </section>
 
             <section v-if="activeOverviewTab === 'revenue'" class="mobile-card data-center-page__overview-card">
-              <h2 class="mobile-section-title">流水汇总</h2>
+              <h2 class="mobile-section-title">{{ $t('stage5.dataCenter.overview.tabs.revenue') }}</h2>
               <div class="data-center-page__metric-grid">
                 <article class="data-center-page__metric-card is-primary">
-                  <span class="data-center-page__metric-label">总流水</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5.dataCenter.overview.totalRevenue') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCurrency(revenueSummary.totalRevenue) }}</strong>
                 </article>
                 <article class="data-center-page__metric-card">
-                  <span class="data-center-page__metric-label">分账款</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5SourceText.21') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCurrency(revenueSummary.splitAccount) }}</strong>
                 </article>
                 <article class="data-center-page__metric-card">
-                  <span class="data-center-page__metric-label">实收款</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5.dataCenter.overview.actualReceived') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCurrency(revenueSummary.actualReceived) }}</strong>
                 </article>
               </div>
             </section>
 
             <section v-if="activeOverviewTab === 'revenue'" class="mobile-card data-center-page__overview-card">
-              <h2 class="mobile-section-title">支付方式分布</h2>
+              <h2 class="mobile-section-title">{{ $t('stage5SourceText.123') }}</h2>
               <div
                 v-if="revenueSummary.paymentMethodStats.length > 0"
                 class="data-center-page__summary-list data-center-page__summary-list--revenue-table"
@@ -258,16 +258,16 @@
                 >
                   <div>
                     <strong>{{ item.paymentMethod }}</strong>
-                    <p class="mobile-note">占比 {{ formatPercent(item.percentage) }}</p>
+                    <p class="mobile-note">{{ $t('stage5.statistics.common.ratio') }} {{ formatPercent(item.percentage) }}</p>
                   </div>
                   <strong>{{ formatCurrency(item.amount) }}</strong>
                 </article>
               </div>
-              <p v-else class="mobile-note">当前日期范围暂无支付方式统计。</p>
+              <p v-else class="mobile-note">{{ $t('stage5SourceText.59') }}</p>
             </section>
 
             <section v-if="activeOverviewTab === 'revenue'" class="mobile-card data-center-page__overview-card">
-              <h2 class="mobile-section-title">款项分类统计</h2>
+              <h2 class="mobile-section-title">{{ $t('stage5SourceText.154') }}</h2>
               <div
                 v-if="revenueSummary.categoryStats.length > 0"
                 class="data-center-page__summary-list data-center-page__summary-list--revenue-table"
@@ -279,16 +279,16 @@
                 >
                   <div>
                     <strong>{{ item.category }}</strong>
-                    <p class="mobile-note">占比 {{ formatPercent(item.percentage) }}</p>
+                    <p class="mobile-note">{{ $t('stage5.statistics.common.ratio') }} {{ formatPercent(item.percentage) }}</p>
                   </div>
                   <strong>{{ formatCurrency(item.amount) }}</strong>
                 </article>
               </div>
-              <p v-else class="mobile-note">当前日期范围暂无款项分类统计。</p>
+              <p v-else class="mobile-note">{{ $t('stage5SourceText.62') }}</p>
             </section>
 
             <section v-if="activeOverviewTab === 'revenue'" class="mobile-card data-center-page__overview-card">
-              <h2 class="mobile-section-title">按日流水摘要</h2>
+              <h2 class="mobile-section-title">{{ $t('stage5SourceText.118') }}</h2>
               <div
                 v-if="revenueTrendItems.length > 0"
                 class="data-center-page__summary-list data-center-page__summary-list--revenue-table"
@@ -300,34 +300,34 @@
                 >
                   <div>
                     <strong>{{ formatShortDate(item.date) }}</strong>
-                    <p class="mobile-note">分账 {{ formatCurrency(item.splitAccount) }} · 实收 {{ formatCurrency(item.actualReceived) }}</p>
+                    <p class="mobile-note">{{ $t('stage5DynamicUi.98') }} {{ formatCurrency(item.splitAccount) }} {{ $t('stage5DynamicUi.84') }} {{ formatCurrency(item.actualReceived) }}</p>
                   </div>
                   <strong>{{ formatCurrency(item.totalRevenue) }}</strong>
                 </article>
               </div>
-              <p v-else class="mobile-note">当前日期范围暂无按日流水数据。</p>
+              <p v-else class="mobile-note">{{ $t('stage5SourceText.58') }}</p>
             </section>
 
             <section v-if="activeOverviewTab === 'channel'" class="mobile-card data-center-page__overview-card">
-              <h2 class="mobile-section-title">渠道汇总</h2>
+              <h2 class="mobile-section-title">{{ $t('stage5.dataCenter.overview.tabs.channel') }}</h2>
               <div class="data-center-page__metric-grid">
                 <article class="data-center-page__metric-card is-primary">
-                  <span class="data-center-page__metric-label">渠道总收入</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5SourceText.165') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCurrency(channelDisplaySummary.totalRevenue) }}</strong>
                 </article>
                 <article class="data-center-page__metric-card">
-                  <span class="data-center-page__metric-label">总间夜</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5SourceText.97') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCount(channelDisplaySummary.totalRoomNights) }}</strong>
                 </article>
                 <article class="data-center-page__metric-card">
-                  <span class="data-center-page__metric-label">平均间夜产值</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5SourceText.55') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCurrency(channelAverageRevenuePerNight) }}</strong>
                 </article>
               </div>
             </section>
 
             <section v-if="activeOverviewTab === 'channel'" class="mobile-card data-center-page__overview-card">
-              <h2 class="mobile-section-title">渠道消费分布</h2>
+              <h2 class="mobile-section-title">{{ $t('stage5.dataCenter.overview.channelConsumptionDistribution') }}</h2>
               <div v-if="channelDisplaySummary.revenueDistribution.length > 0" class="data-center-page__summary-list">
                 <article
                   v-for="item in channelDisplaySummary.revenueDistribution"
@@ -336,16 +336,16 @@
                 >
                   <div>
                     <strong>{{ item.channelName }}</strong>
-                    <p class="mobile-note">占比 {{ formatPercent(item.percentage) }}</p>
+                    <p class="mobile-note">{{ $t('stage5.statistics.common.ratio') }} {{ formatPercent(item.percentage) }}</p>
                   </div>
                   <strong>{{ formatCurrency(item.value) }}</strong>
                 </article>
               </div>
-              <p v-else class="mobile-note">当前日期范围暂无渠道消费分布。</p>
+              <p v-else class="mobile-note">{{ $t('stage5SourceText.66') }}</p>
             </section>
 
             <section v-if="activeOverviewTab === 'channel'" class="mobile-card data-center-page__overview-card">
-              <h2 class="mobile-section-title">渠道间夜分布</h2>
+              <h2 class="mobile-section-title">{{ $t('stage5.dataCenter.overview.channelNightsDistribution') }}</h2>
               <div v-if="channelDisplaySummary.nightsDistribution.length > 0" class="data-center-page__summary-list">
                 <article
                   v-for="item in channelDisplaySummary.nightsDistribution"
@@ -354,16 +354,16 @@
                 >
                   <div>
                     <strong>{{ item.channelName }}</strong>
-                    <p class="mobile-note">占比 {{ formatPercent(item.percentage) }}</p>
+                    <p class="mobile-note">{{ $t('stage5.statistics.common.ratio') }} {{ formatPercent(item.percentage) }}</p>
                   </div>
                   <strong>{{ formatCount(item.value) }}</strong>
                 </article>
               </div>
-              <p v-else class="mobile-note">当前日期范围暂无渠道间夜分布。</p>
+              <p v-else class="mobile-note">{{ $t('stage5SourceText.67') }}</p>
             </section>
 
             <section v-if="activeOverviewTab === 'channel'" class="mobile-card data-center-page__overview-card">
-              <h2 class="mobile-section-title">渠道明细</h2>
+              <h2 class="mobile-section-title">{{ $t('stage5.dataCenter.overview.channelDetails') }}</h2>
               <div v-if="channelDisplaySummary.channelDetails.length > 0" class="data-center-page__summary-list">
                 <article
                   v-for="item in channelDisplaySummary.channelDetails"
@@ -377,13 +377,13 @@
                   <strong>{{ formatCurrency(item.revenue) }}</strong>
                 </article>
               </div>
-              <p v-else class="mobile-note">当前日期范围暂无渠道明细。</p>
+              <p v-else class="mobile-note">{{ $t('stage5SourceText.65') }}</p>
             </section>
 
             <section v-if="activeOverviewTab === 'sales'" class="mobile-card data-center-page__overview-card">
               <div class="mobile-inline-row">
                 <div>
-                  <h2 class="mobile-section-title">销售汇总</h2>
+                  <h2 class="mobile-section-title">{{ $t('stage5.dataCenter.overview.tabs.sales') }}</h2>
                 </div>
               </div>
 
@@ -392,21 +392,21 @@
                 v-model="salesKeywordInput"
                 :debounce="0"
                 class="data-center-page__sales-searchbar"
-                placeholder="搜索订单号、渠道号、客户名、手机号"
+                :placeholder="$t('stage5.dataCenter.overview.searchOrders')"
               />
 
               <div class="data-center-page__inline-actions">
-                <ion-button size="small" @click="handleSalesSearch">搜索</ion-button>
-                <ion-button size="small" fill="outline" @click="handleSalesSearchReset">清空</ion-button>
+                <ion-button size="small" @click="handleSalesSearch">{{ $t('iosStage5.common.search') }}</ion-button>
+                <ion-button size="small" fill="outline" @click="handleSalesSearchReset">{{ $t('messages.clear') }}</ion-button>
               </div>
 
               <div class="data-center-page__metric-grid">
                 <article class="data-center-page__metric-card is-primary">
-                  <span class="data-center-page__metric-label">总销售额</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5.dataCenter.overview.salesTotal') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCurrency(salesSummary.totalSales) }}</strong>
                 </article>
                 <article class="data-center-page__metric-card">
-                  <span class="data-center-page__metric-label">订单数</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5SourceText.201') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCount(salesSummary.totalOrders) }}</strong>
                 </article>
               </div>
@@ -415,27 +415,27 @@
             <section v-if="activeOverviewTab === 'sales'" class="mobile-card data-center-page__overview-card">
               <div class="mobile-inline-row">
                 <div>
-                  <h2 class="mobile-section-title">销售订单明细</h2>
+                  <h2 class="mobile-section-title">{{ $t('stage5.dataCenter.overview.salesOrderDetails') }}</h2>
                 </div>
               </div>
               <div v-if="salesSummary.orderDetails.length > 0" class="data-center-page__card-list">
                 <article v-for="item in salesSummary.orderDetails" :key="item.id" class="data-center-page__detail-card">
                   <div class="data-center-page__detail-header">
-                    <strong>{{ item.guestName || item.customerName || '未命名住客' }}</strong>
+                    <strong>{{ item.guestName || item.customerName || $t('stage5DynamicUi.45') }}</strong>
                     <span class="data-center-page__amount">{{ formatCurrency(item.amount) }}</span>
                   </div>
-                  <p class="mobile-note">订单号 {{ item.orderNumber }}</p>
-                  <p class="mobile-note">渠道号 {{ item.channelNumber || '-' }}</p>
-                  <p class="mobile-note">{{ item.channelName || '未知渠道' }} · {{ formatDateTime(item.createdAt) }}</p>
-                  <p class="mobile-note">手机号 {{ item.phone || '-' }}</p>
+                  <p class="mobile-note">{{ $t('stage5.common.fields.orderNumber') }} {{ item.orderNumber }}</p>
+                  <p class="mobile-note">{{ $t('stage5DynamicUi.133') }} {{ item.channelNumber || '-' }}</p>
+                  <p class="mobile-note">{{ item.channelName || $t('iosStage5.wallet.unknownChannel') }} · {{ formatDateTime(item.createdAt) }}</p>
+                  <p class="mobile-note">{{ $t('stage5.common.fields.phone') }} {{ item.phone || '-' }}</p>
                 </article>
               </div>
-              <p v-else class="mobile-note">当前日期范围暂无销售订单。</p>
+              <p v-else class="mobile-note">{{ $t('stage5SourceText.72') }}</p>
             </section>
 
             <section v-if="activeOverviewTab === 'sales'" class="mobile-card data-center-page__overview-card">
               <h2 class="mobile-section-title data-center-page__chart-title">
-                每日销售额
+                {{ $t('stage5VisibleText.209') }}
                 <span>{{ chartDateRangeLabel }}</span>
               </h2>
               <div
@@ -458,10 +458,10 @@
                     />
                   </div>
                   <span class="data-center-page__trend-label">{{ item.label }}</span>
-                  <span class="data-center-page__trend-meta">{{ formatCount(item.orderCount) }}单</span>
+                  <span class="data-center-page__trend-meta">{{ formatCount(item.orderCount) }}{{ $t('stage5DynamicUi.101') }}</span>
                 </article>
               </div>
-              <p v-else class="mobile-note">当前日期范围暂无销售趋势数据。</p>
+              <p v-else class="mobile-note">{{ $t('stage5SourceText.73') }}</p>
             </section>
           </template>
 
@@ -469,21 +469,21 @@
             <section class="mobile-card">
               <div class="mobile-inline-row">
                 <div>
-                  <h2 class="mobile-section-title">经营指标</h2>
+                  <h2 class="mobile-section-title">{{ $t('stage5.statistics.accommodation.operationalMetrics') }}</h2>
                 </div>
               </div>
 
               <div class="data-center-page__metric-grid">
                 <article class="data-center-page__metric-card is-primary">
-                  <span class="data-center-page__metric-label">总房费</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5.statistics.accommodation.totalRoomFee') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCurrency(operationalMetrics.totalRoomFee) }}</strong>
                 </article>
                 <article class="data-center-page__metric-card">
-                  <span class="data-center-page__metric-label">平均房价 ADR</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5SourceText.54') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCurrency(operationalMetrics.averageDailyRate) }}</strong>
                 </article>
                 <article class="data-center-page__metric-card">
-                  <span class="data-center-page__metric-label">入住率</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5.statistics.accommodation.occupancyRate') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatPercent(operationalMetrics.occupancyRate) }}</strong>
                 </article>
                 <article class="data-center-page__metric-card">
@@ -491,11 +491,11 @@
                   <strong class="data-center-page__metric-value">{{ formatCurrency(operationalMetrics.revPAR) }}</strong>
                 </article>
                 <article class="data-center-page__metric-card">
-                  <span class="data-center-page__metric-label">累计售出间夜</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5SourceText.177') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCount(operationalMetrics.totalSoldRoomNights) }}</strong>
                 </article>
                 <article class="data-center-page__metric-card">
-                  <span class="data-center-page__metric-label">累计可售间夜</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5SourceText.176') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCount(operationalMetrics.totalAvailableRoomNights) }}</strong>
                 </article>
               </div>
@@ -504,7 +504,7 @@
             <section class="mobile-card data-center-page__statistics-card">
               <div class="mobile-inline-row">
                 <div>
-                  <h2 class="mobile-section-title">经营指标趋势</h2>
+                  <h2 class="mobile-section-title">{{ $t('stage5.statistics.accommodation.operationalTrend') }}</h2>
                 </div>
               </div>
 
@@ -514,13 +514,13 @@
                 @ionChange="handleAccommodationTrendTabChange"
               >
                 <ion-segment-button value="roomFee">
-                  <ion-label>总房费</ion-label>
+                  <ion-label>{{ $t('stage5.statistics.accommodation.totalRoomFee') }}</ion-label>
                 </ion-segment-button>
                 <ion-segment-button value="adr">
                   <ion-label>ADR</ion-label>
                 </ion-segment-button>
                 <ion-segment-button value="roomNights">
-                  <ion-label>间夜数</ion-label>
+                  <ion-label>{{ $t('stage5.statistics.common.roomNights') }}</ion-label>
                 </ion-segment-button>
                 <ion-segment-button value="revpar">
                   <ion-label>RevPAR</ion-label>
@@ -547,13 +547,13 @@
                   </strong>
                 </article>
               </div>
-              <p v-else class="mobile-note">当前日期范围暂无经营指标趋势。</p>
+              <p v-else class="mobile-note">{{ $t('stage5SourceText.69') }}</p>
             </section>
 
             <section class="mobile-card data-center-page__statistics-card">
               <div class="mobile-inline-row data-center-page__detail-toolbar">
                 <div class="data-center-page__detail-toolbar-copy">
-                  <h2 class="mobile-section-title">经营指标明细</h2>
+                  <h2 class="mobile-section-title">{{ $t('stage5SourceText.179') }}</h2>
                 </div>
                 <ion-button
                   size="small"
@@ -561,7 +561,7 @@
                   class="data-center-page__export-button"
                   @click="handleExportAccommodationDetails"
                 >
-                  导出明细
+                  {{ $t('stage5.common.actions.exportDetails') }}
                 </ion-button>
               </div>
 
@@ -571,16 +571,16 @@
                 @ionChange="handleAccommodationDetailTabChange"
               >
                 <ion-segment-button value="roomFee">
-                  <ion-label>房费明细</ion-label>
+                  <ion-label>{{ $t('stage5.dataCenter.overview.roomFeeSource') }}</ion-label>
                 </ion-segment-button>
                 <ion-segment-button value="roomNights">
-                  <ion-label>间夜明细</ion-label>
+                  <ion-label>{{ $t('stage5.statistics.accommodation.roomNightDetails') }}</ion-label>
                 </ion-segment-button>
                 <ion-segment-button value="occupancy">
-                  <ion-label>入住率明细</ion-label>
+                  <ion-label>{{ $t('stage5.statistics.accommodation.occupancyDetails') }}</ion-label>
                 </ion-segment-button>
                 <ion-segment-button value="revpar">
-                  <ion-label>RevPAR明细</ion-label>
+                  <ion-label>{{ $t('stage5.statistics.accommodation.revparDetails') }}</ion-label>
                 </ion-segment-button>
               </ion-segment>
 
@@ -602,7 +602,7 @@
                   </strong>
                 </article>
               </div>
-              <p v-else class="mobile-note">当前日期范围暂无经营指标明细。</p>
+              <p v-else class="mobile-note">{{ $t('stage5SourceText.68') }}</p>
             </section>
           </template>
 
@@ -610,22 +610,22 @@
             <section class="mobile-card">
               <div class="mobile-inline-row">
                 <div>
-                  <h2 class="mobile-section-title">记一笔统计</h2>
-                  <p class="mobile-note">这里集中查看收支统计与明细，方便快速核对每日记录。</p>
+                  <h2 class="mobile-section-title">{{ $t('stage5SourceText.202') }}</h2>
+                  <p class="mobile-note">{{ $t('stage5SourceText.216') }}</p>
                 </div>
               </div>
 
               <div class="data-center-page__metric-grid">
                 <article class="data-center-page__metric-card is-primary">
-                  <span class="data-center-page__metric-label">净收入</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5.dataCenter.overview.netIncome') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCurrency(notesStatistics.netIncome) }}</strong>
                 </article>
                 <article class="data-center-page__metric-card">
-                  <span class="data-center-page__metric-label">总收入</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5.statistics.notes.totalIncome') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCurrency(notesStatistics.totalIncome) }}</strong>
                 </article>
                 <article class="data-center-page__metric-card">
-                  <span class="data-center-page__metric-label">总支出</span>
+                  <span class="data-center-page__metric-label">{{ $t('stage5.dataCenter.overview.totalExpense') }}</span>
                   <strong class="data-center-page__metric-value">{{ formatCurrency(notesStatistics.totalExpense) }}</strong>
                 </article>
               </div>
@@ -638,16 +638,16 @@
                 @ionChange="handleNotesStatsModeChange"
               >
                 <ion-segment-button value="project">
-                  <ion-label>按项目</ion-label>
+                  <ion-label>{{ $t('stage5.statistics.notes.byProject') }}</ion-label>
                 </ion-segment-button>
                 <ion-segment-button value="payment">
-                  <ion-label>按支付方式</ion-label>
+                  <ion-label>{{ $t('stage5.statistics.notes.byPaymentMethod') }}</ion-label>
                 </ion-segment-button>
               </ion-segment>
             </section>
 
             <section class="mobile-card">
-              <h2 class="mobile-section-title">收入统计</h2>
+              <h2 class="mobile-section-title">{{ $t('stage5SourceText.128') }}</h2>
               <div v-if="activeNotesIncomeStats.length > 0" class="data-center-page__summary-list">
                 <article
                   v-for="item in activeNotesIncomeStats"
@@ -656,16 +656,16 @@
                 >
                   <div>
                     <strong>{{ item.name }}</strong>
-                    <p class="mobile-note">收入构成</p>
+                    <p class="mobile-note">{{ $t('stage5SourceText.127') }}</p>
                   </div>
                   <strong>{{ formatCurrency(item.value) }}</strong>
                 </article>
               </div>
-              <p v-else class="mobile-note">当前日期范围暂无收入统计。</p>
+              <p v-else class="mobile-note">{{ $t('stage5SourceText.61') }}</p>
             </section>
 
             <section class="mobile-card">
-              <h2 class="mobile-section-title">支出统计</h2>
+              <h2 class="mobile-section-title">{{ $t('stage5SourceText.125') }}</h2>
               <div v-if="activeNotesExpenseStats.length > 0" class="data-center-page__summary-list">
                 <article
                   v-for="item in activeNotesExpenseStats"
@@ -674,19 +674,19 @@
                 >
                   <div>
                     <strong>{{ item.name }}</strong>
-                    <p class="mobile-note">支出构成</p>
+                    <p class="mobile-note">{{ $t('stage5SourceText.124') }}</p>
                   </div>
                   <strong>{{ formatCurrency(item.value) }}</strong>
                 </article>
               </div>
-              <p v-else class="mobile-note">当前日期范围暂无支出统计。</p>
+              <p v-else class="mobile-note">{{ $t('stage5SourceText.60') }}</p>
             </section>
 
             <section class="mobile-card data-center-page__notes-filter-card">
               <div class="mobile-inline-row">
                 <div>
-                  <h2 class="mobile-section-title">记一笔明细</h2>
-                  <p class="mobile-note">支持按类型筛选，可先查看明细与凭证数量。</p>
+                  <h2 class="mobile-section-title">{{ $t('stage5.statistics.notes.details') }}</h2>
+                  <p class="mobile-note">{{ $t('stage5SourceText.126') }}</p>
                 </div>
               </div>
 
@@ -696,13 +696,13 @@
                 @ionChange="handleNotesTypeFilterChange"
               >
                 <ion-segment-button value="all">
-                  <ion-label>全部</ion-label>
+                  <ion-label>{{ $t('stage5.common.filters.all') }}</ion-label>
                 </ion-segment-button>
                 <ion-segment-button value="income">
-                  <ion-label>收入</ion-label>
+                  <ion-label>{{ $t('stage5.statistics.notes.income') }}</ion-label>
                 </ion-segment-button>
                 <ion-segment-button value="expense">
-                  <ion-label>支出</ion-label>
+                  <ion-label>{{ $t('stage5.statistics.notes.expense') }}</ion-label>
                 </ion-segment-button>
               </ion-segment>
             </section>
@@ -722,21 +722,21 @@
                     </span>
                   </div>
                   <p class="mobile-note">{{ formatDateTime(item.datetime) }}</p>
-                  <p class="mobile-note">支付方式：{{ resolveNotePaymentMethodLabel(item.paymentMethod) }}</p>
-                  <p class="mobile-note">关联房间：{{ item.roomNumber || '-' }}</p>
-                  <p class="mobile-note">备注：{{ item.notes || '无' }}</p>
+                  <p class="mobile-note">{{ $t('stage5DynamicUi.118') }}{{ resolveNotePaymentMethodLabel(item.paymentMethod) }}</p>
+                  <p class="mobile-note">{{ $t('stage5DynamicUi.97') }}{{ item.roomNumber || '-' }}</p>
+                  <p class="mobile-note">{{ $t('stage5.dataCenter.detail.metaNote') }}{{ item.notes || $t('iosStage5.roomStatus.noValue') }}</p>
                   <div class="data-center-page__inline-actions">
-                    <span class="mobile-note">凭证 {{ formatCount(item.voucherCount) }}</span>
+                    <span class="mobile-note">{{ $t('stage5.common.fields.voucher') }} {{ formatCount(item.voucherCount) }}</span>
                     <ion-button v-if="item.voucherCount > 0" size="small" fill="clear" @click="handleViewVoucher(item)">
-                      查看凭证
+                      {{ $t('stage5VisibleText.204') }}
                     </ion-button>
                   </div>
                 </article>
               </div>
-              <p v-else class="mobile-note data-center-page__notes-empty">当前日期范围暂无记一笔明细。</p>
+              <p v-else class="mobile-note data-center-page__notes-empty">{{ $t('stage5SourceText.70') }}</p>
               <div class="data-center-page__subtle-actions">
-                <ion-button size="small" fill="outline" @click="handleExportNotes">导出报表</ion-button>
-                <ion-button size="small" fill="outline" @click="handleVoucherComingSoon">凭证说明</ion-button>
+                <ion-button size="small" fill="outline" @click="handleExportNotes">{{ $t('stage5.common.actions.exportReport') }}</ion-button>
+                <ion-button size="small" fill="outline" @click="handleVoucherComingSoon">{{ $t('stage5SourceText.16') }}</ion-button>
               </div>
             </section>
           </template>
@@ -765,6 +765,7 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { computed, nextTick, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import {
   getBusinessOverview,
@@ -793,6 +794,11 @@ import { ROUTE_PATHS } from '@/router/guards'
 import { useStoreStore } from '@/stores/store'
 import { showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
+import {
+  formatMoney as formatBusinessMoney,
+  formatNumber,
+  formatPercent as formatLocalizedPercent,
+} from '@/utils/formatters'
 import {
   compareBusinessDates,
   formatBusinessDateLabel,
@@ -835,43 +841,23 @@ type SearchbarElement = HTMLElement & {
   getInputElement?: () => Promise<HTMLInputElement>
 }
 
-const DATE_PRESETS: DatePresetOption[] = [
-  { label: '今天', value: 'today' },
-  { label: '昨天', value: 'yesterday' },
-  { label: '本周', value: 'week' },
-  { label: '本月', value: 'month' },
-]
-
-const OVERVIEW_TABS: OverviewTabOption[] = [
-  { label: '营业概况', value: 'business' },
-  { label: '流水汇总', value: 'revenue' },
-  { label: '渠道汇总', value: 'channel' },
-  { label: '销售汇总', value: 'sales' },
-]
-
-const NOTE_CATEGORY_LABEL_MAP: Record<string, string> = {
-  catering: '餐饮美食',
-  tobacco_alcohol: '烟酒饮料',
-  compensation: '物品赔付',
-  ticket: '景点门票',
-  souvenir: '特色纪念品',
-  other: '其他杂项',
-  utilities: '水电燃气',
-  rent_property: '房租物业费',
-  salary: '支付工资',
-  maintenance: '房间维修',
-  communication_transport: '通讯交通',
-  daily_misc: '日常杂项',
-}
-
-const NOTE_PAYMENT_METHOD_LABEL_MAP: Record<string, string> = {
-  wechat: '微信',
-  alipay: '支付宝',
-  cash: '现金',
-}
-
 const route = useRoute()
+const { t } = useI18n()
 const storeStore = useStoreStore()
+const currentCurrency = computed(() => storeStore.currentStore?.currency || 'CNY')
+const currentMoneyContext = computed(() => ({ country: storeStore.currentStore?.country }))
+const DATE_PRESETS = computed<DatePresetOption[]>(() => [
+  { label: t('stage5Final.statistics.today'), value: 'today' },
+  { label: t('stage5Final.statistics.yesterday'), value: 'yesterday' },
+  { label: t('stage5Final.statistics.thisWeek'), value: 'week' },
+  { label: t('stage5Final.statistics.thisMonth'), value: 'month' },
+])
+const OVERVIEW_TABS = computed<OverviewTabOption[]>(() => [
+  { label: t('stage5Final.statistics.business'), value: 'business' },
+  { label: t('stage5Final.statistics.revenue'), value: 'revenue' },
+  { label: t('stage5Final.statistics.channel'), value: 'channel' },
+  { label: t('stage5Final.statistics.sales'), value: 'sales' },
+])
 
 const activeDatePreset = ref<DatePreset | ''>('today')
 const startDate = ref('')
@@ -898,36 +884,36 @@ const notesStatistics = ref<NotesStatisticsDTO>(createEmptyNotesStatistics())
 const notesList = ref<NoteDTO[]>([])
 
 const storeName = computed(() => {
-  return storeStore.currentStore?.name || '未选择门店'
+  return storeStore.currentStore?.name || t('stage5Final.statistics.storeUnselected')
 })
 
 const activePrimaryLabel = computed(() => {
   if (activePrimarySection.value === 'accommodation') {
-    return '住宿'
+    return t('stage5Final.statistics.accommodation')
   }
 
   if (activePrimarySection.value === 'notes') {
-    return '记一笔'
+    return t('stage5Final.statistics.noteEntry')
   }
 
-  return '总览'
+  return t('stage5Final.statistics.overview')
 })
 
 const pageTitle = computed(() => {
   if (activePrimarySection.value === 'accommodation') {
-    return '住宿'
+    return t('routes.StatisticsAccommodation')
   }
 
   if (activePrimarySection.value === 'notes') {
-    return '记一笔'
+    return t('routes.StatisticsNotes')
   }
 
-  return '数据中心'
+  return t('routes.StatisticsOverview')
 })
 
 const dateRangeLabel = computed(() => {
   if (!startDate.value || !endDate.value) {
-    return '未选择日期'
+    return t('stage5Final.statistics.dateUnselected')
   }
 
   if (startDate.value === endDate.value) {
@@ -1178,38 +1164,29 @@ function formatDateTime(value: string) {
 }
 
 function formatCurrency(value: number) {
-  return `¥${Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return formatBusinessMoney(Number(value || 0), currentCurrency.value, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }, currentMoneyContext.value)
 }
 
 function formatCompactCurrency(value: number) {
-  const amount = Number(value || 0)
-  const absoluteAmount = Math.abs(amount)
-
-  if (absoluteAmount >= 100000000) {
-    return `¥${(amount / 100000000).toLocaleString('zh-CN', { maximumFractionDigits: 1 })}亿`
-  }
-
-  if (absoluteAmount >= 10000) {
-    return `¥${(amount / 10000).toLocaleString('zh-CN', { maximumFractionDigits: 1 })}万`
-  }
-
-  return `¥${amount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}`
+  return formatBusinessMoney(Number(value || 0), currentCurrency.value, {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }, currentMoneyContext.value)
 }
-
 function formatSignedCurrency(value: number, type: NoteType) {
-  if (type === 'expense') {
-    return `-${formatCurrency(value)}`
-  }
-
-  return `+${formatCurrency(value)}`
+  const signedValue = type === 'expense' ? -Math.abs(value) : Math.abs(value)
+  return formatCurrency(signedValue)
 }
 
 function formatCount(value: number) {
-  return Number(value || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+  return formatNumber(Number(value || 0), { maximumFractionDigits: 2 })
 }
 
 function formatPercent(value: number) {
-  return `${Number(value || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}%`
+  return formatLocalizedPercent(Number(value || 0), { maximumFractionDigits: 2 })
 }
 
 function getSortedItems<T extends { date: string }>(items: T[]) {
@@ -1267,12 +1244,12 @@ function resolveBusinessTrendTotal(item: DailyConsumption) {
 
 function resolveChannelDetailMeta(item: ChannelDetail) {
   const metaParts = [
-    `间夜 ${formatCount(item.roomNights)}`,
-    `均价 ${formatCurrency(item.averagePrice)}`,
+    `${t('stage5.statistics.common.roomNights')} ${formatCount(item.roomNights)}`,
+    `ADR ${formatCurrency(item.averagePrice)}`,
   ]
 
   if (item.orderCount !== null) {
-    metaParts.push(`订单 ${formatCount(item.orderCount)}`)
+    metaParts.push(`${t('stage5.common.fields.orderNumber')} ${formatCount(item.orderCount)}`)
   }
 
   return metaParts.join(' · ')
@@ -1296,34 +1273,34 @@ function resolveAccommodationTrendValue(item: DailyMetricsDTO) {
 
 function resolveAccommodationTrendMeta(item: DailyMetricsDTO) {
   if (activeAccommodationTrendTab.value === 'adr') {
-    return `房费 ${formatCurrency(item.totalRoomFee)} · 间夜 ${formatCount(item.roomNights)}`
+    return `${t('stage5.statistics.common.roomFee')} ${formatCurrency(item.totalRoomFee)} · ${t('stage5.statistics.common.roomNights')} ${formatCount(item.roomNights)}`
   }
 
   if (activeAccommodationTrendTab.value === 'roomNights') {
-    return `入住率 ${formatPercent(item.occupancyRate)} · RevPAR ${formatCurrency(item.revPAR)}`
+    return `${t('stage5.statistics.accommodation.occupancyRate')} ${formatPercent(item.occupancyRate)} · RevPAR ${formatCurrency(item.revPAR)}`
   }
 
   if (activeAccommodationTrendTab.value === 'revpar') {
-    return `ADR ${formatCurrency(item.averageDailyRate)} · 入住率 ${formatPercent(item.occupancyRate)}`
+    return `ADR ${formatCurrency(item.averageDailyRate)} · ${t('stage5.statistics.accommodation.occupancyRate')} ${formatPercent(item.occupancyRate)}`
   }
 
-  return `ADR ${formatCurrency(item.averageDailyRate)} · 间夜 ${formatCount(item.roomNights)}`
+  return `ADR ${formatCurrency(item.averageDailyRate)} · ${t('stage5.statistics.common.roomNights')} ${formatCount(item.roomNights)}`
 }
 
 function resolveAccommodationDetailMeta(item: RoomDetailDTO) {
   if (activeAccommodationDetailTab.value === 'roomFee') {
-    return `房间 ${item.roomNumber} · 当日 ${formatCurrency(item.currentDate)}`
+    return `${t('stage5.common.fields.room')} ${item.roomNumber} · ${t('stage5.common.date.today')} ${formatCurrency(item.currentDate)}`
   }
 
   if (activeAccommodationDetailTab.value === 'roomNights') {
-    return `房间 ${item.roomNumber} · 当日 ${formatCount(item.currentDate)}`
+    return `${t('stage5.common.fields.room')} ${item.roomNumber} · ${t('stage5.common.date.today')} ${formatCount(item.currentDate)}`
   }
 
   if (activeAccommodationDetailTab.value === 'occupancy') {
-    return `当前日期 ${formatPercent(item.currentDate)}`
+    return `${t('stage5.common.fields.date')} ${formatPercent(item.currentDate)}`
   }
 
-  return `当前日期 ${formatCurrency(item.currentDate)}`
+  return `${t('stage5.common.fields.date')} ${formatCurrency(item.currentDate)}`
 }
 
 function resolveAccommodationDetailValue(item: RoomDetailDTO) {
@@ -1352,10 +1329,10 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
 
 function resolveNoteTypeLabel(type: NoteType) {
   if (type === 'expense') {
-    return '支出'
+    return t('stage5Final.statistics.expense')
   }
 
-  return '收入'
+  return t('stage5Final.statistics.income')
 }
 
 function resolveNoteCategoryLabel(category?: string | null) {
@@ -1363,7 +1340,9 @@ function resolveNoteCategoryLabel(category?: string | null) {
     return '-'
   }
 
-  return NOTE_CATEGORY_LABEL_MAP[category] || category
+  const key = `stage5Final.statistics.categories.${category}`
+  const translated = t(key)
+  return translated === key ? category : translated
 }
 
 function resolveNotePaymentMethodLabel(paymentMethod?: string | null) {
@@ -1371,17 +1350,19 @@ function resolveNotePaymentMethodLabel(paymentMethod?: string | null) {
     return '-'
   }
 
-  return NOTE_PAYMENT_METHOD_LABEL_MAP[paymentMethod] || paymentMethod
+  const key = `stage5Final.statistics.payments.${paymentMethod}`
+  const translated = t(key)
+  return translated === key ? paymentMethod : translated
 }
 
 function validateDateRange() {
   if (!startDate.value || !endDate.value) {
-    showWarningToast('请选择完整的开始日期和结束日期')
+    showWarningToast(t('stage5.common.messages.pleaseSelectDateRange'))
     return false
   }
 
   if (startDate.value > endDate.value) {
-    showWarningToast('开始日期不能晚于结束日期')
+    showWarningToast(t('stage5.dataCenter.overview.invalidDateRange'))
     return false
   }
 
@@ -1429,7 +1410,7 @@ async function loadCurrentSection() {
       await loadOverviewPage()
     }
   } catch (error) {
-    const message = resolveWarningMessage(error, '数据中心加载失败')
+    const message = resolveWarningMessage(error, t('stage5.common.messages.dataLoadFailed'))
     pageError.value = message
     if (!isHandledRequestError(error)) {
       showWarningToast(message)
@@ -1447,7 +1428,7 @@ async function loadOverviewPage() {
     })
 
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载营业概况失败')
+      throw new Error(response.message || t('stage5.dataCenter.overview.loadBusinessFailed'))
     }
 
     businessOverview.value = response.data
@@ -1461,7 +1442,7 @@ async function loadOverviewPage() {
     })
 
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载流水汇总失败')
+      throw new Error(response.message || t('stage5.dataCenter.overview.loadRevenueFailed'))
     }
 
     revenueSummary.value = response.data
@@ -1475,7 +1456,7 @@ async function loadOverviewPage() {
     })
 
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载渠道汇总失败')
+      throw new Error(response.message || t('stage5.dataCenter.overview.loadChannelFailed'))
     }
 
     channelSummary.value = response.data
@@ -1489,7 +1470,7 @@ async function loadOverviewPage() {
   })
 
   if (!response.success || !response.data) {
-    throw new Error(response.message || '加载销售汇总失败')
+    throw new Error(response.message || t('stage5.dataCenter.overview.loadSalesFailed'))
   }
 
   salesSummary.value = response.data
@@ -1502,7 +1483,7 @@ async function loadAccommodationPage() {
   })
 
   if (!response.success || !response.data) {
-    throw new Error(response.message || '加载住宿经营指标失败')
+    throw new Error(response.message || t('stage5.statistics.accommodation.loadMetricsFailed'))
   }
 
   operationalMetrics.value = response.data
@@ -1525,7 +1506,7 @@ async function loadNotesListForCurrentFilter() {
   const response = await getNotesList(buildNotesListParams())
 
   if (!response.success || !response.data) {
-    throw new Error(response.message || '记一笔明细加载失败')
+    throw new Error(response.message || t('stage5.statistics.notes.listLoadFailed'))
   }
 
   notesList.value = response.data
@@ -1550,10 +1531,10 @@ async function loadNotesPage() {
       notesStatistics.value = response.data
       statisticsLoaded = true
     } else {
-      warnings.push(response.message || '记一笔统计加载失败')
+      warnings.push(response.message || t('stage5.statistics.notes.statsLoadFailed'))
     }
   } else {
-    warnings.push(resolveWarningMessage(statisticsResult.reason, '记一笔统计加载失败'))
+    warnings.push(resolveWarningMessage(statisticsResult.reason, t('stage5.statistics.notes.statsLoadFailed')))
   }
 
   if (listResult.status === 'fulfilled') {
@@ -1562,14 +1543,14 @@ async function loadNotesPage() {
       notesList.value = response.data
       listLoaded = true
     } else {
-      warnings.push(response.message || '记一笔明细加载失败')
+      warnings.push(response.message || t('stage5.statistics.notes.listLoadFailed'))
     }
   } else {
-    warnings.push(resolveWarningMessage(listResult.reason, '记一笔明细加载失败'))
+    warnings.push(resolveWarningMessage(listResult.reason, t('stage5.statistics.notes.listLoadFailed')))
   }
 
   if (!statisticsLoaded && !listLoaded) {
-    throw new Error(warnings.join('；') || '记一笔数据加载失败')
+    throw new Error(warnings.join('；') || t('stage5.common.messages.dataLoadFailed'))
   }
 
   if (warnings.length > 0) {
@@ -1621,7 +1602,7 @@ async function handleNotesTypeFilterChange(event: CustomEvent) {
   try {
     await loadNotesListForCurrentFilter()
   } catch (error) {
-    const message = resolveWarningMessage(error, '记一笔明细加载失败')
+    const message = resolveWarningMessage(error, t('stage5.statistics.notes.listLoadFailed'))
     loadNotice.value = message
     if (!isHandledRequestError(error)) {
       showWarningToast(message)
@@ -1668,19 +1649,19 @@ async function handleSalesSearchReset() {
 }
 
 function handleExportNotes() {
-  showWarningToast('导出功能即将上线，请先查看当前统计与明细。')
+  showWarningToast(t('stage5.common.messages.exportComingSoon'))
 }
 
 function handleExportAccommodationDetails() {
-  showWarningToast('导出请在电脑端完成，手机端可先查看当前明细。')
+  showWarningToast(t('stage5.common.messages.exportComingSoon'))
 }
 
 function handleVoucherComingSoon() {
-  showWarningToast('凭证查看功能即将上线，当前可先查看凭证数量与明细信息。')
+  showWarningToast(t('stage5.statistics.notes.viewVoucherComingSoon'))
 }
 
 function handleViewVoucher(_item: NoteDTO) {
-  showWarningToast('凭证查看功能即将上线，当前可先查看凭证数量与明细信息。')
+  showWarningToast(t('stage5.statistics.notes.viewVoucherComingSoon'))
 }
 
 async function handleRefreshTap() {

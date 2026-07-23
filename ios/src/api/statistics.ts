@@ -1,4 +1,5 @@
 import type { ApiResponse } from '@/types/api'
+import { i18n } from '@/locales'
 import request from '@/utils/request'
 
 export interface DateRangeParams {
@@ -218,9 +219,11 @@ function toNumber(value: unknown) {
   return 0
 }
 
+const statisticsText = (key: string) => i18n.global.t(`runtime.statistics.${key}`)
+
 function normalizeChannelDistribution(item: ChannelDistribution): ChannelDistribution {
   return {
-    channelName: item.channelName || '未知渠道',
+    channelName: item.channelName || statisticsText('unknownChannel'),
     value: toNumber(item.value),
     percentage: toNumber(item.percentage),
   }
@@ -230,7 +233,7 @@ function normalizeChannelTrendItem(item: ChannelTrend): ChannelTrend {
   const nextChannels = Array.isArray(item.channels)
     ? item.channels.map((channel) => {
         return {
-          channelName: channel.channelName || '未知渠道',
+          channelName: channel.channelName || statisticsText('unknownChannel'),
           value: toNumber(channel.value),
         }
       })
@@ -259,7 +262,7 @@ function normalizeChannelDetail(item: RawChannelDetail): ChannelDetail {
   }
 
   return {
-    channelName: item.channelName || '未知渠道',
+    channelName: item.channelName || statisticsText('unknownChannel'),
     revenue,
     roomNights,
     averagePrice,
@@ -308,7 +311,7 @@ function normalizeDailyMetricsItem(item: DailyMetricsDTO): DailyMetricsDTO {
 
 function normalizeRoomDetailItem(item: RoomDetailDTO): RoomDetailDTO {
   return {
-    roomType: item.roomType || '未知房型',
+    roomType: item.roomType || statisticsText('unknownRoomType'),
     roomNumber: item.roomNumber || '-',
     total: toNumber(item.total),
     currentDate: toNumber(item.currentDate),

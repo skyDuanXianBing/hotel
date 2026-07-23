@@ -2,9 +2,9 @@
   <ion-modal :is-open="isOpen" @didDismiss="$emit('dismiss')">
     <ion-header translucent>
       <ion-toolbar>
-        <ion-title>取消预约</ion-title>
+        <ion-title>{{ $t('roomStatus.common.cancelReservation') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="$emit('dismiss')">关闭</ion-button>
+          <ion-button @click="$emit('dismiss')">{{ $t('home.section.close') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -16,15 +16,15 @@
 
       <ion-list inset>
         <ion-item>
-          <ion-select v-model="form.reason" label="取消原因" label-placement="stacked" interface="action-sheet">
-            <ion-select-option value="guest_cancel">客人主动取消</ion-select-option>
-            <ion-select-option value="room_issue">房间问题</ion-select-option>
-            <ion-select-option value="system_error">系统错误</ion-select-option>
-            <ion-select-option value="other">其他</ion-select-option>
+          <ion-select v-model="form.reason" :label="$t('roomStatus.cancelReservation.reason')" label-placement="stacked" interface="action-sheet">
+            <ion-select-option value="guest_cancel">{{ $t('roomStatus.cancelReservation.reasons.guest_cancel') }}</ion-select-option>
+            <ion-select-option value="room_issue">{{ $t('roomStatus.cancelReservation.reasons.room_issue') }}</ion-select-option>
+            <ion-select-option value="system_error">{{ $t('roomStatus.cancelReservation.reasons.system_error') }}</ion-select-option>
+            <ion-select-option value="other">{{ $t('roomStatus.payment.bookingTypeOptions.other') }}</ion-select-option>
           </ion-select>
         </ion-item>
         <ion-item lines="none">
-          <ion-textarea v-model="form.notes" auto-grow label="备注" label-placement="stacked" placeholder="可选" />
+          <ion-textarea v-model="form.notes" auto-grow :label="$t('accommodation.common.remarks')" label-placement="stacked" :placeholder="$t('settingsStage4.autoCheckin.status.optional')" />
         </ion-item>
       </ion-list>
     </ion-content>
@@ -32,8 +32,8 @@
     <ion-footer>
       <ion-toolbar>
         <div class="modal-footer-actions">
-          <ion-button fill="outline" @click="$emit('dismiss')">返回</ion-button>
-          <ion-button color="danger" :disabled="submitting" @click="handleSubmit">确认取消</ion-button>
+          <ion-button fill="outline" @click="$emit('dismiss')">{{ $t('roomStatus.cancelReservation.back') }}</ion-button>
+          <ion-button color="danger" :disabled="submitting" @click="handleSubmit">{{ $t('order.mobile.actions.confirmCancelOrder') }}</ion-button>
         </div>
       </ion-toolbar>
     </ion-footer>
@@ -57,6 +57,7 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ReservationDTO } from '@/api/reservation'
 
 export interface CancelReservationSubmitPayload {
@@ -70,6 +71,8 @@ const props = defineProps<{
   submitting: boolean
 }>()
 
+const { t } = useI18n()
+
 const emit = defineEmits<{
   dismiss: []
   submit: [payload: CancelReservationSubmitPayload]
@@ -82,7 +85,7 @@ const form = ref<CancelReservationSubmitPayload>({
 
 const reservationTitle = computed(() => {
   if (!props.reservation) {
-    return '当前订单'
+    return t('stage5Final.roomStatus.currentOrder')
   }
   return `${props.reservation.guestName} · ${props.reservation.orderNumber}`
 })

@@ -8,10 +8,10 @@
             class="registration-review-links-page__back-button app-page-header__text-btn"
             @click="handleBack"
           >
-            返回
+            {{ $t('roomStatus.cancelReservation.back') }}
           </ion-button>
         </ion-buttons>
-        <ion-title class="app-page-header__title">链接列表</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.RegistrationReviewLinks') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -19,14 +19,14 @@
       <section class="mobile-hero registration-review-links-page__hero">
         <div class="registration-review-links-page__hero-header">
           <div>
-            <h1 class="mobile-title">登记链接列表</h1>
+            <h1 class="mobile-title">{{ $t('routes.RegistrationReviewLinks') }}</h1>
           </div>
           <ion-button fill="outline" size="small" class="registration-review-links-page__hero-action" @click="handleReload">
-            刷新
+            {{ $t('accommodation.cleaning.refresh') }}
           </ion-button>
         </div>
         <div class="mobile-chip-row registration-review-links-page__hero-metrics">
-          <span class="mobile-chip">共 {{ reviewStore.linkEntries.length }} 条</span>
+          <span class="mobile-chip">{{ $t('stage5DynamicUi.95') }} {{ reviewStore.linkEntries.length }} {{ $t('stage5DynamicUi.125') }}</span>
         </div>
       </section>
 
@@ -34,8 +34,8 @@
         <section class="mobile-card">
           <div class="mobile-inline-row registration-review-links-page__results-header">
             <div>
-              <h2 class="mobile-section-title">链接记录</h2>
-              <p class="mobile-note">共 {{ reviewStore.linkEntries.length }} 条，按创建时间展示。</p>
+              <h2 class="mobile-section-title">{{ $t('stage5SourceText.225') }}</h2>
+              <p class="mobile-note">{{ $t('stage5DynamicUi.95') }} {{ reviewStore.linkEntries.length }} {{ $t('stage5DynamicUi.128') }}</p>
             </div>
           </div>
 
@@ -45,7 +45,7 @@
           >
             <div class="registration-review-links-page__loading-header">
               <ion-spinner name="crescent" />
-              <p class="mobile-note">正在加载链接列表...</p>
+              <p class="mobile-note">{{ $t('stage5SourceText.158') }}</p>
             </div>
             <div class="registration-review-links-page__skeleton-list" aria-hidden="true">
               <div
@@ -67,7 +67,7 @@
 
           <div v-else-if="reviewStore.linkLoadError" class="registration-review-links-page__state-block">
             <p class="mobile-note">{{ reviewStore.linkLoadError }}</p>
-            <ion-button fill="outline" size="small" @click="handleReload">重新加载</ion-button>
+            <ion-button fill="outline" size="small" @click="handleReload">{{ $t('storeSelection.reload') }}</ion-button>
           </div>
 
           <div v-else-if="reviewStore.linkEntries.length > 0" class="mobile-list pms-list registration-review-links-page__list">
@@ -75,30 +75,30 @@
               <div class="mobile-inline-row registration-review-links-page__item-header">
                 <div>
                   <strong class="registration-review-links-page__guest-name">{{ entry.guestName }}</strong>
-                  <p class="mobile-note">创建时间：{{ entry.createdAt }}</p>
+                  <p class="mobile-note">{{ $t('stage5DynamicUi.99') }}{{ entry.createdAt }}</p>
                 </div>
-                <span class="mobile-chip">{{ entry.roomCount }} 间</span>
+                <span class="mobile-chip">{{ entry.roomCount }} {{ $t('settingsStage4.common.unitRooms') }}</span>
               </div>
 
               <div class="registration-review-links-page__meta-grid">
-                <span>入住 {{ entry.checkInDate }}</span>
-                <span>离店 {{ entry.checkOutDate }}</span>
+                <span>{{ $t('roomStatus.action.checkIn') }} {{ entry.checkInDate }}</span>
+                <span>{{ $t('roomStatus.hoverCard.checkOutDate') }} {{ entry.checkOutDate }}</span>
                 <span>BookingKey {{ entry.bookingKey }}</span>
               </div>
 
               <div class="registration-review-links-page__link-box">
-                {{ entry.linkUrl || '暂无可复制链接' }}
+                {{ entry.linkUrl || $t('stage5DynamicUi.44') }}
               </div>
 
               <div class="registration-review-links-page__actions">
                 <ion-button fill="outline" size="small" :disabled="!entry.linkUrl" @click="handleCopy(entry.linkUrl)">
-                  复制链接
+                  {{ $t('stage5VisibleText.151') }}
                 </ion-button>
               </div>
             </article>
           </div>
 
-          <p v-else class="mobile-note">当前没有可展示的登记链接。</p>
+          <p v-else class="mobile-note">{{ $t('stage5SourceText.90') }}</p>
         </section>
       </div>
     </ion-content>
@@ -106,6 +106,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   IonButton,
   IonButtons,
@@ -123,6 +124,8 @@ import { ROUTE_PATHS } from '@/router/guards'
 import { showSuccessToast } from '@/utils/notify'
 import { showUnhandledRequestWarning } from '@/utils/requestError'
 import { copyTextToClipboard } from '@/utils/file'
+
+const { t } = useI18n()
 
 const router = useRouter()
 const reviewStore = useReviewStore()
@@ -147,9 +150,9 @@ async function handleReload() {
 async function handleCopy(linkUrl: string) {
   try {
     await copyTextToClipboard(linkUrl)
-    showSuccessToast('链接已复制')
+    showSuccessToast(t('stage5Pattern.operationCompleted'))
   } catch (error) {
-    showUnhandledRequestWarning(error, '复制链接失败')
+    showUnhandledRequestWarning(error, t('stage5Final.review.copyLinkFailed'))
   }
 }
 </script>

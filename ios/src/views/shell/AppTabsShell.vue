@@ -3,23 +3,23 @@
     <ion-tabs>
       <ion-router-outlet />
       <ion-tab-bar slot="bottom" class="mobile-tabbar">
-        <ion-tab-button tab="home" :href="ROUTE_PATHS.home" aria-label="首页">
+        <ion-tab-button tab="home" :href="ROUTE_PATHS.home" :aria-label="t('nav.home')">
           <span class="mobile-tabbar__content">
             <span class="mobile-tabbar__icon-wrap" aria-hidden="true">
               <span class="mobile-tabbar__icon mobile-tabbar__icon--home" />
             </span>
-            <span class="mobile-tabbar__label">首页</span>
+            <span class="mobile-tabbar__label">{{ t('nav.home') }}</span>
           </span>
         </ion-tab-button>
-        <ion-tab-button tab="rooms" :href="ROUTE_PATHS.rooms" aria-label="房态">
+        <ion-tab-button tab="rooms" :href="ROUTE_PATHS.rooms" :aria-label="t('nav.rooms')">
           <span class="mobile-tabbar__content">
             <span class="mobile-tabbar__icon-wrap" aria-hidden="true">
               <span class="mobile-tabbar__icon mobile-tabbar__icon--rooms" />
             </span>
-            <span class="mobile-tabbar__label">房态</span>
+            <span class="mobile-tabbar__label">{{ t('nav.rooms') }}</span>
           </span>
         </ion-tab-button>
-        <ion-tab-button tab="messages" :href="ROUTE_PATHS.messages" aria-label="消息">
+        <ion-tab-button tab="messages" :href="ROUTE_PATHS.messages" :aria-label="t('nav.messages')">
           <span class="mobile-tabbar__content">
             <span class="mobile-tabbar__icon-wrap" aria-hidden="true">
               <span class="mobile-tabbar__icon mobile-tabbar__icon--messages" />
@@ -27,23 +27,23 @@
                 {{ notificationCenterStore.unreadMessageCount }}
               </span>
             </span>
-            <span class="mobile-tabbar__label">消息</span>
+            <span class="mobile-tabbar__label">{{ t('nav.messages') }}</span>
           </span>
         </ion-tab-button>
-        <ion-tab-button tab="reviews" :href="ROUTE_PATHS.reviews" aria-label="审查">
+        <ion-tab-button tab="reviews" :href="ROUTE_PATHS.reviews" :aria-label="t('nav.reviews')">
           <span class="mobile-tabbar__content">
             <span class="mobile-tabbar__icon-wrap" aria-hidden="true">
               <span class="mobile-tabbar__icon mobile-tabbar__icon--reviews" />
             </span>
-            <span class="mobile-tabbar__label">审查</span>
+            <span class="mobile-tabbar__label">{{ t('nav.reviews') }}</span>
           </span>
         </ion-tab-button>
-        <ion-tab-button tab="settings" :href="ROUTE_PATHS.settings" aria-label="设置">
+        <ion-tab-button tab="settings" :href="ROUTE_PATHS.settings" :aria-label="t('nav.settings')">
           <span class="mobile-tabbar__content">
             <span class="mobile-tabbar__icon-wrap" aria-hidden="true">
               <span class="mobile-tabbar__icon mobile-tabbar__icon--settings" />
             </span>
-            <span class="mobile-tabbar__label">设置</span>
+            <span class="mobile-tabbar__label">{{ t('nav.settings') }}</span>
           </span>
         </ion-tab-button>
       </ion-tab-bar>
@@ -53,10 +53,12 @@
 
 <script setup lang="ts">
 import { IonPage, IonRouterOutlet, IonTabBar, IonTabButton, IonTabs } from '@ionic/vue'
+import { useI18n } from 'vue-i18n'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 
 const notificationCenterStore = useNotificationCenterStore()
+const { t } = useI18n()
 </script>
 
 <style scoped>

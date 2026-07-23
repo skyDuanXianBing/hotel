@@ -1,10 +1,13 @@
 import type { RequestConfig, ApiResponse } from '@/types/api'
 import { PUBLIC_API_BASE_URL } from '@/constants/api'
+import { i18n } from '@/locales'
 import { sanitizeUserFacingMessage, showErrorToast } from '@/utils/notify'
 
 const REQUEST_TIMEOUT = 10000
 const REQUEST_ERROR_HANDLED_KEY = 'toastHandled'
 const REQUEST_ERROR_STATUS_KEY = 'status'
+
+const requestMessage = (key: string) => i18n.global.t(`request.${key}`)
 
 const trimLeadingSlash = (value: string) => value.replace(/^\/+/, '')
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
@@ -101,6 +104,10 @@ const buildHandledError = (message: string, status?: number) => {
   return error
 }
 
+export const isHandledPublicRequestError = (error: unknown) => {
+  return error instanceof Error && Reflect.get(error, REQUEST_ERROR_HANDLED_KEY) === true
+}
+
 const executeRequest = async <T>(config: RequestConfig, responseType: 'json' | 'blob'): Promise<T> => {
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => {
@@ -121,14 +128,14 @@ const executeRequest = async <T>(config: RequestConfig, responseType: 'json' | '
     }
 
     if (!response.ok) {
-      const message = resolveErrorMessage(payload, response.statusText || '请求失败')
+      const message = resolveErrorMessage(payload, response.statusText || requestMessage('failed'))
       const shouldSuppressErrorToast = config.suppressErrorStatuses?.includes(response.status) === true
 
       if (!shouldSuppressErrorToast) {
-        showErrorToast(message || '请求失败')
+        showErrorToast(message || requestMessage('failed'))
       }
 
-      throw buildHandledError(message || '请求失败', response.status)
+      throw buildHandledError(message || requestMessage('failed'), response.status)
     }
 
     if (responseType === 'blob') {
@@ -137,17 +144,19 @@ const executeRequest = async <T>(config: RequestConfig, responseType: 'json' | '
 
     return payload as T
   } catch (error) {
-    if (error instanceof Error && Reflect.get(error, REQUEST_ERROR_HANDLED_KEY) === true) {
+    if (isHandledPublicRequestError(error)) {
       throw error
     }
 
     if (error instanceof DOMException && error.name === 'AbortError') {
-      showErrorToast('请求超时，请稍后重试')
-      throw buildHandledError('请求超时，请稍后重试')
+      showErrorToast(requestMessage('timeout'))
+      throw buildHandledError(requestMessage('timeout'))
     }
 
     const message =
-      error instanceof Error && error.message ? sanitizeUserFacingMessage(error.message) : '网络异常，请稍后重试'
+      error instanceof Error && error.message
+        ? sanitizeUserFacingMessage(error.message)
+        : requestMessage('networkError')
 
     showErrorToast(message)
     throw buildHandledError(message)

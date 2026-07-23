@@ -5,7 +5,7 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.home" />
         </ion-buttons>
-        <ion-title class="orders-header__title">订单</ion-title>
+        <ion-title class="orders-header__title">{{ $t('routes.Orders') }}</ion-title>
         <ion-buttons slot="end">
           <ion-button class="orders-header__icon-btn" fill="clear" @click="handleToggleSearch">
             <ion-icon :icon="searchOutline" />
@@ -16,7 +16,7 @@
 
     <ion-content fullscreen class="mobile-page orders-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新订单" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('order.mobile.refresh')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <div class="orders-page__shell" :class="{ 'has-search': isSearchVisible }">
@@ -26,9 +26,11 @@
               v-model="searchKeyword"
               :debounce="0"
               class="orders-searchbar"
-              placeholder="单号/房间/房客姓名/备注"
+              :placeholder="$t('order.mobile.searchPlaceholder')"
             />
-            <button type="button" class="orders-search-panel__cancel" @click="handleHideSearch">取消</button>
+            <button type="button" class="orders-search-panel__cancel" @click="handleHideSearch">
+              {{ $t('order.mobile.actions.cancel') }}
+            </button>
           </div>
         </section>
 
@@ -51,9 +53,10 @@
         <section class="orders-filter-row">
           <div class="orders-filter-row__scroll">
             <button
+              v-if="showDateFilter"
               type="button"
               class="orders-filter-chip"
-              :class="{ 'is-active': Boolean(filters.startDate || filters.endDate) }"
+              :class="{ 'is-active': activeTab === 'all' ? Boolean(filters.startDate || filters.endDate) : Boolean(filters.operationDate) }"
               @click="openFilterPanel('date')"
             >
               {{ dateFilterLabel }}
@@ -104,7 +107,7 @@
               class="orders-filter-chip orders-filter-chip--ghost"
               @click="handleResetSearchAndFilters"
             >
-              清空
+              {{ $t('order.mobile.clear') }}
             </button>
           </div>
         </section>
@@ -112,9 +115,13 @@
         <section class="orders-list-section">
           <div class="orders-list-header">
             <div class="orders-list-header__heading">
-              <p class="orders-list-header__summary">{{ activeTabLabel }} · {{ totalElements }} 条结果</p>
+              <p class="orders-list-header__summary">
+                {{ activeTabLabel }} · {{ $t('order.mobile.resultCount', { count: totalElements }) }}
+              </p>
               <div v-if="filterCount > 0 || committedKeyword" class="orders-list-header__tags">
-                <span v-if="filterCount > 0" class="orders-list-header__tag">已筛选 {{ filterCount }} 项</span>
+                <span v-if="filterCount > 0" class="orders-list-header__tag">
+                  {{ $t('order.mobile.filteredCount', { count: filterCount }) }}
+                </span>
                 <span v-if="committedKeyword" class="orders-list-header__tag">{{ committedKeyword }}</span>
               </div>
             </div>
@@ -125,13 +132,13 @@
 
           <p v-if="loadNotice" class="orders-notice-text">{{ loadNotice }}</p>
           <p v-else-if="activeTab === 'order-box'" class="orders-notice-text">
-            订单盒子以 reservation 为数据源，可从详情执行移入/移出。
+            {{ $t('order.mobile.orderBoxNotice') }}
           </p>
           <p v-else-if="activeTab === 'unassigned'" class="orders-notice-text">
-            包含未排房订单与渠道映射异常订单。
+            {{ $t('order.mobile.unassignedNotice') }}
           </p>
           <p v-else-if="activeTab === 'deleted-rooms'" class="orders-notice-text orders-notice-text--warning">
-            关联房型或房间已删除，请核对后重新排房。
+            {{ $t('order.mobile.deletedRoomsNotice') }}
           </p>
 
           <div v-if="orderCards.length > 0" class="orders-list">
@@ -142,6 +149,8 @@
               :active-tab="activeTab"
               :order-box-item="item.orderBoxItem"
               :channel-color="item.channelColor"
+              :currency="currentCurrency"
+              :country="storeStore.currentStore?.country"
               @open-detail="openReservationDetail(item.reservation.id)"
               @assign-room="openAssignRoom(item.reservation)"
               @open-actions="presentReservationActions(item.reservation, item.orderBoxItem)"
@@ -152,7 +161,7 @@
             <div class="orders-empty-state__illustration" aria-hidden="true">
               <span class="orders-empty-state__box"></span>
             </div>
-            <p class="orders-empty">暂无数据</p>
+            <p class="orders-empty">{{ $t('order.mobile.empty') }}</p>
           </div>
         </section>
 
@@ -164,14 +173,14 @@
             :disabled="loadingMore"
             @click="handleLoadMoreButton"
           >
-            {{ loadingMore ? '加载中...' : '加载更多订单' }}
+            {{ loadingMore ? $t('order.options.loading') : $t('order.mobile.loadMore') }}
           </ion-button>
         </section>
         </div>
       </div>
 
       <ion-infinite-scroll v-if="usePagedEndpoint && hasMore" @ionInfinite="handleInfiniteLoad">
-        <ion-infinite-scroll-content loading-text="加载更多订单" />
+        <ion-infinite-scroll-content :loading-text="$t('order.mobile.loadMore')" />
       </ion-infinite-scroll>
     </ion-content>
 
@@ -228,6 +237,7 @@ import {
 } from '@ionic/vue'
 import { searchOutline } from 'ionicons/icons'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AssignRoomModal from '@/components/order/AssignRoomModal.vue'
 import OrderFilterModal from '@/components/order/OrderFilterModal.vue'
@@ -276,6 +286,7 @@ import { useRoomStatusStore } from '@/stores/roomStatus'
 import { useStoreStore } from '@/stores/store'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
+import { getStoreTodayDate } from '@/utils/storeBusinessDate'
 
 const PAGE_SIZE = 10
 const SEARCH_DEBOUNCE = 280
@@ -291,8 +302,10 @@ const EMPTY_STATISTICS: ReservationStatistics = {
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const roomStatusStore = useRoomStatusStore()
 const storeStore = useStoreStore()
+const currentCurrency = computed(() => storeStore.currentStore?.currency || 'CNY')
 
 type FilterPanelKey = 'date' | 'roomType' | 'channel' | 'status' | 'paymentStatus' | 'checkinType'
 
@@ -356,10 +369,32 @@ const filterCount = computed(() => {
   if (filters.value.paymentStatus) {
     count += 1
   }
-  if (filters.value.startDate || filters.value.endDate) {
+  if (activeTab.value === 'all' && (filters.value.startDate || filters.value.endDate)) {
+    count += 1
+  }
+  if (isTodayOperationTab.value && filters.value.operationDate) {
     count += 1
   }
   return count
+})
+
+const isTodayOperationTab = computed(() =>
+  ['today-checkin', 'today-checkout', 'today-new'].includes(activeTab.value),
+)
+
+const showDateFilter = computed(() => activeTab.value === 'all' || isTodayOperationTab.value)
+
+const todayOperationDateLabel = computed(() => {
+  if (activeTab.value === 'today-checkin') {
+    return t('order.filters.todayCheckinDate')
+  }
+  if (activeTab.value === 'today-checkout') {
+    return t('order.filters.todayCheckoutDate')
+  }
+  if (activeTab.value === 'today-new') {
+    return t('order.filters.todayNewDate')
+  }
+  return t('order.filters.operationDate')
 })
 
 const usePagedEndpoint = computed(() => {
@@ -372,6 +407,10 @@ const usePagedEndpoint = computed(() => {
   }
 
   if (activeTab.value === 'deleted-rooms') {
+    return true
+  }
+
+  if (isTodayOperationTab.value) {
     return true
   }
 
@@ -392,27 +431,42 @@ const activeTabLabel = computed(() => {
   return getOrderTabLabel(activeTab.value)
 })
 
-const displayTabs = computed(() => [...ORDER_PRIMARY_TABS, ...ORDER_SECONDARY_TABS])
+const displayTabs = computed(() =>
+  [...ORDER_PRIMARY_TABS, ...ORDER_SECONDARY_TABS].map((item) => ({
+    ...item,
+    label: t(item.labelKey),
+  })),
+)
 
 const dateFilterLabel = computed(() => {
-  if (filters.value.startDate && filters.value.endDate) {
-    return `${filters.value.startDate.slice(5)} ~ ${filters.value.endDate.slice(5)}`
+  if (activeTab.value === 'all') {
+    if (filters.value.startDate && filters.value.endDate) {
+      return `${filters.value.startDate.slice(5)} ~ ${filters.value.endDate.slice(5)}`
+    }
+    if (filters.value.startDate) {
+      return filters.value.startDate.slice(5)
+    }
+    if (filters.value.endDate) {
+      return filters.value.endDate.slice(5)
+    }
+    return t('order.filters.createdAt')
   }
-  if (filters.value.startDate) {
-    return filters.value.startDate.slice(5)
+
+  if (isTodayOperationTab.value) {
+    return filters.value.operationDate
+      ? filters.value.operationDate.slice(5)
+      : todayOperationDateLabel.value
   }
-  if (filters.value.endDate) {
-    return filters.value.endDate.slice(5)
-  }
-  return '时间'
+
+  return t('order.filters.createdAt')
 })
 
 const roomTypeFilterLabel = computed(() => {
   if (filters.value.roomType.length === 0) {
-    return '房间'
+    return t('order.filters.roomType')
   }
   const firstMatched = roomTypeOptions.value.find((item) => item.value === filters.value.roomType[0])
-  const firstLabel = firstMatched?.label || filters.value.roomType[0] || '房间'
+  const firstLabel = firstMatched?.label || filters.value.roomType[0] || t('order.filters.roomType')
   if (filters.value.roomType.length === 1) {
     return firstLabel
   }
@@ -421,10 +475,10 @@ const roomTypeFilterLabel = computed(() => {
 
 const channelFilterLabel = computed(() => {
   if (filters.value.channel.length === 0) {
-    return '渠道'
+    return t('order.filters.channel')
   }
   const matched = channelOptions.value.find((item) => item.value === filters.value.channel[0])
-  const firstLabel = matched?.label || filters.value.channel[0] || '渠道'
+  const firstLabel = matched?.label || filters.value.channel[0] || t('order.filters.channel')
   if (filters.value.channel.length === 1) {
     return firstLabel
   }
@@ -433,35 +487,37 @@ const channelFilterLabel = computed(() => {
 
 const statusFilterLabel = computed(() => {
   if (!filters.value.status) {
-    return '入住状态'
+    return t('order.filters.stayStatus')
   }
   if (filters.value.status === 'checked-in') {
-    return '已入住'
+    return t('order.options.checkedIn')
   }
   if (filters.value.status === 'not-checked-in') {
-    return '未入住'
+    return t('order.options.notCheckedIn')
   }
-  return '已退房'
+  return t('order.options.checkedOut')
 })
 
 const paymentFilterLabel = computed(() => {
   if (!filters.value.paymentStatus) {
-    return '房费'
+    return t('order.table.roomFee')
   }
-  return filters.value.paymentStatus === 'paid' ? '已结清' : '未结清'
+  return filters.value.paymentStatus === 'paid'
+    ? t('order.options.paid')
+    : t('order.options.unpaid')
 })
 
 const checkinTypeFilterLabel = computed(() => {
   if (!filters.value.checkinType) {
-    return '入住类型'
+    return t('order.filters.checkinType')
   }
   if (filters.value.checkinType === 'early') {
-    return '提前入住'
+    return t('order.options.earlyCheckin')
   }
   if (filters.value.checkinType === 'late') {
-    return '延迟入住'
+    return t('order.options.lateCheckin')
   }
-  return '正常入住'
+  return t('order.options.normalCheckin')
 })
 
 const channelColorMap = computed(() => {
@@ -519,11 +575,11 @@ function escapeAlertMessage(value: string) {
 }
 
 async function presentReservationNotes(reservation: ReservationDTO) {
-  const notesText = reservation.notes?.trim() || '暂无客人备注'
+  const notesText = reservation.notes?.trim() || t('order.mobile.notesEmpty')
   const alert = await alertController.create({
-    header: '客人备注',
+    header: t('order.mobile.actions.guestNotes'),
     message: escapeAlertMessage(notesText),
-    buttons: ['知道了'],
+    buttons: [t('order.mobile.understood')],
   })
 
   await alert.present()
@@ -593,6 +649,7 @@ function parseFiltersSnapshot(snapshot: string) {
       paymentStatus: typeof parsed.paymentStatus === 'string' ? parsed.paymentStatus : '',
       startDate: typeof parsed.startDate === 'string' ? parsed.startDate : '',
       endDate: typeof parsed.endDate === 'string' ? parsed.endDate : '',
+      operationDate: typeof parsed.operationDate === 'string' ? parsed.operationDate : '',
     }
   } catch {
     return defaultFilters
@@ -607,7 +664,8 @@ function serializeFiltersSnapshot(currentFilters: OrderFilterForm) {
     !currentFilters.status &&
     !currentFilters.paymentStatus &&
     !currentFilters.startDate &&
-    !currentFilters.endDate
+    !currentFilters.endDate &&
+    !currentFilters.operationDate
   ) {
     return ''
   }
@@ -692,10 +750,10 @@ async function loadFilterOptions(force = false) {
   const [channelResponse, roomTypeResponse] = await Promise.all([getAllChannels(), getAllRoomTypes()])
 
   if (!channelResponse.success || !channelResponse.data) {
-    throw new Error(channelResponse.message || '加载渠道筛选项失败')
+    throw new Error(channelResponse.message || t('order.messages.loadChannelFiltersFailed'))
   }
   if (!roomTypeResponse.success || !roomTypeResponse.data) {
-    throw new Error(roomTypeResponse.message || '加载房型筛选项失败')
+    throw new Error(roomTypeResponse.message || t('order.messages.loadRoomTypeFiltersFailed'))
   }
 
   channelOptions.value = channelResponse.data
@@ -721,7 +779,7 @@ async function loadStatistics() {
   try {
     const response = await getReservationStatistics()
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载订单统计失败')
+      throw new Error(response.message || t('stage5Pattern.loadFailed'))
     }
     statistics.value = response.data
   } finally {
@@ -739,21 +797,30 @@ function buildPagedFilters(nextPage: number) {
     checkinType: filters.value.checkinType || undefined,
     status: filters.value.status || undefined,
     paymentStatus: filters.value.paymentStatus || undefined,
-    startDate: filters.value.startDate || undefined,
-    endDate: filters.value.endDate || undefined,
+    startDate: activeTab.value === 'all' ? filters.value.startDate || undefined : undefined,
+    endDate: activeTab.value === 'all' ? filters.value.endDate || undefined : undefined,
     orderType: activeTab.value !== 'all' ? activeTab.value : undefined,
+    operationDate: isTodayOperationTab.value
+      ? filters.value.operationDate || getStoreTodayDate()
+      : undefined,
   }
 }
 
 async function loadOrderBoxList() {
   const response = await getOrderBoxList()
   if (!response.success || !response.data) {
-    throw new Error(response.message || '加载订单盒子失败')
+    throw new Error(response.message || t('order.messages.loadOrderBoxFailed'))
   }
 
+  const localFilters: OrderFilterForm = {
+    ...filters.value,
+    startDate: '',
+    endDate: '',
+    operationDate: '',
+  }
   const nextItems: OrderBoxItem[] = []
   for (const item of response.data) {
-    if (matchesReservationSearch(item.reservation, filters.value, committedKeyword.value)) {
+    if (matchesReservationSearch(item.reservation, localFilters, committedKeyword.value)) {
       nextItems.push(item)
     }
   }
@@ -781,7 +848,7 @@ async function loadOrders(reset = true) {
     if (!usePagedEndpoint.value && apiType) {
       const response = await getReservationsByType(apiType)
       if (!response.success || !response.data) {
-        throw new Error(response.message || '加载订单列表失败')
+        throw new Error(response.message || t('stage5Pattern.loadFailed'))
       }
 
       reservations.value = response.data
@@ -794,7 +861,7 @@ async function loadOrders(reset = true) {
     const nextPage = reset ? 0 : page.value + 1
     const response = await getReservationsWithFilters(buildPagedFilters(nextPage))
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载订单列表失败')
+      throw new Error(response.message || t('stage5Pattern.loadFailed'))
     }
 
     const nextContent = response.data.content || []
@@ -828,7 +895,7 @@ async function loadPage(forceOptions = false) {
 
   for (const result of results) {
     if (result.status === 'rejected') {
-      warnings.push(resolveWarningMessage(result.reason, '订单数据同步失败'))
+      warnings.push(resolveWarningMessage(result.reason, t('order.mobile.messages.syncFailed')))
       if (!firstUnhandledError && !isHandledRequestError(result.reason)) {
         firstUnhandledError = result.reason
       }
@@ -849,7 +916,7 @@ async function confirmAction(header: string, message: string, confirmText: strin
     message,
     buttons: [
       {
-        text: '取消',
+        text: t('order.mobile.actions.cancel'),
         role: 'cancel',
       },
       {
@@ -881,7 +948,11 @@ async function refreshAfterMutation() {
 }
 
 async function handleCheckIn(reservation: ReservationDTO) {
-  const confirmed = await confirmAction('办理入住', `确认办理 ${reservation.guestName} 的入住吗？`, '确认入住')
+  const confirmed = await confirmAction(
+    t('order.mobile.actions.checkIn'),
+    t('order.mobile.confirmCheckIn', { guest: reservation.guestName }),
+    t('order.mobile.actions.confirmCheckIn'),
+  )
   if (!confirmed) {
     return
   }
@@ -889,19 +960,23 @@ async function handleCheckIn(reservation: ReservationDTO) {
   try {
     const response = await checkInReservation(reservation.id)
     if (!response.success) {
-      throw new Error(response.message || '办理入住失败')
+      throw new Error(response.message || t('order.mobile.messages.checkInFailed'))
     }
-    showSuccessToast('入住办理成功')
+    showSuccessToast(t('order.mobile.messages.checkInSuccess'))
     await refreshAfterMutation()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '办理入住失败'))
+      showWarningToast(resolveWarningMessage(error, t('order.mobile.messages.checkInFailed')))
     }
   }
 }
 
 async function handleCheckOut(reservation: ReservationDTO) {
-  const confirmed = await confirmAction('办理退房', `确认办理 ${reservation.guestName} 的退房吗？`, '确认退房')
+  const confirmed = await confirmAction(
+    t('order.mobile.actions.checkOut'),
+    t('order.mobile.confirmCheckOut', { guest: reservation.guestName }),
+    t('order.mobile.actions.confirmCheckOut'),
+  )
   if (!confirmed) {
     return
   }
@@ -909,19 +984,24 @@ async function handleCheckOut(reservation: ReservationDTO) {
   try {
     const response = await checkOutReservation(reservation.id)
     if (!response.success) {
-      throw new Error(response.message || '办理退房失败')
+      throw new Error(response.message || t('order.mobile.messages.checkOutFailed'))
     }
-    showSuccessToast('退房办理成功')
+    showSuccessToast(t('order.mobile.messages.checkOutSuccess'))
     await refreshAfterMutation()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '办理退房失败'))
+      showWarningToast(resolveWarningMessage(error, t('order.mobile.messages.checkOutFailed')))
     }
   }
 }
 
 async function handleCancelReservation(reservation: ReservationDTO) {
-  const confirmed = await confirmAction('取消订单', `确认取消 ${reservation.guestName} 的订单吗？`, '确认取消', true)
+  const confirmed = await confirmAction(
+    t('order.mobile.actions.cancelOrder'),
+    t('order.mobile.confirmCancel', { guest: reservation.guestName }),
+    t('order.mobile.actions.confirmCancelOrder'),
+    true,
+  )
   if (!confirmed) {
     return
   }
@@ -929,19 +1009,24 @@ async function handleCancelReservation(reservation: ReservationDTO) {
   try {
     const response = await cancelReservation(reservation.id)
     if (!response.success) {
-      throw new Error(response.message || '取消订单失败')
+      throw new Error(response.message || t('order.mobile.messages.cancelFailed'))
     }
-    showSuccessToast('订单已取消')
+    showSuccessToast(t('order.mobile.messages.cancelSuccess'))
     await refreshAfterMutation()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '取消订单失败'))
+      showWarningToast(resolveWarningMessage(error, t('order.mobile.messages.cancelFailed')))
     }
   }
 }
 
 async function handleMoveOutOrderBox(orderBoxItem: OrderBoxItem) {
-  const confirmed = await confirmAction('移出订单盒子', '确认将该订单移出盒子吗？', '确认移出', true)
+  const confirmed = await confirmAction(
+    t('order.mobile.actions.moveOut'),
+    t('order.mobile.confirmMoveOut'),
+    t('order.mobile.actions.confirmMoveOut'),
+    true,
+  )
   if (!confirmed) {
     return
   }
@@ -949,13 +1034,13 @@ async function handleMoveOutOrderBox(orderBoxItem: OrderBoxItem) {
   try {
     const response = await moveOutOrderBox({ orderBoxItemId: orderBoxItem.id })
     if (!response.success) {
-      throw new Error(response.message || '移出订单盒子失败')
+      throw new Error(response.message || t('order.mobile.messages.moveOutFailed'))
     }
-    showSuccessToast('已移出订单盒子')
+    showSuccessToast(t('order.mobile.messages.moveOutSuccess'))
     await refreshAfterMutation()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '移出订单盒子失败'))
+      showWarningToast(resolveWarningMessage(error, t('order.mobile.messages.moveOutFailed')))
     }
   }
 }
@@ -964,18 +1049,20 @@ async function handleMoveToOrderBox(reservation: ReservationDTO) {
   try {
     const checkResponse = await checkCanMoveToOrderBox(reservation.id)
     if (!checkResponse.success || !checkResponse.data) {
-      throw new Error(checkResponse.message || '校验订单盒子资格失败')
+      throw new Error(checkResponse.message || t('order.mobile.messages.eligibilityFailed'))
     }
 
     if (!checkResponse.data.canMove) {
-      showWarningToast(checkResponse.data.reason || '只有已预订的房间可以移入订单盒子')
+      showWarningToast(
+        checkResponse.data.reason || t('order.mobile.messages.onlyBookedCanMove'),
+      )
       return
     }
 
     const confirmed = await confirmAction(
-      '移入订单盒子',
-      '移入后订单不会实际排房、不占库存，且营业数据不计入统计。确认继续吗？',
-      '确认移入',
+      t('order.mobile.actions.moveIn'),
+      t('order.mobile.confirmMoveIn'),
+      t('order.mobile.actions.confirmMoveIn'),
     )
     if (!confirmed) {
       return
@@ -983,14 +1070,14 @@ async function handleMoveToOrderBox(reservation: ReservationDTO) {
 
     const response = await moveToOrderBox({ reservationId: reservation.id })
     if (!response.success) {
-      throw new Error(response.message || '移入订单盒子失败')
+      throw new Error(response.message || t('order.mobile.messages.moveInFailed'))
     }
 
-    showSuccessToast('已移入订单盒子')
+    showSuccessToast(t('order.mobile.messages.moveInSuccess'))
     await refreshAfterMutation()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '移入订单盒子失败'))
+      showWarningToast(resolveWarningMessage(error, t('order.mobile.messages.moveInFailed')))
     }
   }
 }
@@ -998,13 +1085,13 @@ async function handleMoveToOrderBox(reservation: ReservationDTO) {
 async function presentReservationActions(reservation: ReservationDTO, orderBoxItem: OrderBoxItem | null) {
   const buttons: Array<Record<string, unknown>> = [
     {
-      text: '查看详情',
+      text: t('order.mobile.actions.viewDetails'),
       handler: () => {
         void openReservationDetail(reservation.id)
       },
     },
     {
-      text: '查看客人备注',
+      text: t('order.mobile.actions.viewGuestNotes'),
       handler: () => {
         void presentReservationNotes(reservation)
       },
@@ -1013,7 +1100,7 @@ async function presentReservationActions(reservation: ReservationDTO, orderBoxIt
 
   if (canAssignRoom(reservation)) {
     buttons.push({
-      text: reservation.roomId ? '编辑排房' : '进行排房',
+      text: reservation.roomId ? t('order.assignDialog.edit') : t('order.assignDialog.start'),
       handler: () => {
         void openAssignRoom(reservation)
       },
@@ -1022,7 +1109,7 @@ async function presentReservationActions(reservation: ReservationDTO, orderBoxIt
 
   if (!orderBoxItem) {
     buttons.push({
-      text: '移入订单盒子',
+      text: t('order.mobile.actions.moveIn'),
       handler: () => {
         void handleMoveToOrderBox(reservation)
       },
@@ -1031,7 +1118,7 @@ async function presentReservationActions(reservation: ReservationDTO, orderBoxIt
 
   if (canCheckInOrder(reservation)) {
     buttons.push({
-      text: '办理入住',
+      text: t('order.mobile.actions.checkIn'),
       handler: () => {
         void handleCheckIn(reservation)
       },
@@ -1040,7 +1127,7 @@ async function presentReservationActions(reservation: ReservationDTO, orderBoxIt
 
   if (canCheckOutOrder(reservation)) {
     buttons.push({
-      text: '办理退房',
+      text: t('order.mobile.actions.checkOut'),
       handler: () => {
         void handleCheckOut(reservation)
       },
@@ -1049,7 +1136,7 @@ async function presentReservationActions(reservation: ReservationDTO, orderBoxIt
 
   if (canCancelOrder(reservation)) {
     buttons.push({
-      text: '取消订单',
+      text: t('order.mobile.actions.cancelOrder'),
       role: 'destructive',
       handler: () => {
         void handleCancelReservation(reservation)
@@ -1059,7 +1146,7 @@ async function presentReservationActions(reservation: ReservationDTO, orderBoxIt
 
   if (orderBoxItem) {
     buttons.push({
-      text: '移出订单盒子',
+      text: t('order.mobile.actions.moveOut'),
       role: 'destructive',
       handler: () => {
         void handleMoveOutOrderBox(orderBoxItem)
@@ -1068,12 +1155,12 @@ async function presentReservationActions(reservation: ReservationDTO, orderBoxIt
   }
 
   buttons.push({
-    text: '取消',
+    text: t('order.mobile.actions.cancel'),
     role: 'cancel',
   })
 
   const actionSheet = await actionSheetController.create({
-    header: reservation.guestName || '订单操作',
+    header: reservation.guestName || t('order.mobile.orderActions'),
     subHeader: reservation.orderNumber,
     buttons,
   })
@@ -1155,7 +1242,7 @@ function matchAssignableRoomId(reservation: ReservationDTO, rooms: AssignableRoo
 async function fetchAssignableRoomTypes(reservationId: number) {
   const response = await getAssignableRooms(reservationId)
   if (!response.success || !response.data) {
-    throw new Error(response.message || '加载可用房型失败')
+    throw new Error(response.message || t('order.messages.loadAssignableRoomTypesFailed'))
   }
 
   return response.data.roomTypes || []
@@ -1164,7 +1251,7 @@ async function fetchAssignableRoomTypes(reservationId: number) {
 async function fetchAssignableRoomsByType(reservationId: number, roomTypeId: number) {
   const response = await getAssignableRooms(reservationId, roomTypeId)
   if (!response.success || !response.data) {
-    throw new Error(response.message || '加载可用房间失败')
+    throw new Error(response.message || t('order.messages.loadAssignableRoomsFailed'))
   }
 
   return response.data.rooms || []
@@ -1201,7 +1288,9 @@ async function initializeAssignedRoomSelection(reservation: ReservationDTO) {
     selectedRoomId.value = matchAssignableRoomId(reservation, rooms)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载可用房型失败'))
+      showWarningToast(
+        resolveWarningMessage(error, t('order.messages.loadAssignableRoomTypesFailed')),
+      )
     }
   } finally {
     assignLoading.value = false
@@ -1226,7 +1315,9 @@ async function refreshAssignableRoomTypes() {
     selectedRoomId.value = null
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载可用房型失败'))
+      showWarningToast(
+        resolveWarningMessage(error, t('order.messages.loadAssignableRoomTypesFailed')),
+      )
     }
   } finally {
     assignLoading.value = false
@@ -1253,7 +1344,9 @@ async function handleSelectAssignableRoomType(roomTypeId: number) {
     assignableRooms.value = await fetchAssignableRoomsByType(selectedReservation.value.id, roomTypeId)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载可用房间失败'))
+      showWarningToast(
+        resolveWarningMessage(error, t('order.messages.loadAssignableRoomsFailed')),
+      )
     }
   } finally {
     assignLoading.value = false
@@ -1266,7 +1359,7 @@ function handleSelectAssignableRoom(roomId: number) {
 
 async function openAssignRoom(reservation: ReservationDTO) {
   if (!canAssignRoom(reservation)) {
-    showWarningToast('当前订单状态不支持排房')
+    showWarningToast(t('order.messages.unsupportedAssignStatus'))
     return
   }
 
@@ -1291,14 +1384,14 @@ async function submitAssignRoom() {
   try {
     const response = await assignReservationRoom(selectedReservation.value.id, selectedRoomId.value)
     if (!response.success) {
-      throw new Error(response.message || '排房失败')
+      throw new Error(response.message || t('order.messages.assignFailed'))
     }
-    showSuccessToast('排房成功')
+    showSuccessToast(t('order.messages.assignSuccess'))
     handleDismissAssignModal()
     await refreshAfterMutation()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '排房失败'))
+      showWarningToast(resolveWarningMessage(error, t('order.messages.assignFailed')))
     }
   } finally {
     assignSubmitting.value = false
@@ -1318,7 +1411,7 @@ async function handleSelectTab(tab: OrderTabValue) {
     await loadOrders(true)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '切换订单视图失败'))
+      showWarningToast(resolveWarningMessage(error, t('order.mobile.messages.switchViewFailed')))
     }
   }
 }
@@ -1351,6 +1444,7 @@ async function handleApplyFilters(nextFilters: OrderFilterForm) {
     paymentStatus: nextFilters.paymentStatus,
     startDate: nextFilters.startDate,
     endDate: nextFilters.endDate,
+    operationDate: nextFilters.operationDate,
   }
   isFilterModalOpen.value = false
   await syncOrdersRouteContext()
@@ -1359,7 +1453,7 @@ async function handleApplyFilters(nextFilters: OrderFilterForm) {
     await loadOrders(true)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '应用筛选失败'))
+      showWarningToast(resolveWarningMessage(error, t('order.mobile.messages.applyFiltersFailed')))
     }
   }
 }
@@ -1373,7 +1467,7 @@ async function handleResetFilters() {
     await loadOrders(true)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '重置筛选失败'))
+      showWarningToast(resolveWarningMessage(error, t('order.mobile.messages.resetFiltersFailed')))
     }
   }
 }
@@ -1388,7 +1482,7 @@ async function handleResetSearchAndFilters() {
     await loadOrders(true)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '清空条件失败'))
+      showWarningToast(resolveWarningMessage(error, t('order.mobile.messages.clearFiltersFailed')))
     }
   }
 }
@@ -1410,7 +1504,7 @@ async function handleLoadMoreButton() {
     await loadOrders(false)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载更多订单失败'))
+      showWarningToast(resolveWarningMessage(error, t('order.mobile.messages.loadMoreFailed')))
     }
   }
 }
@@ -1440,7 +1534,7 @@ watch(
         await loadOrders(true)
       } catch (error) {
         if (!isHandledRequestError(error)) {
-          showWarningToast(resolveWarningMessage(error, '订单搜索失败'))
+          showWarningToast(resolveWarningMessage(error, t('order.mobile.messages.searchFailed')))
         }
       }
     }, SEARCH_DEBOUNCE)
@@ -1575,12 +1669,14 @@ onIonViewWillEnter(async () => {
 }
 
 .orders-search-panel__cancel {
+  flex: 0 0 auto;
   border: 0;
   background: transparent;
   color: #8c909b;
   font: inherit;
   font-size: 16px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .orders-tabs-strip,

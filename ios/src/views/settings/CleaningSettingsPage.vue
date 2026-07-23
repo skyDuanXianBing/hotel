@@ -1,77 +1,77 @@
 <template>
   <SettingsPageShell
     :back-href="ROUTE_PATHS.settings"
-    title="保洁设置"
-    hero-eyebrow="保洁设置"
-    hero-title="保洁配置"
+    :title="$t('settings.groups.cleaning')"
+    :hero-eyebrow="$t('settings.groups.cleaning')"
+    :hero-title="$t('stage5UiAttributes.28')"
     :chips="[
-      { label: `保洁员 ${cleaners.length}` },
-      { label: configForm.enabled ? '配置已启用' : '配置已停用' },
+      { label: `${$t('accommodation.common.cleaner')} ${cleaners.length}` },
+      { label: configForm.enabled ? $t('stage5DynamicUi.77') : $t('stage5DynamicUi.76') },
     ]"
     content-class="settings-page-block"
     hero-class="settings-page-block__hero"
     eyebrow-class="settings-page-block__eyebrow"
   >
     <SettingsSectionCard
-      title="门店级配置"
+      :title="$t('stage5UiAttributes.111')"
       :loading="loading"
       header-class="settings-page-block__section-header"
     >
       <div class="settings-toggle-field">
         <div>
-          <strong>启用保洁配置</strong>
+          <strong>{{ $t('stage5SourceText.33') }}</strong>
         </div>
         <ion-toggle v-model="configForm.enabled" />
       </div>
 
       <div class="settings-form-grid settings-form-grid--top">
         <label class="settings-form-field">
-          <span>住中开始</span>
+          <span>{{ $t('stage5SourceText.7') }}</span>
           <ion-input v-model="configForm.stayStartTime" fill="outline" placeholder="10:00" />
         </label>
         <label class="settings-form-field">
-          <span>住中结束</span>
+          <span>{{ $t('stage5SourceText.8') }}</span>
           <ion-input v-model="configForm.stayEndTime" fill="outline" placeholder="15:00" />
         </label>
         <label class="settings-form-field">
-          <span>退房开始</span>
+          <span>{{ $t('stage5SourceText.218') }}</span>
           <ion-input v-model="configForm.checkoutStartTime" fill="outline" placeholder="11:00" />
         </label>
         <label class="settings-form-field">
-          <span>退房结束</span>
+          <span>{{ $t('stage5SourceText.219') }}</span>
           <ion-input v-model="configForm.checkoutEndTime" fill="outline" placeholder="17:00" />
         </label>
       </div>
 
       <div class="settings-toggle-field settings-toggle-field--top">
         <div>
-          <strong>自动生成住中任务</strong>
+          <strong>{{ $t('stage5SourceText.185') }}</strong>
         </div>
         <ion-toggle v-model="configForm.autoStayTask" />
       </div>
 
       <div class="settings-toggle-field settings-toggle-field--top">
         <div>
-          <strong>自动生成退房任务</strong>
+          <strong>{{ $t('stage5SourceText.186') }}</strong>
         </div>
         <ion-toggle v-model="configForm.autoCheckoutTask" />
       </div>
 
       <div class="settings-form-actions settings-form-actions--section">
-        <ion-button fill="outline" :disabled="loading || savingConfig" @click="loadPageData">重置</ion-button>
+        <ion-button fill="outline" :disabled="loading || savingConfig" @click="loadPageData">{{ $t('accommodation.common.reset') }}</ion-button>
         <ion-button :disabled="loading || savingConfig" @click="handleSaveConfig">
-          {{ savingConfig ? '保存中...' : '保存保洁配置' }}
+          {{ savingConfig ? $t('channel.mobile.common.saving') : $t('stage5DynamicUi.5') }}
         </ion-button>
-        <ion-button fill="outline" @click="handleOpenSupplies">易耗品</ion-button>
+        <ion-button fill="outline" @click="handleOpenSupplies">{{ $t('settingsStage4.cleaningSettings.tabs.supplies') }}</ion-button>
       </div>
     </SettingsSectionCard>
 
     <SettingsSectionCard
-      title="保洁员"
+      :title="$t('accommodation.common.cleaner')"
       header-class="settings-page-block__section-header"
     >
       <template #headerActions>
-        <ion-button size="small" @click="handleCreateCleaner">发送保洁邀请</ion-button>
+        <ion-button size="small" @click="handleCreateCleaner">{{ $t('stage5SourceText.25') }}</ion-button>
       </template>
 
       <div v-if="cleaners.length > 0" class="mobile-list settings-card-list">
@@ -81,34 +81,34 @@
             <p>{{ cleaner.email }}</p>
           </div>
           <div class="settings-card-item__actions">
-            <ion-button size="small" fill="outline" @click="handleEditCleaner(cleaner)">编辑</ion-button>
-            <ion-button size="small" color="danger" fill="clear" @click="handleDeleteCleaner(cleaner)">删除</ion-button>
+            <ion-button size="small" fill="outline" @click="handleEditCleaner(cleaner)">{{ $t('accommodation.roomPrice.editTitle') }}</ion-button>
+            <ion-button size="small" color="danger" fill="clear" @click="handleDeleteCleaner(cleaner)">{{ $t('roomStatus.roomLock.actions.delete') }}</ion-button>
           </div>
         </article>
       </div>
 
-      <p v-else-if="!loading" class="mobile-note">当前暂无保洁员。</p>
+      <p v-else-if="!loading" class="mobile-note">{{ $t('stage5SourceText.75') }}</p>
     </SettingsSectionCard>
 
     <SettingsEditorModal
       :is-open="editorOpen"
-      :title="editingCleanerId ? '编辑保洁员' : '发送保洁邀请'"
+      :title="editingCleanerId ? $t('stage5DynamicUi.61') : $t('stage5SourceText.25')"
       @close="handleDismissEditor"
       @didDismiss="handleDismissEditor"
     >
       <div class="settings-form-grid">
         <label class="settings-form-field">
-          <span>姓名</span>
-          <ion-input v-model="cleanerForm.name" fill="outline" placeholder="请输入保洁员姓名" />
+          <span>{{ $t('roomStatus.booking.guestName') }}</span>
+          <ion-input v-model="cleanerForm.name" fill="outline" :placeholder="$t('stage5UiAttributes.61')" />
         </label>
         <label class="settings-form-field">
-          <span>邮箱</span>
-          <ion-input v-model="cleanerForm.email" fill="outline" placeholder="请输入邮箱地址" />
+          <span>{{ $t('auth.field.email') }}</span>
+          <ion-input v-model="cleanerForm.email" fill="outline" :placeholder="$t('settingsStage4.accountList.placeholders.email')" />
         </label>
       </div>
 
       <template #actions>
-        <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
+        <ion-button fill="outline" @click="handleDismissEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
         <ion-button :disabled="submittingCleaner" @click="handleSaveCleaner">
           {{ cleanerSubmitText }}
         </ion-button>
@@ -118,6 +118,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { alertController, IonButton, IonInput, IonToggle, onIonViewWillEnter } from '@ionic/vue'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -139,6 +140,8 @@ import type { CleanerDTO, CleaningConfigRequest, CleanerRequest } from '@/types/
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
+const { t } = useI18n()
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const router = useRouter()
@@ -155,12 +158,12 @@ const editingCleanerId = ref<number | null>(null)
 const cleanerForm = ref<{ name: string; email: string }>({ name: '', email: '' })
 const cleanerSubmitText = computed(() => {
   if (submittingCleaner.value) {
-    return '提交中...'
+    return t('settingsResidual.common.submitting')
   }
   if (editingCleanerId.value) {
-    return '保存保洁员'
+    return t('settingsResidual.common.saveCleaner')
   }
-  return '发送邀请邮件'
+  return t('settingsResidual.common.sendInvite')
 })
 const configForm = ref<CleaningConfigRequest>({
   enabled: true,
@@ -181,11 +184,11 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
 
 async function confirmDelete(name: string) {
   const alert = await alertController.create({
-    header: '删除保洁员',
-    message: `确认删除 ${name} 吗？`,
+    header: t('settingsResidual.common.confirm'),
+    message: t('settingsResidual.common.confirmDelete', { name }),
     buttons: [
-      { text: '取消', role: 'cancel' },
-      { text: '确认删除', role: 'destructive' },
+      { text: t('accommodation.common.cancel'), role: 'cancel' },
+      { text: t('settingsStage4.roomSettings.messages.deleteTitle'), role: 'destructive' },
     ],
   })
   await alert.present()
@@ -197,7 +200,7 @@ async function loadPageData() {
   const userId = userStore.currentUser?.id
   const storeId = storeStore.currentStore?.id
   if (!userId || !storeId) {
-    showWarningToast('请先恢复用户与门店信息')
+    showWarningToast(t('stage5Pattern.setup'))
     return
   }
 
@@ -205,10 +208,10 @@ async function loadPageData() {
   try {
     const [configResponse, cleanerResponse] = await Promise.all([getOrCreateCleaningConfig(userId, storeId), getCleaners()])
     if (!configResponse.success || !configResponse.data) {
-      throw new Error(configResponse.message || '加载保洁配置失败')
+      throw new Error(configResponse.message || t('settingsStage4.cleaningSettings.messages.loadConfigFailed'))
     }
     if (!cleanerResponse.success || !cleanerResponse.data) {
-      throw new Error(cleanerResponse.message || '加载保洁员失败')
+      throw new Error(cleanerResponse.message || t('iosStage5.cleaning.cleanersLoadFailed'))
     }
 
     cleaningConfigId.value = configResponse.data.id
@@ -224,7 +227,7 @@ async function loadPageData() {
     cleaners.value = cleanerResponse.data
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载保洁设置失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.loadFailed')))
     }
   } finally {
     loading.value = false
@@ -233,7 +236,7 @@ async function loadPageData() {
 
 async function handleSaveConfig() {
   if (!cleaningConfigId.value) {
-    showWarningToast('未获取到保洁配置')
+    showWarningToast(t('stage5Pattern.unavailable'))
     return
   }
 
@@ -241,13 +244,13 @@ async function handleSaveConfig() {
   try {
     const response = await updateCleaningConfig(cleaningConfigId.value, configForm.value)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '保存保洁配置失败')
+      throw new Error(response.message || t('stage5Pattern.saveFailed'))
     }
-    showSuccessToast('保洁配置已保存')
+    showSuccessToast(t('stage5Pattern.saveCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存保洁配置失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     savingConfig.value = false
@@ -276,19 +279,19 @@ async function handleSaveCleaner() {
   const userId = userStore.currentUser?.id
   const storeId = storeStore.currentStore?.id
   if (!userId || !storeId) {
-    showWarningToast('请先恢复用户与门店信息')
+    showWarningToast(t('stage5Pattern.setup'))
     return
   }
   if (!cleanerForm.value.name.trim()) {
-    showWarningToast('请输入保洁员姓名')
+    showWarningToast(t('stage5UiAttributes.61'))
     return
   }
   if (!cleanerForm.value.email.trim()) {
-    showWarningToast('请输入保洁员邮箱')
+    showWarningToast(t('stage5Pattern.enter'))
     return
   }
   if (!EMAIL_PATTERN.test(cleanerForm.value.email.trim())) {
-    showWarningToast('请输入有效的邮箱地址')
+    showWarningToast(t('settingsStage4.cleaningSettings.messages.emailInvalid'))
     return
   }
 
@@ -306,22 +309,24 @@ async function handleSaveCleaner() {
       }
       const response = await updateCleaner(editingCleanerId.value, payload)
       if (!response.success) {
-        throw new Error(response.message || '更新保洁员失败')
+        throw new Error(response.message || t('stage5Pattern.updateFailed'))
       }
-      showSuccessToast('保洁员信息已保存')
+      showSuccessToast(t('stage5Pattern.saveCompleted'))
     } else {
       const response = await sendCleanerInvitation({ name, email })
       if (!response.success) {
-        throw new Error(response.message || '发送邀请失败')
+        throw new Error(response.message || t('settingsStage4.cleaningSettings.messages.invitationFailed'))
       }
-      showSuccessToast('邀请邮件已发送，对方可通过邮件链接注册并创建密码')
+      showSuccessToast(t('stage5Pattern.operationCompleted'))
     }
 
     handleDismissEditor()
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      const fallbackMessage = editingCleanerId.value ? '保存保洁员失败' : '发送邀请失败'
+      const fallbackMessage = editingCleanerId.value
+        ? t('stage5Pattern.saveFailed')
+        : t('stage5Pattern.submitFailed')
       showWarningToast(resolveWarningMessage(error, fallbackMessage))
     }
   } finally {
@@ -338,13 +343,13 @@ async function handleDeleteCleaner(cleaner: CleanerDTO) {
   try {
     const response = await deleteCleaner(cleaner.id)
     if (!response.success) {
-      throw new Error(response.message || '删除保洁员失败')
+      throw new Error(response.message || t('stage5Pattern.deleteFailed'))
     }
-    showSuccessToast('保洁员已删除')
+    showSuccessToast(t('stage5Pattern.deleteCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '删除保洁员失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.deleteFailed')))
     }
   }
 }

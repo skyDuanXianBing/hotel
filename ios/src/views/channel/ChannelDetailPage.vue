@@ -16,7 +16,7 @@
 
     <ion-content fullscreen class="mobile-page channel-detail-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新渠道详情" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('channel.mobile.refreshDetails')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <div v-if="channelView" class="mobile-stack channel-detail-page__stack">
@@ -32,7 +32,9 @@
                 <span class="channel-detail-page__meta-pill" :class="statusToneClass">
                   {{ channelView.statusLabel }}
                 </span>
-                <span class="channel-detail-page__meta-pill">更新 {{ channelView.lastStatusText }}</span>
+                <span class="channel-detail-page__meta-pill">
+                  {{ $t('channel.mobile.updated', { value: channelView.lastStatusText }) }}
+                </span>
               </div>
             </div>
           </div>
@@ -58,7 +60,7 @@
               @click="openMappingPage"
             >
               <div class="channel-detail-page__entry-copy">
-                <strong>{{ groupLabel }}映射</strong>
+                <strong>{{ $t('routes.ChannelMapping') }}</strong>
                 <p>{{ mappingEntryDescription }}</p>
               </div>
               <span class="channel-detail-page__entry-arrow">›</span>
@@ -71,7 +73,7 @@
               @click="openPriceEditor"
             >
               <div class="channel-detail-page__entry-copy">
-                <strong>价格比例</strong>
+                <strong>{{ $t('channel.mobile.detail.priceRatio') }}</strong>
                 <p>{{ priceEntryDescription }}</p>
               </div>
               <span class="channel-detail-page__entry-arrow">›</span>
@@ -84,8 +86,8 @@
               @click="openSyncPage"
             >
               <div class="channel-detail-page__entry-copy">
-                <strong>同步中心</strong>
-                <p>进入同步页执行日历同步或全量刷新。</p>
+                <strong>{{ $t('channel.mobile.syncCenter') }}</strong>
+                <p>{{ $t('channel.mobile.syncCenterDescription') }}</p>
               </div>
               <span class="channel-detail-page__entry-arrow">›</span>
             </button>
@@ -97,8 +99,8 @@
               @click="openInventoryPage"
             >
               <div class="channel-detail-page__entry-copy">
-                <strong>房量设置</strong>
-                <p>管理房量同步与预订设置。</p>
+                <strong>{{ $t('channel.mobile.detail.inventorySettings') }}</strong>
+                <p>{{ $t('channel.mobile.inventorySettingsDescription') }}</p>
               </div>
               <span class="channel-detail-page__entry-arrow">›</span>
             </button>
@@ -106,19 +108,21 @@
         </section>
 
         <section v-if="channelView.isConnected" class="mobile-card channel-detail-page__danger-card">
-          <h2 class="mobile-section-title">危险操作</h2>
+          <h2 class="mobile-section-title">{{ $t('channel.mobile.dangerActions') }}</h2>
           <button type="button" class="channel-detail-page__danger-action" @click="handleDisconnect">
             <div class="channel-detail-page__entry-copy">
-              <strong>断开连接</strong>
-              <p>断开后需要重新授权，现有移动端入口将失效。</p>
+              <strong>{{ $t('channel.mobile.detail.disconnect') }}</strong>
+              <p>{{ $t('channel.mobile.disconnectDescription') }}</p>
             </div>
-            <span class="channel-detail-page__danger-text">断开</span>
+            <span class="channel-detail-page__danger-text">{{ $t('channel.mobile.disconnect') }}</span>
           </button>
         </section>
       </div>
 
       <section v-else class="mobile-card">
-        <p class="mobile-note">{{ loading ? '渠道详情加载中...' : '未找到该渠道配置。' }}</p>
+        <p class="mobile-note">
+          {{ loading ? $t('channel.mobile.loadingDetails') : $t('channel.mobile.detailsNotFound') }}
+        </p>
       </section>
     </ion-content>
 
@@ -164,6 +168,7 @@ import {
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import ChannelConnectModal from '@/components/channel/ChannelConnectModal.vue'
 import ChannelPriceAdjustmentSheet from '@/components/channel/ChannelPriceAdjustmentSheet.vue'
@@ -203,9 +208,12 @@ import {
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { hasCurrentStorePermission } from '@/utils/permissions'
 import { isHandledRequestError } from '@/utils/request'
+import { useStoreStore } from '@/stores/store'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
+const storeStore = useStoreStore()
 
 const loading = ref(false)
 const actionLoading = ref(false)
@@ -230,9 +238,9 @@ const channelView = computed(() => {
 
 const pageTitle = computed(() => {
   if (!channelView.value) {
-    return '渠道详情'
+    return t('routes.ChannelDetail')
   }
-  return `${channelView.value.name} · 详情`
+  return `${channelView.value.name} · ${t('routes.ChannelDetail')}`
 })
 
 const resolvedPriceAdjustment = computed(() => {
@@ -245,9 +253,13 @@ const resolvedPriceAdjustment = computed(() => {
 
 const priceSummary = computed(() => {
   if (!resolvedPriceAdjustment.value) {
-    return '暂未配置价格比例'
+    return t('channel.mobile.noPriceRatio')
   }
-  return formatAdjustmentSummary(resolvedPriceAdjustment.value)
+  return formatAdjustmentSummary(
+    resolvedPriceAdjustment.value,
+    storeStore.currentStore?.currency || 'CNY',
+    { country: storeStore.currentStore?.country },
+  )
 })
 
 const priceEntryDescription = computed(() => {
@@ -266,56 +278,56 @@ const showSyncEntry = computed(() => {
 
 const primaryActionButtonText = computed(() => {
   if (!channelView.value) {
-    return '管理'
+    return t('iosStage5.channel.management')
   }
   if (!channelView.value.isConnected) {
-    return '授权'
+    return t('iosStage5.channel.authorization')
   }
   if (channelView.value.mappingReady) {
-    return '管理'
+    return t('iosStage5.channel.management')
   }
-  return '继续'
+  return t('iosStage5.channel.continue')
 })
 
 const primaryActionTitle = computed(() => {
   if (!channelView.value) {
-    return '整理当前渠道'
+    return t('channel.mobile.organizeChannel')
   }
   if (!channelView.value.isConnected) {
-    return '当前尚未授权'
+    return t('channel.mobile.unauthorized')
   }
-  return '已授权'
+  return t('iosStage5.channel.authorized')
 })
 
 const primaryActionDescription = computed(() => {
   if (!channelView.value) {
-    return '渠道详情加载中，请稍后再试。'
+    return t('channel.mobile.detailLoadingHint')
   }
   if (!channelView.value.isConnected) {
-    return '先完成授权，再继续映射、价格比例和同步相关操作。'
+    return t('channel.mobile.authorizeFirst')
   }
   if (channelView.value.mappingReady) {
-    return '可继续查看配置、调整价格比例，或重新进入连接向导。'
+    return t('channel.mobile.configuredHint')
   }
-  return '建议优先检查映射状态，补齐房型与价盘后再继续同步。'
+  return t('channel.mobile.mappingHint')
 })
 
 const mappingEntryDescription = computed(() => {
   if (!mappingStatus.value) {
-    return `查看当前${groupLabel.value}映射状态与分组。`
+    return t('channel.mobile.viewMapping', { name: groupLabel.value })
   }
 
   if (mappingStatus.value.error) {
-    return '当前未映射或映射异常'
+    return t('channel.mobile.mappingIssue')
   }
 
   const mappedRoomCount = mappingStatus.value.mappedRoomIdCount || 0
   const activeRatePlanCount = mappingStatus.value.activeRatePlanCount || 0
   if (mappedRoomCount === 0 && activeRatePlanCount === 0) {
-    return '当前未映射'
+    return t('channel.mobile.notMapped')
   }
 
-  return `房型 ${mappedRoomCount} / 价盘 ${activeRatePlanCount}`
+  return t('channel.mobile.mappingSummary', { rooms: mappedRoomCount, rates: activeRatePlanCount })
 })
 
 const statusToneClass = computed(() => {
@@ -345,7 +357,7 @@ async function loadDetail() {
   try {
     const detailResponse = await getOtaIntegrationById(otaId.value)
     if (!detailResponse.success || !detailResponse.data) {
-      throw new Error(detailResponse.message || '加载渠道详情失败')
+      throw new Error(detailResponse.message || t('channel.mobile.mapping.detailLoadFailed'))
     }
 
     channel.value = detailResponse.data
@@ -418,12 +430,14 @@ function handleWidgetDismiss() {
 }
 
 function handleWidgetError(message: string) {
-  showWarningToast(sanitizeChannelWarningMessage(message, '渠道操作异常，请稍后重试'))
+  showWarningToast(
+    sanitizeChannelWarningMessage(message, t('channel.mobile.detail.operationFailed')),
+  )
 }
 
 function openPriceEditor() {
   if (!canManageChannels.value) {
-    showWarningToast('您没有权限编辑价格比例')
+    showWarningToast(t('channel.mobile.detail.editPricePermissionDenied'))
     return
   }
 
@@ -438,7 +452,7 @@ function openPriceEditor() {
   }
 
   if (!selectedAdjustment.value) {
-    showWarningToast('价格比例信息加载中，请稍后重试')
+    showWarningToast(t('channel.mobile.detail.priceLoading'))
     return
   }
 
@@ -447,7 +461,7 @@ function openPriceEditor() {
 
 async function handleSavePriceAdjustment(value: PriceAdjustmentEditorValue) {
   if (!canManageChannels.value) {
-    showWarningToast('您没有权限保存价格比例')
+    showWarningToast(t('channel.mobile.detail.savePricePermissionDenied'))
     return
   }
 
@@ -459,19 +473,21 @@ async function handleSavePriceAdjustment(value: PriceAdjustmentEditorValue) {
       buildPriceAdjustmentRequest(value),
     )
     if (!response.success) {
-      throw new Error(response.message || '更新价格比例失败')
+      throw new Error(response.message || t('channel.mobile.detail.priceUpdateFailed'))
     }
 
     if (response.data) {
       priceAdjustment.value = response.data
     }
 
-    showSuccessToast('价格比例已更新')
+    showSuccessToast(t('channel.mobile.detail.priceUpdated'))
     priceSheetOpen.value = false
     await loadDetail()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '更新价格比例失败'))
+      showWarningToast(
+        resolveWarningMessage(error, t('channel.mobile.detail.priceUpdateFailed')),
+      )
     }
   } finally {
     priceSubmitting.value = false
@@ -484,15 +500,15 @@ async function handleDisconnect() {
   }
 
   const alert = await alertController.create({
-    header: '断开连接',
-    message: `确认断开 ${channelView.value.name} 吗？断开后需要重新授权。`,
+    header: t('channel.mobile.detail.disconnect'),
+    message: t('channel.mobile.disconnectConfirm', { name: channelView.value.name }),
     buttons: [
       {
-        text: '取消',
+        text: t('common.cancel'),
         role: 'cancel',
       },
       {
-        text: '确认断开',
+        text: t('channel.mobile.detail.confirmDisconnect'),
         role: 'destructive',
       },
     ],
@@ -509,14 +525,14 @@ async function handleDisconnect() {
   try {
     const response = await disconnectOta(channelView.value.id)
     if (!response.success) {
-      throw new Error(response.message || '断开连接失败')
+      throw new Error(response.message || t('channel.mobile.detail.disconnectFailed'))
     }
 
-    showSuccessToast('渠道已断开连接')
+    showSuccessToast(t('channel.mobile.detail.disconnected'))
     await loadDetail()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '断开连接失败'))
+      showWarningToast(resolveWarningMessage(error, t('channel.mobile.detail.disconnectFailed')))
     }
   } finally {
     actionLoading.value = false
@@ -667,12 +683,14 @@ onIonViewWillEnter(async () => {
   font-size: 12px;
   font-weight: 400;
   line-height: 20px;
-  white-space: nowrap;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .channel-detail-page__meta-pill:last-child {
   min-height: 24px;
-  line-height: 24px;
+  padding-block: 4px;
 }
 
 .channel-detail-page__meta-pill--ready {
@@ -823,10 +841,22 @@ onIonViewWillEnter(async () => {
 }
 
 .channel-detail-page__danger-text {
+  display: block;
+  min-width: 0;
   color: var(--ion-color-danger);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 400;
+  line-height: 1.2;
   text-align: right;
+  white-space: nowrap;
+}
+
+.channel-detail-page__danger-action {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.channel-detail-page__danger-action .channel-detail-page__entry-copy {
+  padding-right: 4px;
 }
 
 @media (max-width: 360px) {
@@ -867,6 +897,10 @@ onIonViewWillEnter(async () => {
   .channel-detail-page__primary-copy p,
   .channel-detail-page__entry-copy p {
     font-size: 13px;
+  }
+
+  .channel-detail-page__danger-text {
+    font-size: 11px;
   }
 }
 </style>

@@ -4,7 +4,7 @@
       <ion-toolbar>
         <ion-title>{{ modalTitle }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="$emit('dismiss')">关闭</ion-button>
+          <ion-button @click="$emit('dismiss')">{{ $t('iosStage5.roomStatus.close') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -19,13 +19,13 @@
           <ion-select
             :model-value="selectedRoomTypeId"
             interface="action-sheet"
-            label="房型"
+            :label="$t('accommodation.common.roomType')"
             label-placement="stacked"
-            placeholder="请选择房型"
+            :placeholder="$t('order.assignDialog.roomTypePlaceholder')"
             @ionChange="$emit('selectRoomType', Number($event.detail.value || 0))"
           >
             <ion-select-option v-for="item in roomTypes" :key="item.id" :value="item.id">
-              {{ item.name }}（可用 {{ item.availableRooms }}）
+              {{ $t('order.assignDialog.roomTypeAvailable', { name: item.name, count: item.availableRooms }) }}
             </ion-select-option>
           </ion-select>
         </ion-item>
@@ -35,9 +35,9 @@
             :disabled="!selectedRoomTypeId"
             :model-value="selectedRoomId"
             interface="action-sheet"
-            label="房间号"
+            :label="$t('accommodation.common.roomNumber')"
             label-placement="stacked"
-            placeholder="请选择房间"
+            :placeholder="$t('roomStatus.booking.messages.roomRequired')"
             @ionChange="$emit('selectRoom', Number($event.detail.value || 0))"
           >
             <ion-select-option v-for="item in rooms" :key="item.id" :value="item.id">
@@ -56,9 +56,11 @@
     <ion-footer>
       <ion-toolbar>
         <div class="assign-modal__footer">
-          <ion-button fill="outline" :disabled="loading" @click="$emit('refresh')">刷新房间</ion-button>
+          <ion-button fill="outline" :disabled="loading" @click="$emit('refresh')">
+            {{ $t('order.assignDialog.refresh') }}
+          </ion-button>
           <ion-button :disabled="submitting || !selectedRoomId" @click="$emit('submit')">
-            确认排房
+            {{ $t('order.assignDialog.confirm') }}
           </ion-button>
         </div>
       </ion-toolbar>
@@ -83,6 +85,7 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type {
   AssignableRoomDTO,
   AssignableRoomTypeDTO,
@@ -99,6 +102,7 @@ const props = defineProps<{
   loading: boolean
   submitting: boolean
 }>()
+const { t } = useI18n()
 
 defineEmits<{
   dismiss: []
@@ -110,24 +114,18 @@ defineEmits<{
 
 const modalTitle = computed(() => {
   if (props.reservation?.roomId) {
-    return '编辑排房'
+    return t('order.assignDialog.edit')
   }
-  return '进行排房'
+  return t('order.assignDialog.start')
 })
 
 const reservationLabel = computed(() => {
   if (!props.reservation) {
-    return '未选择订单'
+    return t('order.mobile.noOrderSelected')
   }
   return `${props.reservation.guestName} · ${props.reservation.orderNumber}`
 })
 
-const reservationDates = computed(() => {
-  if (!props.reservation) {
-    return '-'
-  }
-  return `${props.reservation.checkInDate} 入住 · ${props.reservation.checkOutDate} 离店`
-})
 </script>
 
 <style scoped>

@@ -1,4 +1,5 @@
 import type { LoginTarget } from '@/types/auth'
+import { i18n } from '@/locales'
 import { readStoredValue, removeStoredValue, writeStoredValue } from '@/utils/storage'
 
 const AUTO_LOGIN_STORAGE_KEY = 'adminAutoLogin'
@@ -38,7 +39,7 @@ const getCrypto = () => {
   const webCrypto = globalThis.crypto
 
   if (!webCrypto?.subtle) {
-    throw new Error('当前设备不支持自动续登加密能力')
+    throw new Error(i18n.global.t('runtime.errors.autoLoginCryptoUnsupported'))
   }
 
   return webCrypto
@@ -103,14 +104,14 @@ const decryptCredentials = async (envelope: StoredAutoLoginEnvelope) => {
   const payload = JSON.parse(textDecoder.decode(decrypted)) as Partial<AutoLoginCredentialsPayload>
 
   if (typeof payload.email !== 'string' || typeof payload.password !== 'string') {
-    throw new Error('自动续登凭证格式无效')
+    throw new Error(i18n.global.t('runtime.errors.autoLoginCredentialInvalid'))
   }
 
   const email = payload.email.trim()
   const password = payload.password
 
   if (!email || !password) {
-    throw new Error('自动续登凭证内容为空')
+    throw new Error(i18n.global.t('runtime.errors.autoLoginCredentialEmpty'))
   }
 
   return {

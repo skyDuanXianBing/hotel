@@ -1,14 +1,14 @@
 <template>
   <SettingsCrudPage
     :back-href="ROUTE_PATHS.settingsCleaningSettings"
-    title="易耗品"
-    hero-eyebrow="保洁设置"
-    hero-title="易耗品"
-    toolbar-action-label="新增"
-    section-title="易耗品列表"
+    :title="$t('settingsStage4.cleaningSettings.tabs.supplies')"
+    :hero-eyebrow="$t('settings.groups.cleaning')"
+    :hero-title="$t('settingsStage4.cleaningSettings.tabs.supplies')"
+    :toolbar-action-label="$t('settingsStage4.roomGroup.addGroup')"
+    :section-title="$t('stage5UiAttributes.50')"
     :loading="loading"
     :modal-open="editorOpen"
-    :modal-title="editingSupplyId ? '编辑易耗品' : '新增易耗品'"
+    :modal-title="editingSupplyId ? $t('settingsStage4.cleaningSettings.dialog.editSupply') : $t('stage5DynamicUi.39')"
     @toolbar-action="handleCreateSupply"
     @dismiss-editor="handleDismissEditor"
   >
@@ -18,51 +18,52 @@
           <div class="settings-minimal-card__title-group">
             <strong>{{ supply.roomType }}</strong>
             <p class="settings-minimal-card__summary settings-minimal-card__summary--clamp-two">
-              {{ supply.supplies || '当前为空' }}
+              {{ supply.supplies || $t('stage5DynamicUi.32') }}
             </p>
           </div>
           <span
             class="settings-minimal-card__badge"
             :class="supply.supplies ? 'settings-minimal-card__badge--success' : 'settings-minimal-card__badge--warning'"
           >
-            {{ supply.supplies ? '已配置' : '未配置' }}
+            {{ supply.supplies ? $t('stage5DynamicUi.30') : $t('stage5DynamicUi.52') }}
           </span>
         </div>
 
         <div class="settings-minimal-card__actions">
-          <ion-button size="small" fill="outline" @click="handleEditSupply(supply)">编辑</ion-button>
-          <ion-button size="small" fill="outline" @click="handleClearSupply(supply)">清空</ion-button>
-          <ion-button size="small" color="danger" fill="clear" @click="handleDeleteSupply(supply)">删除</ion-button>
+          <ion-button size="small" fill="outline" @click="handleEditSupply(supply)">{{ $t('accommodation.roomPrice.editTitle') }}</ion-button>
+          <ion-button size="small" fill="outline" @click="handleClearSupply(supply)">{{ $t('accommodation.roomPriceBulk.clear') }}</ion-button>
+          <ion-button size="small" color="danger" fill="clear" @click="handleDeleteSupply(supply)">{{ $t('roomStatus.roomLock.actions.delete') }}</ion-button>
         </div>
       </article>
     </div>
 
-    <p v-else-if="!loading" class="mobile-note">当前暂无易耗品配置。</p>
+    <p v-else-if="!loading" class="mobile-note">{{ $t('stage5SourceText.81') }}</p>
 
     <template #modalContent>
       <div class="settings-form-grid">
         <label class="settings-form-field">
-          <span>房型</span>
-          <ion-input v-model="supplyForm.roomType" fill="outline" placeholder="请输入房型名称" />
+          <span>{{ $t('accommodation.common.roomType') }}</span>
+          <ion-input v-model="supplyForm.roomType" fill="outline" :placeholder="$t('settingsStage4.roomSettings.placeholders.roomTypeName')" />
         </label>
 
         <label class="settings-form-field settings-form-field--full">
-          <span>易耗品内容</span>
-          <ion-textarea v-model="supplyForm.supplies" :rows="5" fill="outline" placeholder="请输入易耗品内容" />
+          <span>{{ $t('stage5SourceText.134') }}</span>
+          <ion-textarea v-model="supplyForm.supplies" :rows="5" fill="outline" :placeholder="$t('stage5UiAttributes.83')" />
         </label>
       </div>
     </template>
 
     <template #modalActions>
-      <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
+      <ion-button fill="outline" @click="handleDismissEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
       <ion-button :disabled="submitting" @click="handleSaveSupply">
-        {{ submitting ? '提交中...' : '保存易耗品' }}
+        {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.14') }}
       </ion-button>
     </template>
   </SettingsCrudPage>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   alertController,
   IonButton,
@@ -84,6 +85,8 @@ import type { CleaningSupplyDTO } from '@/types/settings'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
+const { t } = useI18n()
+
 const loading = ref(false)
 const submitting = ref(false)
 const editorOpen = ref(false)
@@ -98,13 +101,13 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
   return fallbackMessage
 }
 
-async function confirmDelete(name: string, actionText: string) {
+async function confirmDelete(name: string) {
   const alert = await alertController.create({
-    header: `${actionText}易耗品`,
-    message: `确认${actionText} ${name} 吗？`,
+    header: t('settingsResidual.common.confirm'),
+    message: t('settingsResidual.common.confirmDelete', { name }),
     buttons: [
-      { text: '取消', role: 'cancel' },
-      { text: '确认', role: 'destructive' },
+      { text: t('accommodation.common.cancel'), role: 'cancel' },
+      { text: t('auth.action.confirm'), role: 'destructive' },
     ],
   })
   await alert.present()
@@ -117,12 +120,12 @@ async function loadPageData() {
   try {
     const response = await getAllCleaningSupplies()
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载易耗品失败')
+      throw new Error(response.message || t('stage5Pattern.loadFailed'))
     }
     supplies.value = response.data
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载易耗品失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.loadFailed')))
     }
   } finally {
     loading.value = false
@@ -149,7 +152,7 @@ function handleDismissEditor() {
 
 async function handleSaveSupply() {
   if (!supplyForm.value.roomType.trim()) {
-    showWarningToast('请输入房型名称')
+    showWarningToast(t('settingsStage4.roomSettings.placeholders.roomTypeName'))
     return
   }
 
@@ -161,7 +164,7 @@ async function handleSaveSupply() {
         supplies: supplyForm.value.supplies.trim(),
       })
       if (!response.success) {
-        throw new Error(response.message || '更新易耗品失败')
+        throw new Error(response.message || t('stage5Pattern.updateFailed'))
       }
     } else {
       const response = await createCleaningSupply({
@@ -169,16 +172,16 @@ async function handleSaveSupply() {
         supplies: supplyForm.value.supplies.trim(),
       })
       if (!response.success) {
-        throw new Error(response.message || '创建易耗品失败')
+        throw new Error(response.message || t('stage5Pattern.createFailed'))
       }
     }
 
-    showSuccessToast('易耗品已保存')
+    showSuccessToast(t('stage5Pattern.saveCompleted'))
     handleDismissEditor()
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存易耗品失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     submitting.value = false
@@ -186,39 +189,39 @@ async function handleSaveSupply() {
 }
 
 async function handleClearSupply(supply: CleaningSupplyDTO) {
-  const confirmed = await confirmDelete(supply.roomType, '清空')
+  const confirmed = await confirmDelete(supply.roomType)
   if (!confirmed) {
     return
   }
   try {
     const response = await clearCleaningSupply(supply.id)
     if (!response.success) {
-      throw new Error(response.message || '清空易耗品失败')
+      throw new Error(response.message || t('stage5Pattern.operationFailed'))
     }
-    showSuccessToast('易耗品已清空')
+    showSuccessToast(t('stage5Pattern.operationCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '清空易耗品失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.operationFailed')))
     }
   }
 }
 
 async function handleDeleteSupply(supply: CleaningSupplyDTO) {
-  const confirmed = await confirmDelete(supply.roomType, '删除')
+  const confirmed = await confirmDelete(supply.roomType)
   if (!confirmed) {
     return
   }
   try {
     const response = await deleteCleaningSupply(supply.id)
     if (!response.success) {
-      throw new Error(response.message || '删除易耗品失败')
+      throw new Error(response.message || t('stage5Pattern.deleteFailed'))
     }
-    showSuccessToast('易耗品已删除')
+    showSuccessToast(t('stage5Pattern.deleteCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '删除易耗品失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.deleteFailed')))
     }
   }
 }

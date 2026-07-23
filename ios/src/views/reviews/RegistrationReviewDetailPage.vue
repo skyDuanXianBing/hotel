@@ -5,7 +5,7 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.reviews" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">审查详情</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.RegistrationReviewDetail') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -13,7 +13,7 @@
       <div v-if="isLoading && !record" class="mobile-stack">
         <section class="mobile-card registration-review-detail-page__loading-state">
           <ion-spinner name="crescent" />
-          <p class="mobile-note">正在加载审查详情...</p>
+          <p class="mobile-note">{{ $t('stage5SourceText.157') }}</p>
         </section>
       </div>
 
@@ -21,7 +21,7 @@
         <section class="mobile-hero registration-review-detail-page__hero">
           <div class="registration-review-detail-page__hero-header">
             <div class="registration-review-detail-page__hero-copy">
-              <p class="mobile-note registration-review-detail-page__eyebrow">登记审查详情</p>
+              <p class="mobile-note registration-review-detail-page__eyebrow">{{ $t('stage5SourceText.169') }}</p>
               <h1 class="mobile-title">{{ record.guestName }}</h1>
             </div>
             <ion-button
@@ -31,36 +31,36 @@
               :disabled="!hasGuestPreview"
               @click="handleOpenGuestPreview"
             >
-              预览
+              {{ $t('settingsStage4.autoCheckin.actions.preview') }}
             </ion-button>
           </div>
           <p class="mobile-subtitle">{{ record.roomLabel }} · {{ record.channelName }} · #{{ record.formId }}</p>
           <div class="mobile-chip-row">
             <span class="mobile-chip">{{ getReviewStatusLabel(record.status) }}</span>
-            <span class="mobile-chip">{{ record.checkInDate }} 入住</span>
-            <span class="mobile-chip">{{ record.checkOutDate }} 离店</span>
+            <span class="mobile-chip">{{ record.checkInDate }} {{ $t('roomStatus.action.checkIn') }}</span>
+            <span class="mobile-chip">{{ record.checkOutDate }} {{ $t('roomStatus.hoverCard.checkOutDate') }}</span>
           </div>
         </section>
 
         <div class="mobile-stack">
           <section class="mobile-card">
-            <h2 class="mobile-section-title">概览</h2>
+            <h2 class="mobile-section-title">{{ $t('stage5SourceText.151') }}</h2>
             <div class="registration-review-detail-page__summary-grid">
               <article class="registration-review-detail-page__summary-card">
-                <span>当前状态</span>
+                <span>{{ $t('stage5SourceText.91') }}</span>
                 <strong>{{ getReviewStatusLabel(record.status) }}</strong>
               </article>
               <article class="registration-review-detail-page__summary-card">
-                <span>提交时间</span>
+                <span>{{ $t('stage5.common.fields.submittedAt') }}</span>
                 <strong>{{ record.submittedAt }}</strong>
               </article>
               <article class="registration-review-detail-page__summary-card">
-                <span>附件数量</span>
-                <strong>{{ record.attachments.length }} 份</strong>
+                <span>{{ $t('stage5SourceText.227') }}</span>
+                <strong>{{ record.attachments.length }} {{ $t('stage5DynamicUi.90') }}</strong>
               </article>
               <article class="registration-review-detail-page__summary-card">
-                <span>审核历史</span>
-                <strong>{{ record.history.length }} 条</strong>
+                <span>{{ $t('stage5.dataCenter.detail.reviewHistory') }}</span>
+                <strong>{{ record.history.length }} {{ $t('stage5DynamicUi.125') }}</strong>
               </article>
             </div>
           </section>
@@ -69,53 +69,53 @@
             <article class="registration-review-detail-page__section-card">
               <div class="mobile-inline-row">
                 <div>
-                  <h2 class="mobile-section-title">基础信息</h2>
-                  <p class="mobile-note">订单、房间与审核备注按移动端卡片方式集中展示。</p>
+                  <h2 class="mobile-section-title">{{ $t('settingsStage4.roomTypeManagement.actions.basicInfo') }}</h2>
+                  <p class="mobile-note">{{ $t('stage5SourceText.198') }}</p>
                 </div>
-                <ion-button fill="outline" size="small" @click="handleOpenLinks">链接列表</ion-button>
+                <ion-button fill="outline" size="small" @click="handleOpenLinks">{{ $t('stage5.dataCenter.registrations.linkList') }}</ion-button>
               </div>
 
               <div class="registration-review-detail-page__detail-grid">
-                <p><strong>订单号：</strong>{{ record.orderNumber || '—' }}</p>
-                <p><strong>渠道订单号：</strong>{{ record.channelOrderNumber || '—' }}</p>
-                <p><strong>渠道：</strong>{{ record.channelName }}</p>
-                <p><strong>房型：</strong>{{ record.roomTypeName || '—' }}</p>
-                <p><strong>房号：</strong>{{ record.roomNumber || '—' }}</p>
-                <p><strong>提交时间：</strong>{{ record.submittedAt }}</p>
-                <p><strong>更新时间：</strong>{{ record.updatedAt }}</p>
-                <p><strong>审核备注：</strong>{{ record.reviewNote || '—' }}</p>
+                <p><strong>{{ $t('stage5.dataCenter.detail.metaOrderNumber') }}</strong>{{ record.orderNumber || '—' }}</p>
+                <p><strong>{{ $t('stage5SourceText.167') }}</strong>{{ record.channelOrderNumber || '—' }}</p>
+                <p><strong>{{ $t('stage5SourceText.168') }}</strong>{{ record.channelName }}</p>
+                <p><strong>{{ $t('stage5SourceText.104') }}</strong>{{ record.roomTypeName || '—' }}</p>
+                <p><strong>{{ $t('stage5SourceText.99') }}</strong>{{ record.roomNumber || '—' }}</p>
+                <p><strong>{{ $t('stage5SourceText.121') }}</strong>{{ record.submittedAt }}</p>
+                <p><strong>{{ $t('stage5SourceText.138') }}</strong>{{ record.updatedAt }}</p>
+                <p><strong>{{ $t('stage5SourceText.49') }}</strong>{{ record.reviewNote || '—' }}</p>
               </div>
             </article>
 
             <article class="registration-review-detail-page__section-card">
-              <h2 class="mobile-section-title">入住人信息</h2>
+              <h2 class="mobile-section-title">{{ $t('stage5SourceText.13') }}</h2>
               <div class="mobile-list">
                 <div v-for="guest in record.guests" :key="guest.id" class="registration-review-detail-page__list-item">
                   <div class="registration-review-detail-page__guest-card">
                     <strong>{{ guest.sortOrder }}. {{ guest.name }} · {{ guest.relation }}</strong>
                     <div class="registration-review-detail-page__detail-grid">
                       <p><strong>{{ guest.idType }}：</strong>{{ guest.idNumber }}</p>
-                      <p><strong>手机号：</strong>{{ guest.phone }}</p>
-                      <p><strong>国籍：</strong>{{ guest.nationality }}</p>
-                      <p><strong>居住地：</strong>{{ guest.residenceType }}</p>
-                      <p><strong>护照号：</strong>{{ guest.passportNumber }}</p>
-                      <p><strong>前泊地：</strong>{{ guest.priorStay }}</p>
-                      <p><strong>行先：</strong>{{ guest.nextDestination }}</p>
+                      <p><strong>{{ $t('stage5SourceText.110') }}</strong>{{ guest.phone }}</p>
+                      <p><strong>{{ $t('stage5SourceText.37') }}</strong>{{ guest.nationality }}</p>
+                      <p><strong>{{ $t('stage5SourceText.50') }}</strong>{{ guest.residenceType }}</p>
+                      <p><strong>{{ $t('stage5SourceText.111') }}</strong>{{ guest.passportNumber }}</p>
+                      <p><strong>{{ $t('stage5SourceText.24') }}</strong>{{ guest.priorStay }}</p>
+                      <p><strong>{{ $t('stage5SourceText.189') }}</strong>{{ guest.nextDestination }}</p>
                     </div>
                   </div>
                 </div>
-                <p v-if="record.guests.length === 0" class="mobile-note">暂无入住人详情。</p>
+                <p v-if="record.guests.length === 0" class="mobile-note">{{ $t('stage5SourceText.135') }}</p>
               </div>
             </article>
 
             <article class="registration-review-detail-page__section-card">
               <div class="mobile-inline-row">
                 <div>
-                  <h2 class="mobile-section-title">PDF 与附件</h2>
-                  <p class="mobile-note">可下载登记 PDF，并查看或下载附件；如暂不支持预览，将直接下载。</p>
+                  <h2 class="mobile-section-title">{{ $t('stage5SourceText.2') }}</h2>
+                  <p class="mobile-note">{{ $t('stage5SourceText.28') }}</p>
                 </div>
                 <ion-button fill="outline" size="small" :disabled="isPdfDownloading" @click="handleDownloadPdf">
-                  {{ isPdfDownloading ? '下载中...' : '下载 PDF' }}
+                  {{ isPdfDownloading ? $t('stage5DynamicUi.1') : $t('stage5DynamicUi.0') }}
                 </ion-button>
               </div>
 
@@ -124,54 +124,54 @@
                   <div>
                     <strong>{{ attachment.name }}</strong>
                     <p>{{ attachment.typeLabel }} · {{ attachment.sizeLabel }}</p>
-                    <p>住客：{{ resolveGuestLabel(attachment.guestId) }}</p>
+                    <p>{{ $t('stage5DynamicUi.91') }}{{ resolveGuestLabel(attachment.guestId) }}</p>
                   </div>
                   <div class="registration-review-detail-page__item-actions">
                     <ion-button fill="clear" size="small" :disabled="activeAttachmentId === attachment.id" @click="handlePreviewAttachment(attachment)">
-                      预览
+                      {{ $t('settingsStage4.autoCheckin.actions.preview') }}
                     </ion-button>
                     <ion-button fill="clear" size="small" :disabled="activeAttachmentId === attachment.id" @click="handleDownloadAttachment(attachment)">
-                      下载
+                      {{ $t('settingsStage4.autoCheckin.actions.download') }}
                     </ion-button>
                   </div>
                 </div>
-                <p v-if="record.attachments.length === 0" class="mobile-note">当前暂无可查看附件。</p>
+                <p v-if="record.attachments.length === 0" class="mobile-note">{{ $t('stage5SourceText.76') }}</p>
               </div>
             </article>
           </section>
 
           <section class="mobile-card registration-review-detail-page__note-card">
-            <h2 class="mobile-section-title">审核备注</h2>
+            <h2 class="mobile-section-title">{{ $t('stage5SourceText.48') }}</h2>
             <ion-textarea
               v-model="reviewNote"
               auto-grow
               fill="outline"
               :rows="5"
-              placeholder="填写审核意见、补充要求或驳回原因"
+              :placeholder="$t('stage5UiAttributes.39')"
             />
           </section>
 
           <section class="mobile-card registration-review-detail-page__actions-card">
             <div>
-              <h2 class="mobile-section-title">审核动作</h2>
-              <p class="mobile-note">提交处理结果后，会自动刷新详情与列表状态。</p>
+              <h2 class="mobile-section-title">{{ $t('stage5SourceText.47') }}</h2>
+              <p class="mobile-note">{{ $t('stage5SourceText.120') }}</p>
             </div>
             <div class="registration-review-detail-page__actions-grid">
-              <ion-button color="success" :disabled="!canReview || isSubmitting" @click="handleApprove">通过</ion-button>
-              <ion-button color="danger" fill="outline" :disabled="!canReview || isSubmitting" @click="handleReject">驳回</ion-button>
+              <ion-button color="success" :disabled="!canReview || isSubmitting" @click="handleApprove">{{ $t('stage5.common.actions.approve') }}</ion-button>
+              <ion-button color="danger" fill="outline" :disabled="!canReview || isSubmitting" @click="handleReject">{{ $t('stage5.common.actions.reject') }}</ion-button>
             </div>
-            <p v-if="!canReview" class="mobile-note">当前状态无需重复审核。</p>
+            <p v-if="!canReview" class="mobile-note">{{ $t('stage5SourceText.92') }}</p>
           </section>
 
           <section class="mobile-card">
-            <h2 class="mobile-section-title">审核历史</h2>
+            <h2 class="mobile-section-title">{{ $t('stage5.dataCenter.detail.reviewHistory') }}</h2>
             <div class="mobile-list">
               <article v-for="item in record.history" :key="item.id" class="registration-review-detail-page__history-item">
                 <div class="mobile-inline-row">
                   <strong>{{ item.action }}</strong>
                   <span class="mobile-note">{{ item.timestamp }}</span>
                 </div>
-                <p class="mobile-note">操作人：{{ item.operator }}</p>
+                <p class="mobile-note">{{ $t('stage5DynamicUi.117') }}{{ item.operator }}</p>
                 <p class="mobile-note">{{ item.note }}</p>
               </article>
             </div>
@@ -181,10 +181,10 @@
 
       <div v-else class="mobile-stack">
         <section class="mobile-card">
-          <h2 class="mobile-section-title">审查详情加载失败</h2>
-          <p class="mobile-note">{{ loadError || '当前表单不存在或已失效，请返回审查列表重新选择。' }}</p>
-          <ion-button fill="outline" @click="handleReload">重新加载</ion-button>
-          <ion-button expand="block" @click="handleBackToList">返回审查列表</ion-button>
+          <h2 class="mobile-section-title">{{ $t('stage5SourceText.45') }}</h2>
+          <p class="mobile-note">{{ loadError || $t('stage5DynamicUi.33') }}</p>
+          <ion-button fill="outline" @click="handleReload">{{ $t('storeSelection.reload') }}</ion-button>
+          <ion-button expand="block" @click="handleBackToList">{{ $t('stage5SourceText.214') }}</ion-button>
         </section>
       </div>
 
@@ -192,11 +192,11 @@
         <ion-content class="registration-review-detail-page__preview-content">
           <div class="registration-review-detail-page__preview-shell">
             <div class="registration-review-detail-page__preview-topbar">
-              <h2>入住人预览</h2>
+              <h2>{{ $t('stage5SourceText.14') }}</h2>
               <button
                 class="registration-review-detail-page__preview-close"
                 type="button"
-                aria-label="关闭预览"
+                :aria-label="$t('stage5UiAttributes.29')"
                 @click="handleCloseGuestPreview"
               >
                 &times;
@@ -209,41 +209,41 @@
                 :key="`preview-${guest.id}`"
                 class="registration-review-detail-page__preview-card"
               >
-                <h3>入住人 {{ guest.sortOrder }}</h3>
+                <h3>{{ $t('stage5DynamicUi.93') }} {{ guest.sortOrder }}</h3>
                 <div class="registration-review-detail-page__preview-fields">
                   <div class="registration-review-detail-page__preview-field">
-                    <span>名</span>
+                    <span>{{ $t('settingsStage4.autoCheckin.fields.givenName') }}</span>
                     <strong>{{ resolveGuestPreviewValue(guest.firstName) }}</strong>
                   </div>
                   <div class="registration-review-detail-page__preview-field">
-                    <span>姓</span>
+                    <span>{{ $t('settingsStage4.autoCheckin.fields.familyName') }}</span>
                     <strong>{{ resolveGuestPreviewValue(guest.lastName) }}</strong>
                   </div>
                   <div class="registration-review-detail-page__preview-field">
-                    <span>居住地</span>
+                    <span>{{ $t('stage5.dataCenter.detail.residence') }}</span>
                     <strong>{{ resolveGuestPreviewValue(guest.residenceType) }}</strong>
                   </div>
                   <div class="registration-review-detail-page__preview-field">
-                    <span>出生日期</span>
+                    <span>{{ $t('settingsStage4.autoCheckin.fields.birthDate') }}</span>
                     <strong>{{ resolveGuestPreviewValue(guest.birthday) }}</strong>
                   </div>
                   <div class="registration-review-detail-page__preview-field">
-                    <span>手机号</span>
+                    <span>{{ $t('roomStatus.sampleLogs.labels.phone') }}</span>
                     <strong>{{ resolveGuestPreviewValue(guest.phone) }}</strong>
                   </div>
                   <div class="registration-review-detail-page__preview-field">
-                    <span>护照号</span>
+                    <span>{{ $t('stage5.publicRegistration.form.passportNumber') }}</span>
                     <strong>{{ resolveGuestPreviewValue(guest.passportNumber) }}</strong>
                   </div>
                   <div class="registration-review-detail-page__preview-field">
-                    <span>国籍</span>
+                    <span>{{ $t('settingsStage4.autoCheckin.fields.nationality') }}</span>
                     <strong>{{ resolveGuestPreviewValue(guest.nationality) }}</strong>
                   </div>
                 </div>
               </article>
 
               <section v-if="!hasGuestPreview" class="mobile-card">
-                <p class="mobile-note">暂无可预览的入住人信息。</p>
+                <p class="mobile-note">{{ $t('stage5SourceText.136') }}</p>
               </section>
             </div>
           </div>
@@ -254,6 +254,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   IonBackButton,
   IonButton,
@@ -283,6 +284,8 @@ import { useReviewStore } from '@/stores/reviews'
 import { downloadBlobFile, openBlobPreview } from '@/utils/file'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { showUnhandledRequestWarning } from '@/utils/requestError'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -376,7 +379,7 @@ function resolveGuestLabel(guestId: string) {
 function resolveGuestPreviewValue(value?: string) {
   const nextValue = String(value || '').trim()
 
-  if (!nextValue || nextValue === '—' || nextValue === '未提供') {
+  if (!nextValue || nextValue === '—' || nextValue === t('runtime.review.notProvided')) {
     return '-'
   }
 
@@ -405,9 +408,9 @@ async function handleDownloadPdf() {
   try {
     const pdfBlob = await downloadRegistrationPdf(record.value.formNumericId)
     downloadBlobFile(pdfBlob, buildPdfFileName())
-    showSuccessToast('PDF 已开始下载')
+    showSuccessToast(t('stage5Final.review.pdfDownloadStarted'))
   } catch (error) {
-    showUnhandledRequestWarning(error, '下载 PDF 失败')
+    showUnhandledRequestWarning(error, t('stage5Final.review.downloadPdfFailed'))
   } finally {
     isPdfDownloading.value = false
   }
@@ -419,7 +422,7 @@ async function handlePreviewAttachment(attachment: ReviewAttachment) {
   }
 
   if (attachment.attachmentNumericId <= 0) {
-    showWarningToast('附件缺少有效标识，暂无法预览')
+    showWarningToast(t('stage5Final.review.attachmentPreviewUnavailable'))
     return
   }
 
@@ -433,13 +436,13 @@ async function handlePreviewAttachment(attachment: ReviewAttachment) {
     const didOpenPreview = openBlobPreview(attachmentBlob)
 
     if (didOpenPreview) {
-      showSuccessToast('已打开附件预览')
+      showSuccessToast(t('stage5Final.review.attachmentPreviewOpened'))
     } else {
       downloadBlobFile(attachmentBlob, buildAttachmentFileName(attachment))
-      showWarningToast('当前环境未能直接预览，已改为下载附件')
+      showWarningToast(t('stage5Final.review.previewFallbackDownload'))
     }
   } catch (error) {
-    showUnhandledRequestWarning(error, '预览附件失败')
+    showUnhandledRequestWarning(error, t('stage5Final.review.previewAttachmentFailed'))
   } finally {
     activeAttachmentId.value = ''
   }
@@ -451,7 +454,7 @@ async function handleDownloadAttachment(attachment: ReviewAttachment) {
   }
 
   if (attachment.attachmentNumericId <= 0) {
-    showWarningToast('附件缺少有效标识，暂无法下载')
+    showWarningToast(t('stage5Final.review.attachmentDownloadUnavailable'))
     return
   }
 
@@ -463,9 +466,9 @@ async function handleDownloadAttachment(attachment: ReviewAttachment) {
       attachment.attachmentNumericId,
     )
     downloadBlobFile(attachmentBlob, buildAttachmentFileName(attachment))
-    showSuccessToast('附件已开始下载')
+    showSuccessToast(t('stage5Final.review.attachmentDownloadStarted'))
   } catch (error) {
-    showUnhandledRequestWarning(error, '下载附件失败')
+    showUnhandledRequestWarning(error, t('stage5Final.review.downloadAttachmentFailed'))
   } finally {
     activeAttachmentId.value = ''
   }
@@ -474,7 +477,7 @@ async function handleDownloadAttachment(attachment: ReviewAttachment) {
 async function loadRecordDetail() {
   if (!formId.value) {
     record.value = null
-    loadError.value = '缺少有效表单编号，请返回审查列表后重试。'
+    loadError.value = t('stage5Final.review.missingFormId')
     return false
   }
 
@@ -488,7 +491,7 @@ async function loadRecordDetail() {
     return true
   } catch (error) {
     record.value = null
-    loadError.value = showUnhandledRequestWarning(error, '加载审查详情失败')
+    loadError.value = showUnhandledRequestWarning(error, t('stage5Final.review.loadDetailFailed'))
     return false
   } finally {
     isLoading.value = false
@@ -503,11 +506,11 @@ async function handleApprove() {
   isSubmitting.value = true
 
   try {
-    await approveRegistrationReview(record.value.formNumericId, buildDecisionNote('资料完整，审核通过。'))
-    showSuccessToast('已审核通过')
+    await approveRegistrationReview(record.value.formNumericId, buildDecisionNote(t('stage5Final.review.approveNote')))
+    showSuccessToast(t('stage5Final.review.approved'))
     await Promise.all([loadRecordDetail(), reviewStore.refreshRecords()])
   } catch (error) {
-    showUnhandledRequestWarning(error, '审核通过失败')
+    showUnhandledRequestWarning(error, t('stage5Final.review.approveFailed'))
   } finally {
     isSubmitting.value = false
   }
@@ -521,11 +524,11 @@ async function handleReject() {
   isSubmitting.value = true
 
   try {
-    await rejectRegistrationReview(record.value.formNumericId, buildDecisionNote('资料不完整，请补充后重新提交。'))
-    showSuccessToast('已驳回并记录备注')
+    await rejectRegistrationReview(record.value.formNumericId, buildDecisionNote(t('stage5Final.review.rejectNote')))
+    showSuccessToast(t('stage5Final.review.rejected'))
     await Promise.all([loadRecordDetail(), reviewStore.refreshRecords()])
   } catch (error) {
-    showUnhandledRequestWarning(error, '驳回失败')
+    showUnhandledRequestWarning(error, t('stage5Final.review.rejectFailed'))
   } finally {
     isSubmitting.value = false
   }

@@ -5,23 +5,23 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.settingsPricePlans" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">房型价格</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.SettingsPricePlanRates') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button class="app-page-header__text-btn" fill="clear" @click="handleCreateRelation">新增关联</ion-button>
+          <ion-button class="app-page-header__text-btn" fill="clear" @click="handleCreateRelation">{{ $t('stage5SourceText.129') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
     <ion-content fullscreen class="mobile-page settings-price-plan-rates-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新房型价格" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('stage5UiAttributes.7')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <section class="mobile-hero settings-price-plan-rates-hero">
-        <p class="mobile-note settings-price-plan-rates-hero__eyebrow">价格计划房型价格</p>
+        <p class="mobile-note settings-price-plan-rates-hero__eyebrow">{{ $t('stage5SourceText.6') }}</p>
         <h1 class="mobile-title">{{ planTitle }}</h1>
         <div class="mobile-chip-row">
-          <span class="mobile-chip">关联房型 {{ relations.length }}</span>
+          <span class="mobile-chip">{{ $t('settingsStage4.pricePlan.actions.linkRoomTypes') }} {{ relations.length }}</span>
           <span class="mobile-chip">{{ includeMealLabel }}</span>
         </div>
       </section>
@@ -30,7 +30,7 @@
         <section class="mobile-card">
           <div class="mobile-inline-row settings-price-plan-rates-page__section-header">
             <div>
-              <h2 class="mobile-section-title">已关联房型</h2>
+              <h2 class="mobile-section-title">{{ $t('stage5SourceText.52') }}</h2>
             </div>
             <ion-spinner v-if="loading" name="crescent" />
           </div>
@@ -39,9 +39,9 @@
             <article v-for="relation in relations" :key="relation.id" class="settings-minimal-card settings-price-plan-rate-card">
               <div class="settings-minimal-card__header">
                 <div class="settings-minimal-card__title-group">
-                  <strong>{{ relation.roomType?.name || '未命名房型' }}</strong>
+                  <strong>{{ relation.roomType?.name || $t('stage5DynamicUi.46') }}</strong>
                   <p class="settings-minimal-card__summary">
-                    最大入住 {{ relation.maxGuests }} 人 · 包含 {{ relation.includedGuests ?? '-' }} 人
+                    {{ $t('settingsStage4.pricePlan.columns.maxGuests') }} {{ relation.maxGuests }} {{ $t('stage5DynamicUi.88') }} {{ relation.includedGuests ?? '-' }} {{ $t('settingsStage4.roomTypeManagement.editor.units.people') }}
                   </p>
                 </div>
                 <span class="settings-minimal-card__badge">{{ formatPriceModeLabel(relation.priceMode) }}</span>
@@ -53,18 +53,18 @@
               </div>
 
               <div class="settings-minimal-card__actions">
-                <ion-button size="small" fill="outline" @click="handleEditRelation(relation)">编辑</ion-button>
+                <ion-button size="small" fill="outline" @click="handleEditRelation(relation)">{{ $t('accommodation.roomPrice.editTitle') }}</ion-button>
                 <ion-button size="small" color="danger" fill="clear" @click="handleDeleteRelation(relation)">
-                  删除
+                  {{ $t('roomStatus.roomLock.actions.delete') }}
                 </ion-button>
               </div>
             </article>
           </div>
 
           <div v-else-if="!loading" class="settings-price-plan-rates-empty-state">
-            <strong>当前计划尚未关联任何房型</strong>
-            <p>先新增首条关联，再继续填写本周房价与入住人数，完成价格计划闭环。</p>
-            <ion-button @click="handleCreateRelation">新增首条关联</ion-button>
+            <strong>{{ $t('stage5SourceText.94') }}</strong>
+            <p>{{ $t('stage5SourceText.12') }}</p>
+            <ion-button @click="handleCreateRelation">{{ $t('stage5SourceText.131') }}</ion-button>
           </div>
         </section>
 
@@ -73,9 +73,9 @@
       <ion-modal :is-open="editorOpen" @didDismiss="handleDismissEditor">
         <ion-header>
           <ion-toolbar>
-            <ion-title>{{ editingRelationId ? '编辑房型价格' : '新增房型价格' }}</ion-title>
+            <ion-title>{{ editingRelationId ? $t('stage5DynamicUi.64') : $t('stage5DynamicUi.36') }}</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="handleDismissEditor">关闭</ion-button>
+              <ion-button @click="handleDismissEditor">{{ $t('home.section.close') }}</ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -84,7 +84,7 @@
           <section class="mobile-card">
             <div class="settings-form-grid">
               <label class="settings-form-field">
-                <span>房型</span>
+                <span>{{ $t('accommodation.common.roomType') }}</span>
                 <ion-select
                   v-model="relationForm.roomTypeId"
                   fill="outline"
@@ -98,7 +98,7 @@
               </label>
 
               <label class="settings-form-field">
-                <span>价格模式</span>
+                <span>{{ $t('channel.hotel.priceMode') }}</span>
                 <ion-select v-model="relationForm.priceMode" fill="outline" interface="action-sheet">
                   <ion-select-option value="unified">unified</ion-select-option>
                   <ion-select-option value="multiple">multiple</ion-select-option>
@@ -106,12 +106,12 @@
               </label>
 
               <label class="settings-form-field">
-                <span>最大入住人数</span>
+                <span>{{ $t('settingsStage4.roomSettings.fields.maxGuests') }}</span>
                 <ion-input v-model="relationForm.maxGuests" fill="outline" inputmode="numeric" placeholder="2" />
               </label>
 
               <label class="settings-form-field">
-                <span>包含人数</span>
+                <span>{{ $t('settingsStage4.pricePlan.columns.includedGuests') }}</span>
                 <ion-input v-model="relationForm.includedGuests" fill="outline" inputmode="numeric" placeholder="2" />
               </label>
 
@@ -121,27 +121,27 @@
               </label>
 
               <label class="settings-form-field">
-                <span>额外成人加价</span>
+                <span>{{ $t('stage5SourceText.233') }}</span>
                 <ion-input v-model="relationForm.extraAdultRate" fill="outline" inputmode="decimal" placeholder="0" />
               </label>
 
               <label class="settings-form-field">
-                <span>额外儿童加价</span>
+                <span>{{ $t('stage5SourceText.232') }}</span>
                 <ion-input v-model="relationForm.extraChildRate" fill="outline" inputmode="decimal" placeholder="0" />
               </label>
 
               <div v-if="editingRelationId" class="settings-price-plan-rates-page__toggle-card">
                 <div>
-                  <strong>保存时清理未来覆盖价</strong>
+                  <strong>{{ $t('stage5SourceText.10') }}</strong>
                 </div>
                 <ion-checkbox :checked="clearFutureOverridesOnSave" @ionChange="handleClearFutureOverridesChange" />
               </div>
             </div>
 
             <div class="settings-form-actions">
-              <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
+              <ion-button fill="outline" @click="handleDismissEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
               <ion-button :disabled="submitting" @click="handleSaveRelation">
-                {{ submitting ? '提交中...' : '保存房型价格' }}
+                {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.12') }}
               </ion-button>
             </div>
           </section>
@@ -152,6 +152,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   alertController,
   IonBackButton,
@@ -185,10 +186,14 @@ import {
 } from '@/api/pricePlan'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
 import { ROUTE_PATHS } from '@/router/guards'
+import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
 import { getTodayDate } from '@/utils/accommodation'
+import { formatMoney } from '@/utils/formatters'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
+
+const { t } = useI18n()
 
 type WeekFieldKey =
   | 'mondayPrice'
@@ -215,19 +220,22 @@ interface RelationFormState {
   extraChildRate: string
 }
 
-const weekFields: Array<{ key: WeekFieldKey; label: string }> = [
-  { key: 'mondayPrice', label: '周一价格' },
-  { key: 'tuesdayPrice', label: '周二价格' },
-  { key: 'wednesdayPrice', label: '周三价格' },
-  { key: 'thursdayPrice', label: '周四价格' },
-  { key: 'fridayPrice', label: '周五价格' },
-  { key: 'saturdayPrice', label: '周六价格' },
-  { key: 'sundayPrice', label: '周日价格' },
-]
+const weekFields = computed<Array<{ key: WeekFieldKey; label: string }>>(() => [
+  { key: 'mondayPrice', label: t('settingsResidual.priceRates.monday') },
+  { key: 'tuesdayPrice', label: t('settingsResidual.priceRates.tuesday') },
+  { key: 'wednesdayPrice', label: t('settingsResidual.priceRates.wednesday') },
+  { key: 'thursdayPrice', label: t('settingsResidual.priceRates.thursday') },
+  { key: 'fridayPrice', label: t('settingsResidual.priceRates.friday') },
+  { key: 'saturdayPrice', label: t('settingsResidual.priceRates.saturday') },
+  { key: 'sundayPrice', label: t('settingsResidual.priceRates.sunday') },
+])
 
 const route = useRoute()
 const router = useRouter()
+const storeStore = useStoreStore()
 const userStore = useUserStore()
+const currentCurrency = computed(() => storeStore.currentStore?.currency || 'CNY')
+const currentMoneyContext = computed(() => ({ country: storeStore.currentStore?.country }))
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -244,14 +252,16 @@ const pricePlanId = computed(() => {
 })
 
 const planTitle = computed(() => {
-  return plan.value?.name || '房型价格'
+  return plan.value?.name || t('settingsResidual.priceRates.roomTypePrice')
 })
 
 const includeMealLabel = computed(() => {
   if (!plan.value) {
-    return '计划信息加载中'
+    return t('settingsResidual.priceRates.loadingPlan')
   }
-  return plan.value.includeMeal ? '默认含餐' : '默认不含餐'
+  return plan.value.includeMeal
+    ? t('settingsResidual.priceRates.includedMeal')
+    : t('settingsResidual.priceRates.excludedMeal')
 })
 
 const availableRoomTypes = computed(() => {
@@ -306,14 +316,18 @@ function parseOptionalNumber(value: string) {
 }
 
 function formatPrice(value?: number) {
-  if (value === undefined || value === null) {
-    return '¥0'
-  }
-  return `¥${Number(value).toFixed(0)}`
+  return formatMoney(
+    value ?? 0,
+    currentCurrency.value,
+    { minimumFractionDigits: 0, maximumFractionDigits: 0 },
+    currentMoneyContext.value,
+  )
 }
 
 function formatPriceModeLabel(value?: string) {
-  return value === 'multiple' ? '多价' : '统一价'
+  return value === 'multiple'
+    ? t('settingsResidual.priceRates.multiplePrice')
+    : t('settingsResidual.priceRates.unifiedPrice')
 }
 
 function buildWeeklyPricePreview(relation: RoomTypePricePlanDTO) {
@@ -328,36 +342,38 @@ function buildWeeklyPricePreview(relation: RoomTypePricePlanDTO) {
   ].filter((value): value is number => value !== undefined && value !== null)
 
   if (prices.length === 0) {
-    return '周价 ¥0'
+    return t('settingsResidual.priceRates.weeklyPrice', { value: formatPrice(0) })
   }
 
   const minPrice = Math.min(...prices)
   const maxPrice = Math.max(...prices)
   if (minPrice === maxPrice) {
-    return `周价 ${formatPrice(minPrice)}`
+    return t('settingsResidual.priceRates.weeklyPrice', { value: formatPrice(minPrice) })
   }
-  return `周价 ${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`
+  return t('settingsResidual.priceRates.weeklyPrice', {
+    value: `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`,
+  })
 }
 
 function buildExtraGuestPreview(relation: RoomTypePricePlanDTO) {
-  return `加人 成人 ${formatPrice(relation.extraAdultRate)} / 儿童 ${formatPrice(relation.extraChildRate)}`
+  return `${t('settingsResidual.priceRates.extraGuest')} ${t('settingsResidual.priceRates.adults')} ${formatPrice(relation.extraAdultRate)} / ${t('settingsResidual.priceRates.children')} ${formatPrice(relation.extraChildRate)}`
 }
 
 async function confirmDelete(roomTypeName: string) {
   const alert = await alertController.create({
-    header: '删除房型价格',
-    message: `请选择删除 ${roomTypeName} 价格关联的处理方式。`,
+    header: t('settingsResidual.common.confirm'),
+    message: t('settingsResidual.priceRates.deleteRelation', { name: roomTypeName }),
     buttons: [
       {
-        text: '取消',
+        text: t('accommodation.common.cancel'),
         role: 'cancel',
       },
       {
-        text: '仅解绑',
+        text: t('stage5Pattern.unlinkOnly'),
         role: 'unbind',
       },
       {
-        text: '解绑并清理覆盖价',
+        text: t('stage5Pattern.unlinkAndClearOverrides'),
         role: 'destructive',
       },
     ],
@@ -382,7 +398,7 @@ async function loadPageData() {
   }
 
   if (!userId) {
-    showWarningToast('请先恢复当前用户信息')
+    showWarningToast(t('stage5Pattern.setup'))
     return
   }
 
@@ -400,10 +416,10 @@ async function loadPageData() {
     ])
 
     if (!relationResponse.success || !relationResponse.data) {
-      throw new Error(relationResponse.message || '加载房型价格失败')
+      throw new Error(relationResponse.message || t('settingsStage4.pricePlan.messages.loadRoomPricesFailed'))
     }
     if (!roomTypeResponse.success || !roomTypeResponse.data) {
-      throw new Error(roomTypeResponse.message || '加载房型列表失败')
+      throw new Error(roomTypeResponse.message || t('accommodation.roomPrice.messages.loadRoomTypesFailed'))
     }
 
     plan.value = planResponse.data
@@ -411,7 +427,7 @@ async function loadPageData() {
     allRoomTypes.value = roomTypeResponse.data
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载房型价格失败'))
+      showWarningToast(resolveWarningMessage(error, t('settingsStage4.pricePlan.messages.loadRoomPricesFailed')))
     }
   } finally {
     loading.value = false
@@ -419,7 +435,7 @@ async function loadPageData() {
 }
 
 async function handleInvalidPricePlan(message?: string) {
-  showWarningToast(message || '价格计划不存在或已被删除')
+  showWarningToast(message || t('settingsResidual.priceRates.planNotFound'))
   await router.replace(ROUTE_PATHS.settingsPricePlans)
 }
 
@@ -465,18 +481,18 @@ function handleClearFutureOverridesChange(event: CustomEvent) {
 async function handleSaveRelation() {
   const userId = userStore.currentUser?.id
   if (!userId || !pricePlanId.value) {
-    showWarningToast('请先恢复当前用户信息')
+    showWarningToast(t('stage5Pattern.setup'))
     return
   }
 
   if (!relationForm.value.roomTypeId) {
-    showWarningToast('请选择房型')
+    showWarningToast(t('order.assignDialog.roomTypePlaceholder'))
     return
   }
 
   const maxGuests = Number(relationForm.value.maxGuests)
   if (!Number.isFinite(maxGuests) || maxGuests <= 0) {
-    showWarningToast('请输入有效的最大入住人数')
+    showWarningToast(t('stage5Pattern.enter'))
     return
   }
 
@@ -502,12 +518,12 @@ async function handleSaveRelation() {
     if (editingRelationId.value) {
       const response = await updateRoomTypePricePlan(editingRelationId.value, userId, payload)
       if (!response.success) {
-        throw new Error(response.message || '更新房型价格失败')
+        throw new Error(response.message || t('stage5Pattern.updateFailed'))
       }
       if (clearFutureOverridesOnSave.value) {
-        showSuccessToast('房型价格已更新，已清理未来按日期覆盖价')
+        showSuccessToast(t('stage5Pattern.updateCompleted'))
       } else {
-        showSuccessToast('房型价格已更新，保留未来按日期覆盖价')
+        showSuccessToast(t('stage5Pattern.updateCompleted'))
       }
     } else {
       const response = await assignPricePlanToRoomType(
@@ -517,16 +533,16 @@ async function handleSaveRelation() {
         payload,
       )
       if (!response.success) {
-        throw new Error(response.message || '新增房型价格失败')
+        throw new Error(response.message || t('stage5Pattern.createFailed'))
       }
-      showSuccessToast('房型价格已新增')
+      showSuccessToast(t('stage5Pattern.createCompleted'))
     }
 
     handleDismissEditor()
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存房型价格失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     submitting.value = false
@@ -540,7 +556,9 @@ async function handleDeleteRelation(relation: RoomTypePricePlanDTO) {
     return
   }
 
-  const clearOverrides = await confirmDelete(relation.roomType?.name || '该房型')
+  const clearOverrides = await confirmDelete(
+    relation.roomType?.name || t('settingsResidual.priceRates.roomTypePrice'),
+  )
   if (clearOverrides === null) {
     return
   }
@@ -548,19 +566,19 @@ async function handleDeleteRelation(relation: RoomTypePricePlanDTO) {
   try {
     const response = await deleteRoomTypePricePlan(relationId, userId, clearOverrides)
     if (!response.success) {
-      throw new Error(response.message || '删除房型价格失败')
+      throw new Error(response.message || t('stage5Pattern.deleteFailed'))
     }
     if (response.message) {
       showSuccessToast(response.message)
     } else if (clearOverrides) {
-      showSuccessToast('房型价格已删除，已清理按日期覆盖价')
+      showSuccessToast(t('stage5Pattern.deleteCompleted'))
     } else {
-      showSuccessToast('房型价格已解绑，保留按日期覆盖价')
+      showSuccessToast(t('stage5Pattern.operationCompleted'))
     }
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '删除房型价格失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.deleteFailed')))
     }
   }
 }

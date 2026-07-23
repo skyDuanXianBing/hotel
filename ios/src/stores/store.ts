@@ -15,8 +15,9 @@ import {
   STORES_KEY,
   writeStoredJson,
 } from '@/utils/storage'
+import { i18n } from '@/locales'
 
-const DELETE_STORE_SUCCESS_MESSAGE = '门店删除成功'
+const storeText = (key: string) => i18n.global.t(`runtime.store.${key}`)
 
 export const useStoreStore = defineStore('store', () => {
   const currentStore = ref<StoreDTO | null>(null)
@@ -48,7 +49,7 @@ export const useStoreStore = defineStore('store', () => {
     try {
       const response = await getUserStores()
       if (!response.success || !response.data) {
-        throw new Error(response.message || '获取门店列表失败')
+        throw new Error(response.message || storeText('loadFailed'))
       }
 
       setStores(response.data)
@@ -61,7 +62,7 @@ export const useStoreStore = defineStore('store', () => {
   const createStore = async (payload: StoreRequest) => {
     const response = await createStoreRequest(payload)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '创建门店失败')
+      throw new Error(response.message || storeText('createFailed'))
     }
 
     let nextStores: StoreDTO[] = []
@@ -85,14 +86,14 @@ export const useStoreStore = defineStore('store', () => {
 
     return {
       store: createdStore,
-      message: response.message || '门店创建成功',
+      message: response.message || storeText('createSuccess'),
     }
   }
 
   const deleteStore = async (storeId: number) => {
     const response = await deleteStoreRequest(storeId)
     if (!response.success) {
-      const error = new Error(response.message || '删除门店失败')
+      const error = new Error(response.message || storeText('deleteFailed'))
       const errorCode = (response.data as DeleteStoreErrorData | null)?.code
 
       if (errorCode) {
@@ -110,7 +111,7 @@ export const useStoreStore = defineStore('store', () => {
     }
 
     if (!response.message || response.message === 'Delete store success') {
-      return DELETE_STORE_SUCCESS_MESSAGE
+      return storeText('deleteSuccess')
     }
 
     return response.message

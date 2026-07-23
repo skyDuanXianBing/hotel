@@ -1,4 +1,5 @@
 import { ROUTE_PATHS } from '@/router/guards'
+import { i18n } from '@/locales'
 import type {
   CleanerContextDTO,
   CleanerDTO,
@@ -22,8 +23,7 @@ import {
 
 const LOGIN_TARGET_PMS: LoginTarget = 'PMS'
 const LOGIN_TARGET_CLEANER: LoginTarget = 'CLEANER'
-const INVALID_LOGIN_TARGET_MESSAGE = '登录响应缺少有效登录目标'
-const UNAVAILABLE_LOGIN_TARGET_MESSAGE = '当前账号无法进入所选工作台'
+const sessionError = (key: string) => i18n.global.t(`runtime.errors.${key}`)
 
 interface ApplyUnifiedLoginOptions {
   resetPmsCurrentStore?: boolean
@@ -86,7 +86,7 @@ export const selectLoginTargetFromAuthorizedResponse = (
   const availableTargets = normalizeAvailableLoginTargets(payload)
 
   if (!availableTargets.includes(target)) {
-    throw new Error(UNAVAILABLE_LOGIN_TARGET_MESSAGE)
+    throw new Error(sessionError('loginTargetUnavailable'))
   }
 
   if (target === LOGIN_TARGET_PMS) {
@@ -102,7 +102,7 @@ export const selectLoginTargetFromAuthorizedResponse = (
   const cleanerContext = payload.cleanerContexts?.find(isMatchingCleanerContext)
 
   if (!cleanerContext) {
-    throw new Error('登录响应缺少可用的保洁工作台信息')
+    throw new Error(sessionError('cleanerWorkspaceMissing'))
   }
 
   return {
@@ -118,7 +118,7 @@ const assertValidToken = (token: unknown) => {
   const normalizedToken = normalizeRequiredText(token)
 
   if (!normalizedToken) {
-    throw new Error('登录响应缺少有效令牌')
+    throw new Error(sessionError('tokenMissing'))
   }
 
   return normalizedToken
@@ -126,19 +126,19 @@ const assertValidToken = (token: unknown) => {
 
 const assertValidCleaner = (cleaner: CleanerDTO | null | undefined) => {
   if (!cleaner) {
-    throw new Error('登录响应缺少保洁员身份信息')
+    throw new Error(sessionError('cleanerIdentityMissing'))
   }
 
   if (!isPositiveNumber(cleaner.id) || !isPositiveNumber(cleaner.userId) || !isPositiveNumber(cleaner.storeId)) {
-    throw new Error('登录响应中的保洁员身份信息不完整')
+    throw new Error(sessionError('cleanerIdentityIncomplete'))
   }
 
   if (cleaner.isActive !== true) {
-    throw new Error('保洁员账号未启用，请联系管理员')
+    throw new Error(sessionError('cleanerAccountDisabled'))
   }
 
   if (!normalizeRequiredText(cleaner.email) || !normalizeRequiredText(cleaner.name)) {
-    throw new Error('登录响应中的保洁员资料不完整')
+    throw new Error(sessionError('cleanerProfileIncomplete'))
   }
 
   return cleaner
@@ -171,15 +171,15 @@ const resolveCleanerCurrentStore = (payload: LoginResponse, cleaner: CleanerDTO)
   const resolvedStore = currentStore ?? (targetStoreId ? findStoreById(payload.stores, targetStoreId) : null)
 
   if (!resolvedStore?.id) {
-    throw new Error('登录响应缺少当前保洁门店信息')
+    throw new Error(sessionError('cleanerStoreMissing'))
   }
 
   if (resolvedStore.id !== cleaner.storeId) {
-    throw new Error('登录响应中的保洁门店与保洁员身份不一致')
+    throw new Error(sessionError('cleanerStoreMismatch'))
   }
 
   if (targetStoreId && targetStoreId !== cleaner.storeId) {
-    throw new Error('登录响应中的目标门店与保洁员身份不一致')
+    throw new Error(sessionError('cleanerTargetStoreMismatch'))
   }
 
   return resolvedStore
@@ -192,7 +192,7 @@ const applyPmsLoginResponse = (
   const token = assertValidToken(payload.token)
 
   if (!payload.user) {
-    throw new Error('登录响应缺少用户信息')
+    throw new Error(sessionError('userMissing'))
   }
 
   const stores = Array.isArray(payload.stores) ? payload.stores : []
@@ -266,7 +266,7 @@ export const applyUnifiedLoginResponse = (
       return applyCleanerLoginResponse(payload)
     }
 
-    throw new Error(INVALID_LOGIN_TARGET_MESSAGE)
+    throw new Error(sessionError('loginTargetInvalid'))
   } catch (error) {
     clearAllLoginSessions()
     throw error

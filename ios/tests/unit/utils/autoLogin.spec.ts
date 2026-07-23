@@ -73,7 +73,7 @@ describe('autoLogin', () => {
     })
 
     const credentials = await loadRenewableAutoLoginCredentials(
-      now + AUTO_LOGIN_TEST_CONSTANTS.AUTO_LOGIN_MAX_IDLE_MS + 1,
+      Date.now() + AUTO_LOGIN_TEST_CONSTANTS.AUTO_LOGIN_MAX_IDLE_MS + 1,
     )
 
     expect(credentials).toBeNull()

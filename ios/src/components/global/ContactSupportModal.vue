@@ -2,9 +2,9 @@
   <ion-modal :is-open="isOpen" @didDismiss="handleDismiss">
     <ion-header>
       <ion-toolbar>
-        <ion-title>联系客服</ion-title>
+        <ion-title>{{ t('home.support.title') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="handleDismiss">关闭</ion-button>
+          <ion-button @click="handleDismiss">{{ t('home.support.close') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -15,25 +15,35 @@
           <article class="support-item">
             <div class="support-item__icon">📧</div>
             <div class="support-item__body">
-              <strong>客服邮箱</strong>
+              <strong>{{ t('home.support.email') }}</strong>
               <p>{{ supportContact.email }}</p>
             </div>
             <div class="support-item__actions">
-              <button type="button" class="support-btn" @click="handleCopyEmail">复制</button>
-              <button type="button" class="support-btn support-btn--primary" @click="handleSendEmail">发邮件</button>
+              <button type="button" class="support-btn" @click="handleCopyEmail">
+                {{ t('home.support.copy') }}
+              </button>
+              <button type="button" class="support-btn support-btn--primary" @click="handleSendEmail">
+                {{ t('home.support.sendEmail') }}
+              </button>
             </div>
           </article>
 
           <article class="support-item">
             <div class="support-item__icon">📞</div>
             <div class="support-item__body">
-              <strong>客服电话</strong>
+              <strong>{{ t('home.support.phone') }}</strong>
               <p>{{ supportContact.phone }}</p>
-              <span class="support-item__hours">服务时间: {{ supportContact.serviceHours }}</span>
+              <span class="support-item__hours">
+                {{ t('home.support.serviceHours', { hours: t('home.support.serviceHoursValue') }) }}
+              </span>
             </div>
             <div class="support-item__actions">
-              <button type="button" class="support-btn" @click="handleCopyPhone">复制</button>
-              <button type="button" class="support-btn support-btn--primary" @click="handleCallPhone">拨打</button>
+              <button type="button" class="support-btn" @click="handleCopyPhone">
+                {{ t('home.support.copy') }}
+              </button>
+              <button type="button" class="support-btn support-btn--primary" @click="handleCallPhone">
+                {{ t('home.support.call') }}
+              </button>
             </div>
           </article>
         </section>
@@ -52,6 +62,7 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/vue'
+import { useI18n } from 'vue-i18n'
 import { supportContact } from '@/constants/support'
 import { copyText } from '@/utils/clipboard'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
@@ -61,6 +72,8 @@ interface Props {
 }
 
 defineProps<Props>()
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   dismiss: []
@@ -73,21 +86,21 @@ const handleDismiss = () => {
 const handleCopyEmail = async () => {
   const copied = await copyText(supportContact.email)
   if (copied) {
-    showSuccessToast('邮箱已复制')
+    showSuccessToast(t('home.support.emailCopied'))
     return
   }
 
-  showWarningToast('当前环境暂不支持复制邮箱')
+  showWarningToast(t('home.support.emailCopyUnavailable'))
 }
 
 const handleCopyPhone = async () => {
   const copied = await copyText(supportContact.phone)
   if (copied) {
-    showSuccessToast('电话已复制')
+    showSuccessToast(t('home.support.phoneCopied'))
     return
   }
 
-  showWarningToast('当前环境暂不支持复制电话')
+  showWarningToast(t('home.support.phoneCopyUnavailable'))
 }
 
 const handleSendEmail = () => {
@@ -127,7 +140,7 @@ const handleCallPhone = () => {
   align-items: center;
   gap: 12px;
   padding: 16px;
-  border-radius: 16px;
+  border-radius: 8px;
   border: 1px solid var(--app-border);
   background: var(--app-surface-strong);
 }
@@ -138,7 +151,7 @@ const handleCallPhone = () => {
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--app-primary-soft);
   font-size: 18px;
 }
@@ -172,7 +185,7 @@ const handleCallPhone = () => {
 .support-btn {
   padding: 8px 14px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: 8px;
   background: transparent;
   color: var(--app-heading);
   font: inherit;

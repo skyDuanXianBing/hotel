@@ -4,44 +4,117 @@ import type {
   RegistrationFormStatus,
 } from '@/types/publicRegistration'
 import {
+  DEFAULT_LOCALE,
+  LOCALE_STORAGE_KEY,
+  i18n,
+  isSupportedLocale,
+  resolveLocale,
+  type SupportedLocale,
+} from '@/locales'
+import {
   formatBusinessDateLabel,
   formatStoreDateTime,
 } from '@/utils/storeBusinessDate'
 
 export const PUBLIC_REGISTRATION_LANGUAGE_KEY = 'registrationLang'
 
-const PUBLIC_REGISTRATION_LANGUAGES: PublicRegistrationLanguage[] = ['en', 'ja', 'zh', 'ko']
+export const PUBLIC_REGISTRATION_LANGUAGES: PublicRegistrationLanguage[] = [
+  'zh-CN',
+  'zh-TW',
+  'en',
+  'ja',
+]
+
+export type PublicRegistrationErrorKey =
+  | 'missingToken'
+  | 'invalidToken'
+  | 'expiredLink'
+  | 'invalidOrExpiredLink'
+  | 'loadFailed'
+  | 'saveFailed'
+  | 'submitFailed'
+  | 'passportUploadFailed'
+  | 'readImageFailed'
+  | 'loadImageFailed'
+  | 'compressFailed'
+
+const publicRegistrationErrorKeyByMessage: Record<string, PublicRegistrationErrorKey> = {
+  缺少token: 'missingToken',
+  token格式错误: 'invalidToken',
+  token无效: 'invalidOrExpiredLink',
+  链接已过期: 'expiredLink',
+  readImageFailed: 'readImageFailed',
+  loadImageFailed: 'loadImageFailed',
+  compressFailed: 'compressFailed',
+}
+
+const getLanguageValue = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value.find((item): item is string => typeof item === 'string') || ''
+  }
+
+  return typeof value === 'string' ? value : ''
+}
+
+export const normalizePublicRegistrationLanguage = (
+  value: unknown,
+): PublicRegistrationLanguage | '' => {
+  const rawValue = getLanguageValue(value).trim()
+  if (!rawValue) {
+    return ''
+  }
+
+  if (isSupportedLocale(rawValue)) {
+    return rawValue
+  }
+
+  const normalized = rawValue.toLowerCase()
+  if (normalized === 'zh' || normalized.startsWith('zh-hans')) {
+    return 'zh-CN'
+  }
+  if (
+    normalized.startsWith('zh-tw') ||
+    normalized.startsWith('zh-hk') ||
+    normalized.startsWith('zh-mo') ||
+    normalized.startsWith('zh-hant')
+  ) {
+    return 'zh-TW'
+  }
+  if (normalized.startsWith('ja')) {
+    return 'ja'
+  }
+  if (normalized.startsWith('en')) {
+    return 'en'
+  }
+  if (normalized.startsWith('ko')) {
+    return 'en'
+  }
+
+  return ''
+}
 
 export const isPublicRegistrationLanguage = (
   value: unknown,
 ): value is PublicRegistrationLanguage => {
-  if (typeof value !== 'string') {
-    return false
-  }
-
-  return PUBLIC_REGISTRATION_LANGUAGES.includes(value as PublicRegistrationLanguage)
+  return typeof value === 'string' && isSupportedLocale(value)
 }
 
 export const detectPublicRegistrationLanguage = (): PublicRegistrationLanguage => {
   if (typeof navigator === 'undefined') {
-    return 'en'
+    return DEFAULT_LOCALE
   }
 
-  const browserLanguage = navigator.language.toLowerCase()
-
-  if (browserLanguage.startsWith('ja')) {
-    return 'ja'
+  const browserLanguages = navigator.languages?.length
+    ? navigator.languages
+    : [navigator.language]
+  for (const browserLanguage of browserLanguages) {
+    const resolvedLanguage = normalizePublicRegistrationLanguage(browserLanguage)
+    if (resolvedLanguage) {
+      return resolvedLanguage
+    }
   }
 
-  if (browserLanguage.startsWith('zh')) {
-    return 'zh'
-  }
-
-  if (browserLanguage.startsWith('ko')) {
-    return 'ko'
-  }
-
-  return 'en'
+  return DEFAULT_LOCALE
 }
 
 export const readPublicRegistrationLanguage = () => {
@@ -49,12 +122,9 @@ export const readPublicRegistrationLanguage = () => {
     return ''
   }
 
-  const storedLanguage = window.localStorage.getItem(PUBLIC_REGISTRATION_LANGUAGE_KEY)
-  if (!isPublicRegistrationLanguage(storedLanguage)) {
-    return ''
-  }
-
-  return storedLanguage
+  return normalizePublicRegistrationLanguage(
+    window.localStorage.getItem(PUBLIC_REGISTRATION_LANGUAGE_KEY),
+  )
 }
 
 export const writePublicRegistrationLanguage = (language: PublicRegistrationLanguage) => {
@@ -66,9 +136,9 @@ export const writePublicRegistrationLanguage = (language: PublicRegistrationLang
 }
 
 export const resolvePublicRegistrationLanguage = (queryLanguage: unknown) => {
-  if (isPublicRegistrationLanguage(queryLanguage)) {
-    writePublicRegistrationLanguage(queryLanguage)
-    return queryLanguage
+  const resolvedQueryLanguage = normalizePublicRegistrationLanguage(queryLanguage)
+  if (resolvedQueryLanguage) {
+    return resolvedQueryLanguage
   }
 
   const storedLanguage = readPublicRegistrationLanguage()
@@ -76,15 +146,43 @@ export const resolvePublicRegistrationLanguage = (queryLanguage: unknown) => {
     return storedLanguage
   }
 
+  if (typeof window !== 'undefined') {
+    const appLanguage = normalizePublicRegistrationLanguage(
+      window.localStorage.getItem(LOCALE_STORAGE_KEY),
+    )
+    if (appLanguage) {
+      return appLanguage
+    }
+  }
+
   return detectPublicRegistrationLanguage()
 }
 
-export const formatPublicDate = (value?: string | null) => {
-  return formatBusinessDateLabel(value, 'date')
+export const resolvePublicRegistrationErrorKey = (
+  message?: string | null,
+  fallback: PublicRegistrationErrorKey = 'loadFailed',
+) => {
+  const normalizedMessage = String(message || '').trim()
+  if (!normalizedMessage) {
+    return fallback
+  }
+
+  return publicRegistrationErrorKeyByMessage[normalizedMessage] || fallback
 }
 
-export const formatPublicDateTime = (value?: string | null) => {
-  return formatStoreDateTime(value)
+export const formatPublicDate = (
+  value?: string | null,
+  locale: SupportedLocale = resolveLocale(i18n.global.locale.value),
+) => {
+  return formatBusinessDateLabel(value, 'date', '-', locale)
+}
+
+export const formatPublicDateTime = (
+  value?: string | null,
+  locale: SupportedLocale = resolveLocale(i18n.global.locale.value),
+  storeTimeZone?: string | null,
+) => {
+  return formatStoreDateTime(value, 'date-time', '-', storeTimeZone, locale)
 }
 
 export const resolveRegistrationStatusColor = (status?: RegistrationFormStatus) => {
@@ -166,14 +264,14 @@ export const compressImageIfNeeded = async (file: File) => {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(new Error('图片读取失败'))
+    reader.onerror = () => reject(new Error('readImageFailed'))
     reader.readAsDataURL(file)
   })
 
   const imageElement = await new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image()
     image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('图片加载失败'))
+    image.onerror = () => reject(new Error('loadImageFailed'))
     image.src = dataUrl
   })
 
@@ -197,7 +295,7 @@ export const compressImageIfNeeded = async (file: File) => {
     canvas.toBlob(
       (blob) => {
         if (!blob) {
-          reject(new Error('图片压缩失败'))
+          reject(new Error('compressFailed'))
           return
         }
 

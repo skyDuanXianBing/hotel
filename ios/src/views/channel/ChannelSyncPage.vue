@@ -11,7 +11,7 @@
 
     <ion-content fullscreen class="mobile-page channel-sync-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新同步状态" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('channel.mobile.refreshSync')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <section v-if="channelView" class="mobile-hero channel-sync-hero">
@@ -21,10 +21,10 @@
             {{ channelView.statusLabel }}
           </span>
           <span class="mobile-chip channel-sync-hero__chip channel-sync-hero__chip--metric">
-            房型 {{ syncMappedRoomCount }}
+            {{ $t('channel.mobile.common.roomTypes') }} {{ syncMappedRoomCount }}
           </span>
           <span class="mobile-chip channel-sync-hero__chip channel-sync-hero__chip--metric">
-            范围 {{ syncDays }} 天
+            {{ $t('channel.mobile.dayRange', { count: syncDays }) }}
           </span>
         </div>
       </section>
@@ -34,7 +34,7 @@
           <div class="channel-sync-page__toolbar-head">
             <div class="channel-sync-page__toolbar-main">
               <strong>{{ syncOverviewText }}</strong>
-              <p>先选范围，再执行日历同步或完整刷新</p>
+              <p>{{ $t('channel.mobile.sync.description') }}</p>
             </div>
             <div class="channel-sync-page__toolbar-side">
               <ion-spinner v-if="loading || actionLoading" name="crescent" />
@@ -44,7 +44,7 @@
                 class="channel-sync-page__action-secondary"
                 @click="reloadSyncPage"
               >
-                刷新
+                {{ $t('channel.mobile.common.refresh') }}
               </ion-button>
             </div>
           </div>
@@ -55,13 +55,13 @@
             @ionChange="handleSyncDaysChange"
           >
             <ion-segment-button value="30">
-              <ion-label>30 天</ion-label>
+              <ion-label>{{ $t('channel.mobile.days', { count: 30 }) }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="90">
-              <ion-label>90 天</ion-label>
+              <ion-label>{{ $t('channel.mobile.days', { count: 90 }) }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="365">
-              <ion-label>365 天</ion-label>
+              <ion-label>{{ $t('channel.mobile.days', { count: 365 }) }}</ion-label>
             </ion-segment-button>
           </ion-segment>
 
@@ -71,7 +71,7 @@
               :disabled="!canRunSync || actionLoading"
               @click="handleCalendarSync"
             >
-              {{ actionLoading && runningAction === 'calendar' ? '同步中...' : '日历同步' }}
+              {{ actionLoading && runningAction === 'calendar' ? $t('channel.mobile.sync.syncing') : $t('channel.mobile.sync.calendar') }}
             </ion-button>
             <ion-button
               fill="outline"
@@ -79,7 +79,7 @@
               :disabled="!canRunSync || actionLoading"
               @click="handleFullRefresh"
             >
-              {{ actionLoading && runningAction === 'full-refresh' ? '刷新中...' : '全量刷新' }}
+              {{ actionLoading && runningAction === 'full-refresh' ? $t('channel.mobile.sync.refreshing') : $t('channel.mobile.sync.fullRefresh') }}
             </ion-button>
             <ion-button
               v-if="capability.supportsInventorySettings"
@@ -88,7 +88,7 @@
               :disabled="actionLoading"
               @click="openInventoryPage"
             >
-              房量设置
+              {{ $t('channel.mobile.sync.inventorySettings') }}
             </ion-button>
           </div>
 
@@ -99,7 +99,7 @@
 
         <section class="mobile-card channel-sync-page__result-card">
           <div class="channel-sync-page__section-heading">
-            <h2 class="mobile-section-title">执行反馈</h2>
+            <h2 class="mobile-section-title">{{ $t('channel.mobile.sync.feedback') }}</h2>
             <p class="mobile-note">{{ syncResultsSummaryText }}</p>
           </div>
 
@@ -121,13 +121,15 @@
           </div>
 
           <p v-else class="mobile-note channel-sync-page__empty">
-            尚未在当前会话执行同步动作。
+            {{ $t('channel.mobile.sync.noResults') }}
           </p>
         </section>
       </div>
 
       <section v-else class="mobile-card">
-        <p class="mobile-note">{{ loading ? '同步信息加载中...' : '未找到该渠道配置。' }}</p>
+        <p class="mobile-note">
+          {{ loading ? $t('channel.mobile.sync.loading') : $t('channel.mobile.common.notFound') }}
+        </p>
       </section>
     </ion-content>
   </ion-page>
@@ -154,6 +156,7 @@ import {
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { buildChannelDetailPath, buildChannelInventoryPath } from '@/router/guards'
 import {
@@ -189,6 +192,7 @@ type RunningAction = 'calendar' | 'full-refresh' | ''
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const loading = ref(false)
 const actionLoading = ref(false)
@@ -209,9 +213,9 @@ const channelView = computed(() => {
 const capability = computed(() => getChannelActionCapability(channel.value?.code))
 const pageTitle = computed(() => {
   if (!channelView.value) {
-    return '渠道同步'
+    return t('routes.ChannelSync')
   }
-  return `${channelView.value.name} · 同步`
+  return `${channelView.value.name} · ${t('routes.ChannelSync')}`
 })
 const canRunSync = computed(() => {
   if (!channelView.value) {
@@ -224,13 +228,13 @@ const canRunSync = computed(() => {
 })
 const syncBlockedMessage = computed(() => {
   if (!channelView.value) {
-    return '未找到该渠道配置。'
+    return t('channel.mobile.common.notFound')
   }
   if (!channelView.value.isConnected) {
-    return '请先完成授权或重连，再执行同步动作。'
+    return t('channel.mobile.sync.authorizeFirst')
   }
   if (!capability.value.supportsSu) {
-    return '当前渠道没有可用的同步接口，移动端暂不支持直接执行同步。'
+    return t('channel.mobile.sync.unsupported')
   }
   return ''
 })
@@ -239,18 +243,22 @@ const syncActiveRatePlanCount = computed(() => Number(mappingStatus.value?.activ
 const syncMappingNotice = computed(() => resolveMappingStatusNotice(mappingStatus.value?.error))
 const syncOverviewText = computed(() => {
   if (!channelView.value) {
-    return '同步面板待刷新'
+    return t('channel.mobile.sync.pendingRefresh')
   }
   if (!capability.value.supportsSu) {
-    return '当前渠道不支持同步动作'
+    return t('channel.mobile.sync.unsupportedTitle')
   }
   if (!channelView.value.isConnected) {
-    return '完成授权后可执行同步'
+    return t('channel.mobile.sync.authorizeTitle')
   }
   if (syncMappedRoomCount.value === 0 && syncActiveRatePlanCount.value === 0) {
-    return `已授权 · 范围 ${syncDays.value} 天`
+    return t('channel.mobile.sync.authorizedOverview', { days: syncDays.value })
   }
-  return `房型 ${syncMappedRoomCount.value} · 活跃价盘 ${syncActiveRatePlanCount.value} · 范围 ${syncDays.value} 天`
+  return t('channel.mobile.sync.overview', {
+    rooms: syncMappedRoomCount.value,
+    ratePlans: syncActiveRatePlanCount.value,
+    days: syncDays.value,
+  })
 })
 const syncCombinedNotice = computed(() => {
   return joinUniqueMessages([
@@ -261,10 +269,10 @@ const syncCombinedNotice = computed(() => {
 })
 const syncResultsSummaryText = computed(() => {
   if (actionLoading.value && stageResults.value.length === 0) {
-    return '同步执行中，完成后会显示各阶段结果'
+    return t('channel.mobile.sync.runningSummary')
   }
   if (stageResults.value.length === 0) {
-    return '最近执行的阶段结果会显示在这里'
+    return t('channel.mobile.sync.resultSummary')
   }
 
   let successCount = 0
@@ -285,15 +293,15 @@ const syncResultsSummaryText = computed(() => {
     }
   }
 
-  const pieces = [`共 ${stageResults.value.length} 个阶段`]
+  const pieces = [t('channel.mobile.sync.stageCount', { count: stageResults.value.length })]
   if (successCount > 0) {
-    pieces.push(`成功 ${successCount}`)
+    pieces.push(t('channel.mobile.sync.successCount', { count: successCount }))
   }
   if (warningCount > 0) {
-    pieces.push(`待处理 ${warningCount}`)
+    pieces.push(t('channel.mobile.sync.pendingCount', { count: warningCount }))
   }
   if (dangerCount > 0) {
-    pieces.push(`失败 ${dangerCount}`)
+    pieces.push(t('channel.mobile.sync.failedCount', { count: dangerCount }))
   }
   return pieces.join(' · ')
 })
@@ -318,7 +326,7 @@ function joinUniqueMessages(messages: Array<string | null | undefined>) {
 
 function ensureCanRunSyncAction() {
   if (!canRunSync.value || !channelView.value) {
-    showWarningToast(syncBlockedMessage.value || '当前无法执行同步动作')
+    showWarningToast(syncBlockedMessage.value || t('channel.mobile.sync.unavailable'))
     return false
   }
 
@@ -329,7 +337,7 @@ function buildSuccessStage(key: string, label: string, message: string): SyncSta
   return {
     key,
     label,
-    statusLabel: '成功',
+    statusLabel: t('channel.mobile.common.success'),
     statusColor: 'success',
     message,
   }
@@ -339,7 +347,7 @@ function buildWarningStage(key: string, label: string, message: string): SyncSta
   return {
     key,
     label,
-    statusLabel: '待处理',
+    statusLabel: t('channel.mobile.common.pending'),
     statusColor: 'warning',
     message,
   }
@@ -349,7 +357,7 @@ function buildDangerStage(key: string, label: string, message: string): SyncStag
   return {
     key,
     label,
-    statusLabel: '失败',
+    statusLabel: t('channel.mobile.common.failed'),
     statusColor: 'danger',
     message,
   }
@@ -366,14 +374,14 @@ async function loadPage() {
   try {
     const detailResponse = await getOtaIntegrationById(otaId.value)
     if (!detailResponse.success || !detailResponse.data) {
-      throw new Error(detailResponse.message || '加载渠道同步信息失败')
+      throw new Error(detailResponse.message || t('channel.mobile.sync.loadFailed'))
     }
 
     channel.value = detailResponse.data
     const nextCapability = getChannelActionCapability(detailResponse.data.code)
     if (!nextCapability.supportsSu) {
       mappingStatus.value = null
-      loadNotice.value = '当前渠道没有 Su 同步能力，无法在移动端执行同步。'
+      loadNotice.value = t('channel.mobile.sync.noSuCapability')
       return
     }
 
@@ -383,7 +391,7 @@ async function loadPage() {
     )
     if (!mappingResponse.success) {
       mappingStatus.value = null
-      loadNotice.value = mappingResponse.message || '映射摘要加载失败'
+      loadNotice.value = mappingResponse.message || t('channel.mobile.sync.mappingSummaryFailed')
       return
     }
 
@@ -403,15 +411,17 @@ function getSyncDaysValue() {
 
 async function confirmFullRefresh() {
   const alert = await alertController.create({
-    header: '执行全量刷新',
-    message: `将按房型、价盘、ARI 顺序刷新 ${getSyncDaysValue()} 天范围的数据，确认继续吗？`,
+    header: t('channel.mobile.sync.confirmTitle'),
+    message: t('channel.mobile.sync.confirmMessage', {
+      days: getSyncDaysValue(),
+    }),
     buttons: [
       {
-        text: '取消',
+        text: t('channel.mobile.common.cancel'),
         role: 'cancel',
       },
       {
-        text: '确认执行',
+        text: t('channel.mobile.sync.confirm'),
         role: 'confirm',
       },
     ],
@@ -429,7 +439,7 @@ async function handleCalendarSync() {
 
   const currentChannelView = channelView.value
   if (!currentChannelView) {
-    showWarningToast(syncBlockedMessage.value || '当前无法执行同步动作')
+    showWarningToast(syncBlockedMessage.value || t('channel.mobile.sync.unavailable'))
     return
   }
 
@@ -444,43 +454,55 @@ async function handleCalendarSync() {
     const availabilityResponse = await syncSuAvailability(currentChannelView.id, days)
     if (!availabilityResponse.success || !availabilityResponse.data) {
       nextResults.push(
-        buildDangerStage('availability', '房量同步', availabilityResponse.message || '房量同步失败'),
+        buildDangerStage(
+          'availability',
+          t('channel.mobile.sync.inventorySync'),
+          availabilityResponse.message || t('channel.mobile.sync.inventorySyncFailed'),
+        ),
       )
     } else if (availabilityResponse.data.availabilitySynced) {
       nextResults.push(
         buildSuccessStage(
           'availability',
-          '房量同步',
-          `已同步 ${availabilityResponse.data.roomCount} 个房型，范围 ${availabilityResponse.data.days} 天`,
+          t('channel.mobile.sync.inventorySync'),
+          t('channel.mobile.sync.inventorySyncResult', {
+            rooms: availabilityResponse.data.roomCount,
+            days: availabilityResponse.data.days,
+          }),
         ),
       )
     } else {
       nextResults.push(
         buildWarningStage(
           'availability',
-          '房量同步',
-          availabilityResponse.data.availabilityError || '房量同步未完成，请稍后重试',
+          t('channel.mobile.sync.inventorySync'),
+          availabilityResponse.data.availabilityError || t('channel.mobile.sync.inventorySyncPending'),
         ),
       )
     }
 
     const ratesResponse = await syncSuRates(currentChannelView.id, days)
     if (!ratesResponse.success || !ratesResponse.data) {
-      nextResults.push(buildDangerStage('rates', '价格同步', ratesResponse.message || '价格同步失败'))
+      nextResults.push(
+        buildDangerStage('rates', t('channel.mobile.sync.rateSync'), ratesResponse.message || t('channel.mobile.sync.rateSyncFailed')),
+      )
     } else if (ratesResponse.data.rateSynced) {
       nextResults.push(
         buildSuccessStage(
           'rates',
-          '价格同步',
-          `已推送 ${ratesResponse.data.combinationsPushed} 个组合，缺价跳过 ${ratesResponse.data.combinationsSkippedNoPrice}`,
+          t('channel.mobile.sync.rateSync'),
+          t('channel.mobile.sync.rateSyncResult', {
+            pushed: ratesResponse.data.combinationsPushed,
+            skipped: ratesResponse.data.combinationsSkippedNoPrice,
+          }),
         ),
       )
     } else {
       nextResults.push(
         buildWarningStage(
           'rates',
-          '价格同步',
-          ratesResponse.data.error || '价格同步未完成，请检查价盘映射',
+          t('channel.mobile.sync.rateSync'),
+          ratesResponse.data.error || t('channel.mobile.sync.rateSyncPending'),
         ),
       )
     }
@@ -488,14 +510,14 @@ async function handleCalendarSync() {
     stageResults.value = nextResults
     const hasFailure = nextResults.some((item) => item.statusColor !== 'success')
     if (hasFailure) {
-      showWarningToast('日历同步已执行，请查看阶段结果')
+      showWarningToast(t('channel.mobile.sync.calendarReview'))
     } else {
-      showSuccessToast('日历同步完成')
+      showSuccessToast(t('channel.mobile.sync.calendarComplete'))
     }
     await loadPage()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '日历同步失败'))
+      showWarningToast(resolveWarningMessage(error, t('channel.mobile.sync.calendarFailed')))
     }
   } finally {
     actionLoading.value = false
@@ -510,7 +532,7 @@ async function handleFullRefresh() {
 
   const currentChannelView = channelView.value
   if (!currentChannelView) {
-    showWarningToast(syncBlockedMessage.value || '当前无法执行同步动作')
+    showWarningToast(syncBlockedMessage.value || t('channel.mobile.sync.unavailable'))
     return
   }
 
@@ -529,66 +551,88 @@ async function handleFullRefresh() {
 
     const roomsResponse = await syncSuRooms(currentChannelView.id)
     if (!roomsResponse.success || !roomsResponse.data) {
-      nextResults.push(buildDangerStage('rooms', '房型刷新', roomsResponse.message || '房型刷新失败'))
+      nextResults.push(
+        buildDangerStage('rooms', t('channel.mobile.sync.roomRefresh'), roomsResponse.message || t('channel.mobile.sync.roomRefreshFailed')),
+      )
     } else if (roomsResponse.data.roomsSynced) {
       nextResults.push(
-        buildSuccessStage('rooms', '房型刷新', `已刷新 ${roomsResponse.data.roomCount} 个房型`),
+        buildSuccessStage(
+          'rooms',
+          t('channel.mobile.sync.roomRefresh'),
+          t('channel.mobile.sync.roomRefreshResult', { count: roomsResponse.data.roomCount }),
+        ),
       )
     } else {
       nextResults.push(
-        buildWarningStage('rooms', '房型刷新', roomsResponse.data.roomsError || '房型刷新未完成'),
+        buildWarningStage(
+          'rooms',
+          t('channel.mobile.sync.roomRefresh'),
+          roomsResponse.data.roomsError || t('channel.mobile.sync.roomRefreshPending'),
+        ),
       )
     }
 
     const ratePlansResponse = await syncSuRatePlans(currentChannelView.id)
     if (!ratePlansResponse.success || !ratePlansResponse.data) {
       nextResults.push(
-        buildDangerStage('rate-plans', '价盘刷新', ratePlansResponse.message || '价盘刷新失败'),
+        buildDangerStage(
+          'rate-plans',
+          t('channel.mobile.sync.ratePlanRefresh'),
+          ratePlansResponse.message || t('channel.mobile.sync.ratePlanRefreshFailed'),
+        ),
       )
     } else if (ratePlansResponse.data.ratePlansSynced) {
       nextResults.push(
         buildSuccessStage(
           'rate-plans',
-          '价盘刷新',
-          `已刷新 ${ratePlansResponse.data.pricePlanCount} 个价盘`,
+          t('channel.mobile.sync.ratePlanRefresh'),
+          t('channel.mobile.sync.ratePlanRefreshResult', { count: ratePlansResponse.data.pricePlanCount }),
         ),
       )
     } else {
       nextResults.push(
         buildWarningStage(
           'rate-plans',
-          '价盘刷新',
-          ratePlansResponse.data.ratePlansError || '价盘刷新未完成',
+          t('channel.mobile.sync.ratePlanRefresh'),
+          ratePlansResponse.data.ratePlansError || t('channel.mobile.sync.ratePlanRefreshPending'),
         ),
       )
     }
 
     const ariResponse = await syncSuAri(currentChannelView.id, days)
     if (!ariResponse.success || !ariResponse.data) {
-      nextResults.push(buildDangerStage('ari', 'ARI 推送', ariResponse.message || 'ARI 推送失败'))
+      nextResults.push(
+        buildDangerStage('ari', t('channel.mobile.sync.ariPush'), ariResponse.message || t('channel.mobile.sync.ariPushFailed')),
+      )
     } else if (ariResponse.data.availabilityPushed || ariResponse.data.ratesPushed) {
       nextResults.push(
         buildSuccessStage(
           'ari',
-          'ARI 推送',
-          `已处理 ${ariResponse.data.roomCount} 个房型、${ariResponse.data.ratePlanCount} 个价盘，范围 ${ariResponse.data.days} 天`,
+          t('channel.mobile.sync.ariPush'),
+          t('channel.mobile.sync.ariPushResult', {
+            rooms: ariResponse.data.roomCount,
+            ratePlans: ariResponse.data.ratePlanCount,
+            days: ariResponse.data.days,
+          }),
         ),
       )
     } else {
-      nextResults.push(buildWarningStage('ari', 'ARI 推送', ariResponse.data.error || 'ARI 推送未完成'))
+      nextResults.push(
+        buildWarningStage('ari', t('channel.mobile.sync.ariPush'), ariResponse.data.error || t('channel.mobile.sync.ariPushPending')),
+      )
     }
 
     stageResults.value = nextResults
     const hasFailure = nextResults.some((item) => item.statusColor !== 'success')
     if (hasFailure) {
-      showWarningToast('全量刷新已执行，请查看阶段结果')
+      showWarningToast(t('channel.mobile.sync.fullRefreshReview'))
     } else {
-      showSuccessToast('全量刷新完成')
+      showSuccessToast(t('channel.mobile.sync.fullRefreshComplete'))
     }
     await loadPage()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '全量刷新失败'))
+      showWarningToast(resolveWarningMessage(error, t('channel.mobile.sync.fullRefreshFailed')))
     }
   } finally {
     actionLoading.value = false
@@ -605,7 +649,7 @@ async function reloadSyncPage() {
     await loadPage()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '刷新同步状态失败'))
+      showWarningToast(resolveWarningMessage(error, t('channel.mobile.sync.refreshStatusFailed')))
     }
   }
 }
@@ -630,7 +674,7 @@ async function maybeHandleAutoAction() {
     await handleFullRefresh()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '同步动作执行失败'))
+      showWarningToast(resolveWarningMessage(error, t('channel.mobile.sync.actionFailed')))
     }
   }
 }
@@ -676,12 +720,16 @@ onIonViewWillEnter(async () => {
 }
 
 .channel-sync-hero__chip {
+  max-width: 100%;
   min-height: 28px;
   padding: 0 12px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
   backdrop-filter: blur(10px);
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
 }
 
 .channel-sync-hero__chip--status {
@@ -791,6 +839,11 @@ onIonViewWillEnter(async () => {
   font-size: 12px;
 }
 
+.channel-sync-page__range-segment ion-segment-button::part(native),
+.channel-sync-page__actions ion-button::part(native) {
+  white-space: normal;
+}
+
 .channel-sync-page__actions {
   margin-top: 16px;
 }
@@ -884,6 +937,9 @@ onIonViewWillEnter(async () => {
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
+  max-width: 45%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .channel-sync-page__empty {

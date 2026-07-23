@@ -17,12 +17,19 @@
       <div class="notif-banner__body">
         <div class="notif-banner__title-row">
           <strong>{{ item.title }}</strong>
-          <span class="notif-banner__type">{{ item.type === 'order' ? '订单' : '消息' }}</span>
+          <span class="notif-banner__type">
+            {{ t(item.type === 'order' ? 'notification.type.order' : 'notification.type.message') }}
+          </span>
         </div>
         <p class="notif-banner__content">{{ item.content }}</p>
       </div>
 
-      <button class="notif-banner__close" type="button" @click.stop="handleDismiss(item.id)">
+      <button
+        class="notif-banner__close"
+        type="button"
+        :aria-label="t('notification.dismiss')"
+        @click.stop="handleDismiss(item.id)"
+      >
         <ion-icon :icon="closeOutline" />
       </button>
     </article>
@@ -33,6 +40,7 @@
 import { IonIcon } from '@ionic/vue'
 import { chatbubbleOutline, closeOutline, receiptOutline } from 'ionicons/icons'
 import { onBeforeUnmount, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
@@ -40,6 +48,7 @@ import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const { t } = useI18n()
 const authStore = useAuthStore()
 const notificationCenterStore = useNotificationCenterStore()
 const userStore = useUserStore()

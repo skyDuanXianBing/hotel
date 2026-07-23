@@ -1,8 +1,8 @@
-import type { Router } from 'vue-router'
+import { watch } from 'vue'
+import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
+import { i18n } from '@/locales'
 import { hasCleanerSession, hasCleanerStore } from '@/utils/cleanerSession'
 import { hasStoredCurrentStore, hasStoredToken } from '@/utils/storage'
-
-const APP_TITLE = '房东智控中心（THE HOST HUB）'
 
 export const ROUTE_PATHS = {
   login: '/auth/login',
@@ -141,15 +141,31 @@ export const resolveDefaultAuthenticatedPath = () => {
 }
 
 const buildDocumentTitle = (title?: string) => {
+  const appTitle = i18n.global.t('app.name')
   if (!title) {
-    return APP_TITLE
+    return appTitle
   }
 
-  if (title === APP_TITLE) {
-    return APP_TITLE
+  if (title === appTitle) {
+    return appTitle
   }
 
-  return `${title} - ${APP_TITLE}`
+  return `${title} - ${appTitle}`
+}
+
+export const updateDocumentTitle = (route: RouteLocationNormalizedLoaded) => {
+  if (typeof document === 'undefined') {
+    return
+  }
+
+  const titleKey = typeof route.meta.titleKey === 'string' ? route.meta.titleKey : ''
+  const routeName = typeof route.name === 'string' ? route.name : ''
+  const routeTitleKey = titleKey || (routeName ? `routes.${routeName}` : '')
+  const translatedTitle = routeTitleKey && i18n.global.te(routeTitleKey)
+    ? i18n.global.t(routeTitleKey)
+    : route.meta.title
+
+  document.title = buildDocumentTitle(translatedTitle)
 }
 
 const hasRouteParamValue = (param: unknown) => {
@@ -161,7 +177,7 @@ const hasRouteParamValue = (param: unknown) => {
 }
 
 export const registerRouterGuards = (router: Router) => {
-  router.beforeEach((to) => {
+  const removeBeforeEach = router.beforeEach((to) => {
     const hasAdminToken = hasStoredToken()
     const hasAdminStore = hasStoredCurrentStore()
     const hasCleanerLoginSession = hasCleanerSession()
@@ -237,11 +253,17 @@ export const registerRouterGuards = (router: Router) => {
     return true
   })
 
-  router.afterEach((to) => {
-    if (typeof document === 'undefined') {
-      return
-    }
+  const removeAfterEach = router.afterEach(updateDocumentTitle)
 
-    document.title = buildDocumentTitle(to.meta.title)
-  })
+  const stopLocaleWatch = watch(
+    () => i18n.global.locale.value,
+    () => updateDocumentTitle(router.currentRoute.value),
+    { flush: 'sync' },
+  )
+
+  return () => {
+    removeBeforeEach?.()
+    removeAfterEach?.()
+    stopLocaleWatch()
+  }
 }

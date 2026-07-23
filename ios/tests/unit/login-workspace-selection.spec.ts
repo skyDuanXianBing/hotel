@@ -1,4 +1,5 @@
-import { describe, expect, test } from 'vitest'
+import { beforeEach, describe, expect, test } from 'vitest'
+import { i18n } from '@/locales'
 import type { CleanerDTO, LoginResponse, UserDTO } from '@/types/auth'
 import type { StoreDTO } from '@/types/store'
 import {
@@ -66,6 +67,10 @@ const buildMultiWorkspaceResponse = (): LoginResponse => {
 }
 
 describe('login workspace selection', () => {
+  beforeEach(() => {
+    i18n.global.locale.value = 'zh-CN'
+  })
+
   test('normalizes route workspace intent and ignores unknown values', () => {
     expect(normalizePreferredLoginTarget(' cleaner ')).toBe('CLEANER')
     expect(normalizePreferredLoginTarget('PMS')).toBe('PMS')
@@ -128,5 +133,20 @@ describe('login workspace selection', () => {
         'CLEANER',
       ),
     ).toThrow('登录响应缺少可用的保洁工作台信息')
+  })
+
+  test('localizes workspace validation errors using the current app language', () => {
+    i18n.global.locale.value = 'en'
+    const response = buildMultiWorkspaceResponse()
+
+    expect(() =>
+      selectLoginTargetFromAuthorizedResponse(
+        {
+          ...response,
+          availableLoginTargets: ['PMS'],
+        },
+        'CLEANER',
+      ),
+    ).toThrow('This account cannot enter the selected workspace')
   })
 })
