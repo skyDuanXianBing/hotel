@@ -245,7 +245,7 @@ onIonViewWillEnter(async () => {
 }
 
 .channels-page {
-  --background: #f3f7fd;
+  --background: var(--app-background);
   --padding-top: 8px;
   --padding-start: 14px;
   --padding-end: 14px;

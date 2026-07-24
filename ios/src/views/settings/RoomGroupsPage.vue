@@ -1,88 +1,197 @@
 <template>
-  <SettingsCrudPage
-    :back-href="ROUTE_PATHS.settings"
-    :title="$t('stage5.common.filters.roomGroup')"
-    :hero-eyebrow="$t('settings.groups.accommodation')"
-    :hero-title="$t('stage5.common.filters.roomGroup')"
-    :chips="[
-      { label: `${$t('channel.mobile.mapping.groups')} ${groups.length}` },
-      { label: `${$t('accommodation.common.room')} ${rooms.length}` },
-    ]"
-    :toolbar-action-label="$t('settingsStage4.roomGroup.addGroup')"
-    :show-refresher="true"
-    :refresher-pulling-text="$t('stage5UiAttributes.10')"
-    :section-title="$t('stage5UiAttributes.31')"
-    :loading="loading"
-    :modal-open="editorOpen"
-    :modal-title="editingGroupId ? $t('stage5DynamicUi.65') : $t('stage5DynamicUi.37')"
-    @toolbar-action="handleCreateGroup"
-    @refresh="handleRefresh"
-    @dismiss-editor="handleDismissEditor"
-  >
-    <div v-if="groups.length > 0" class="mobile-list settings-minimal-list">
-      <article v-for="group in groups" :key="group.id" class="settings-minimal-card">
-        <div class="settings-minimal-card__header">
-          <div class="settings-minimal-card__title-group">
-            <strong>{{ group.name }}</strong>
-            <p class="settings-minimal-card__summary">{{ group.description || formatGroupPreview(group.memberRoomIds) }}</p>
+  <ion-page>
+    <ion-header translucent>
+      <ion-toolbar class="app-page-header__toolbar">
+        <ion-buttons slot="start">
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.settings" />
+        </ion-buttons>
+        <ion-title class="app-page-header__title">{{ $t('routes.SettingsRoomGroups') }}</ion-title>
+        <ion-buttons slot="end">
+          <ion-button
+            class="app-page-header__text-btn settings-room-groups-header-add"
+            fill="clear"
+            @click="handleCreateGroup"
+          >
+            <span class="settings-room-groups-header-add__text">{{ $t('settingsStage4.roomGroup.addGroup') }}</span>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content fullscreen class="mobile-page mobile-page--dashboard settings-room-groups-page">
+      <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
+        <ion-refresher-content :pulling-text="$t('stage5UiAttributes.10')" refreshing-spinner="crescent" />
+      </ion-refresher>
+
+      <section class="mobile-hero mobile-dashboard-surface settings-room-groups-hero">
+        <p class="mobile-note settings-room-groups-hero__eyebrow">
+          {{ $t('settings.groups.accommodation') }}
+        </p>
+        <h1 class="mobile-title">{{ $t('routes.SettingsRoomGroups') }}</h1>
+        <div class="mobile-chip-row settings-room-groups-hero__chips">
+          <span class="mobile-chip">{{ $t('channel.mobile.mapping.groups') }} {{ groups.length }}</span>
+          <span class="mobile-chip">{{ $t('accommodation.common.room') }} {{ rooms.length }}</span>
+        </div>
+      </section>
+
+      <div class="mobile-stack">
+        <section class="mobile-card mobile-dashboard-surface settings-room-groups-panel">
+          <div class="mobile-inline-row settings-room-groups-page__section-header">
+            <div>
+              <h2 class="mobile-section-title">{{ $t('stage5UiAttributes.31') }}</h2>
+            </div>
+            <ion-spinner v-if="loading" name="crescent" />
           </div>
-          <span class="settings-minimal-card__badge">{{ $t('accommodation.common.room') }} {{ group.memberRoomIds.length }}</span>
-        </div>
 
-        <div v-if="group.description && group.memberRoomIds.length > 0" class="settings-minimal-card__meta">
-          <span class="settings-minimal-card__meta-pill">{{ formatGroupPreview(group.memberRoomIds) }}</span>
-        </div>
+          <div v-if="groups.length > 0" class="mobile-list settings-room-groups-list">
+            <article v-for="group in groups" :key="group.id" class="settings-room-group-card">
+              <div class="settings-room-group-card__header">
+                <div class="settings-room-group-card__title-group">
+                  <strong>{{ group.name }}</strong>
+                  <p class="settings-room-group-card__summary">
+                    {{ group.description || formatGroupPreview(group.memberRoomIds) }}
+                  </p>
+                </div>
+                <span class="settings-room-group-card__badge">
+                  {{ group.memberRoomIds.length }} {{ $t('settingsStage4.common.unitRooms') }}
+                </span>
+              </div>
 
-        <div class="settings-minimal-card__actions">
-          <ion-button size="small" fill="outline" @click="handleEditGroup(group)">{{ $t('accommodation.roomPrice.editTitle') }}</ion-button>
-          <ion-button size="small" color="danger" fill="clear" @click="handleDeleteGroup(group)">{{ $t('roomStatus.roomLock.actions.delete') }}</ion-button>
-        </div>
-      </article>
-    </div>
+              <div
+                v-if="group.description && group.memberRoomIds.length > 0"
+                class="settings-room-group-card__meta"
+              >
+                <span class="settings-room-group-card__meta-pill">
+                  {{ formatGroupPreview(group.memberRoomIds) }}
+                </span>
+              </div>
 
-    <p v-else-if="!loading" class="mobile-note">{{ $t('stage5SourceText.79') }}</p>
+              <div class="settings-room-group-card__actions">
+                <ion-button
+                  size="small"
+                  fill="outline"
+                  class="settings-room-group-card__action"
+                  @click="handleEditGroup(group)"
+                >
+                  {{ $t('accommodation.roomPrice.editTitle') }}
+                </ion-button>
+                <ion-button
+                  size="small"
+                  color="danger"
+                  fill="clear"
+                  class="settings-room-group-card__action settings-room-group-card__action--danger"
+                  @click="handleDeleteGroup(group)"
+                >
+                  {{ $t('roomStatus.roomLock.actions.delete') }}
+                </ion-button>
+              </div>
+            </article>
+          </div>
 
-    <template #modalContent>
-      <div class="settings-form-grid">
-        <label class="settings-form-field">
-          <span>{{ $t('settingsStage4.roomGroup.placeholders.groupName') }}</span>
-          <ion-input v-model="groupForm.name" fill="outline" :placeholder="$t('settingsStage4.roomGroup.messages.groupNameRequired')" />
-        </label>
-
-        <label class="settings-form-field settings-form-field--full">
-          <span>{{ $t('stage5SourceText.20') }}</span>
-          <ion-textarea v-model="groupForm.description" :rows="4" fill="outline" :placeholder="$t('stage5UiAttributes.65')" />
-        </label>
-
-        <label class="settings-form-field settings-form-field--full">
-          <span>{{ $t('stage5SourceText.107') }}</span>
-          <ion-select v-model="groupForm.roomIds" fill="outline" interface="modal" multiple>
-            <ion-select-option v-for="room in rooms" :key="room.id" :value="room.id">
-              {{ room.roomNumber }} · {{ room.roomType.name }}
-            </ion-select-option>
-          </ion-select>
-        </label>
+          <div v-else-if="!loading" class="settings-room-groups-page__empty-state">
+            <p class="mobile-note settings-room-groups-page__empty-text">
+              {{ $t('stage5SourceText.79') }}
+            </p>
+            <ion-button @click="handleCreateGroup">{{ $t('settingsStage4.roomGroup.addGroup') }}</ion-button>
+          </div>
+        </section>
       </div>
-    </template>
 
-    <template #modalActions>
-      <ion-button fill="outline" @click="handleDismissEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
-      <ion-button :disabled="submitting" @click="handleSaveGroup">
-        {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.8') }}
-      </ion-button>
-    </template>
-  </SettingsCrudPage>
+      <ion-modal :is-open="editorOpen" :backdrop-dismiss="!submitting" @didDismiss="handleDismissEditor">
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>
+              {{ editingGroupId ? $t('stage5DynamicUi.65') : $t('stage5DynamicUi.37') }}
+            </ion-title>
+            <ion-buttons slot="end">
+              <ion-button :disabled="submitting" @click="handleDismissEditor">
+                {{ $t('home.section.close') }}
+              </ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+
+        <ion-content class="mobile-page settings-modal-page">
+          <section class="mobile-card settings-editor-card">
+            <div class="settings-form-section">
+              <div>
+                <h2 class="mobile-section-title">{{ $t('accommodation.cleaning.basicInfo') }}</h2>
+              </div>
+
+              <div class="settings-form-grid">
+                <label class="settings-form-field">
+                  <span>{{ $t('settingsStage4.roomGroup.placeholders.groupName') }}</span>
+                  <ion-input
+                    v-model="groupForm.name"
+                    :disabled="submitting"
+                    fill="outline"
+                    :placeholder="$t('settingsStage4.roomGroup.messages.groupNameRequired')"
+                  />
+                </label>
+
+                <label class="settings-form-field settings-form-field--full">
+                  <span>{{ $t('stage5SourceText.20') }}</span>
+                  <ion-textarea
+                    v-model="groupForm.description"
+                    :disabled="submitting"
+                    :rows="4"
+                    fill="outline"
+                    :placeholder="$t('stage5UiAttributes.65')"
+                  />
+                </label>
+
+                <label class="settings-form-field settings-form-field--full">
+                  <span>{{ $t('stage5SourceText.107') }}</span>
+                  <ion-select
+                    v-model="groupForm.roomIds"
+                    :disabled="submitting"
+                    fill="outline"
+                    interface="modal"
+                    multiple
+                  >
+                    <ion-select-option v-for="room in rooms" :key="room.id" :value="room.id">
+                      {{ room.roomNumber }} · {{ room.roomType.name }}
+                    </ion-select-option>
+                  </ion-select>
+                </label>
+              </div>
+            </div>
+
+            <div class="settings-form-actions">
+              <ion-button fill="outline" :disabled="submitting" @click="handleDismissEditor">
+                {{ $t('accommodation.common.cancel') }}
+              </ion-button>
+              <ion-button :disabled="submitting" @click="handleSaveGroup">
+                {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.8') }}
+              </ion-button>
+            </div>
+          </section>
+        </ion-content>
+      </ion-modal>
+    </ion-content>
+  </ion-page>
 </template>
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import {
   alertController,
+  IonBackButton,
   IonButton,
+  IonButtons,
+  IonContent,
+  IonHeader,
   IonInput,
+  IonModal,
+  IonPage,
+  IonRefresher,
+  IonRefresherContent,
   IonSelect,
   IonSelectOption,
+  IonSpinner,
   IonTextarea,
+  IonTitle,
+  IonToolbar,
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { ref } from 'vue'
@@ -96,7 +205,6 @@ import {
   updateRoomGroup,
 } from '@/api/roomGroup'
 import { getRooms } from '@/api/rooms'
-import SettingsCrudPage from '@/components/settings/families/SettingsCrudPage.vue'
 import { ROUTE_PATHS } from '@/router/guards'
 import type { RoomDTO, RoomGroupDTO } from '@/types/settings'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
@@ -196,7 +304,10 @@ async function loadPageData() {
       nextGroups.push({
         ...group,
         id: Number(group.id),
-        memberRoomIds: memberResponse?.success && memberResponse.data ? memberResponse.data.map((item) => item.roomId) : [],
+        memberRoomIds:
+          memberResponse?.success && memberResponse.data
+            ? memberResponse.data.map((item) => item.roomId)
+            : [],
       })
     }
     groups.value = nextGroups
@@ -318,11 +429,368 @@ async function handleDeleteGroup(group: RoomGroupView) {
 }
 
 async function handleRefresh(event: CustomEvent) {
-  await loadPageData()
-  event.detail.complete()
+  try {
+    await loadPageData()
+  } finally {
+    event.detail.complete()
+  }
 }
 
 onIonViewWillEnter(async () => {
   await loadPageData()
 })
 </script>
+
+<style scoped>
+.settings-room-groups-page {
+  display: block;
+  --background: var(--app-background);
+  --padding-top: 12px;
+  --padding-bottom: calc(30px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+  background: var(--app-background);
+}
+
+ion-page > ion-header {
+  backdrop-filter: blur(14px);
+}
+
+ion-page > ion-header::after {
+  display: none;
+}
+
+ion-page > ion-header .app-page-header__text-btn {
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+ion-page > ion-header .settings-room-groups-header-add {
+  font-size: 17px !important;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+ion-page > ion-header .settings-room-groups-header-add::part(native) {
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.settings-room-groups-header-add__text {
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.settings-room-groups-hero {
+  margin-top: 0;
+  padding: 17px 16px 21px;
+  border-radius: var(--ios-pms-radius-card);
+}
+
+.settings-room-groups-hero::before {
+  display: none;
+}
+
+.settings-room-groups-hero__eyebrow {
+  display: none;
+}
+
+.settings-room-groups-hero .mobile-title {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.settings-room-groups-hero__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.settings-room-groups-hero__chips .mobile-chip {
+  min-width: 0;
+  min-height: 24px;
+  padding: 2px 10px;
+  border-color: rgba(var(--ion-color-primary-rgb), 0.1);
+  background: rgba(var(--ion-color-primary-rgb), 0.07);
+  color: rgba(var(--ion-color-primary-rgb), 0.88);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.settings-room-groups-page > .mobile-stack {
+  gap: 18px;
+  margin-top: 10px;
+  padding-bottom: 4px;
+}
+
+.settings-room-groups-panel {
+  padding: 22px 16px 48px;
+  border-radius: var(--ios-pms-radius-card);
+}
+
+.settings-room-groups-page__section-header {
+  align-items: flex-start;
+}
+
+.settings-room-groups-page__section-header .mobile-section-title {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.settings-room-groups-page__section-header ion-spinner {
+  flex-shrink: 0;
+  color: var(--ios-pms-primary);
+}
+
+.settings-room-groups-list {
+  margin-top: 21px;
+  gap: 17px;
+}
+
+.settings-room-group-card {
+  position: relative;
+  overflow: visible;
+  padding: 14px 15px 14px;
+  border: 1px solid rgba(130, 143, 165, 0.2);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.88) inset,
+    0 8px 18px rgba(77, 98, 145, 0.035);
+}
+
+.settings-room-group-card::before {
+  display: none;
+}
+
+.settings-room-group-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.settings-room-group-card__title-group {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.settings-room-group-card__header strong,
+.settings-room-group-card__summary {
+  margin: 0;
+}
+
+.settings-room-group-card__header strong {
+  color: var(--ios-pms-text-primary);
+  font-size: 20px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.15;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-room-group-card__summary {
+  color: var(--ios-pms-text-muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+
+.settings-room-group-card__badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  margin-top: -2px;
+  margin-right: -1px;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: var(--ios-pms-radius-pill);
+  border: 1px solid rgba(130, 143, 165, 0.18);
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--ios-pms-text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.settings-room-group-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+.settings-room-group-card__meta-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 27px;
+  padding: 2px 10px;
+  border-radius: var(--ios-pms-radius-pill);
+  border: 1px solid rgba(130, 143, 165, 0.22);
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--ios-pms-text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.settings-room-group-card__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+.settings-room-group-card__action {
+  margin: 0;
+  min-height: 29px;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --border-radius: 9px;
+  --box-shadow: none;
+  font-size: 14px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
+}
+
+.settings-room-group-card__action::part(native) {
+  min-height: 29px;
+  border: 1px solid rgba(130, 143, 165, 0.24);
+  border-radius: 9px;
+  box-shadow: none;
+  line-height: 1.2;
+}
+
+.settings-room-group-card__action[fill='outline'] {
+  --background: rgba(255, 255, 255, 0.88);
+  --color: var(--ios-pms-primary);
+  --border-color: rgba(130, 143, 165, 0.24);
+}
+
+.settings-room-group-card__action--danger {
+  --background: rgba(255, 255, 255, 0.88);
+  --color: #ff1f1f;
+}
+
+.settings-room-groups-page__empty-state {
+  display: grid;
+  gap: 12px;
+  justify-items: flex-start;
+  padding-top: 28px;
+}
+
+.settings-room-groups-page__empty-text {
+  margin: 0;
+}
+
+@media (max-width: 374px) {
+  .settings-room-groups-page {
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
+
+  .settings-room-groups-hero,
+  .settings-room-groups-panel {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .settings-room-group-card {
+    padding: 13px 13px 14px;
+  }
+
+  .settings-room-group-card__header strong {
+    font-size: 19px;
+  }
+
+  .settings-room-group-card__action {
+    font-size: 13px;
+  }
+}
+
+.settings-modal-page {
+  --padding-top: 16px;
+  --padding-bottom: 24px;
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+.settings-editor-card,
+.settings-form-section,
+.settings-form-grid {
+  display: grid;
+}
+
+.settings-editor-card {
+  gap: 0;
+}
+
+.settings-form-section {
+  gap: 14px;
+}
+
+.settings-form-section + .settings-form-actions {
+  border-top: 1px solid var(--app-border);
+  margin-top: 12px;
+  padding-top: 16px;
+}
+
+.settings-form-grid {
+  gap: 14px;
+}
+
+.settings-form-field {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-form-field span {
+  color: var(--app-heading);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-form-field--full {
+  grid-column: 1 / -1;
+}
+
+.settings-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+</style>

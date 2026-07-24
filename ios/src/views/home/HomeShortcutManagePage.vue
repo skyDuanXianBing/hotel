@@ -3,79 +3,87 @@
     <ion-header translucent>
       <ion-toolbar class="app-page-header__toolbar">
         <ion-buttons slot="start">
-          <ion-button fill="clear" class="shortcut-manage-toolbar__back app-page-header__icon-btn" @click="handleBack">
-            <ion-icon slot="icon-only" :icon="chevronBackOutline" />
+          <ion-button fill="clear" class="shortcut-manage-toolbar__back app-page-header__text-btn" @click="handleBack">
+            <ion-icon slot="start" :icon="chevronBackOutline" aria-hidden="true" />
+            {{ t('common.back') }}
           </ion-button>
         </ion-buttons>
         <ion-title class="app-page-header__title">{{ t('home.manage.title') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button class="app-page-header__text-btn" fill="clear" :disabled="!hasChanges" @click="handleSave">
+          <ion-button
+            class="shortcut-manage-toolbar__save app-page-header__text-btn"
+            fill="clear"
+            :disabled="!hasChanges"
+            @click="handleSave"
+          >
             {{ t('home.manage.save') }}
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
-    <ion-content fullscreen class="mobile-page shortcut-manage-page">
+    <ion-content fullscreen class="mobile-page mobile-page--dashboard shortcut-manage-page">
       <div class="shortcut-manage-shell">
-        <section class="shortcut-manage-section">
-          <h2 class="shortcut-manage-section__title">{{ t('home.manage.visible') }}</h2>
+        <section class="shortcut-manage-card mobile-dashboard-surface">
+          <section class="shortcut-manage-section">
+            <h2 class="shortcut-manage-section__title">{{ t('home.manage.visible') }}</h2>
 
-          <div v-if="visibleItems.length > 0" class="shortcut-manage-grid">
-            <button
-              v-for="item in visibleItems"
-              :key="item.key"
-              type="button"
-              class="shortcut-manage-item"
-              :aria-label="t('home.manage.hideItem', { title: item.title })"
-              @click="handleHide(item.key)"
-            >
-              <span class="shortcut-manage-item__action shortcut-manage-item__action--remove" aria-hidden="true">
-                <ion-icon :icon="removeOutline" />
-              </span>
-              <div class="shortcut-manage-item__icon-shell">
-                <img
-                  class="shortcut-manage-item__icon"
-                  :src="item.iconSrc"
-                  alt=""
-                  draggable="false"
-                />
-              </div>
-              <span class="shortcut-manage-item__label">{{ item.title }}</span>
-            </button>
-          </div>
+            <div v-if="visibleItems.length > 0" class="shortcut-manage-grid">
+              <button
+                v-for="item in visibleItems"
+                :key="item.key"
+                type="button"
+                class="shortcut-manage-item"
+                :aria-label="t('home.manage.hideItem', { title: item.title })"
+                @click="handleHide(item.key)"
+              >
+                <span class="shortcut-manage-item__action shortcut-manage-item__action--remove" aria-hidden="true">
+                  <ion-icon :icon="removeOutline" />
+                </span>
+                <div class="shortcut-manage-item__icon-shell">
+                  <img
+                    class="shortcut-manage-item__icon"
+                    :src="item.iconSrc"
+                    alt=""
+                    draggable="false"
+                  />
+                </div>
+                <span class="shortcut-manage-item__label">{{ item.title }}</span>
+              </button>
+            </div>
 
-          <p v-else class="mobile-note shortcut-manage-section__empty">{{ t('home.manage.noVisible') }}</p>
-        </section>
+            <p v-else class="mobile-note shortcut-manage-section__empty">{{ t('home.manage.noVisible') }}</p>
+          </section>
 
-        <section class="shortcut-manage-section">
-          <h2 class="shortcut-manage-section__title">{{ t('home.manage.hidden') }}</h2>
+          <section class="shortcut-manage-section shortcut-manage-section--hidden">
+            <h2 class="shortcut-manage-section__title">{{ t('home.manage.hidden') }}</h2>
 
-          <div v-if="hiddenItems.length > 0" class="shortcut-manage-grid">
-            <button
-              v-for="item in hiddenItems"
-              :key="item.key"
-              type="button"
-              class="shortcut-manage-item"
-              :aria-label="t('home.manage.showItem', { title: item.title })"
-              @click="handleShow(item.key)"
-            >
-              <span class="shortcut-manage-item__action shortcut-manage-item__action--add" aria-hidden="true">
-                <ion-icon :icon="addOutline" />
-              </span>
-              <div class="shortcut-manage-item__icon-shell">
-                <img
-                  class="shortcut-manage-item__icon"
-                  :src="item.iconSrc"
-                  alt=""
-                  draggable="false"
-                />
-              </div>
-              <span class="shortcut-manage-item__label">{{ item.title }}</span>
-            </button>
-          </div>
+            <div v-if="hiddenItems.length > 0" class="shortcut-manage-grid">
+              <button
+                v-for="item in hiddenItems"
+                :key="item.key"
+                type="button"
+                class="shortcut-manage-item"
+                :aria-label="t('home.manage.showItem', { title: item.title })"
+                @click="handleShow(item.key)"
+              >
+                <span class="shortcut-manage-item__action shortcut-manage-item__action--add" aria-hidden="true">
+                  <ion-icon :icon="addOutline" />
+                </span>
+                <div class="shortcut-manage-item__icon-shell">
+                  <img
+                    class="shortcut-manage-item__icon"
+                    :src="item.iconSrc"
+                    alt=""
+                    draggable="false"
+                  />
+                </div>
+                <span class="shortcut-manage-item__label">{{ item.title }}</span>
+              </button>
+            </div>
 
-          <p v-else class="mobile-note shortcut-manage-section__empty">{{ t('home.manage.noHidden') }}</p>
+            <p v-else class="mobile-note shortcut-manage-section__empty">{{ t('home.manage.noHidden') }}</p>
+          </section>
         </section>
       </div>
     </ion-content>
@@ -199,44 +207,105 @@ onBeforeRouteLeave(async () => {
 
 <style scoped>
 .shortcut-manage-page {
-  --background: var(--ios-pms-bg-page-plain);
+  --background: var(--ios-pms-dashboard-page-background);
+}
+
+.shortcut-manage-toolbar__back,
+.shortcut-manage-toolbar__save {
+  --color: var(--ios-pms-header-title-color);
+  align-self: center;
+  height: 34px;
+  min-width: 52px;
+  min-height: 34px;
+  margin: 0;
+  color: var(--ios-pms-header-title-color);
+  font-size: var(--ios-pms-font-title-md-size);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.shortcut-manage-toolbar__back::part(native),
+.shortcut-manage-toolbar__save::part(native) {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  min-height: 34px;
+  line-height: 1;
+}
+
+.shortcut-manage-toolbar__back {
+  justify-content: flex-start;
+}
+
+.shortcut-manage-toolbar__back::part(native) {
+  justify-content: flex-start;
+}
+
+.shortcut-manage-toolbar__back ion-icon {
+  margin-inline-end: 0;
+  color: inherit;
+  font-size: 25px;
+}
+
+.shortcut-manage-toolbar__save {
+  --color: #000000;
+  justify-content: flex-end;
+  color: #000000;
+}
+
+.shortcut-manage-toolbar__save::part(native) {
+  justify-content: flex-end;
 }
 
 .shortcut-manage-shell {
   display: grid;
-  gap: 36px;
-  padding-top: 22px;
+  padding-top: var(--ios-pms-space-3);
+  padding-bottom: var(--ios-pms-space-6);
+}
+
+.shortcut-manage-card {
+  display: grid;
+  gap: var(--ios-pms-space-6);
+  padding: 24px 18px 28px;
+  border-radius: var(--ios-pms-radius-card);
+  background: var(--ios-pms-dashboard-card-background);
 }
 
 .shortcut-manage-section {
   display: grid;
-  gap: 18px;
+  gap: var(--ios-pms-space-4);
+}
+
+.shortcut-manage-section--hidden {
+  padding-top: var(--ios-pms-space-1);
 }
 
 .shortcut-manage-section__title {
   margin: 0;
   color: var(--ios-pms-text-primary);
   font-size: var(--ios-pms-font-title-lg-size);
-  font-weight: var(--ios-pms-weight-heavy);
-  letter-spacing: -0.03em;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: 0;
 }
 
 .shortcut-manage-section__empty {
-  padding: 4px 2px 0;
+  padding: 0 2px;
 }
 
 .shortcut-manage-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 28px 12px;
+  gap: 22px 8px;
 }
 
 .shortcut-manage-item {
   position: relative;
   display: grid;
   justify-items: center;
-  gap: 7px;
+  gap: 5px;
   width: 100%;
+  min-height: 70px;
   min-width: 0;
   padding: 0;
   border: none;
@@ -259,40 +328,40 @@ onBeforeRouteLeave(async () => {
 
 .shortcut-manage-item__action {
   position: absolute;
-  top: -8px;
-  right: 4px;
+  top: -5px;
+  right: 8px;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 18px;
+  height: 18px;
   border-radius: 999px;
-  box-shadow: 0 6px 16px rgba(96, 117, 152, 0.12);
-  font-size: 15px;
+  box-shadow: 0 5px 12px rgba(96, 117, 152, 0.1);
+  font-size: 11px;
 }
 
 .shortcut-manage-item__action--remove {
-  background: rgba(235, 239, 245, 0.96);
+  background: rgba(223, 228, 236, 0.96);
   color: #697586;
 }
 
 .shortcut-manage-item__action--add {
-  background: rgba(52, 116, 246, 0.14);
+  background: rgba(52, 116, 246, 0.16);
   color: var(--ion-color-primary);
 }
 
 .shortcut-manage-item__icon-shell {
   display: grid;
   place-items: center;
-  width: 54px;
-  height: 54px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.56);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--ios-pms-radius-icon);
+  background: transparent;
 }
 
 .shortcut-manage-item__icon {
   display: block;
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
   user-select: none;
   -webkit-user-drag: none;
@@ -300,38 +369,46 @@ onBeforeRouteLeave(async () => {
 
 .shortcut-manage-item__label {
   color: var(--ios-pms-text-secondary);
-  font-size: 14px;
+  font-size: var(--ios-pms-font-body-md-size);
   font-weight: 400;
-  line-height: 1.2;
+  line-height: 1.15;
   text-align: center;
+  letter-spacing: 0;
 }
 
 @media (max-width: 374px) {
   .shortcut-manage-shell {
-    gap: 32px;
-    padding-top: 18px;
+    padding-top: var(--ios-pms-space-2);
+  }
+
+  .shortcut-manage-card {
+    gap: var(--ios-pms-space-5);
+    padding: 22px 14px 24px;
   }
 
   .shortcut-manage-grid {
-    gap: 24px 10px;
+    gap: 20px 6px;
   }
 
   .shortcut-manage-item__action {
-    right: 0;
+    right: 6px;
+    width: 17px;
+    height: 17px;
+    font-size: 10px;
   }
 
   .shortcut-manage-item__icon-shell {
-    width: 48px;
-    height: 48px;
+    width: 37px;
+    height: 37px;
   }
 
   .shortcut-manage-item__icon {
-    width: 39px;
-    height: 39px;
+    width: 34px;
+    height: 34px;
   }
 
   .shortcut-manage-item__label {
-    font-size: 12px;
+    font-size: var(--ios-pms-font-body-sm-size);
   }
 }
 

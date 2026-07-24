@@ -7,17 +7,19 @@
         </ion-buttons>
         <ion-title class="app-page-header__title">{{ $t('routes.SettingsStoreMembers') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button class="app-page-header__text-btn" fill="clear" @click="handleCreateMember">{{ $t('stage5SourceText.162') }}</ion-button>
+          <ion-button class="app-page-header__text-btn settings-members-header-add" fill="clear" @click="handleCreateMember">
+            <span class="settings-members-header-add__text">{{ $t('stage5SourceText.162') }}</span>
+          </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
-    <ion-content fullscreen class="mobile-page settings-members-page">
+    <ion-content fullscreen class="mobile-page mobile-page--dashboard settings-members-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
         <ion-refresher-content :pulling-text="$t('stage5UiAttributes.4')" refreshing-spinner="crescent" />
       </ion-refresher>
 
-      <section class="mobile-hero settings-members-hero">
+      <section class="mobile-hero mobile-dashboard-surface settings-members-hero">
         <p class="mobile-note settings-members-hero__eyebrow">{{ $t('stage5SourceText.211') }}</p>
         <h1 class="mobile-title">{{ storeTitle }}</h1>
         <div class="settings-page-hero__summary">
@@ -42,9 +44,13 @@
         </div>
       </section>
 
-      <div class="mobile-stack">
-        <section class="mobile-card">
-          <ion-segment :value="activeSegment" @ionChange="handleSegmentChange">
+      <div class="mobile-stack settings-members-stack">
+        <section class="mobile-card mobile-dashboard-surface settings-members-tabs-card">
+          <ion-segment
+            class="settings-members-segment settings-members-segment--page"
+            :value="activeSegment"
+            @ionChange="handleSegmentChange"
+          >
             <ion-segment-button value="members">
               <ion-label>{{ $t('settingsStage4.accountList.baseRoles.member') }}</ion-label>
             </ion-segment-button>
@@ -54,7 +60,10 @@
           </ion-segment>
         </section>
 
-        <section v-if="activeSegment === 'members'" class="mobile-card">
+        <section
+          v-if="activeSegment === 'members'"
+          class="mobile-card mobile-dashboard-surface settings-members-panel settings-members-panel--members"
+        >
           <div class="mobile-inline-row settings-members-page__section-header">
             <div class="settings-members-page__section-heading">
               <h2 class="mobile-section-title">{{ $t('settings.entries.storeMembers.0') }}</h2>
@@ -133,7 +142,10 @@
           <p v-else-if="!loading" class="mobile-note settings-members-page__empty-state">{{ $t('stage5SourceText.95') }}</p>
         </section>
 
-        <section v-else class="mobile-card">
+        <section
+          v-else
+          class="mobile-card mobile-dashboard-surface settings-members-panel settings-members-panel--roles"
+        >
           <div class="mobile-inline-row settings-members-page__section-header">
             <div class="settings-members-page__section-heading">
               <h2 class="mobile-section-title">{{ $t('settingsStage4.accountList.actions.roleManagement') }}</h2>
@@ -157,10 +169,11 @@
                     size="small"
                     color="danger"
                     fill="clear"
+                    class="settings-role-card__delete-action"
                     :disabled="role.isSystem"
                     @click="handleDeleteRole(role)"
                   >
-                    {{ $t('roomStatus.roomLock.actions.delete') }}
+                    <span class="settings-role-card__delete-text">{{ $t('roomStatus.roomLock.actions.delete') }}</span>
                   </ion-button>
                 </div>
               </div>
@@ -171,7 +184,11 @@
         </section>
       </div>
 
-      <ion-modal :is-open="memberModalOpen" @didDismiss="handleDismissMemberModal">
+      <ion-modal
+        class="settings-member-editor-modal"
+        :is-open="memberModalOpen"
+        @didDismiss="handleDismissMemberModal"
+      >
         <ion-header>
           <ion-toolbar>
             <ion-title>{{ editingMemberId ? $t('stage5DynamicUi.63') : $t('stage5DynamicUi.56') }}</ion-title>
@@ -181,9 +198,13 @@
           </ion-toolbar>
         </ion-header>
 
-        <ion-content class="mobile-page settings-modal-page">
-          <section class="mobile-card">
-            <ion-segment :value="memberEditorSegment" @ionChange="handleMemberEditorSegmentChange">
+        <ion-content class="mobile-page mobile-page--dashboard settings-modal-page settings-member-editor-page">
+          <section class="mobile-card mobile-dashboard-surface settings-member-editor-card">
+            <ion-segment
+              class="settings-members-segment settings-members-segment--editor"
+              :value="memberEditorSegment"
+              @ionChange="handleMemberEditorSegmentChange"
+            >
               <ion-segment-button value="basic">
                 <ion-label>{{ $t('settingsStage4.roomTypeManagement.actions.basicInfo') }}</ion-label>
               </ion-segment-button>
@@ -292,7 +313,11 @@
         </ion-content>
       </ion-modal>
 
-      <ion-modal :is-open="roleModalOpen" @didDismiss="handleDismissRoleModal">
+      <ion-modal
+        class="settings-member-editor-modal settings-role-editor-modal"
+        :is-open="roleModalOpen"
+        @didDismiss="handleDismissRoleModal"
+      >
         <ion-header>
           <ion-toolbar>
             <ion-title>{{ editingRoleId ? $t('settingsStage4.roleManagement.dialog.editRole') : $t('settingsStage4.roleManagement.dialog.addRole') }}</ion-title>
@@ -302,8 +327,8 @@
           </ion-toolbar>
         </ion-header>
 
-        <ion-content class="mobile-page settings-modal-page">
-          <section class="mobile-card">
+        <ion-content class="mobile-page mobile-page--dashboard settings-modal-page settings-member-editor-page">
+          <section class="mobile-card mobile-dashboard-surface settings-member-editor-card settings-role-editor-card">
             <div class="settings-form-grid">
               <label class="settings-form-field">
                 <span>{{ $t('stage5SourceText.193') }}</span>
@@ -1425,25 +1450,197 @@ onIonViewWillEnter(async () => {
 <style scoped>
 .settings-members-page {
   display: block;
+  --background: var(--app-background);
+  --padding-top: 12px;
+  --padding-bottom: calc(32px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+  background: var(--app-background);
+}
+
+ion-header {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+ion-header::after {
+  display: none;
+}
+
+ion-page > ion-header .settings-members-header-add {
+  font-size: 17px !important;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+ion-page > ion-header .settings-members-header-add::part(native) {
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.settings-members-header-add__text {
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
 }
 
 .settings-members-hero {
-  margin-top: 4px;
-  margin-bottom: 12px;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding: 18px 16px 28px;
+  border-radius: calc(var(--ios-pms-radius-card) + 6px);
+  background: var(--ios-pms-dashboard-card-background);
+  box-shadow: var(--ios-pms-dashboard-card-shadow);
+}
+
+.settings-members-hero::before {
+  display: none;
 }
 
 .settings-members-hero__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
+  display: none;
 }
 
 .settings-members-hero .mobile-title {
-  max-width: 12ch;
-  line-height: 1.08;
+  max-width: 100%;
+  color: #333333;
+  font-size: 23px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.25;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-members-hero .settings-page-hero__summary {
+  margin-top: 24px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.settings-members-hero .settings-page-hero__meta {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.settings-members-hero .settings-page-hero__meta-item {
+  min-height: 68px;
+  padding: 10px 14px;
+  border: 1px solid rgba(130, 143, 165, 0.18);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 1px 0 rgba(59, 75, 104, 0.04);
+}
+
+.settings-members-hero .settings-page-hero__meta-label {
+  color: #666666;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.settings-members-hero .settings-page-hero__meta-item strong {
+  color: #333333;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.settings-members-stack {
+  gap: 18px;
+  margin-top: 18px;
+  padding-bottom: 8px;
+}
+
+.settings-members-tabs-card {
+  padding: 2px;
+  overflow: hidden;
+  border-radius: var(--ios-pms-radius-pill);
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 1px 0 rgba(59, 75, 104, 0.04);
+}
+
+.settings-members-segment {
+  width: 100%;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(130, 143, 165, 0.18);
+  border-radius: var(--ios-pms-radius-pill);
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.settings-members-tabs-card .settings-members-segment {
+  border: none;
+  background: transparent;
+}
+
+.settings-members-segment ion-segment-button {
+  --border-radius: var(--ios-pms-radius-pill);
+  --color: #111111;
+  --color-checked: #ffffff;
+  --indicator-color: #343436;
+  --indicator-box-shadow: none;
+  --padding-start: 6px;
+  --padding-end: 6px;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+  color: #111111;
+  font-size: 16px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
+}
+
+.settings-members-segment ion-segment-button.segment-button-checked,
+.settings-members-segment ion-segment-button[aria-selected='true'] {
+  --color: #ffffff;
+  --color-checked: #ffffff;
+  color: #ffffff;
+}
+
+.settings-members-segment ion-segment-button.segment-button-checked ion-label,
+.settings-members-segment ion-segment-button[aria-selected='true'] ion-label {
+  color: #ffffff;
+}
+
+.settings-members-segment ion-segment-button::part(native) {
+  min-height: 100%;
+  padding: 0 2px;
+  border-radius: var(--ios-pms-radius-pill);
+}
+
+.settings-members-segment ion-segment-button::part(indicator) {
+  padding: 0;
+}
+
+.settings-members-segment ion-segment-button::part(indicator-background) {
+  border-radius: var(--ios-pms-radius-pill);
+  background: #343436;
+  box-shadow: none;
+}
+
+.settings-members-segment ion-label {
+  margin: 0;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+.settings-members-panel {
+  padding: 20px 16px 30px;
+  border-radius: calc(var(--ios-pms-radius-card) + 6px);
+  background: var(--ios-pms-dashboard-card-background);
+  box-shadow: var(--ios-pms-dashboard-card-shadow);
 }
 
 .settings-members-page__section-header {
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
 }
 
@@ -1453,35 +1650,48 @@ onIonViewWillEnter(async () => {
 
 .settings-members-page__section-heading .mobile-section-title {
   margin: 0;
+  color: #333333;
+  font-size: 22px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.settings-members-page ion-spinner {
+  flex-shrink: 0;
+  color: var(--ios-pms-primary);
 }
 
 .settings-role-create-button {
   margin: 0;
-  min-height: 36px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  --padding-start: 14px;
-  --padding-end: 14px;
-  --border-radius: 12px;
-  --background: rgba(47, 107, 255, 0.1);
-  --background-hover: rgba(47, 107, 255, 0.14);
-  --color: #2452c8;
+  min-height: 32px;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+  --padding-start: 13px;
+  --padding-end: 13px;
+  --border-radius: 8px;
+  --background: rgba(var(--ion-color-primary-rgb), 0.94);
+  --background-hover: rgba(var(--ion-color-primary-rgb), 0.9);
+  --background-activated: rgba(var(--ion-color-primary-rgb), 0.86);
+  --color: #ffffff;
   --box-shadow: none;
 }
 
 .settings-members-list,
 .settings-roles-list {
-  margin-top: 16px;
+  gap: 22px;
+  margin-top: 22px;
 }
 
 .settings-member-card,
 .settings-role-card {
-  padding: 18px;
-  border-radius: 22px;
-  border: 1px solid var(--app-border);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 255, 0.92));
-  box-shadow: 0 18px 32px rgba(15, 23, 42, 0.05);
+  min-width: 0;
+  padding: 18px 16px 20px;
+  border: 1px solid rgba(130, 143, 165, 0.16);
+  border-radius: var(--ios-pms-radius-card);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 1px 0 rgba(59, 75, 104, 0.04);
 }
 
 .settings-member-card__header {
@@ -1496,17 +1706,33 @@ onIonViewWillEnter(async () => {
 }
 
 .settings-member-card__header strong,
-.settings-member-card__header p,
-.settings-role-card strong,
-.settings-role-card p {
+.settings-member-card__header p {
   margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-member-card__header strong {
+  display: block;
+  color: #333333;
+  font-size: 16px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.25;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .settings-member-card__header p,
 .settings-role-card p {
   margin-top: 6px;
-  color: var(--app-muted);
-  font-size: 13px;
+  color: #969ca6;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .settings-member-card__status {
@@ -1514,76 +1740,103 @@ onIonViewWillEnter(async () => {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
+  min-width: 76px;
+  min-height: 26px;
+  padding: 0 12px;
+  border-radius: var(--ios-pms-radius-pill);
+  font-size: 13px;
+  font-weight: 400;
   line-height: 1.2;
   white-space: nowrap;
 }
 
 .settings-member-card__status.is-active {
-  background: rgba(15, 159, 110, 0.12);
-  color: var(--ion-color-success);
+  background: rgba(58, 181, 130, 0.86);
+  color: #ffffff;
 }
 
 .settings-member-card__status.is-inactive {
-  background: rgba(217, 119, 6, 0.12);
+  background: rgba(227, 139, 24, 0.12);
   color: var(--ion-color-warning);
 }
 
-@media (max-width: 360px) {
-  .settings-member-card__status {
-    padding: 5px 8px;
-    font-size: 11px;
-  }
+.settings-member-card__meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 0;
+  margin-top: 14px;
+  color: #666666;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
 }
 
-.settings-member-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  margin-top: 12px;
-  color: var(--app-muted);
-  font-size: 12px;
+.settings-member-card__meta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-member-card__meta span:nth-child(2) {
+  text-align: center;
+}
+
+.settings-member-card__meta span:nth-child(3) {
+  text-align: right;
+}
+
+.settings-member-card__meta span:nth-child(4) {
+  grid-column: 1 / -1;
+  color: #999999;
+  text-align: left;
 }
 
 .settings-role-card__actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  display: contents;
 }
 
 .settings-member-card__actions {
   display: grid;
   gap: 10px;
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(148, 163, 184, 0.18);
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(130, 143, 165, 0.18);
 }
 
 .settings-member-card__roles-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
   margin-top: 12px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(15, 23, 42, 0.035);
-  color: var(--app-muted);
+  padding: 7px 12px;
+  border-radius: var(--ios-pms-radius-pill);
+  background: rgba(0, 0, 0, 0.09);
+  color: #777777;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.25;
+  text-align: center;
 }
 
 .settings-member-card__action {
   margin: 0;
   min-height: 40px;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  --border-radius: 14px;
+  font-size: 16px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
+  --border-radius: 10px;
   --box-shadow: none;
+  --padding-top: 0;
+  --padding-bottom: 0;
 }
 
 .settings-member-card__action--primary {
   width: 100%;
-  --background: linear-gradient(135deg, #2f6bff, #4f8cff);
-  --background-hover: linear-gradient(135deg, #2b62eb, #467fe8);
+  --background: rgba(var(--ion-color-primary-rgb), 0.95);
+  --background-hover: rgba(var(--ion-color-primary-rgb), 0.9);
+  --background-activated: rgba(var(--ion-color-primary-rgb), 0.86);
   --color: #fff;
 }
 
@@ -1595,67 +1848,313 @@ onIonViewWillEnter(async () => {
 
 .settings-member-card__secondary-actions .settings-member-card__action {
   flex: 1 1 132px;
-  --background: rgba(47, 107, 255, 0.08);
-  --background-hover: rgba(47, 107, 255, 0.12);
-  --color: #2452c8;
+  min-height: 38px;
+  font-size: 15px;
+  font-weight: var(--ios-pms-weight-medium);
+  --background: rgba(255, 255, 255, 0.72);
+  --background-hover: rgba(255, 255, 255, 0.9);
+  --background-activated: rgba(245, 248, 255, 0.9);
+  --border-color: rgba(70, 80, 96, 0.18);
+  --border-style: solid;
+  --border-width: 1px;
+  --color: rgba(var(--ion-color-primary-rgb), 0.88);
 }
 
 .settings-member-card__danger-zone {
   display: flex;
   align-items: center;
   padding-top: 2px;
-  border-top: 1px solid rgba(239, 68, 68, 0.08);
+  border-top: 1px solid rgba(130, 143, 165, 0.18);
 }
 
 .settings-member-card__action--danger {
   width: auto;
   min-height: 28px;
   font-size: 13px;
-  font-weight: 600;
-  --color: #dc2626;
+  font-weight: 400;
+  --color: #ff5d64;
   --padding-start: 0;
   --padding-end: 0;
 }
 
-.settings-role-card__footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.settings-role-card {
+  display: grid;
   gap: 12px;
+}
+
+.settings-role-card > div:first-child {
+  min-width: 0;
+}
+
+.settings-role-card strong,
+.settings-role-card p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-role-card strong {
+  display: block;
+  color: #333333;
+  font-size: 20px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.settings-role-card p {
   margin-top: 12px;
-  color: var(--app-muted);
-  font-size: 12px;
+}
+
+.settings-role-card__footer {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 0;
+  color: #666666;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.settings-role-card__footer > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid rgba(70, 80, 96, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.7);
+  color: rgba(var(--ion-color-primary-rgb), 0.88);
+  font-size: 14px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-role-card__actions ion-button {
+  width: 100%;
+  margin: 0;
+  min-height: 34px;
+  height: 34px;
+  font-size: 14px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
+  --border-radius: 10px;
+  --border-color: rgba(70, 80, 96, 0.18);
+  --border-width: 1px;
+  --background: rgba(255, 255, 255, 0.72);
+  --background-hover: rgba(255, 255, 255, 0.9);
+  --color: rgba(var(--ion-color-primary-rgb), 0.88);
+  --box-shadow: none;
+  --padding-start: 8px;
+  --padding-end: 8px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+}
+
+.settings-role-card__delete-action {
+  grid-column: 1 / -1;
+  justify-self: stretch;
+  width: 100%;
+  min-height: 28px;
+  height: 28px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(130, 143, 165, 0.18);
+  font-size: 13px;
+  font-weight: 400;
+  --padding-start: 0;
+  --padding-end: 0;
+  --color: #ff5d64;
+  text-align: left;
+}
+
+.settings-role-card__delete-action::part(native) {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.settings-role-card__delete-text {
+  display: block;
+  width: 100%;
+  text-align: left;
 }
 
 .settings-members-page__empty-state {
   padding-top: 16px;
+  color: #666666;
+  font-size: 14px;
 }
 
 .settings-modal-page {
+  --background: var(--app-background);
   --padding-top: 16px;
-  --padding-bottom: 24px;
+  --padding-bottom: calc(28px + var(--app-safe-bottom));
   --padding-start: 16px;
   --padding-end: 16px;
+  background: var(--app-background);
+}
+
+.settings-member-editor-modal {
+  --background: var(--app-background);
+}
+
+.settings-member-editor-modal ion-toolbar {
+  --background: rgba(255, 255, 255, 0.82);
+  --border-color: transparent;
+  --min-height: 62px;
+}
+
+.settings-member-editor-modal ion-title {
+  color: #333333;
+  font-size: 23px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.settings-member-editor-modal ion-button {
+  font-weight: 400;
+  letter-spacing: 0;
+  --color: #666666;
+}
+
+.settings-member-editor-card {
+  padding: 30px 16px 24px;
+  border-radius: calc(var(--ios-pms-radius-card) + 6px);
+  background: var(--ios-pms-dashboard-card-background);
+  box-shadow: var(--ios-pms-dashboard-card-shadow);
+}
+
+.settings-members-segment--editor {
+  margin-bottom: 0;
+}
+
+.settings-member-editor-card .settings-form-grid {
+  gap: 10px;
+}
+
+.settings-member-editor-card .settings-form-grid--with-segment {
+  margin-top: 24px;
 }
 
 .settings-form-grid {
   display: grid;
-  gap: 14px;
+  gap: 22px;
 }
 
 .settings-form-grid--with-segment {
-  margin-top: 16px;
+  margin-top: 28px;
 }
 
 .settings-form-field {
   display: grid;
-  gap: 8px;
+  gap: 12px;
 }
 
 .settings-form-field span {
-  color: var(--app-heading);
-  font-size: 13px;
-  font-weight: 600;
+  color: #333333;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.settings-form-field ion-input,
+.settings-form-field ion-select,
+.settings-form-field ion-textarea {
+  min-height: 56px;
+  margin: 0;
+  color: #333333;
+  font-size: 19px;
+  font-weight: 400;
+  --background: rgba(255, 255, 255, 0.46);
+  --border-color: rgba(130, 143, 165, 0.32);
+  --border-radius: 14px;
+  --color: #333333;
+  --highlight-color-focused: rgba(var(--ion-color-primary-rgb), 0.34);
+  --highlight-color-valid: rgba(var(--ion-color-primary-rgb), 0.34);
+  --highlight-color-invalid: var(--ion-color-danger);
+  --placeholder-color: #666666;
+  --placeholder-opacity: 1;
+  --padding-start: 18px;
+  --padding-end: 18px;
+}
+
+.settings-form-field ion-input::part(native),
+.settings-form-field ion-textarea::part(native) {
+  color: #333333;
+  font-size: 19px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.settings-form-field ion-textarea {
+  min-height: 116px;
+}
+
+.settings-member-editor-card .settings-form-field {
+  gap: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+  transition: none;
+}
+
+.settings-member-editor-card .settings-form-field:focus-within {
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.settings-member-editor-card .settings-form-field span {
+  color: var(--ios-pms-text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.settings-member-editor-card .settings-form-field :deep(ion-input),
+.settings-member-editor-card .settings-form-field :deep(ion-select),
+.settings-member-editor-card .settings-form-field :deep(ion-textarea) {
+  --background: var(--ios-pms-dashboard-card-background);
+  --highlight-color-focused: #d8d8dc;
+  --highlight-color-valid: #d8d8dc;
+  --color: var(--ios-pms-text-primary);
+  --placeholder-color: rgba(115, 130, 157, 0.78);
+  --placeholder-opacity: 1;
+  --border-radius: 11px;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #d8d8dc;
+  border-radius: 11px;
+  background: var(--ios-pms-dashboard-card-background);
+  box-shadow: none;
+  overflow: visible;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.settings-member-editor-card .settings-form-field :deep(ion-textarea) {
+  min-height: 92px;
+}
+
+.settings-role-editor-card .settings-form-field :deep(ion-textarea) {
+  --padding-top: 10px;
+  --padding-bottom: 10px;
 }
 
 .settings-form-field--full {
@@ -1663,19 +2162,78 @@ onIonViewWillEnter(async () => {
 }
 
 .settings-form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 36px;
+  margin-top: 28px;
+}
+
+.settings-form-actions ion-button {
+  margin: 0;
+  min-height: 40px;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0;
+  --border-radius: 8px;
+  --box-shadow: none;
+}
+
+.settings-form-actions ion-button[fill='outline'] {
+  --background: rgba(255, 255, 255, 0.72);
+  --border-color: rgba(70, 80, 96, 0.18);
+  --color: #999999;
+}
+
+.settings-form-actions ion-button:not([fill='outline']) {
+  --background: rgba(var(--ion-color-primary-rgb), 0.94);
+  --background-hover: rgba(var(--ion-color-primary-rgb), 0.9);
+  --background-activated: rgba(var(--ion-color-primary-rgb), 0.86);
+  --color: #ffffff;
+}
+
+.settings-member-editor-card .settings-form-actions {
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.settings-member-editor-card .settings-form-actions ion-button {
+  min-height: 30px;
+  height: 30px;
+  font-size: 13px;
+  font-weight: 500;
+  --border-radius: 6px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --padding-start: 10px;
+  --padding-end: 10px;
+}
+
+.settings-member-editor-card .settings-form-actions ion-button[fill='outline'] {
+  --background: rgba(255, 255, 255, 0.96);
+  --border-color: rgba(193, 204, 220, 0.95);
+  --border-width: 1px;
+  --box-shadow: none;
+  --color: #8a96a8;
+}
+
+.settings-member-editor-card .settings-form-actions ion-button:not([fill='outline']) {
+  --background: linear-gradient(180deg, #3191ff 0%, #2687f7 100%);
+  --box-shadow: 0 4px 10px rgba(52, 116, 246, 0.1);
+  --color: #ffffff;
+}
+
+.settings-member-editor-card .settings-form-actions ion-button:not([fill='outline'])::part(native) {
+  border: none;
 }
 
 .settings-member-permissions-note,
 .settings-member-permission-section {
   padding: 14px;
-  border-radius: 18px;
-  border: 1px solid var(--app-border);
-  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(130, 143, 165, 0.16);
+  border-radius: var(--ios-pms-radius-card-sm);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 1px 0 rgba(59, 75, 104, 0.04);
 }
 
 .settings-member-permissions-note strong,
@@ -1686,14 +2244,24 @@ onIonViewWillEnter(async () => {
 
 .settings-member-permissions-note p {
   margin-top: 8px;
-  color: var(--app-muted);
+  color: #666666;
   font-size: 13px;
+  font-weight: 400;
   line-height: 1.6;
 }
 
 .settings-member-permission-tab {
   display: grid;
   gap: 12px;
+}
+
+.settings-member-permission-tab .mobile-section-title {
+  margin: 0;
+  color: #333333;
+  font-size: 18px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.3;
+  letter-spacing: 0;
 }
 
 .settings-permission-grid {
@@ -1706,14 +2274,23 @@ onIonViewWillEnter(async () => {
   gap: 12px;
 }
 
+.settings-member-permission-section > strong,
+.settings-member-permissions-note strong {
+  color: #333333;
+  font-size: 15px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.35;
+}
+
 .settings-permission-grid--member {
   gap: 10px;
 }
 
 .settings-permission-item {
   padding: 12px;
-  border-radius: 16px;
-  background: var(--app-primary-soft);
+  border: 1px solid rgba(130, 143, 165, 0.12);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.64);
 }
 
 .settings-permission-item__header {
@@ -1726,20 +2303,31 @@ onIonViewWillEnter(async () => {
 .settings-permission-item__header strong,
 .settings-permission-item__header p {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-permission-item__header strong {
+  color: #333333;
+  font-size: 14px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.35;
 }
 
 .settings-permission-item__header p {
   margin-top: 6px;
-  color: var(--app-muted);
+  color: #666666;
   font-size: 12px;
+  font-weight: 400;
 }
 
 .settings-member-room-scope {
   display: grid;
   gap: 12px;
   padding: 12px;
-  border-radius: 16px;
-  background: var(--app-primary-soft);
+  border: 1px solid rgba(130, 143, 165, 0.12);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(var(--ion-color-primary-rgb), 0.05);
 }
 
 .settings-member-room-scope__header strong,
@@ -1749,8 +2337,9 @@ onIonViewWillEnter(async () => {
 
 .settings-member-room-scope__header p {
   margin-top: 6px;
-  color: var(--app-muted);
+  color: #666666;
   font-size: 12px;
+  font-weight: 400;
   line-height: 1.6;
 }
 
@@ -1759,12 +2348,57 @@ onIonViewWillEnter(async () => {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: var(--app-heading);
+  color: #333333;
   font-size: 13px;
+  font-weight: 400;
 }
 
 .settings-member-room-type-grid {
   display: grid;
   gap: 10px;
+}
+
+@media (max-width: 374px) {
+  .settings-members-page,
+  .settings-modal-page {
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
+
+  .settings-members-hero,
+  .settings-members-panel,
+  .settings-member-editor-card {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .settings-members-hero .mobile-title,
+  .settings-member-editor-modal ion-title {
+    font-size: 21px;
+  }
+
+  .settings-members-segment ion-segment-button {
+    font-size: 14px;
+  }
+
+  .settings-members-hero .settings-page-hero__meta {
+    gap: 8px;
+  }
+
+  .settings-members-hero .settings-page-hero__meta-item {
+    padding: 9px 10px;
+  }
+
+  .settings-members-hero .settings-page-hero__meta-item strong {
+    font-size: 17px;
+  }
+
+  .settings-form-actions {
+    gap: 16px;
+  }
+
+  .settings-form-field span {
+    font-size: 18px;
+  }
 }
 </style>

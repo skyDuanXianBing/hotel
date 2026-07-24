@@ -4899,6 +4899,11 @@
     "loggedOut": "Logged out"
   },
   "profile": {
+    "greeting": {
+      "morning": "Good morning, {name}",
+      "afternoon": "Good afternoon, {name}",
+      "evening": "Good evening, {name}"
+    },
     "pullToRefresh": "Pull to refresh profile",
     "unavailableEmail": "Email information is unavailable",
     "title": "Profile",

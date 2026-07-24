@@ -4899,6 +4899,11 @@
     "loggedOut": "已退出登录"
   },
   "profile": {
+    "greeting": {
+      "morning": "\u65e9\u4e0a\u597d\uff0c{name}",
+      "afternoon": "\u4e0b\u5348\u597d\uff0c{name}",
+      "evening": "\u665a\u4e0a\u597d\uff0c{name}"
+    },
     "pullToRefresh": "下拉刷新个人资料",
     "unavailableEmail": "未恢复邮箱信息",
     "title": "个人中心",

@@ -159,15 +159,11 @@ async function handleCopy(linkUrl: string) {
 
 <style scoped>
 .registration-review-links-route {
-  background:
-    radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 34%),
-    linear-gradient(180deg, #f4f7fc 0%, #eef3fb 100%);
+  background: var(--app-background);
 }
 
 .registration-review-links-page {
-  --background:
-    radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 34%),
-    linear-gradient(180deg, #f4f7fc 0%, #eef3fb 100%);
+  --background: var(--app-background);
   background: var(--background);
 }
 

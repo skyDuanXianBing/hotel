@@ -7,20 +7,26 @@
         </ion-buttons>
         <ion-title class="app-page-header__title">{{ $t('routes.SettingsRoomTypes') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button class="app-page-header__text-btn" fill="clear" @click="handleCreateRoomType">{{ $t('settingsStage4.roomGroup.addGroup') }}</ion-button>
+          <ion-button
+            class="app-page-header__text-btn settings-room-types-header-add"
+            fill="clear"
+            @click="handleCreateRoomType"
+          >
+            <span class="settings-room-types-header-add__text">{{ $t('settingsStage4.roomGroup.addGroup') }}</span>
+          </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
-    <ion-content fullscreen class="mobile-page settings-room-types-page">
+    <ion-content fullscreen class="mobile-page mobile-page--dashboard settings-room-types-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
         <ion-refresher-content :pulling-text="$t('stage5UiAttributes.6')" refreshing-spinner="crescent" />
       </ion-refresher>
 
-      <section class="mobile-hero settings-room-types-hero">
+      <section class="mobile-hero mobile-dashboard-surface settings-room-types-hero">
         <p class="mobile-note settings-room-types-hero__eyebrow">{{ $t('stage5SourceText.5') }}</p>
         <h1 class="mobile-title">{{ $t('routes.SettingsRoomTypes') }}</h1>
-        <div class="mobile-chip-row">
+        <div class="mobile-chip-row settings-room-types-hero__chips">
           <span class="mobile-chip">{{ $t('accommodation.common.roomType') }} {{ roomTypes.length }}</span>
           <span class="mobile-chip">{{ $t('accommodation.common.room') }} {{ totalRooms }}</span>
           <span class="mobile-chip">{{ $t('stage5SourceText.173') }}</span>
@@ -28,7 +34,7 @@
       </section>
 
       <div class="mobile-stack">
-        <section class="mobile-card">
+        <section class="mobile-card mobile-dashboard-surface settings-room-types-panel">
           <div class="mobile-inline-row settings-room-types-page__section-header">
             <div>
               <h2 class="mobile-section-title">{{ $t('stage5SourceText.101') }}</h2>
@@ -52,7 +58,7 @@
               </div>
 
               <div class="settings-room-type-card__meta">
-                  <span class="settings-room-type-card__meta-pill">{{ getBasePriceText(roomType.source, roomTypeMoneyOptions) }}</span>
+                <span class="settings-room-type-card__meta-pill">{{ getBasePriceText(roomType.source, roomTypeMoneyOptions) }}</span>
                 <span v-if="roomType.sizeText" class="settings-room-type-card__meta-pill">
                   {{ roomType.sizeText }}
                 </span>
@@ -1280,56 +1286,142 @@ onIonViewWillEnter(async () => {
 <style scoped>
 .settings-room-types-page {
   display: block;
+  --background: var(--app-background);
+  --padding-top: 12px;
+  --padding-bottom: calc(30px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+  background: var(--app-background);
+}
+
+ion-page > ion-header {
+  backdrop-filter: blur(14px);
+}
+
+ion-page > ion-header::after {
+  display: none;
+}
+
+ion-page > ion-header .settings-room-types-header-add {
+  font-size: 17px !important;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+ion-page > ion-header .settings-room-types-header-add::part(native) {
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.settings-room-types-header-add__text {
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
 }
 
 .settings-room-types-hero {
-  margin-top: 4px;
+  margin-top: 0;
+  padding: 17px 16px 21px;
+  border-radius: var(--ios-pms-radius-card);
+}
+
+.settings-room-types-hero::before {
+  display: none;
 }
 
 .settings-room-types-hero__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
+  display: none;
+}
+
+.settings-room-types-hero .mobile-title {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.settings-room-types-hero__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.settings-room-types-hero__chips .mobile-chip {
+  min-width: 0;
+  min-height: 24px;
+  padding: 2px 10px;
+  border-color: rgba(var(--ion-color-primary-rgb), 0.1);
+  background: rgba(var(--ion-color-primary-rgb), 0.07);
+  color: rgba(var(--ion-color-primary-rgb), 0.88);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .settings-room-types-page > .mobile-stack {
-  margin-top: var(--ios-pms-space-4);
+  gap: 18px;
+  margin-top: 10px;
+  padding-bottom: 4px;
+}
+
+.settings-room-types-panel {
+  padding: 22px 16px 48px;
+  border-radius: var(--ios-pms-radius-card);
 }
 
 .settings-room-types-page__section-header {
   align-items: flex-start;
 }
 
+.settings-room-types-page__section-header .mobile-section-title {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.settings-room-types-page__section-header ion-spinner {
+  flex-shrink: 0;
+  color: var(--ios-pms-primary);
+}
+
 .settings-room-types-list {
-  margin-top: 16px;
-  gap: 12px;
+  margin-top: 21px;
+  gap: 17px;
 }
 
 .settings-room-type-card {
   position: relative;
-  overflow: hidden;
-  padding: 16px;
-  border-radius: 20px;
-  border: 1px solid rgba(116, 138, 185, 0.12);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(247, 250, 255, 0.94));
+  overflow: visible;
+  padding: 14px 15px 14px;
+  border: 1px solid rgba(130, 143, 165, 0.2);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.88);
   box-shadow:
-    0 14px 28px rgba(90, 111, 153, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    0 1px 0 rgba(255, 255, 255, 0.88) inset,
+    0 8px 18px rgba(77, 98, 145, 0.035);
 }
 
 .settings-room-type-card::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto;
-  height: 72px;
-  background: linear-gradient(135deg, rgba(63, 124, 255, 0.08), rgba(255, 255, 255, 0));
-  pointer-events: none;
+  display: none;
 }
 
 .settings-room-type-card__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   position: relative;
   z-index: 1;
 }
@@ -1337,7 +1429,7 @@ onIonViewWillEnter(async () => {
 .settings-room-type-card__title-group {
   min-width: 0;
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .settings-room-type-card__header strong,
@@ -1347,37 +1439,45 @@ onIonViewWillEnter(async () => {
 
 .settings-room-type-card__header strong {
   color: var(--ios-pms-text-primary);
-  font-size: 18px;
-  font-weight: var(--ios-pms-weight-heavy);
-  line-height: 1.1;
-  letter-spacing: -0.03em;
+  font-size: 20px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.15;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
 .settings-room-type-card__summary {
   color: var(--ios-pms-text-muted);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0;
 }
 
 .settings-room-type-card__badge {
   display: inline-flex;
   flex: none;
   align-items: center;
-  min-height: 28px;
+  justify-content: center;
+  margin-top: -2px;
+  margin-right: -1px;
+  min-height: 26px;
   padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(116, 163, 251, 0.12);
-  background: rgba(115, 164, 255, 0.09);
-  color: var(--ios-pms-primary-strong);
-  font-size: 11px;
-  font-weight: var(--ios-pms-weight-bold);
-  letter-spacing: 0.01em;
+  border-radius: var(--ios-pms-radius-pill);
+  border: 1px solid rgba(130, 143, 165, 0.18);
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--ios-pms-text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .settings-room-type-card__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   margin-top: 14px;
   position: relative;
   z-index: 1;
@@ -1386,15 +1486,17 @@ onIonViewWillEnter(async () => {
 .settings-room-type-card__meta-pill {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(116, 138, 185, 0.1);
-  background: rgba(243, 247, 255, 0.92);
+  min-height: 27px;
+  padding: 2px 10px;
+  border-radius: var(--ios-pms-radius-pill);
+  border: 1px solid rgba(130, 143, 165, 0.22);
+  background: rgba(255, 255, 255, 0.84);
   color: var(--ios-pms-text-secondary);
-  font-size: 11px;
-  font-weight: var(--ios-pms-weight-medium);
-  line-height: 1;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .settings-room-type-card__actions {
@@ -1402,52 +1504,88 @@ onIonViewWillEnter(async () => {
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(116, 138, 185, 0.08);
   position: relative;
   z-index: 1;
 }
 
 .settings-room-type-card__action {
   margin: 0;
-  min-height: 34px;
-  --padding-start: 14px;
-  --padding-end: 14px;
+  min-height: 29px;
+  --padding-start: 12px;
+  --padding-end: 12px;
   --padding-top: 0;
   --padding-bottom: 0;
-  --border-radius: 999px;
+  --border-radius: 9px;
   --box-shadow: none;
-  font-size: 12px;
-  font-weight: var(--ios-pms-weight-bold);
-  letter-spacing: 0.01em;
+  font-size: 14px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
+}
+
+.settings-room-type-card__action::part(native) {
+  min-height: 29px;
+  border: 1px solid rgba(130, 143, 165, 0.24);
+  border-radius: 9px;
+  box-shadow: none;
+  line-height: 1.2;
 }
 
 .settings-room-type-card__action--primary {
-  --background: rgba(52, 116, 246, 0.1);
-  --background-hover: rgba(52, 116, 246, 0.14);
-  --background-activated: rgba(52, 116, 246, 0.16);
-  --color: var(--ios-pms-primary-strong);
+  --background: var(--ios-pms-primary);
+  --background-hover: var(--ios-pms-primary);
+  --background-activated: var(--ion-color-primary-shade);
+  --color: var(--ion-color-primary-contrast);
+}
+
+.settings-room-type-card__action--primary::part(native) {
+  border-color: transparent;
 }
 
 .settings-room-type-card__action[fill='outline'] {
-  --background: rgba(255, 255, 255, 0.82);
-  --color: var(--ios-pms-text-secondary);
-  --border-color: rgba(116, 138, 185, 0.14);
+  --background: rgba(255, 255, 255, 0.88);
+  --color: var(--ios-pms-primary);
+  --border-color: rgba(130, 143, 165, 0.24);
 }
 
 .settings-room-type-card__action--danger {
-  --color: #de5c5c;
+  --background: rgba(255, 255, 255, 0.88);
+  --color: #ff1f1f;
 }
 
 .settings-room-types-page__empty-state {
   display: grid;
   gap: 12px;
   justify-items: flex-start;
-  padding-top: 16px;
+  padding-top: 28px;
 }
 
 .settings-room-types-page__empty-text {
   margin: 0;
+}
+
+@media (max-width: 374px) {
+  .settings-room-types-page {
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
+
+  .settings-room-types-hero,
+  .settings-room-types-panel {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .settings-room-type-card {
+    padding: 13px 13px 14px;
+  }
+
+  .settings-room-type-card__header strong {
+    font-size: 19px;
+  }
+
+  .settings-room-type-card__action {
+    font-size: 13px;
+  }
 }
 
 .settings-modal-page {

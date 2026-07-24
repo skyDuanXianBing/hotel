@@ -4899,6 +4899,11 @@
     "loggedOut": "ログアウトしました"
   },
   "profile": {
+    "greeting": {
+      "morning": "\u304a\u306f\u3088\u3046\u3054\u3056\u3044\u307e\u3059\u3001{name}",
+      "afternoon": "\u3053\u3093\u306b\u3061\u306f\u3001{name}",
+      "evening": "\u3053\u3093\u3070\u3093\u306f\u3001{name}"
+    },
     "pullToRefresh": "下に引いてプロフィールを更新",
     "unavailableEmail": "メール情報を取得できません",
     "title": "プロフィール",

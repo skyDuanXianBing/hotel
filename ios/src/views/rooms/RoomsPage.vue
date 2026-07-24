@@ -1241,7 +1241,7 @@ onIonViewWillEnter(async () => {
 
 <style scoped>
 .rooms-page {
-  --background: #ffffff;
+  --background: var(--app-background);
 }
 
 .rooms-header {

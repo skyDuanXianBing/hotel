@@ -632,7 +632,7 @@ onIonViewWillEnter(async () => {
 
 <style scoped>
 .channel-inventory-page {
-  --background: linear-gradient(180deg, #eef3fb 0%, #f5f8fc 18%, #f9fbfd 100%);
+  --background: var(--app-background);
 }
 
 .channel-inventory-hero {

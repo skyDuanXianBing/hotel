@@ -1355,7 +1355,7 @@ onMounted(async () => {
 
 <style scoped>
 .reservation-detail-page {
-  --background: #f1f7ff;
+  --background: var(--app-background);
   --padding-top: 14px;
   --padding-bottom: calc(32px + var(--app-safe-bottom));
   --padding-start: 16px;

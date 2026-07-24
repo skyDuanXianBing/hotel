@@ -4899,6 +4899,11 @@
     "loggedOut": "已登出"
   },
   "profile": {
+    "greeting": {
+      "morning": "\u65e9\u4e0a\u597d\uff0c{name}",
+      "afternoon": "\u4e0b\u5348\u597d\uff0c{name}",
+      "evening": "\u665a\u4e0a\u597d\uff0c{name}"
+    },
     "pullToRefresh": "下拉重新整理個人資料",
     "unavailableEmail": "尚未恢復電子郵件資訊",
     "title": "個人中心",
