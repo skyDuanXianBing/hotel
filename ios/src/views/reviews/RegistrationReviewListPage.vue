@@ -5,7 +5,7 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.statistics" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">审查</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.RegistrationReviews') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -13,16 +13,16 @@
       <section class="mobile-hero mobile-dashboard-surface registration-review-list-page__hero">
         <div class="registration-review-list-page__hero-header">
           <div>
-            <h1 class="mobile-title">入住登记审查</h1>
+            <h1 class="mobile-title">{{ $t('routes.RegistrationReviews') }}</h1>
           </div>
           <ion-button size="small" class="registration-review-list-page__hero-action" @click="handleOpenLinks">
-            链接列表
+            {{ $t('stage5.dataCenter.registrations.linkList') }}
           </ion-button>
         </div>
         <div class="mobile-chip-row registration-review-list-page__hero-metrics">
-          <span class="mobile-chip">共 {{ reviewStore.totalCount }} 条</span>
-          <span class="mobile-chip">待处理 {{ reviewStore.pendingCount }} 条</span>
-          <span class="mobile-chip">已通过 {{ reviewStore.approvedCount }} 条</span>
+          <span class="mobile-chip">{{ $t('stage5DynamicUi.95') }} {{ reviewStore.totalCount }} {{ $t('stage5DynamicUi.125') }}</span>
+          <span class="mobile-chip">{{ $t('home.stat.pending.0') }} {{ reviewStore.pendingCount }} {{ $t('stage5DynamicUi.125') }}</span>
+          <span class="mobile-chip">{{ $t('stage5.common.status.approved') }} {{ reviewStore.approvedCount }} {{ $t('stage5DynamicUi.125') }}</span>
         </div>
       </section>
 
@@ -30,22 +30,22 @@
         <section class="mobile-card mobile-dashboard-surface registration-review-list-page__filters">
           <div class="mobile-inline-row registration-review-list-page__filters-header">
             <div>
-              <h2 class="mobile-section-title">筛选条件</h2>
-              <p class="mobile-note registration-review-list-page__filters-note">按状态、渠道与入住日期收窄任务范围。</p>
+              <h2 class="mobile-section-title">{{ $t('iosStage5.cleaning.filters') }}</h2>
+              <p class="mobile-note registration-review-list-page__filters-note">{{ $t('stage5SourceText.119') }}</p>
             </div>
             <span class="registration-review-list-page__filter-summary">
-              已筛选 {{ Object.keys(activeFilters).length }} 项
+              {{ $t('stage5DynamicUi.108') }} {{ Object.keys(activeFilters).length }} {{ $t('stage5DynamicUi.141') }}
             </span>
           </div>
 
           <div class="registration-review-list-page__filter-grid">
-            <ion-select v-model="statusFilter" fill="outline" interface="action-sheet" label="状态" label-placement="stacked">
+            <ion-select v-model="statusFilter" fill="outline" interface="action-sheet" :label="$t('accommodation.common.status')" label-placement="stacked">
               <ion-select-option v-for="option in REVIEW_STATUS_OPTIONS" :key="option.value" :value="option.value">
-                {{ option.label }}
+                {{ $t(option.labelKey) }}
               </ion-select-option>
             </ion-select>
 
-            <ion-select v-model="channelFilter" fill="outline" interface="action-sheet" label="渠道" label-placement="stacked">
+            <ion-select v-model="channelFilter" fill="outline" interface="action-sheet" :label="$t('home.quick.channels.0')" label-placement="stacked">
               <ion-select-option v-for="option in channelOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </ion-select-option>
@@ -53,20 +53,20 @@
 
             <div class="registration-review-list-page__date-range">
               <div class="registration-review-list-page__date-field">
-                <span>{{ checkInDateFilter || '入住日期' }}</span>
-                <ion-input v-model="checkInDateFilter" type="date" aria-label="入住日期" />
+                <span>{{ checkInDateFilter || $t('roomStatus.common.checkInDate') }}</span>
+                <ion-input v-model="checkInDateFilter" type="date" :aria-label="$t('roomStatus.common.checkInDate')" />
               </div>
-              <span class="registration-review-list-page__date-separator" aria-hidden="true">至</span>
+              <span class="registration-review-list-page__date-separator" aria-hidden="true">{{ $t('accommodation.common.rangeTo') }}</span>
               <div class="registration-review-list-page__date-field">
-                <span>{{ checkOutDateFilter || '离店日期' }}</span>
-                <ion-input v-model="checkOutDateFilter" type="date" aria-label="离店日期" />
+                <span>{{ checkOutDateFilter || $t('roomStatus.common.checkOutDate') }}</span>
+                <ion-input v-model="checkOutDateFilter" type="date" :aria-label="$t('roomStatus.common.checkOutDate')" />
               </div>
             </div>
           </div>
 
           <div class="registration-review-list-page__filter-actions">
-            <ion-button size="small" @click="handleApplyFilters">搜索</ion-button>
-            <ion-button fill="outline" size="small" @click="handleResetFilters">清空条件</ion-button>
+            <ion-button size="small" @click="handleApplyFilters">{{ $t('order.filters.searchPlaceholder') }}</ion-button>
+            <ion-button fill="outline" size="small" @click="handleResetFilters">{{ $t('stage5SourceText.163') }}</ion-button>
           </div>
 
           <p v-if="reviewStore.channelLoadError" class="mobile-note">{{ reviewStore.channelLoadError }}</p>
@@ -75,15 +75,15 @@
         <section class="mobile-card mobile-dashboard-surface registration-review-list-page__results">
           <div class="mobile-inline-row registration-review-list-page__results-header">
             <div>
-              <h2 class="mobile-section-title">审查列表</h2>
-              <p class="mobile-note">共 {{ reviewStore.totalCount }} 条，待处理 {{ reviewStore.pendingCount }} 条。</p>
+              <h2 class="mobile-section-title">{{ $t('stage5SourceText.43') }}</h2>
+              <p class="mobile-note">{{ $t('stage5DynamicUi.95') }} {{ reviewStore.totalCount }} {{ $t('stage5DynamicUi.127') }} {{ reviewStore.pendingCount }} {{ $t('stage5DynamicUi.126') }}</p>
             </div>
             <div class="registration-review-list-page__header-actions">
               <ion-button
                 fill="clear"
                 size="small"
                 class="registration-review-list-page__reload-button"
-                aria-label="刷新审查列表"
+                :aria-label="$t('stage5UiAttributes.32')"
                 @click="handleReload"
               >
                 <ion-icon slot="icon-only" :icon="refreshOutline" />
@@ -93,12 +93,12 @@
 
           <div v-if="shouldShowInitialLoading" class="registration-review-list-page__loading">
             <ion-spinner name="crescent" />
-            <p class="mobile-note">正在加载审查列表...</p>
+            <p class="mobile-note">{{ $t('stage5SourceText.156') }}</p>
           </div>
 
           <div v-else-if="reviewStore.loadError" class="registration-review-list-page__error-state">
             <p class="mobile-note">{{ reviewStore.loadError }}</p>
-            <ion-button fill="outline" size="small" @click="handleReload">重新加载</ion-button>
+            <ion-button fill="outline" size="small" @click="handleReload">{{ $t('storeSelection.reload') }}</ion-button>
           </div>
 
           <div v-else-if="reviewStore.records.length > 0" class="mobile-list pms-list registration-review-list-page__list">
@@ -123,8 +123,8 @@
                     <span
                       class="registration-review-list-page__room"
                       :class="{
-                        'is-unassigned': !record.roomNumber || record.roomNumber === '未排房',
-                        'is-assigned': record.roomNumber && record.roomNumber !== '未排房',
+                        'is-unassigned': !record.roomNumber || record.roomNumber === $t('home.stat.unassigned.0'),
+                        'is-assigned': record.roomNumber && record.roomNumber !== $t('home.stat.unassigned.0'),
                       }"
                     >
                       {{ record.roomLabel }}
@@ -138,34 +138,34 @@
 
               <div class="registration-review-list-page__stay-grid">
                 <span>
-                  <span class="registration-review-list-page__meta-label">入住</span>
+                  <span class="registration-review-list-page__meta-label">{{ $t('roomStatus.action.checkIn') }}</span>
                   <span class="registration-review-list-page__meta-value">{{ record.checkInDate }}</span>
                 </span>
                 <span>
-                  <span class="registration-review-list-page__meta-label">离店</span>
+                  <span class="registration-review-list-page__meta-label">{{ $t('roomStatus.hoverCard.checkOutDate') }}</span>
                   <span class="registration-review-list-page__meta-value">{{ record.checkOutDate }}</span>
                 </span>
               </div>
 
               <div class="registration-review-list-page__time-grid">
                 <span>
-                  <span class="registration-review-list-page__meta-label">提交</span>
+                  <span class="registration-review-list-page__meta-label">{{ $t('stage5.common.actions.submit') }}</span>
                   <span class="registration-review-list-page__meta-value">{{ record.submittedAt }}</span>
                 </span>
                 <span>
-                  <span class="registration-review-list-page__meta-label">更新</span>
+                  <span class="registration-review-list-page__meta-label">{{ $t('stage5SourceText.137') }}</span>
                   <span class="registration-review-list-page__meta-value">{{ record.updatedAt }}</span>
                 </span>
               </div>
 
               <div class="registration-review-list-page__notes">
-                <p>订单号：{{ record.orderNumber || '—' }}</p>
-                <p>渠道单号：{{ record.channelOrderNumber || '—' }}</p>
+                <p>{{ $t('stage5.dataCenter.detail.metaOrderNumber') }}{{ record.orderNumber || '—' }}</p>
+                <p>{{ $t('stage5DynamicUi.132') }}{{ record.channelOrderNumber || '—' }}</p>
               </div>
             </button>
           </div>
 
-          <p v-else class="mobile-note registration-review-list-page__empty">当前条件下暂无审查记录。</p>
+          <p v-else class="mobile-note registration-review-list-page__empty">{{ $t('stage5SourceText.89') }}</p>
         </section>
       </div>
     </ion-content>
@@ -190,6 +190,7 @@ import {
 } from '@ionic/vue'
 import { refreshOutline } from 'ionicons/icons'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { type RegistrationReviewListParams } from '@/api/review'
 import { REVIEW_STATUS_OPTIONS, getReviewStatusLabel, type ReviewFilterStatus } from '@/constants/reviews'
@@ -197,6 +198,7 @@ import { ROUTE_PATHS } from '@/router/guards'
 import { useReviewStore } from '@/stores/reviews'
 
 const router = useRouter()
+const { t } = useI18n()
 const reviewStore = useReviewStore()
 
 const statusFilter = ref<ReviewFilterStatus>('all')
@@ -207,7 +209,7 @@ const checkOutDateFilter = ref('')
 const DEFAULT_CHANNEL_COLOR = '#2949ff'
 
 const channelOptions = computed(() => {
-  const options = [{ label: '全部渠道', value: 'all' }]
+  const options = [{ label: t('settingsResidual.autoMessages.allChannels'), value: 'all' }]
 
   for (const channel of reviewStore.channels) {
     options.push({
@@ -395,6 +397,10 @@ function resolveChannelBadgeStyle(channelName: string) {
   font-weight: 400;
 }
 
+.registration-review-list-page__hero-action::part(native) {
+  white-space: nowrap;
+}
+
 .registration-review-list-page__hero-metrics {
   gap: 8px;
   margin-top: 0;
@@ -450,15 +456,22 @@ function resolveChannelBadgeStyle(channelName: string) {
 .registration-review-list-page__filter-summary {
   display: inline-flex;
   align-items: center;
-  min-height: 26px;
-  padding: 0 9px;
+  justify-content: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 28px;
+  padding: 0 10px;
   border: 1px solid #d9ebff;
   border-radius: 12px;
   background: #eaf5ff;
   color: #287cff;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 400;
+  line-height: 1.2;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .registration-review-list-page__filter-grid {
@@ -660,6 +673,8 @@ function resolveChannelBadgeStyle(channelName: string) {
   text-align: left;
   color: inherit;
   cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .registration-review-list-page__item.is-pending {
@@ -876,6 +891,7 @@ function resolveChannelBadgeStyle(channelName: string) {
 
   .registration-review-list-page__filter-summary {
     justify-self: flex-start;
+    font-size: 11px;
   }
 
   .registration-review-list-page__stay-grid > span:nth-child(even),
@@ -891,5 +907,6 @@ function resolveChannelBadgeStyle(channelName: string) {
   .registration-review-list-page__guest-name {
     font-size: 17px;
   }
+
 }
 </style>

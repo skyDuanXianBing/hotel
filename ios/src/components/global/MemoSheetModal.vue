@@ -2,9 +2,9 @@
   <ion-modal :is-open="isOpen" @didDismiss="handleDismiss">
     <ion-header>
       <ion-toolbar>
-        <ion-title>备忘录</ion-title>
+        <ion-title>{{ t('tools.memo') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="handleDismiss">关闭</ion-button>
+          <ion-button @click="handleDismiss">{{ t('tools.close') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -33,6 +33,7 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import HomeMemoCard from '@/components/home/HomeMemoCard.vue'
 import { useMemoStore } from '@/stores/memo'
 
@@ -47,6 +48,7 @@ const emit = defineEmits<{
 }>()
 
 const memoStore = useMemoStore()
+const { t } = useI18n()
 
 const memoValue = computed({
   get: () => memoStore.memoContent,

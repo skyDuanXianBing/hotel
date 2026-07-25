@@ -1,12 +1,12 @@
 <template>
   <SettingsDetailFormShell
     :back-href="ROUTE_PATHS.settings"
-    title="门店资料"
-    hero-eyebrow="当前门店"
+    :title="$t('settings.entries.storeProfile.0')"
+    :hero-eyebrow="$t('common.currentStore')"
     :hero-title="pageTitle"
-    toolbar-action-label="门店详情"
+    :toolbar-action-label="$t('settingsStage4.storeDetails.title')"
     :show-refresher="true"
-    refresher-pulling-text="下拉刷新门店资料"
+    :refresher-pulling-text="$t('stage5UiAttributes.20')"
     @refresh="handleRefresh"
     @toolbar-action="handleOpenStoreDetails"
   >
@@ -14,19 +14,19 @@
       <div class="settings-detail-hero__summary">
         <div class="settings-detail-hero__meta">
           <div class="settings-detail-hero__meta-item">
-            <span class="settings-detail-hero__meta-label">地区</span>
+            <span class="settings-detail-hero__meta-label">{{ $t('stage5SourceText.39') }}</span>
             <strong>{{ locationLabel }}</strong>
           </div>
           <div class="settings-detail-hero__meta-item">
-            <span class="settings-detail-hero__meta-label">币种</span>
+            <span class="settings-detail-hero__meta-label">{{ $t('stage5SourceText.53') }}</span>
             <strong>{{ currencyLabel }}</strong>
           </div>
           <div class="settings-detail-hero__meta-item">
-            <span class="settings-detail-hero__meta-label">门店类型</span>
+            <span class="settings-detail-hero__meta-label">{{ $t('settingsStage4.storeBasic.fields.type') }}</span>
             <strong>{{ storeTypeLabel }}</strong>
           </div>
           <div class="settings-detail-hero__meta-item">
-            <span class="settings-detail-hero__meta-label">时区</span>
+            <span class="settings-detail-hero__meta-label">{{ $t('settingsStage4.storeBasic.fields.timezone') }}</span>
             <strong>{{ timezoneLabel }}</strong>
           </div>
         </div>
@@ -34,64 +34,64 @@
     </template>
 
     <SettingsSectionCard
-      title="基础资料"
+      :title="$t('stage5UiAttributes.38')"
       :loading="loading"
       header-class="settings-detail-page__section-header"
     >
       <div class="settings-form-grid settings-form-grid--top">
         <label class="settings-form-field">
-          <span>门店名称</span>
-          <ion-input v-model="form.name" fill="outline" placeholder="请输入门店名称" />
+          <span>{{ $t('settingsStage4.storeBasic.fields.name') }}</span>
+          <ion-input v-model="form.name" fill="outline" :placeholder="$t('settingsStage4.storeBasic.placeholders.name')" />
         </label>
 
         <label class="settings-form-field">
-          <span>联系电话</span>
-          <ion-input v-model="form.phone" fill="outline" placeholder="请输入联系电话" />
+          <span>{{ $t('settingsStage4.storeDetails.fields.phone') }}</span>
+          <ion-input v-model="form.phone" fill="outline" :placeholder="$t('settingsStage4.storeDetails.placeholders.phone')" />
         </label>
 
         <label class="settings-form-field">
-          <span>门店类型</span>
-          <ion-input v-model="form.type" fill="outline" placeholder="请输入门店类型" />
+          <span>{{ $t('settingsStage4.storeBasic.fields.type') }}</span>
+          <ion-input v-model="form.type" fill="outline" :placeholder="$t('stage5UiAttributes.101')" />
         </label>
 
         <label class="settings-form-field">
-          <span>时区</span>
-          <ion-input v-model="form.timezone" fill="outline" placeholder="请输入时区" />
+          <span>{{ $t('settingsStage4.storeBasic.fields.timezone') }}</span>
+          <ion-input v-model="form.timezone" fill="outline" :placeholder="$t('stage5UiAttributes.82')" />
         </label>
 
         <label class="settings-form-field">
-          <span>负责人</span>
-          <ion-input v-model="form.manager" fill="outline" placeholder="请输入负责人姓名" />
+          <span>{{ $t('settingsStage4.storeBasic.fields.manager') }}</span>
+          <ion-input v-model="form.manager" fill="outline" :placeholder="$t('settingsStage4.storeBasic.placeholders.manager')" />
         </label>
 
         <label class="settings-form-field">
-          <span>负责人邮箱</span>
-          <ion-input v-model="form.ownerEmail" fill="outline" placeholder="请输入负责人邮箱" />
+          <span>{{ $t('settingsStage4.storeBasic.fields.ownerEmail') }}</span>
+          <ion-input v-model="form.ownerEmail" fill="outline" :placeholder="$t('stage5UiAttributes.97')" />
         </label>
 
         <label class="settings-form-field">
-          <span>国家</span>
-          <ion-input v-model="form.country" fill="outline" placeholder="请输入国家" />
+          <span>{{ $t('stage5.publicRegistration.form.country') }}</span>
+          <ion-input v-model="form.country" fill="outline" :placeholder="$t('stage5UiAttributes.70')" />
         </label>
 
         <label class="settings-form-field">
-          <span>城市</span>
-          <ion-input v-model="form.city" fill="outline" placeholder="请输入城市" />
+          <span>{{ $t('settingsStage4.storeBasic.fields.city') }}</span>
+          <ion-input v-model="form.city" fill="outline" :placeholder="$t('settingsStage4.storeBasic.placeholders.city')" />
         </label>
 
         <label class="settings-form-field">
-          <span>地址</span>
-          <ion-input v-model="form.address" fill="outline" placeholder="请输入地址" />
+          <span>{{ $t('settingsStage4.storeDetails.fields.address') }}</span>
+          <ion-input v-model="form.address" fill="outline" :placeholder="$t('stage5UiAttributes.71')" />
         </label>
 
         <label class="settings-form-field">
-          <span>币种</span>
-          <ion-input v-model="form.currency" fill="outline" placeholder="请输入币种" />
+          <span>{{ $t('stage5SourceText.53') }}</span>
+          <ion-input v-model="form.currency" fill="outline" :placeholder="$t('stage5UiAttributes.74')" />
         </label>
 
         <label class="settings-form-field settings-form-field--full">
-          <span>简介</span>
-          <ion-textarea v-model="form.description" :rows="5" fill="outline" placeholder="请输入门店简介" />
+          <span>{{ $t('stage5SourceText.175') }}</span>
+          <ion-textarea v-model="form.description" :rows="5" fill="outline" :placeholder="$t('stage5UiAttributes.100')" />
         </label>
       </div>
 
@@ -99,9 +99,9 @@
 
     <template #bottomActions>
       <div class="settings-page-actions">
-        <ion-button fill="outline" :disabled="loading || saving" @click="loadStoreDetail">重置</ion-button>
+        <ion-button fill="outline" :disabled="loading || saving" @click="loadStoreDetail">{{ $t('accommodation.common.reset') }}</ion-button>
         <ion-button :disabled="loading || saving" @click="handleSave">
-          {{ saving ? '保存中...' : '保存资料' }}
+          {{ saving ? $t('channel.mobile.common.saving') : $t('profile.save') }}
         </ion-button>
       </div>
     </template>
@@ -109,6 +109,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { IonButton, IonInput, IonTextarea, onIonViewWillEnter } from '@ionic/vue'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -120,6 +121,8 @@ import { useStoreStore } from '@/stores/store'
 import type { StoreDTO, StoreRequest } from '@/types/store'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
+
+const { t } = useI18n()
 
 interface StoreFormState {
   name: string
@@ -143,27 +146,27 @@ const saving = ref(false)
 const form = ref<StoreFormState>(createEmptyForm())
 
 const pageTitle = computed(() => {
-  return form.value.name || storeStore.currentStore?.name || '门店资料'
+  return form.value.name || storeStore.currentStore?.name || t('settings.entries.storeProfile.0')
 })
 
 const locationLabel = computed(() => {
   const parts = [form.value.city, form.value.country].filter(Boolean)
   if (parts.length === 0) {
-    return '未设置地区'
+    return t('settings.constants.storeDetails.unsetRegion')
   }
   return parts.join(' · ')
 })
 
 const currencyLabel = computed(() => {
-  return form.value.currency || '未设置币种'
+  return form.value.currency || t('settings.constants.storeDetails.unsetCurrency')
 })
 
 const storeTypeLabel = computed(() => {
-  return form.value.type || '未设置类型'
+  return form.value.type || t('settingsResidual.common.notConfigured')
 })
 
 const timezoneLabel = computed(() => {
-  return form.value.timezone || '未设置时区'
+  return form.value.timezone || t('settings.constants.storeDetails.unsetTimezone')
 })
 
 function createEmptyForm(): StoreFormState {
@@ -224,7 +227,7 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
 async function loadStoreDetail() {
   const storeId = storeStore.currentStore?.id
   if (!storeId) {
-    showWarningToast('请先选择门店')
+    showWarningToast(t('settingsStage4.roomGroup.messages.selectStore'))
     return
   }
 
@@ -232,14 +235,14 @@ async function loadStoreDetail() {
   try {
     const response = await getStoreById(storeId)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载门店资料失败')
+      throw new Error(response.message || t('stage5Pattern.loadFailed'))
     }
 
     fillForm(response.data)
     storeStore.setCurrentStore(response.data)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载门店资料失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.loadFailed')))
     }
   } finally {
     loading.value = false
@@ -249,17 +252,17 @@ async function loadStoreDetail() {
 async function handleSave() {
   const storeId = storeStore.currentStore?.id
   if (!storeId) {
-    showWarningToast('请先选择门店')
+    showWarningToast(t('settingsStage4.roomGroup.messages.selectStore'))
     return
   }
 
   if (!form.value.name.trim()) {
-    showWarningToast('请输入门店名称')
+    showWarningToast(t('settingsStage4.storeBasic.placeholders.name'))
     return
   }
 
   if (!form.value.country.trim()) {
-    showWarningToast('请输入国家')
+    showWarningToast(t('stage5UiAttributes.70'))
     return
   }
 
@@ -267,15 +270,15 @@ async function handleSave() {
   try {
     const response = await updateStore(storeId, buildRequestData())
     if (!response.success || !response.data) {
-      throw new Error(response.message || '保存门店资料失败')
+      throw new Error(response.message || t('stage5Pattern.saveFailed'))
     }
 
     fillForm(response.data)
     storeStore.setCurrentStore(response.data)
-    showSuccessToast('门店资料已保存')
+    showSuccessToast(t('stage5Pattern.saveCompleted'))
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存门店资料失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     saving.value = false

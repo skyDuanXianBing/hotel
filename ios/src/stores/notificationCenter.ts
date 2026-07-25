@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { getMessageThreads } from '@/api/message'
 import { getNotificationSettings } from '@/api/notification'
+import { i18n } from '@/locales'
 import { buildMessageDetailPath } from '@/router/guards'
 import type { MessageThreadDTO } from '@/types/message'
 import type { NotificationSettingDTO, NotificationSettingRequest } from '@/types/settings'
@@ -9,6 +10,11 @@ import { getStoredCurrentStoreId, getStoredToken } from '@/utils/storage'
 
 const POLL_INTERVAL = 15000
 const POPUP_DURATION = 5000
+
+const notificationText = (key: string, params?: Record<string, unknown>) => {
+  const path = `runtime.notification.${key}`
+  return params ? i18n.global.t(path, params) : i18n.global.t(path)
+}
 
 export interface InAppNotificationItem {
   id: string
@@ -37,12 +43,15 @@ function buildThreadTitle(thread: MessageThreadDTO) {
     return thread.channelName
   }
 
-  return '住客会话'
+  return notificationText('guestThread')
 }
 
 function buildThreadDetail(thread: MessageThreadDTO) {
   const orderCode = thread.bookingId || thread.threadId || '-'
-  return `${thread.channelName} · 订单 ${orderCode}`
+  return notificationText('orderDetail', {
+    channel: thread.channelName,
+    code: orderCode,
+  })
 }
 
 function hasAuthenticatedNotificationContext() {
@@ -195,41 +204,6 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
 
       syncMessageThreads(nextResponse.data)
       return
-/*
-
-      const popupEnabled = settings.value ? settings.value.chatPopup : true
-      if (!popupEnabled) {
-        return
-      }
-
-      const response = await getMessageThreads()
-      if (!response.success || !response.data) {
-        return
-      }
-
-      const threads = response.data || []
-
-      for (const thread of threads) {
-        if (thread.unreadCount <= 0) {
-          continue
-        }
-
-        const uniqueKey = `message:${thread.id}:${thread.lastActivity}:${thread.unreadCount}`
-        if (shownKeys.has(uniqueKey)) {
-          continue
-        }
-
-        shownKeys.add(uniqueKey)
-        enqueue({
-          id: uniqueKey,
-          title: buildThreadTitle(thread),
-          content: thread.lastMessage || '你有一条新的住客消息',
-          detail: buildThreadDetail(thread),
-          targetPath: buildMessageDetailPath(thread.id),
-          type: 'message',
-        })
-      }
-*/
     } catch {
       return
     }

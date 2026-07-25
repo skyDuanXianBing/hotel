@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import RegisterPage from '@/views/auth/RegisterPage.vue'
+import { createTestI18n } from './helpers/i18n'
 
 const apiMocks = vi.hoisted(() => ({
   register: vi.fn(),
@@ -106,6 +107,16 @@ const findButtonByText = (wrapper: ReturnType<typeof mount>, text: string) => {
   return button
 }
 
+const mountRegisterPage = () =>
+  mount(RegisterPage, {
+    props: {
+      initialEmail: 'owner@example.com',
+    },
+    global: {
+      plugins: [createTestI18n()],
+    },
+  })
+
 describe('RegisterPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -118,11 +129,7 @@ describe('RegisterPage', () => {
   })
 
   test('shows the complete registration form on one page', () => {
-    const wrapper = mount(RegisterPage, {
-      props: {
-        initialEmail: 'owner@example.com',
-      },
-    })
+    const wrapper = mountRegisterPage()
 
     expect(wrapper.text()).toContain('邮箱')
     expect(wrapper.text()).toContain('邮箱验证码')
@@ -137,11 +144,7 @@ describe('RegisterPage', () => {
   })
 
   test('sends a registration verification code without changing form steps', async () => {
-    const wrapper = mount(RegisterPage, {
-      props: {
-        initialEmail: 'owner@example.com',
-      },
-    })
+    const wrapper = mountRegisterPage()
 
     await findButtonByText(wrapper, '发送验证码').trigger('click')
     await flushPromises()
@@ -155,11 +158,7 @@ describe('RegisterPage', () => {
 
   test('prevents resending a registration code during the 60 second countdown', async () => {
     vi.useFakeTimers()
-    const wrapper = mount(RegisterPage, {
-      props: {
-        initialEmail: 'owner@example.com',
-      },
-    })
+    const wrapper = mountRegisterPage()
     const sendButton = findButtonByText(wrapper, '发送验证码')
 
     await sendButton.trigger('click')
@@ -179,11 +178,7 @@ describe('RegisterPage', () => {
   })
 
   test('keeps the register button interactive so incomplete fields show validation feedback', async () => {
-    const wrapper = mount(RegisterPage, {
-      props: {
-        initialEmail: 'owner@example.com',
-      },
-    })
+    const wrapper = mountRegisterPage()
     const registerButton = findButtonByText(wrapper, '注册')
 
     expect(registerButton.attributes('disabled')).toBeUndefined()
@@ -195,11 +190,7 @@ describe('RegisterPage', () => {
   })
 
   test('submits the Web-aligned payload and preserves the original password', async () => {
-    const wrapper = mount(RegisterPage, {
-      props: {
-        initialEmail: 'owner@example.com',
-      },
-    })
+    const wrapper = mountRegisterPage()
 
     await wrapper.find('input[placeholder="请输入邮箱验证码"]').setValue('123456')
     await wrapper.find('input[placeholder="请输入 6-20 位密码"]').setValue(' 123456 ')
@@ -217,11 +208,7 @@ describe('RegisterPage', () => {
   })
 
   test('accepts a 6 character password and rejects passwords longer than 20 characters', async () => {
-    const wrapper = mount(RegisterPage, {
-      props: {
-        initialEmail: 'owner@example.com',
-      },
-    })
+    const wrapper = mountRegisterPage()
 
     await wrapper.find('input[placeholder="请输入邮箱验证码"]').setValue('123456')
     await wrapper.find('input[type="checkbox"]').setValue(true)

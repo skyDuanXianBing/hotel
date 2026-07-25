@@ -1,80 +1,80 @@
 <template>
   <SettingsPageShell
     :back-href="ROUTE_PATHS.settings"
-    title="定价工具"
-    hero-eyebrow="第三方集成"
+    :title="$t('settings.entries.pricingTools.0')"
+    :hero-eyebrow="$t('settings.groups.integrations')"
     hero-title="PriceLabs"
     content-class="settings-page-block"
     hero-class="settings-page-block__hero"
     eyebrow-class="settings-page-block__eyebrow"
   >
     <SettingsSectionCard
-      title="集成状态"
+      :title="$t('settingsStage4.pricingTools.sections.integrationStatus')"
       :loading="loading"
       header-class="settings-page-block__section-header"
     >
       <div class="settings-toggle-field">
         <div>
-          <strong>启用 PriceLabs</strong>
-          <p>当前状态：{{ integrationForm.isEnabled ? '已启用' : '已停用' }}</p>
+          <strong>{{ $t('stage5SourceText.32') }}</strong>
+          <p>{{ $t('stage5DynamicUi.110') }}{{ integrationForm.isEnabled ? $t('channel.managementData.statusActive') : $t('stage5DynamicUi.28') }}</p>
         </div>
         <ion-toggle v-model="integrationForm.isEnabled" />
       </div>
 
       <div class="settings-form-grid settings-form-grid--top">
         <label class="settings-form-field">
-          <span>PriceLabs 邮箱</span>
-          <ion-input v-model="integrationForm.priceLabsEmail" fill="outline" placeholder="请输入邮箱" />
+          <span>{{ $t('settingsStage4.pricingTools.columns.priceLabsEmail') }}</span>
+          <ion-input v-model="integrationForm.priceLabsEmail" fill="outline" :placeholder="$t('auth.placeholder.email')" />
         </label>
       </div>
 
       <div class="settings-form-actions settings-form-actions--section">
-        <ion-button fill="outline" :disabled="loading || savingIntegration" @click="loadPageData">重置</ion-button>
+        <ion-button fill="outline" :disabled="loading || savingIntegration" @click="loadPageData">{{ $t('accommodation.common.reset') }}</ion-button>
         <ion-button :disabled="loading || savingIntegration" @click="handleSaveIntegration">
-          {{ savingIntegration ? '保存中...' : '保存集成设置' }}
+          {{ savingIntegration ? $t('channel.mobile.common.saving') : $t('stage5DynamicUi.23') }}
         </ion-button>
         <ion-button fill="outline" :disabled="loading || syncing" @click="handleManualSync">
-          {{ syncing ? '同步中...' : '立即同步' }}
+          {{ syncing ? $t('channel.mobile.sync.syncing') : $t('stage5DynamicUi.59') }}
         </ion-button>
       </div>
     </SettingsSectionCard>
 
     <SettingsSectionCard
-      title="连接关系"
+      :title="$t('stage5UiAttributes.107')"
       header-class="settings-page-block__section-header"
     >
       <template #headerActions>
-        <ion-button size="small" @click="handleOpenConnectionEditor">新增连接</ion-button>
+        <ion-button size="small" @click="handleOpenConnectionEditor">{{ $t('stage5SourceText.130') }}</ion-button>
       </template>
 
       <div v-if="connections.length > 0" class="mobile-list settings-card-list">
         <article v-for="connection in connections" :key="connection.id" class="settings-card-item">
           <div>
             <strong>{{ connection.roomTypeName }} / {{ connection.pricePlanName }}</strong>
-            <p>{{ connection.isEnabled ? '已启用' : '已停用' }} · {{ connection.syncStatus }}</p>
+            <p>{{ connection.isEnabled ? $t('channel.managementData.statusActive') : $t('stage5DynamicUi.28') }} · {{ connection.syncStatus }}</p>
             <p v-if="connection.errorMessage">{{ connection.errorMessage }}</p>
           </div>
           <div class="settings-card-item__actions">
             <ion-button size="small" fill="outline" @click="handleToggleConnection(connection)">
-              {{ connection.isEnabled ? '停用' : '启用' }}
+              {{ connection.isEnabled ? $t('roomStatus.store.roomState.outOfOrder') : $t('settingsStage4.accountList.status.enabled') }}
             </ion-button>
-            <ion-button size="small" color="danger" fill="clear" @click="handleDeleteConnection(connection)">删除</ion-button>
+            <ion-button size="small" color="danger" fill="clear" @click="handleDeleteConnection(connection)">{{ $t('roomStatus.roomLock.actions.delete') }}</ion-button>
           </div>
         </article>
       </div>
 
-      <p v-else-if="!loading" class="mobile-note">当前暂无连接关系。</p>
+      <p v-else-if="!loading" class="mobile-note">{{ $t('stage5SourceText.88') }}</p>
     </SettingsSectionCard>
 
-    <SettingsSectionCard title="渠道价差">
-      <p v-if="!canManageChannels" class="mobile-note">没有渠道管理权限，仅可查看渠道价差。</p>
+    <SettingsSectionCard :title="$t('stage5UiAttributes.55')">
+      <p v-if="!canManageChannels" class="mobile-note">{{ $t('stage5SourceText.160') }}</p>
 
       <div v-if="adjustments.length > 0" class="mobile-list settings-card-list">
         <article v-for="adjustment in adjustments" :key="adjustment.channelId" class="settings-card-item">
           <div>
             <strong>{{ adjustment.channelName }}</strong>
             <p>{{ adjustment.adjustmentType }} · {{ adjustment.adjustmentValue ?? '-' }}</p>
-            <p>{{ adjustment.autoSyncPrice ? '自动同步已开' : '自动同步已关' }}</p>
+            <p>{{ adjustment.autoSyncPrice ? $t('stage5DynamicUi.71') : $t('stage5DynamicUi.70') }}</p>
           </div>
           <div class="settings-card-item__actions">
             <ion-button
@@ -83,16 +83,16 @@
               :disabled="!canManageChannels"
               @click="handleEditAdjustment(adjustment)"
             >
-              编辑
+              {{ $t('accommodation.roomPrice.editTitle') }}
             </ion-button>
           </div>
         </article>
       </div>
 
-      <p v-else-if="!loading" class="mobile-note">当前暂无渠道价差配置。</p>
+      <p v-else-if="!loading" class="mobile-note">{{ $t('stage5SourceText.85') }}</p>
     </SettingsSectionCard>
 
-    <SettingsSectionCard title="最近同步">
+    <SettingsSectionCard :title="$t('settingsStage4.pricingTools.columns.recentSync')">
       <div v-if="logs.length > 0" class="mobile-list settings-card-list">
         <article v-for="log in logs" :key="log.id" class="settings-card-item">
           <div>
@@ -103,18 +103,18 @@
         </article>
       </div>
 
-      <p v-else-if="!loading" class="mobile-note">当前暂无同步记录。</p>
+      <p v-else-if="!loading" class="mobile-note">{{ $t('stage5SourceText.77') }}</p>
     </SettingsSectionCard>
 
     <SettingsEditorModal
       :is-open="connectionEditorOpen"
-      title="新增连接"
+      :title="$t('stage5SourceText.130')"
       @close="handleCloseConnectionEditor"
       @didDismiss="handleCloseConnectionEditor"
     >
       <div class="settings-form-grid">
         <label class="settings-form-field">
-          <span>房型</span>
+          <span>{{ $t('accommodation.common.roomType') }}</span>
           <ion-select v-model="connectionForm.roomTypeId" fill="outline" interface="modal">
             <ion-select-option v-for="roomType in roomTypes" :key="roomType.id" :value="roomType.id">
               {{ roomType.name }}
@@ -123,7 +123,7 @@
         </label>
 
         <label class="settings-form-field">
-          <span>价格计划</span>
+          <span>{{ $t('accommodation.roomPriceBulk.table.pricePlan') }}</span>
           <ion-select v-model="connectionForm.pricePlanId" fill="outline" interface="modal">
             <ion-select-option v-for="plan in pricePlans" :key="plan.id" :value="plan.id">
               {{ plan.name }}
@@ -133,22 +133,22 @@
       </div>
 
       <template #actions>
-        <ion-button fill="outline" @click="handleCloseConnectionEditor">取消</ion-button>
+        <ion-button fill="outline" @click="handleCloseConnectionEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
         <ion-button :disabled="submittingConnection" @click="handleSaveConnection">
-          {{ submittingConnection ? '提交中...' : '保存连接' }}
+          {{ submittingConnection ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.20') }}
         </ion-button>
       </template>
     </SettingsEditorModal>
 
     <SettingsEditorModal
       :is-open="adjustmentEditorOpen"
-      title="编辑渠道价差"
+      :title="$t('stage5UiAttributes.57')"
       @close="handleCloseAdjustmentEditor"
       @didDismiss="handleCloseAdjustmentEditor"
     >
       <div class="settings-form-grid">
         <label class="settings-form-field">
-          <span>调整方式</span>
+          <span>{{ $t('stage5SourceText.209') }}</span>
           <ion-select
             v-model="adjustmentForm.adjustmentType"
             fill="outline"
@@ -161,27 +161,27 @@
           </ion-select>
         </label>
         <label class="settings-form-field">
-          <span>调整值</span>
+          <span>{{ $t('settingsStage4.pricingTools.fields.adjustmentValue') }}</span>
           <ion-input
             v-model="adjustmentForm.adjustmentValue"
             fill="outline"
             inputmode="decimal"
-            placeholder="请输入调整值"
+            :placeholder="$t('stage5UiAttributes.96')"
             :disabled="!canManageChannels"
           />
         </label>
         <div class="settings-toggle-field">
           <div>
-            <strong>自动同步价格</strong>
+            <strong>{{ $t('stage5SourceText.184') }}</strong>
           </div>
           <ion-toggle v-model="adjustmentForm.autoSyncPrice" :disabled="!canManageChannels" />
         </div>
       </div>
 
       <template #actions>
-        <ion-button fill="outline" @click="handleCloseAdjustmentEditor">取消</ion-button>
+        <ion-button fill="outline" @click="handleCloseAdjustmentEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
         <ion-button :disabled="submittingAdjustment || !canManageChannels" @click="handleSaveAdjustment">
-          {{ submittingAdjustment ? '提交中...' : '保存价差' }}
+          {{ submittingAdjustment ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.3') }}
         </ion-button>
       </template>
     </SettingsEditorModal>
@@ -189,6 +189,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   alertController,
   IonButton,
@@ -227,6 +228,8 @@ import { hasCurrentStorePermission } from '@/utils/permissions'
 import { isHandledRequestError } from '@/utils/request'
 import { normalizeOptionalNumber } from '@/utils/settings'
 
+const { t } = useI18n()
+
 const userStore = useUserStore()
 
 const loading = ref(false)
@@ -262,7 +265,9 @@ function ensureCanManageChannels(actionLabel: string) {
     return true
   }
 
-  showWarningToast(`您没有权限${actionLabel}`)
+  showWarningToast(
+    `${t('stage5Pattern.permission')}: ${actionLabel}`,
+  )
   return false
 }
 
@@ -281,10 +286,10 @@ async function loadManageChannelsPermission() {
 async function confirmDelete(name: string, title: string) {
   const alert = await alertController.create({
     header: title,
-    message: `确认删除 ${name} 吗？`,
+    message: t('settingsResidual.common.confirmDelete', { name }),
     buttons: [
-      { text: '取消', role: 'cancel' },
-      { text: '确认删除', role: 'destructive' },
+      { text: t('accommodation.common.cancel'), role: 'cancel' },
+      { text: t('settingsStage4.roomSettings.messages.deleteTitle'), role: 'destructive' },
     ],
   })
   await alert.present()
@@ -295,7 +300,7 @@ async function confirmDelete(name: string, title: string) {
 async function loadPageData() {
   const userId = userStore.currentUser?.id
   if (!userId) {
-    showWarningToast('请先恢复当前用户信息')
+    showWarningToast(t('stage5Pattern.setup'))
     return
   }
 
@@ -324,7 +329,7 @@ async function loadPageData() {
     logs.value = logResponse.success && logResponse.data ? logResponse.data : []
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载定价工具失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.loadFailed')))
     }
   } finally {
     loading.value = false
@@ -339,13 +344,13 @@ async function handleSaveIntegration() {
       priceLabsEmail: integrationForm.value.priceLabsEmail?.trim(),
     })
     if (!response.success || !response.data) {
-      throw new Error(response.message || '保存集成设置失败')
+      throw new Error(response.message || t('stage5Pattern.saveFailed'))
     }
-    showSuccessToast('集成设置已保存')
+    showSuccessToast(t('stage5Pattern.saveCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存集成设置失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     savingIntegration.value = false
@@ -357,13 +362,13 @@ async function handleManualSync() {
   try {
     const response = await manualSync()
     if (!response.success) {
-      throw new Error(response.message || '触发同步失败')
+      throw new Error(response.message || t('stage5Pattern.syncFailed'))
     }
-    showSuccessToast('同步任务已触发')
+    showSuccessToast(t('stage5Pattern.syncCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '触发同步失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.syncFailed')))
     }
   } finally {
     syncing.value = false
@@ -381,7 +386,7 @@ function handleCloseConnectionEditor() {
 
 async function handleSaveConnection() {
   if (!connectionForm.value.roomTypeId || !connectionForm.value.pricePlanId) {
-    showWarningToast('请选择房型和价格计划')
+    showWarningToast(t('stage5Pattern.select'))
     return
   }
 
@@ -389,14 +394,14 @@ async function handleSaveConnection() {
   try {
     const response = await createConnection(connectionForm.value.roomTypeId, connectionForm.value.pricePlanId)
     if (!response.success) {
-      throw new Error(response.message || '创建连接失败')
+      throw new Error(response.message || t('stage5Pattern.createFailed'))
     }
-    showSuccessToast('连接已创建')
+    showSuccessToast(t('stage5Pattern.createCompleted'))
     handleCloseConnectionEditor()
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '创建连接失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.createFailed')))
     }
   } finally {
     submittingConnection.value = false
@@ -407,38 +412,45 @@ async function handleToggleConnection(connection: PriceLabsConnectionDTO) {
   try {
     const response = await updateConnectionStatus(connection.id, !connection.isEnabled)
     if (!response.success) {
-      throw new Error(response.message || '更新连接状态失败')
+      throw new Error(response.message || t('stage5Pattern.updateFailed'))
     }
-    showSuccessToast(response.data.isEnabled ? '连接已启用' : '连接已停用')
+    showSuccessToast(
+      response.data.isEnabled
+        ? t('settingsResidual.common.enabled')
+        : t('settingsResidual.common.disabled'),
+    )
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '更新连接状态失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.updateFailed')))
     }
   }
 }
 
 async function handleDeleteConnection(connection: PriceLabsConnectionDTO) {
-  const confirmed = await confirmDelete(`${connection.roomTypeName} / ${connection.pricePlanName}`, '删除连接')
+  const confirmed = await confirmDelete(
+    `${connection.roomTypeName} / ${connection.pricePlanName}`,
+    t('settingsResidual.common.confirm'),
+  )
   if (!confirmed) {
     return
   }
   try {
     const response = await deleteConnection(connection.id)
     if (!response.success) {
-      throw new Error(response.message || '删除连接失败')
+      throw new Error(response.message || t('stage5Pattern.deleteFailed'))
     }
-    showSuccessToast('连接已删除')
+    showSuccessToast(t('stage5Pattern.deleteCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '删除连接失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.deleteFailed')))
     }
   }
 }
 
 function handleEditAdjustment(adjustment: ChannelPriceAdjustmentDTO) {
-  if (!ensureCanManageChannels('编辑渠道价差')) {
+  if (!ensureCanManageChannels(t('settingsStage4.pricingTools.dialog.editAdjustment'))) {
     return
   }
 
@@ -458,7 +470,7 @@ function handleCloseAdjustmentEditor() {
 }
 
 async function handleSaveAdjustment() {
-  if (!ensureCanManageChannels('保存渠道价差')) {
+  if (!ensureCanManageChannels(t('settingsStage4.pricingTools.dialog.editAdjustment'))) {
     return
   }
 
@@ -468,7 +480,7 @@ async function handleSaveAdjustment() {
 
   const adjustmentValue = normalizeOptionalNumber(adjustmentForm.value.adjustmentValue)
   if (adjustmentValue === null) {
-    showWarningToast('请输入有效的调整值')
+    showWarningToast(t('stage5Pattern.enter'))
     return
   }
 
@@ -480,14 +492,14 @@ async function handleSaveAdjustment() {
       autoSyncPrice: adjustmentForm.value.autoSyncPrice,
     })
     if (!response.success) {
-      throw new Error(response.message || '保存价差失败')
+      throw new Error(response.message || t('stage5Pattern.saveFailed'))
     }
-    showSuccessToast('渠道价差已保存')
+    showSuccessToast(t('stage5Pattern.saveCompleted'))
     handleCloseAdjustmentEditor()
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存价差失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     submittingAdjustment.value = false

@@ -4,6 +4,7 @@
       <div class="auth-shell">
         <AuthBrandHeader
           show-tabs
+          show-language-switcher
           :active-tab="accountTab"
           @select-login="handleAccountTabChange('login')"
           @select-register="handleAccountTabChange('register')"
@@ -12,18 +13,18 @@
         <main class="auth-panel">
           <section v-show="accountTab === 'login'" class="auth-account-panel">
             <p v-if="routePreferredTarget" class="auth-workspace-intent">
-              登录后将进入{{ routePreferredTarget === 'CLEANER' ? '保洁工作台' : '酒店管理工作台' }}。
+              {{ routePreferredTarget === 'CLEANER' ? t('auth.login.cleanerIntent') : t('auth.login.pmsIntent') }}
             </p>
 
             <ion-list lines="none" class="auth-list">
               <div class="auth-field">
-                <p class="auth-field-label">邮箱</p>
+                <p class="auth-field-label">{{ t('auth.field.email') }}</p>
                 <ion-item :class="['auth-item', { 'auth-item--focused': focusedField === 'email' }]">
                   <ion-input
                     v-model="form.email"
                     autocomplete="email"
                     inputmode="email"
-                    placeholder="请输入邮箱"
+                    :placeholder="t('auth.placeholder.email')"
                     type="email"
                     @ionBlur="handleInputBlur('email')"
                     @ionFocus="handleInputFocus('email')"
@@ -33,12 +34,12 @@
 
               <template v-if="loginMode === 'password'">
                 <div class="auth-field">
-                  <p class="auth-field-label">密码</p>
+                  <p class="auth-field-label">{{ t('auth.field.password') }}</p>
                   <ion-item :class="['auth-item', { 'auth-item--focused': focusedField === 'password' }]">
                     <ion-input
                       v-model="form.password"
                       autocomplete="current-password"
-                      placeholder="请输入密码"
+                      :placeholder="t('auth.placeholder.password')"
                       type="password"
                       @ionBlur="handleInputBlur('password')"
                       @ionFocus="handleInputFocus('password')"
@@ -48,13 +49,13 @@
 
                 <div class="auth-secondary-link">
                   <button class="auth-text-button" type="button" @click="handleGoToForgotPassword">
-                    忘记密码？
+                    {{ t('auth.action.forgotPassword') }}
                   </button>
                 </div>
               </template>
 
               <template v-else>
-                <p class="auth-code-hint">验证码将发送到此邮箱，发送成功后请输入 6 位验证码。</p>
+                <p class="auth-code-hint">{{ t('auth.login.codeHint') }}</p>
               </template>
             </ion-list>
 
@@ -79,7 +80,7 @@
                 <span class="auth-agreement-row__check">✓</span>
               </span>
               <span class="auth-agreement-row__text">
-                我已阅读并同意《用户服务协议》与《隐私政策》
+                {{ t('auth.login.agreement') }}
               </span>
             </label>
 
@@ -91,7 +92,7 @@
               @click="handleLogin"
             >
               <ion-spinner v-if="submitting" name="crescent" />
-              <span v-else>登录</span>
+              <span v-else>{{ t('auth.action.login') }}</span>
             </ion-button>
 
             <ion-button
@@ -102,7 +103,7 @@
               @click="handleSendVerificationCode"
             >
               <ion-spinner v-if="isSendingCode" name="crescent" />
-              <span v-else>发送验证码</span>
+              <span v-else>{{ t('auth.action.sendCode') }}</span>
             </ion-button>
 
             <ion-segment
@@ -114,10 +115,10 @@
               @ionChange="handleLoginModeChange"
             >
               <ion-segment-button v-if="loginMode === 'password'" value="code">
-                <ion-label>使用验证码登录</ion-label>
+                <ion-label>{{ t('auth.action.codeLogin') }}</ion-label>
               </ion-segment-button>
               <ion-segment-button v-else value="password">
-                <ion-label>使用密码登录</ion-label>
+                <ion-label>{{ t('auth.action.passwordLogin') }}</ion-label>
               </ion-segment-button>
             </ion-segment>
           </section>
@@ -156,10 +157,11 @@ import {
   IonSpinner,
 } from '@ionic/vue'
 import { computed, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { loginByPassword, sendVerificationCode } from '@/api/auth'
 import AuthBrandHeader from '@/components/auth/AuthBrandHeader.vue'
-import { AUTH_LOGIN_FAILURE_STATUSES, LOGIN_FAILURE_MESSAGE } from '@/constants/auth'
+import { AUTH_LOGIN_FAILURE_STATUSES } from '@/constants/auth'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useAuthStore } from '@/stores/auth'
 import { useStoreStore } from '@/stores/store'
@@ -178,6 +180,7 @@ import WorkspaceSelectionModal from './WorkspaceSelectionModal.vue'
 
 const PASSWORD_MIN_LENGTH = 6
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const { t } = useI18n()
 
 type LoginMode = 'password' | 'code'
 type AccountTab = 'login' | 'register'
@@ -208,10 +211,10 @@ const form = reactive({
 
 const rememberMeLabel = computed(() => {
   if (loginMode.value === 'password') {
-    return '记住登录状态'
+    return t('auth.login.rememberPassword')
   }
 
-  return '保持当前设备登录'
+  return t('auth.login.rememberCode')
 })
 
 const routePreferredTarget = computed(() => {
@@ -259,12 +262,12 @@ const validateEmail = () => {
   const email = normalizeEmail()
 
   if (!email) {
-    showWarningToast('请输入邮箱')
+    showWarningToast(t('auth.validation.emailRequired'))
     return ''
   }
 
   if (!EMAIL_PATTERN.test(email)) {
-    showWarningToast('请输入正确的邮箱格式')
+    showWarningToast(t('auth.validation.emailInvalid'))
     return ''
   }
 
@@ -280,12 +283,12 @@ const validatePasswordLoginForm = (): LoginByPasswordRequest | null => {
   }
 
   if (!password) {
-    showWarningToast('请输入密码')
+    showWarningToast(t('auth.validation.passwordRequired'))
     return null
   }
 
   if (password.length < PASSWORD_MIN_LENGTH) {
-    showWarningToast(`密码长度至少为 ${PASSWORD_MIN_LENGTH} 位`)
+    showWarningToast(t('auth.validation.passwordMin', { min: PASSWORD_MIN_LENGTH }))
     return null
   }
 
@@ -355,9 +358,9 @@ const finishPasswordLogin = async (
   }
 
   if (sessionResult.target === 'CLEANER') {
-    showSuccessToast('登录成功')
+    showSuccessToast(t('auth.message.loginSuccess'))
   } else {
-    showSuccessToast('登录成功，请选择门店')
+    showSuccessToast(t('auth.message.loginSelectStore'))
   }
 
   await router.replace(sessionResult.redirectPath)
@@ -394,7 +397,7 @@ const handlePasswordWorkspaceSelect = async (target: LoginTarget) => {
     const responseData = await requestPasswordLogin(requestPayload)
 
     if (!responseData) {
-      showErrorToast(LOGIN_FAILURE_MESSAGE)
+      showErrorToast(t('auth.message.loginFailed'))
       return
     }
 
@@ -402,7 +405,7 @@ const handlePasswordWorkspaceSelect = async (target: LoginTarget) => {
     await finishPasswordLogin(responseData, requestPayload)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showErrorToast(resolveErrorMessage(error, '登录失败'))
+      showErrorToast(resolveErrorMessage(error, t('auth.message.loginFailed')))
     }
   } finally {
     submitting.value = false
@@ -509,7 +512,7 @@ const handleSendVerificationCode = async () => {
   }
 
   if (!form.agreeToTerms) {
-    showWarningToast('请先阅读并同意用户服务协议与隐私政策')
+    showWarningToast(t('auth.validation.agreementRequired'))
     return
   }
 
@@ -527,11 +530,11 @@ const handleSendVerificationCode = async () => {
     })
 
     if (!response.success) {
-      showErrorToast(response.message || '验证码发送失败')
+      showErrorToast(response.message || t('auth.message.codeSendFailed'))
       return
     }
 
-    showSuccessToast('验证码已发送，请查收邮箱')
+    showSuccessToast(t('auth.message.codeSent'))
     const query: Record<string, string> = {
       email,
       rememberMe: form.rememberMe ? '1' : '0',
@@ -547,7 +550,7 @@ const handleSendVerificationCode = async () => {
     })
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showErrorToast(resolveErrorMessage(error, '验证码发送失败'))
+      showErrorToast(resolveErrorMessage(error, t('auth.message.codeSendFailed')))
     }
   } finally {
     isSendingCode.value = false
@@ -560,7 +563,7 @@ const handleLogin = async () => {
   }
 
   if (!form.agreeToTerms) {
-    showWarningToast('请先阅读并同意用户服务协议与隐私政策')
+    showWarningToast(t('auth.validation.agreementRequired'))
     return
   }
 
@@ -582,7 +585,7 @@ const handleLogin = async () => {
     const responseData = await requestPasswordLogin(requestPayload)
 
     if (!responseData) {
-      showErrorToast(LOGIN_FAILURE_MESSAGE)
+      showErrorToast(t('auth.message.loginFailed'))
       return
     }
 
@@ -598,7 +601,7 @@ const handleLogin = async () => {
     await finishPasswordLogin(responseData, requestPayload)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showErrorToast(resolveErrorMessage(error, '登录失败'))
+      showErrorToast(resolveErrorMessage(error, t('auth.message.loginFailed')))
     }
   } finally {
     submitting.value = false

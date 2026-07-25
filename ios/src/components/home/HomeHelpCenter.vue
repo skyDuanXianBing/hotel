@@ -1,8 +1,10 @@
 <template>
   <section class="help-section mobile-dashboard-surface">
     <div class="help-section__header">
-      <h2 class="help-section__title">帮助中心</h2>
-      <button type="button" class="help-section__more" @click="handleMore">全部</button>
+      <h2 class="help-section__title">{{ t('home.section.help') }}</h2>
+      <button type="button" class="help-section__more" @click="handleMore">
+        {{ t('home.section.all') }}
+      </button>
     </div>
 
     <div class="help-list">
@@ -33,6 +35,9 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue'
 import { chevronForwardOutline } from 'ionicons/icons'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 export interface HomeHelpCenterItem {
   key: string

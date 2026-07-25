@@ -5,56 +5,72 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.home" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">统计</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.StatisticsOverview') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content fullscreen class="mobile-page statistics-home-page">
       <section class="mobile-hero statistics-home-page__hero">
-        <p class="mobile-note statistics-home-page__eyebrow">经营与审查入口</p>
+        <p class="mobile-note statistics-home-page__eyebrow">{{ $t('statistics.home.eyebrow') }}</p>
         <h1 class="mobile-title">{{ storeName }}</h1>
-        <p class="mobile-subtitle">方便负责人在手机上查看经营情况，并继续处理审查任务。</p>
+        <p class="mobile-subtitle">
+          {{ $t('statistics.home.subtitle') }}
+        </p>
         <div class="mobile-chip-row">
-          <span class="mobile-chip">7 个报表入口</span>
-          <span class="mobile-chip">待审查 {{ reviewStore.pendingCount }} 条</span>
-          <span class="mobile-chip">已通过 {{ reviewStore.approvedCount }} 条</span>
+          <span class="mobile-chip">{{ $t('statistics.home.reportCount') }}</span>
+          <span class="mobile-chip">
+            {{ $t('statistics.home.pendingCount', { count: reviewStore.pendingCount }) }}
+          </span>
+          <span class="mobile-chip">
+            {{ $t('statistics.home.approvedCount', { count: reviewStore.approvedCount }) }}
+          </span>
         </div>
       </section>
 
       <div class="mobile-stack">
         <section class="mobile-card">
-          <h2 class="mobile-section-title">概览指标</h2>
+          <h2 class="mobile-section-title">{{ $t('statistics.home.overviewMetrics') }}</h2>
           <div class="statistics-home-page__metric-grid">
-            <article v-for="metric in STATISTICS_HOME_METRICS" :key="metric.label" class="statistics-home-page__metric-card">
-              <span class="statistics-home-page__metric-label">{{ metric.label }}</span>
+            <article
+              v-for="metric in STATISTICS_HOME_METRICS"
+              :key="metric.labelKey"
+              class="statistics-home-page__metric-card"
+            >
+              <span class="statistics-home-page__metric-label">{{ t(metric.labelKey) }}</span>
               <strong class="statistics-home-page__metric-value" :class="`is-${metric.tone}`">
                 {{ resolveMetricValue(metric) }}
               </strong>
-              <p class="mobile-note">{{ metric.note }}</p>
+              <p class="mobile-note">{{ t(metric.noteKey) }}</p>
             </article>
           </div>
         </section>
 
         <section class="mobile-card statistics-home-page__review-card">
           <div>
-            <h2 class="mobile-section-title">审查快捷入口</h2>
-            <p class="mobile-note">集中处理入住登记、附件核验、资料下载与审核结论。</p>
+            <h2 class="mobile-section-title">{{ $t('statistics.home.reviewShortcut') }}</h2>
+            <p class="mobile-note">
+              {{ $t('statistics.home.reviewDescription') }}
+            </p>
           </div>
           <div class="statistics-home-page__review-summary">
-            <span class="statistics-home-page__review-pill">待处理 {{ reviewStore.pendingCount }} 条</span>
-            <span class="statistics-home-page__review-pill">已通过 {{ reviewStore.approvedCount }} 条</span>
+            <span class="statistics-home-page__review-pill">
+              {{ $t('statistics.home.pendingCount', { count: reviewStore.pendingCount }) }}
+            </span>
+            <span class="statistics-home-page__review-pill">
+              {{ $t('statistics.home.approvedCount', { count: reviewStore.approvedCount }) }}
+            </span>
           </div>
           <p v-if="reviewStore.loadError" class="mobile-note">{{ reviewStore.loadError }}</p>
-          <ion-button expand="block" @click="handleOpenReviews">进入审查</ion-button>
+          <ion-button expand="block" @click="handleOpenReviews">{{ $t('statistics.home.openReviews') }}</ion-button>
         </section>
 
         <section class="mobile-card">
           <ion-segment :value="activeSegment" @ionChange="handleSegmentChange">
             <ion-segment-button value="operation">
-              <ion-label>经营视图</ion-label>
+              <ion-label>{{ $t('statistics.home.operations') }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="finance">
-              <ion-label>财务视图</ion-label>
+              <ion-label>{{ $t('statistics.home.finance') }}</ion-label>
             </ion-segment-button>
           </ion-segment>
         </section>
@@ -62,8 +78,10 @@
         <section class="mobile-card">
           <div class="mobile-inline-row">
             <div>
-              <h2 class="mobile-section-title">报表入口</h2>
-              <p class="mobile-note">按日常使用场景分类，方便快速进入需要查看的报表。</p>
+              <h2 class="mobile-section-title">{{ $t('statistics.home.reports') }}</h2>
+              <p class="mobile-note">
+                {{ $t('statistics.home.reportsDescription') }}
+              </p>
             </div>
           </div>
 
@@ -77,21 +95,21 @@
             >
               <div class="statistics-home-page__report-body">
                 <div class="statistics-home-page__report-header">
-                  <strong>{{ report.title }}</strong>
-                  <span class="statistics-home-page__report-badge">{{ report.shortTitle }}</span>
+                  <strong>{{ t(report.titleKey) }}</strong>
+                  <span class="statistics-home-page__report-badge">{{ t(report.shortTitleKey) }}</span>
                 </div>
-                <p>{{ report.subtitle }}</p>
+                <p>{{ t(report.subtitleKey) }}</p>
               </div>
             </button>
           </div>
         </section>
 
         <section class="mobile-card">
-          <h2 class="mobile-section-title">查看重点</h2>
+          <h2 class="mobile-section-title">{{ $t('statistics.home.focus') }}</h2>
           <ul class="mobile-bullet-list">
-            <li>统计页按移动查看习惯整理为清晰的指标卡与摘要。</li>
-            <li>可从这里快速进入各类经营、财务与住宿报表。</li>
-            <li>审查页支持备注、通过、驳回、附件与历史查看等常用操作。</li>
+            <li>{{ $t('statistics.home.focusCards') }}</li>
+            <li>{{ $t('statistics.home.focusReports') }}</li>
+            <li>{{ $t('statistics.home.focusReviews') }}</li>
           </ul>
         </section>
       </div>
@@ -100,34 +118,49 @@
 </template>
 
 <script setup lang="ts">
-import { IonBackButton, IonButton, IonButtons, IonContent, IonHeader, IonLabel, IonPage, IonSegment, IonSegmentButton, IonTitle, IonToolbar, onIonViewWillEnter } from '@ionic/vue'
+import {
+  IonBackButton,
+  IonButton,
+  IonButtons,
+  IonContent,
+  IonHeader,
+  IonLabel,
+  IonPage,
+  IonSegment,
+  IonSegmentButton,
+  IonTitle,
+  IonToolbar,
+  onIonViewWillEnter,
+} from '@ionic/vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import { STATISTICS_HOME_METRICS, STATISTICS_REPORTS, type StatisticsMetric, type StatisticsReportCategory } from '@/constants/statistics'
+import {
+  STATISTICS_HOME_METRICS,
+  STATISTICS_REPORTS,
+  type StatisticsMetric,
+  type StatisticsReportCategory,
+} from '@/constants/statistics'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useReviewStore } from '@/stores/reviews'
 import { useStoreStore } from '@/stores/store'
+import { formatMoney } from '@/utils/formatters'
 
 const router = useRouter()
+const { t } = useI18n()
 const storeStore = useStoreStore()
 const reviewStore = useReviewStore()
 
 const activeSegment = ref<StatisticsReportCategory>('operation')
 
 const storeName = computed(() => {
-  return storeStore.currentStore?.name || '统计工作台'
+  return storeStore.currentStore?.name || t('statistics.home.titleFallback')
 })
+const currentCurrency = computed(() => storeStore.currentStore?.currency || 'CNY')
+const currentMoneyContext = computed(() => ({ country: storeStore.currentStore?.country }))
 
 const visibleReports = computed(() => {
-  const result = []
-
-  for (const report of Object.values(STATISTICS_REPORTS)) {
-    if (report.category === activeSegment.value) {
-      result.push(report)
-    }
-  }
-
-  return result
+  return Object.values(STATISTICS_REPORTS).filter((report) => report.category === activeSegment.value)
 })
 
 onIonViewWillEnter(async () => {
@@ -135,11 +168,23 @@ onIonViewWillEnter(async () => {
 })
 
 function resolveMetricValue(metric: StatisticsMetric) {
-  if (metric.label === '待审查') {
-    return `${reviewStore.pendingCount} 条`
+  if (metric.dynamicValue === 'pendingReviews') {
+    return t('statistics.values.pendingReviews', { count: reviewStore.pendingCount })
   }
 
-  return metric.value
+  if (typeof metric.currencyValue === 'number') {
+    return formatMoney(
+      metric.currencyValue,
+      currentCurrency.value,
+      {
+        notation: metric.compactCurrency ? 'compact' : 'standard',
+        maximumFractionDigits: metric.compactCurrency ? 1 : 0,
+      },
+      currentMoneyContext.value,
+    )
+  }
+
+  return metric.valueKey ? t(metric.valueKey) : ''
 }
 
 function handleSegmentChange(event: CustomEvent) {
@@ -187,6 +232,7 @@ async function handleOpenReviews() {
   color: var(--ios-pms-text-muted);
   font-size: var(--ios-pms-font-body-md-size);
   font-weight: var(--ios-pms-weight-medium);
+  overflow-wrap: anywhere;
 }
 
 .statistics-home-page__metric-value {
@@ -196,7 +242,8 @@ async function handleOpenReviews() {
   font-size: var(--ios-pms-font-metric-lg-size);
   font-weight: var(--ios-pms-weight-heavy);
   line-height: 1;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
 .statistics-home-page__metric-value.is-primary {
@@ -268,10 +315,12 @@ async function handleOpenReviews() {
 }
 
 .statistics-home-page__report-header strong {
+  min-width: 0;
   color: var(--ios-pms-text-primary);
   font-size: var(--ios-pms-font-title-sm-size);
   font-weight: var(--ios-pms-weight-heavy);
   line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .statistics-home-page__report-body p {

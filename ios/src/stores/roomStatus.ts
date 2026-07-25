@@ -22,7 +22,9 @@ import {
 } from '@/api/reservation'
 import { getSortOrderMap } from '@/api/sortConfig'
 import { useUserStore } from '@/stores/user'
+import { i18n } from '@/locales'
 import type { RoomGroupDTO, RoomGroupMemberDTO } from '@/types/settings'
+import { compareLocalizedText } from '@/utils/formatters'
 import { showSuccessToast } from '@/utils/notify'
 import {
   buildRoomStatusDailyPricingMap,
@@ -117,7 +119,15 @@ export type RoomStatusBusinessState =
   | 'dirty'
   | 'unknown'
 
-const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
+const WEEKDAY_KEYS = [
+  'accommodation.weekdays.dayOfWeek.0',
+  'accommodation.weekdays.dayOfWeek.1',
+  'accommodation.weekdays.dayOfWeek.2',
+  'accommodation.weekdays.dayOfWeek.3',
+  'accommodation.weekdays.dayOfWeek.4',
+  'accommodation.weekdays.dayOfWeek.5',
+  'accommodation.weekdays.dayOfWeek.6',
+] as const
 const DEFAULT_SORT_ORDER = Number.MAX_SAFE_INTEGER
 export const ROOM_STATUS_VIEWPORT_DAYS = 5
 const DATE_WINDOW_SIZE = 14
@@ -163,6 +173,7 @@ const persistPricePreference = (key: string, value: string) => {
 }
 
 const getTodayDateKey = () => getStoreTodayDate()
+const t = (key: string, params?: Record<string, unknown>) => i18n.global.t(key, params ?? {})
 
 export const formatDateKey = (date: Date) => {
   const year = date.getUTCFullYear()
@@ -177,22 +188,22 @@ export const addDays = (date: string, amount: number) => {
 
 export const getReservationStatusText = (status?: string) => {
   if (!status) {
-    return '未知状态'
+    return t('roomStatus.store.reservationStatus.unknown')
   }
   if (status === 'CONFIRMED' || status === 'confirmed') {
-    return '已预订'
+    return t('roomStatus.store.reservationStatus.confirmed')
   }
   if (status === 'CHECKED_IN' || status === 'checked_in') {
-    return '已入住'
+    return t('roomStatus.store.reservationStatus.checkedIn')
   }
   if (status === 'CHECKED_OUT' || status === 'checked_out') {
-    return '已退房'
+    return t('roomStatus.store.reservationStatus.checkedOut')
   }
   if (status === 'CANCELLED' || status === 'cancelled') {
-    return '已取消'
+    return t('roomStatus.store.reservationStatus.cancelled')
   }
   if (status === 'NO_SHOW' || status === 'no_show') {
-    return '未到店'
+    return t('roomStatus.store.reservationStatus.noShow')
   }
   return status
 }
@@ -246,33 +257,33 @@ export const getRoomStatusText = (dailyStatus?: DailyRoomStatusDTO | null) => {
   const businessState = getRoomBusinessState(dailyStatus)
 
   if (businessState === 'maintenance') {
-    return '维修房'
+    return t('roomStatus.store.roomState.maintenanceRoom')
   }
   if (businessState === 'retain') {
-    return '保留房'
+    return t('roomStatus.store.roomState.retainRoom')
   }
   if (businessState === 'closed' && dailyStatus) {
-    return '停用房'
+    return t('roomStatus.store.roomState.closedRoom')
   }
 
   if (businessState === 'available') {
-    return '可售'
+    return t('roomStatus.store.roomState.available')
   }
   if (businessState === 'occupied') {
-    return '已入住'
+    return t('roomStatus.store.roomState.occupied')
   }
   if (businessState === 'reserved') {
-    return '已预订'
+    return t('roomStatus.store.roomState.reserved')
   }
   if (businessState === 'out_of_order') {
-    return '停用'
+    return t('roomStatus.store.roomState.outOfOrder')
   }
   if (businessState === 'dirty') {
-    return '脏房'
+    return t('roomStatus.store.roomState.dirty')
   }
 
   if (!dailyStatus) {
-    return '未知'
+    return t('roomStatus.store.roomState.unknown')
   }
 
   return dailyStatus.status
@@ -298,7 +309,7 @@ function normalizeReservationAmount(totalAmount: unknown) {
   }
 
   if (typeof totalAmount !== 'number' || !Number.isFinite(totalAmount)) {
-    throw new Error('订单金额必须是有效数字')
+    throw new Error(t('roomStatus.store.errors.invalidReservationAmount'))
   }
 
   return totalAmount
@@ -471,7 +482,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       items.push({
         date: currentDate,
         label: `${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-        weekday: WEEKDAY_LABELS[weekdayIndex],
+        weekday: t(WEEKDAY_KEYS[weekdayIndex]),
         availableRooms,
         isToday: currentDate === currentToday,
         isSelected: currentDate === selectedDate.value,
@@ -508,7 +519,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     const options: RoomStatusPriceSourceOption[] = [
       {
         value: 'default',
-        label: '房型默认价',
+        label: t('roomStatus.store.priceSource.default'),
       },
       ...mappedPricePlanOptions.value,
     ]
@@ -519,7 +530,9 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     ) {
       options.push({
         value: cellPriceSource.value,
-        label: `价盘 ${cellPriceSource.value.slice('plan:'.length)}`,
+        label: t('roomStatus.store.priceSource.plan', {
+          id: cellPriceSource.value.slice('plan:'.length),
+        }),
       })
     }
 
@@ -556,16 +569,12 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       return roomOrderDiff
     }
 
-    const roomTypeNameDiff = left.roomType.localeCompare(
-      right.roomType,
-      'zh-CN',
-      NATURAL_COMPARE_OPTIONS,
-    )
+    const roomTypeNameDiff = compareLocalizedText(left.roomType, right.roomType, NATURAL_COMPARE_OPTIONS)
     if (roomTypeNameDiff !== 0) {
       return roomTypeNameDiff
     }
 
-    return left.roomNumber.localeCompare(right.roomNumber, 'zh-CN', NATURAL_COMPARE_OPTIONS)
+    return compareLocalizedText(left.roomNumber, right.roomNumber, NATURAL_COMPARE_OPTIONS)
   }
 
   const sortedCalendarRooms = computed(() => {
@@ -729,25 +738,25 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     return [
       {
         key: 'arrivals',
-        title: '今日预抵',
+        title: t('roomStatus.store.summary.arrivals'),
         value: statistics.value?.todayArrivals ?? 0,
         tone: 'primary',
       },
       {
         key: 'departures',
-        title: '今日预离',
+        title: t('roomStatus.store.summary.departures'),
         value: statistics.value?.todayDepartures ?? 0,
         tone: 'warning',
       },
       {
         key: 'available',
-        title: '可售房',
+        title: t('roomStatus.store.summary.available'),
         value: statistics.value?.availableRooms ?? 0,
         tone: 'success',
       },
       {
         key: 'pending',
-        title: '待处理',
+        title: t('roomStatus.store.summary.pending'),
         value: statistics.value?.pendingOrders ?? 0,
         tone: 'danger',
       },
@@ -840,7 +849,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     const task = (async () => {
       const response = await getReservationById(reservationId)
       if (!response.success || !response.data) {
-        throw new Error(response.message || '订单金额补全失败')
+      throw new Error(response.message || t('roomStatus.store.errors.reservationAmountFailed'))
       }
 
       const totalAmount = normalizeReservationAmount(response.data.totalAmount)
@@ -1011,7 +1020,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     const targetRange = getVisibleRangeForWindowStart(targetWindowStartDate)
     const response = await getRoomStatusCalendar(targetRange.startDate, targetRange.endDate)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '房态加载失败')
+      throw new Error(response.message || t('roomStatus.store.errors.calendarLoadFailed'))
     }
 
     return response.data.rooms
@@ -1166,7 +1175,8 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
           planNames.set(
             pricePlanId,
-            relation.pricePlan?.name?.trim() || `价盘 ${pricePlanId}`,
+            relation.pricePlan?.name?.trim() ||
+              t('roomStatus.store.priceSource.plan', { id: pricePlanId }),
           )
         }
       }
@@ -1177,7 +1187,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       }
 
       mappedPricePlanOptions.value = Array.from(planNames.entries())
-        .sort((left, right) => left[1].localeCompare(right[1], 'zh-CN'))
+        .sort((left, right) => compareLocalizedText(left[1], right[1]))
         .map(([pricePlanId, label]) => ({
           value: `plan:${pricePlanId}` as RoomStatusPriceSource,
           label,
@@ -1255,7 +1265,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
   async function loadStatistics() {
     const response = await getRoomStatusStatistics(selectedDate.value)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '房态摘要加载失败')
+      throw new Error(response.message || t('roomStatus.store.errors.statisticsLoadFailed'))
     }
 
     statistics.value = response.data
@@ -1268,7 +1278,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
     const response = await getAllChannels()
     if (!response.success || !response.data) {
-      throw new Error(response.message || '渠道列表加载失败')
+      throw new Error(response.message || t('roomStatus.store.errors.channelsLoadFailed'))
     }
 
     channels.value = response.data.filter((item) => item.enabled)
@@ -1406,7 +1416,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       if (!response.success || !response.data) {
         searchResults.value = []
         hasSearchCompleted.value = true
-        throw new Error(response.message || '订单搜索失败')
+        throw new Error(response.message || t('roomStatus.store.errors.searchFailed'))
       }
 
       searchResults.value = response.data
@@ -1435,7 +1445,9 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       }
     }
     dirtyRoomIds.value = Array.from(nextRoomIds)
-    showSuccessToast(dirty ? '已置脏房' : '已置净房')
+    showSuccessToast(
+      dirty ? t('roomStatus.store.toast.setDirty') : t('roomStatus.store.toast.setClean'),
+    )
   }
 
   function toggleDirty(roomId: number) {
@@ -1467,13 +1479,13 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
         })
 
         if (!response.success) {
-          throw new Error(response.message || '关房失败')
+          throw new Error(response.message || t('roomStatus.store.errors.closeFailed'))
         }
 
         affectedDays += response.data?.affectedDays ?? 0
       }
 
-      showSuccessToast(`已保存关房设置（${affectedDays} 天）`)
+      showSuccessToast(t('roomStatus.store.toast.closeSaved', { count: affectedDays }))
       await refreshAll()
     } finally {
       actionLoading.value = false
@@ -1500,13 +1512,13 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
         })
 
         if (!response.success) {
-          throw new Error(response.message || '开房失败')
+          throw new Error(response.message || t('roomStatus.store.errors.openFailed'))
         }
 
         affectedDays += response.data?.affectedDays ?? 0
       }
 
-      showSuccessToast(`已开房（${affectedDays} 天）`)
+      showSuccessToast(t('roomStatus.store.toast.opened', { count: affectedDays }))
       await refreshAll()
     } finally {
       actionLoading.value = false

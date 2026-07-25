@@ -5,17 +5,19 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.statistics" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">{{ definition.title }}</ion-title>
+        <ion-title class="app-page-header__title">{{ localizedTitle }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content fullscreen class="mobile-page statistics-report-page">
       <section v-if="definition.showHero !== false" class="mobile-hero statistics-report-page__hero">
-        <p class="mobile-note statistics-report-page__eyebrow">{{ definition.eyebrow }}</p>
-        <h1 class="mobile-title">{{ definition.title }}</h1>
-        <p class="mobile-subtitle">{{ definition.subtitle }}</p>
+        <p class="mobile-note statistics-report-page__eyebrow">{{ t(definition.eyebrowKey) }}</p>
+        <h1 class="mobile-title">{{ localizedTitle }}</h1>
+        <p class="mobile-subtitle">{{ t(definition.subtitleKey) }}</p>
         <div class="mobile-chip-row">
-          <span v-for="chip in definition.chips" :key="chip" class="mobile-chip">{{ chip }}</span>
+          <span v-for="chipKey in definition.chipKeys" :key="chipKey" class="mobile-chip">
+            {{ t(chipKey) }}
+          </span>
         </div>
       </section>
 
@@ -23,9 +25,13 @@
         <section class="mobile-card">
           <div class="mobile-inline-row">
             <div>
-              <h2 class="mobile-section-title">关键指标</h2>
-              <p v-if="definition.metricsDescription !== null" class="mobile-note">
-                {{ definition.metricsDescription ?? '聚焦最关键的指标与结论，方便快速浏览。' }}
+              <h2 class="mobile-section-title">{{ $t('statistics.report.keyMetrics') }}</h2>
+              <p v-if="definition.metricsDescriptionKey !== null" class="mobile-note">
+                {{
+                  definition.metricsDescriptionKey
+                    ? t(definition.metricsDescriptionKey)
+                    : t('statistics.report.defaultMetricsDescription')
+                }}
               </p>
             </div>
           </div>
@@ -33,14 +39,14 @@
           <div class="statistics-report-page__metric-grid">
             <article
               v-for="metric in definition.metrics"
-              :key="metric.label"
+              :key="metric.labelKey"
               class="statistics-report-page__metric-card"
             >
-              <span class="statistics-report-page__metric-label">{{ metric.label }}</span>
+              <span class="statistics-report-page__metric-label">{{ t(metric.labelKey) }}</span>
               <strong class="statistics-report-page__metric-value" :class="`is-${metric.tone}`">
-                {{ metric.value }}
+                {{ resolveMetricValue(metric) }}
               </strong>
-              <p class="mobile-note">{{ metric.note }}</p>
+              <p class="mobile-note">{{ t(metric.noteKey) }}</p>
             </article>
           </div>
         </section>
@@ -48,27 +54,29 @@
         <section v-if="definition.showSections !== false" class="mobile-card mobile-list">
           <article
             v-for="section in definition.sections"
-            :key="section.title"
+            :key="section.titleKey"
             class="statistics-report-page__section-card"
           >
-            <h3>{{ section.title }}</h3>
-            <p class="mobile-note">{{ section.description }}</p>
+            <h3>{{ t(section.titleKey) }}</h3>
+            <p class="mobile-note">{{ t(section.descriptionKey) }}</p>
             <ul class="mobile-bullet-list">
-              <li v-for="bullet in section.bullets" :key="bullet">{{ bullet }}</li>
+              <li v-for="bulletKey in section.bulletKeys" :key="bulletKey">{{ t(bulletKey) }}</li>
             </ul>
           </article>
         </section>
 
         <section v-if="definition.showBoundaryNotes !== false" class="mobile-card">
-          <h2 class="mobile-section-title">查看提示</h2>
+          <h2 class="mobile-section-title">{{ $t('statistics.report.viewTips') }}</h2>
           <ul class="mobile-bullet-list">
-            <li v-for="note in definition.boundaryNotes" :key="note">{{ note }}</li>
+            <li v-for="noteKey in definition.boundaryNoteKeys" :key="noteKey">{{ t(noteKey) }}</li>
           </ul>
         </section>
 
         <section class="mobile-card statistics-report-page__actions">
-          <ion-button expand="block" fill="outline" @click="handleBackToStatistics">返回统计首页</ion-button>
-          <ion-button expand="block" @click="handleOpenReviews">前往审核</ion-button>
+          <ion-button expand="block" fill="outline" @click="handleBackToStatistics">
+            {{ $t('statistics.report.backToStatistics') }}
+          </ion-button>
+          <ion-button expand="block" @click="handleOpenReviews">{{ $t('statistics.report.openReviews') }}</ion-button>
         </section>
       </div>
     </ion-content>
@@ -86,15 +94,45 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/vue'
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
+import type { StatisticsMetric, StatisticsReportDefinition } from '@/constants/statistics'
 import { ROUTE_PATHS } from '@/router/guards'
-import type { StatisticsReportDefinition } from '@/constants/statistics'
+import { useStoreStore } from '@/stores/store'
+import { formatMoney } from '@/utils/formatters'
 
-defineProps<{
+const props = defineProps<{
   definition: StatisticsReportDefinition
 }>()
 
+const route = useRoute()
 const router = useRouter()
+const storeStore = useStoreStore()
+const { t, te } = useI18n()
+
+const currentCurrency = computed(() => storeStore.currentStore?.currency || 'CNY')
+const currentMoneyContext = computed(() => ({ country: storeStore.currentStore?.country }))
+const localizedTitle = computed(() => {
+  const titleKey = typeof route.meta.titleKey === 'string' ? route.meta.titleKey : ''
+  return titleKey && te(titleKey) ? t(titleKey) : t(props.definition.titleKey)
+})
+
+function resolveMetricValue(metric: StatisticsMetric) {
+  if (typeof metric.currencyValue === 'number') {
+    return formatMoney(
+      metric.currencyValue,
+      currentCurrency.value,
+      {
+        notation: metric.compactCurrency ? 'compact' : 'standard',
+        maximumFractionDigits: metric.compactCurrency ? 1 : 0,
+      },
+      currentMoneyContext.value,
+    )
+  }
+
+  return metric.valueKey ? t(metric.valueKey) : ''
+}
 
 async function handleBackToStatistics() {
   await router.push(ROUTE_PATHS.statistics)
@@ -130,6 +168,7 @@ async function handleOpenReviews() {
   display: block;
   color: var(--app-muted);
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .statistics-report-page__metric-value {
@@ -138,6 +177,7 @@ async function handleOpenReviews() {
   color: var(--app-heading);
   font-size: 24px;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .statistics-report-page__metric-value.is-primary {

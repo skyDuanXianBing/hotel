@@ -5,7 +5,7 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.home" />
         </ion-buttons>
-        <ion-title class="orders-header__title">订单通知</ion-title>
+        <ion-title class="orders-header__title">{{ $t('routes.OrderNotifications') }}</ion-title>
         <ion-buttons slot="end">
           <ion-button class="orders-header__icon-btn" fill="clear" @click="handleToggleSearch">
             <ion-icon :icon="searchOutline" />
@@ -16,7 +16,10 @@
 
     <ion-content fullscreen class="mobile-page notifications-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新订单通知" refreshing-spinner="crescent" />
+        <ion-refresher-content
+          :pulling-text="t('notifications.order.pullToRefresh')"
+          refreshing-spinner="crescent"
+        />
       </ion-refresher>
 
       <div class="orders-page__shell" :class="{ 'has-search': isSearchVisible }">
@@ -26,9 +29,11 @@
               v-model="searchKeyword"
               :debounce="0"
               class="orders-searchbar"
-              placeholder="搜索通知标题或内容"
+              :placeholder="t('notifications.searchPlaceholder')"
             />
-            <button type="button" class="orders-search-panel__cancel" @click="handleHideSearch">取消</button>
+            <button type="button" class="orders-search-panel__cancel" @click="handleHideSearch">
+              {{ t('notifications.cancel') }}
+            </button>
           </div>
         </section>
 
@@ -50,9 +55,15 @@
         <div class="orders-page__content-bg">
           <section v-if="false" class="orders-filter-row">
             <div class="orders-filter-row__scroll">
-              <span class="orders-filter-chip orders-filter-chip--metric">未读 {{ unreadCount }}</span>
-              <span class="orders-filter-chip orders-filter-chip--metric">列表 {{ totalElements }}</span>
-              <button type="button" class="orders-filter-chip" @click="handleReload">刷新</button>
+              <span class="orders-filter-chip orders-filter-chip--metric">
+                {{ t('notifications.order.unreadMetric', { count: unreadCount }) }}
+              </span>
+              <span class="orders-filter-chip orders-filter-chip--metric">
+                {{ t('notifications.order.listMetric', { count: totalElements }) }}
+              </span>
+              <button type="button" class="orders-filter-chip" @click="handleReload">
+                {{ t('notifications.order.refresh') }}
+              </button>
               <button
                 type="button"
                 class="orders-filter-chip"
@@ -60,7 +71,7 @@
                 :disabled="unreadCount <= 0"
                 @click="handleMarkAllAsRead"
               >
-                全部已读
+                {{ t('notifications.order.markAllRead') }}
               </button>
               <button
                 v-if="activeTab !== 'all' || committedKeyword"
@@ -68,7 +79,7 @@
                 class="orders-filter-chip orders-filter-chip--ghost"
                 @click="handleResetSearchAndFilters"
               >
-                清空
+                {{ t('notifications.order.clear') }}
               </button>
             </div>
           </section>
@@ -77,7 +88,7 @@
             <div class="orders-list-header">
               <div class="orders-list-header__heading">
                 <p class="orders-list-header__summary">
-                  {{ activeTabLabel }} · {{ totalElements }} 条结果
+                  {{ t('notifications.order.results', { tab: activeTabLabel, count: totalElements }) }}
                 </p>
                 <div v-if="activeTab !== 'all' || committedKeyword" class="orders-list-header__tags">
                   <span v-if="activeTab !== 'all'" class="orders-list-header__tag">{{ activeTabTag }}</span>
@@ -117,14 +128,14 @@
               :disabled="loadingMore"
               @click="handleLoadMoreButton"
             >
-              {{ loadingMore ? '加载中...' : '加载更多订单通知' }}
+              {{ loadingMore ? t('notifications.order.loading') : t('notifications.order.loadMore') }}
             </ion-button>
           </section>
         </div>
       </div>
 
       <ion-infinite-scroll v-if="hasMore" @ionInfinite="handleInfiniteLoad">
-        <ion-infinite-scroll-content loading-text="加载更多订单通知" />
+        <ion-infinite-scroll-content :loading-text="t('notifications.order.loadMore')" />
       </ion-infinite-scroll>
     </ion-content>
   </ion-page>
@@ -153,6 +164,7 @@ import {
 } from '@ionic/vue'
 import { searchOutline } from 'ionicons/icons'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import OrderNotificationCard from '@/components/notification/OrderNotificationCard.vue'
 import {
@@ -174,6 +186,7 @@ const SEARCH_DEBOUNCE = 280
 
 const router = useRouter()
 const userStore = useUserStore()
+const { t } = useI18n()
 
 const loading = ref(false)
 const loadingMore = ref(false)
@@ -190,51 +203,51 @@ const isSearchVisible = ref(false)
 
 let searchTimer = 0
 
-const displayTabs: Array<{ label: string; value: NotificationReadFilter }> = [
-  { label: '全部', value: 'all' },
-  { label: '未读', value: 'unread' },
-  { label: '已读', value: 'read' },
-]
+const displayTabs = computed<Array<{ label: string; value: NotificationReadFilter }>>(() => [
+  { label: t('notifications.tabs.all'), value: 'all' },
+  { label: t('notifications.tabs.unread'), value: 'unread' },
+  { label: t('notifications.tabs.read'), value: 'read' },
+])
 
 const hasMore = computed(() => page.value < totalPages.value - 1)
 const activeTabLabel = computed(() => {
   if (activeTab.value === 'unread') {
-    return '未读提醒'
+    return t('notifications.tabLabel.unread')
   }
   if (activeTab.value === 'read') {
-    return '已读提醒'
+    return t('notifications.tabLabel.read')
   }
-  return '全部提醒'
+  return t('notifications.tabLabel.all')
 })
 const activeTabTag = computed(() => {
   if (activeTab.value === 'unread') {
-    return '仅看未读'
+    return t('notifications.tabTag.unread')
   }
   if (activeTab.value === 'read') {
-    return '仅看已读'
+    return t('notifications.tabTag.read')
   }
-  return '全部'
+  return t('notifications.tabTag.all')
 })
 const noticeText = computed(() => {
   if (activeTab.value === 'unread') {
-    return '仅显示待处理的订单通知，可直接进入关联订单详情。'
+    return t('notifications.order.noticeUnread')
   }
   if (activeTab.value === 'read') {
-    return '显示已处理通知记录，便于回看最近订单提醒。'
+    return t('notifications.order.noticeRead')
   }
-  return '订单通知按时间倒序展示，点击卡片可查看关联订单，更多操作收纳在右上角菜单。'
+  return t('notifications.order.noticeAll')
 })
 const emptyTitle = computed(() => {
   if (committedKeyword.value) {
-    return '没有匹配的订单通知'
+    return t('notifications.order.emptySearch')
   }
   if (activeTab.value === 'unread') {
-    return '暂无未读订单通知'
+    return t('notifications.order.emptyUnread')
   }
   if (activeTab.value === 'read') {
-    return '暂无已读订单通知'
+    return t('notifications.order.emptyRead')
   }
-  return '暂无订单通知'
+  return t('notifications.order.emptyDefault')
 })
 
 function resolveWarningMessage(error: unknown, fallbackMessage: string) {
@@ -270,7 +283,7 @@ async function ensureUserId() {
 
   const user = await userStore.fetchCurrentUser(true)
   if (!user?.id) {
-    throw new Error('未获取到当前用户')
+    throw new Error(t('notifications.userMissing'))
   }
 
   return user.id
@@ -313,7 +326,7 @@ async function loadPage(reset = true) {
 
     const listResponse = listResult.value
     if (!listResponse.success || !listResponse.data) {
-      throw new Error(listResponse.message || '加载订单通知失败')
+      throw new Error(listResponse.message || t('notifications.order.loadFailed'))
     }
 
     const nextItems = listResponse.data.content || []
@@ -326,7 +339,9 @@ async function loadPage(reset = true) {
       unreadCount.value = Number(unreadResult.value.data || 0)
     }
   } catch (error) {
-    const fallbackMessage = reset ? '加载订单通知失败' : '加载更多订单通知失败'
+    const fallbackMessage = reset
+      ? t('notifications.order.loadFailed')
+      : t('notifications.order.loadMoreFailed')
     const message = resolveWarningMessage(error, fallbackMessage)
 
     if (reset) {
@@ -349,15 +364,15 @@ async function handleMarkAsRead(id: number) {
   try {
     const response = await markNotificationAsRead(id)
     if (!response.success) {
-      throw new Error(response.message || '标记已读失败')
+      throw new Error(response.message || t('notifications.markReadFailed'))
     }
 
-    showSuccessToast('已标记为已读')
+    showSuccessToast(t('notifications.markReadSuccess'))
     resetPagination()
     await loadPage(true)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '标记已读失败'))
+      showWarningToast(resolveWarningMessage(error, t('notifications.markReadFailed')))
     }
   }
 }
@@ -367,26 +382,26 @@ async function handleMarkAllAsRead() {
     const userId = await ensureUserId()
     const response = await markAllNotificationsAsReadByType(userId, ORDER_NOTIFICATION_TYPE)
     if (!response.success) {
-      throw new Error(response.message || '批量已读失败')
+      throw new Error(response.message || t('notifications.order.markAllReadFailed'))
     }
 
-    showSuccessToast('订单通知已全部标记为已读')
+    showSuccessToast(t('notifications.order.markedAllRead'))
     resetPagination()
     await loadPage(true)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '批量已读失败'))
+      showWarningToast(resolveWarningMessage(error, t('notifications.order.markAllReadFailed')))
     }
   }
 }
 
 async function handleDelete(id: number) {
   const alert = await alertController.create({
-    header: '删除订单通知',
-    message: '确认删除这条订单通知吗？',
+    header: t('notifications.order.deleteTitle'),
+    message: t('notifications.order.deleteConfirm'),
     buttons: [
-      { text: '取消', role: 'cancel' },
-      { text: '删除', role: 'destructive' },
+      { text: t('notifications.cancel'), role: 'cancel' },
+      { text: t('notifications.delete'), role: 'destructive' },
     ],
   })
 
@@ -399,15 +414,15 @@ async function handleDelete(id: number) {
   try {
     const response = await deleteNotificationMessage(id)
     if (!response.success) {
-      throw new Error(response.message || '删除通知失败')
+      throw new Error(response.message || t('notifications.deleteFailed'))
     }
 
-    showSuccessToast('通知已删除')
+    showSuccessToast(t('notifications.deleted'))
     resetPagination()
     await loadPage(true)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '删除通知失败'))
+      showWarningToast(resolveWarningMessage(error, t('notifications.deleteFailed')))
     }
   }
 }
@@ -431,7 +446,7 @@ async function presentNotificationActions(item: NotificationMessageDTO) {
 
   if (item.relatedId) {
     buttons.push({
-      text: '查看订单',
+      text: t('notifications.order.viewReservation'),
       handler: () => {
         void openReservationDetail(item.relatedId as number)
       },
@@ -440,7 +455,7 @@ async function presentNotificationActions(item: NotificationMessageDTO) {
 
   if (!item.isRead) {
     buttons.push({
-      text: '标记已读',
+      text: t('notifications.markRead'),
       handler: () => {
         void handleMarkAsRead(item.id)
       },
@@ -448,7 +463,7 @@ async function presentNotificationActions(item: NotificationMessageDTO) {
   }
 
   buttons.push({
-    text: '删除通知',
+    text: t('notifications.order.deleteTitle'),
     role: 'destructive',
     handler: () => {
       void handleDelete(item.id)
@@ -456,13 +471,13 @@ async function presentNotificationActions(item: NotificationMessageDTO) {
   })
 
   buttons.push({
-    text: '取消',
+    text: t('notifications.cancel'),
     role: 'cancel',
   })
 
   const actionSheet = await actionSheetController.create({
-    header: item.title || '订单通知',
-    subHeader: '订单通知操作',
+    header: item.title || t('notifications.order.defaultTitle'),
+    subHeader: t('notifications.order.actionTitle'),
     buttons,
   })
 

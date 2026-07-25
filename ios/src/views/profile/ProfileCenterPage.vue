@@ -5,19 +5,19 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.settings" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">个人中心</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.ProfileCenter') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content fullscreen class="mobile-page profile-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新个人资料" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="t('profile.pullToRefresh')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <section class="mobile-hero profile-hero">
         <div class="profile-hero__content">
           <h1 class="mobile-title">{{ displayName }}</h1>
-          <p class="mobile-subtitle">{{ userStore.currentUser?.email || '未恢复邮箱信息' }}</p>
+          <p class="mobile-subtitle">{{ userStore.currentUser?.email || t('profile.unavailableEmail') }}</p>
         </div>
       </section>
 
@@ -25,54 +25,54 @@
         <section class="mobile-card profile-form-card">
           <div class="mobile-inline-row profile-form-card__header">
             <div>
-              <h2 class="mobile-section-title">个人资料</h2>
-              <p class="mobile-note">支持昵称、性别和头像地址维护。</p>
+              <h2 class="mobile-section-title">{{ t('profile.details') }}</h2>
+              <p class="mobile-note">{{ t('profile.detailsDescription') }}</p>
             </div>
             <ion-spinner v-if="loading || saving" class="profile-form-card__spinner" name="crescent" />
           </div>
 
           <div class="profile-form-grid">
             <label class="profile-form-field">
-              <span>昵称</span>
-              <ion-input v-model="form.nickname" fill="outline" placeholder="请输入昵称" />
+              <span>{{ t('profile.nickname') }}</span>
+              <ion-input v-model="form.nickname" fill="outline" :placeholder="t('profile.nicknamePlaceholder')" />
             </label>
 
             <label class="profile-form-field">
-              <span>性别</span>
+              <span>{{ t('profile.gender') }}</span>
               <ion-select v-model="form.gender" fill="outline" interface="action-sheet">
-                <ion-select-option value="male">男</ion-select-option>
-                <ion-select-option value="female">女</ion-select-option>
-                <ion-select-option value="private">保密</ion-select-option>
+                <ion-select-option value="male">{{ t('profile.genderMale') }}</ion-select-option>
+                <ion-select-option value="female">{{ t('profile.genderFemale') }}</ion-select-option>
+                <ion-select-option value="private">{{ t('profile.genderPrivate') }}</ion-select-option>
               </ion-select>
             </label>
 
             <label class="profile-form-field profile-form-field--full">
-              <span>头像地址</span>
-              <ion-input v-model="form.avatar" fill="outline" placeholder="请输入头像 URL，可选" />
+              <span>{{ t('profile.avatar') }}</span>
+              <ion-input v-model="form.avatar" fill="outline" :placeholder="t('profile.avatarPlaceholder')" />
             </label>
           </div>
 
           <div class="profile-form-actions">
-            <ion-button fill="outline" :disabled="saving" @click="resetForm">重置</ion-button>
+            <ion-button fill="outline" :disabled="saving" @click="resetForm">{{ t('profile.reset') }}</ion-button>
             <ion-button :disabled="saving" @click="handleSaveProfile">
-              {{ saving ? '保存中...' : '保存资料' }}
+              {{ saving ? t('profile.saving') : t('profile.save') }}
             </ion-button>
           </div>
         </section>
 
         <section class="mobile-card profile-security-card">
-          <h2 class="mobile-section-title">账户安全</h2>
-          <p class="mobile-note">修改密码后需要重新登录，请设置与旧密码不同的新密码。</p>
-          <ion-button fill="outline" @click="passwordModalOpen = true">修改密码</ion-button>
+          <h2 class="mobile-section-title">{{ t('profile.security') }}</h2>
+          <p class="mobile-note">{{ t('profile.securityDescription') }}</p>
+          <ion-button fill="outline" @click="passwordModalOpen = true">{{ t('profile.changePassword') }}</ion-button>
         </section>
       </div>
 
       <ion-modal :is-open="passwordModalOpen" @didDismiss="handleDismissPasswordModal">
         <ion-header>
           <ion-toolbar>
-            <ion-title>修改密码</ion-title>
+            <ion-title>{{ t('profile.changePassword') }}</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="handleDismissPasswordModal">关闭</ion-button>
+              <ion-button @click="handleDismissPasswordModal">{{ t('profile.close') }}</ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -81,27 +81,42 @@
           <section class="mobile-card profile-form-card profile-form-card--modal">
             <div class="profile-form-grid">
               <label class="profile-form-field">
-                <span>当前密码</span>
-                <ion-input v-model="passwordForm.currentPassword" fill="outline" type="password" placeholder="请输入当前密码" />
+                <span>{{ t('profile.currentPassword') }}</span>
+                <ion-input
+                  v-model="passwordForm.currentPassword"
+                  fill="outline"
+                  type="password"
+                  :placeholder="t('profile.currentPasswordPlaceholder')"
+                />
               </label>
 
               <label class="profile-form-field">
-                <span>新密码</span>
-                <ion-input v-model="passwordForm.newPassword" fill="outline" type="password" placeholder="请输入新密码" />
+                <span>{{ t('profile.newPassword') }}</span>
+                <ion-input
+                  v-model="passwordForm.newPassword"
+                  fill="outline"
+                  type="password"
+                  :placeholder="t('profile.newPasswordPlaceholder')"
+                />
               </label>
 
               <label class="profile-form-field">
-                <span>确认新密码</span>
-                <ion-input v-model="passwordForm.confirmPassword" fill="outline" type="password" placeholder="请再次输入新密码" />
+                <span>{{ t('profile.confirmPassword') }}</span>
+                <ion-input
+                  v-model="passwordForm.confirmPassword"
+                  fill="outline"
+                  type="password"
+                  :placeholder="t('profile.confirmPasswordPlaceholder')"
+                />
               </label>
             </div>
 
             <div class="profile-form-actions profile-form-actions--modal">
               <ion-button fill="outline" :disabled="changingPassword" @click="handleDismissPasswordModal">
-                取消
+                {{ t('profile.cancel') }}
               </ion-button>
               <ion-button :disabled="changingPassword" @click="handleChangePassword">
-                {{ changingPassword ? '提交中...' : '确认修改' }}
+                {{ changingPassword ? t('profile.submitting') : t('profile.confirmChange') }}
               </ion-button>
             </div>
           </section>
@@ -131,6 +146,7 @@ import {
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { computed, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { changePassword, updateProfile } from '@/api/auth'
 import { ROUTE_PATHS } from '@/router/guards'
@@ -140,6 +156,7 @@ import { showSuccessToast, showWarningToast } from '@/utils/notify'
 
 const router = useRouter()
 const userStore = useUserStore()
+const { t } = useI18n()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -167,7 +184,7 @@ const displayName = computed(() => {
     return userStore.currentUser.email.split('@')[0]
   }
 
-  return '个人中心'
+  return t('profile.title')
 })
 
 function normalizeGender(value?: string | null) {
@@ -204,7 +221,7 @@ async function loadProfile(force = false) {
     syncForm()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载个人资料失败'))
+      showWarningToast(resolveWarningMessage(error, t('profile.loadFailed')))
     }
   } finally {
     loading.value = false
@@ -217,7 +234,7 @@ function resetForm() {
 
 async function handleSaveProfile() {
   if (!form.nickname.trim()) {
-    showWarningToast('请输入昵称')
+    showWarningToast(t('profile.nicknameRequired'))
     return
   }
 
@@ -229,15 +246,15 @@ async function handleSaveProfile() {
       avatar: form.avatar.trim() || undefined,
     })
     if (!response.success || !response.data) {
-      throw new Error(response.message || '更新个人资料失败')
+      throw new Error(response.message || t('profile.updateFailed'))
     }
 
     userStore.setUser(response.data)
     syncForm()
-    showSuccessToast('个人资料已更新')
+    showSuccessToast(t('profile.updated'))
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '更新个人资料失败'))
+      showWarningToast(resolveWarningMessage(error, t('profile.updateFailed')))
     }
   } finally {
     saving.value = false
@@ -251,17 +268,17 @@ function handleDismissPasswordModal() {
 
 async function handleChangePassword() {
   if (!passwordForm.currentPassword.trim()) {
-    showWarningToast('请输入当前密码')
+    showWarningToast(t('profile.currentPasswordRequired'))
     return
   }
 
   if (passwordForm.newPassword.trim().length < 6) {
-    showWarningToast('新密码长度至少为 6 位')
+    showWarningToast(t('profile.passwordMin', { min: 6 }))
     return
   }
 
   if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-    showWarningToast('两次输入的新密码不一致')
+    showWarningToast(t('profile.passwordMismatch'))
     return
   }
 
@@ -273,16 +290,16 @@ async function handleChangePassword() {
       confirmPassword: passwordForm.confirmPassword,
     })
     if (!response.success) {
-      throw new Error(response.message || '修改密码失败')
+      throw new Error(response.message || t('profile.passwordChangeFailed'))
     }
 
-    showSuccessToast('密码修改成功，请重新登录')
+    showSuccessToast(t('profile.passwordChanged'))
     handleDismissPasswordModal()
     await userStore.logout()
     await router.replace(ROUTE_PATHS.login)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '修改密码失败'))
+      showWarningToast(resolveWarningMessage(error, t('profile.passwordChangeFailed')))
     }
   } finally {
     changingPassword.value = false

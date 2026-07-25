@@ -5,31 +5,31 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.settingsStoreMembers" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">角色权限</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.SettingsRolePermissions') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content fullscreen class="mobile-page settings-page-block">
       <section class="mobile-hero settings-page-block__hero">
-        <p class="mobile-note settings-page-block__eyebrow">账号与角色</p>
+        <p class="mobile-note settings-page-block__eyebrow">{{ $t('stage5SourceText.211') }}</p>
         <h1 class="mobile-title">{{ roleTitle }}</h1>
         <div class="mobile-chip-row">
-          <span class="mobile-chip">权限 {{ selectedPermissionCount }}</span>
-          <span class="mobile-chip">房型 {{ roomTypes.length }}</span>
+          <span class="mobile-chip">{{ $t('stage5SourceText.144') }} {{ selectedPermissionCount }}</span>
+          <span class="mobile-chip">{{ $t('accommodation.common.roomType') }} {{ roomTypes.length }}</span>
         </div>
       </section>
 
       <div class="mobile-stack">
         <section v-for="tab in SETTINGS_PERMISSION_TABS" :key="tab.name" class="mobile-card">
-          <h2 class="mobile-section-title">{{ tab.label }}</h2>
+          <h2 class="mobile-section-title">{{ t(tab.labelKey) }}</h2>
           <div class="mobile-list settings-card-list settings-card-list--compact">
-            <article v-for="section in tab.sections" :key="section.title" class="settings-card-item">
-              <strong>{{ section.title }}</strong>
+            <article v-for="section in tab.sections" :key="section.titleKey" class="settings-card-item">
+              <strong>{{ t(section.titleKey) }}</strong>
               <div class="settings-permission-grid">
                 <article v-for="item in section.items" :key="item.key" class="settings-permission-item">
                   <div class="settings-permission-item__header">
                     <div>
-                      <strong>{{ item.label }}</strong>
+                      <strong>{{ t(item.labelKey) }}</strong>
                       <p>{{ permissionScopeSummary(item) }}</p>
                     </div>
                     <ion-checkbox :checked="hasPermission(item)" @ionChange="handlePermissionToggle(item, $event.detail.checked)" />
@@ -39,9 +39,9 @@
                     v-if="hasPermission(item) && item.supportsRoomTypeScope"
                     class="settings-form-field settings-form-field--top"
                   >
-                    <span>房型范围</span>
+                    <span>{{ $t('settingsStage4.accountList.sections.roomTypeScope') }}</span>
                     <ion-select :value="getPermissionScopeValue(item)" fill="outline" interface="modal" @ionChange="handleScopeChange(item, $event.detail.value)">
-                      <ion-select-option value="ALL">全部房型</ion-select-option>
+                      <ion-select-option value="ALL">{{ $t('accommodation.priceHistory.allRoomTypes') }}</ion-select-option>
                       <ion-select-option v-for="roomType in roomTypes" :key="roomType.id" :value="String(roomType.id)">
                         {{ roomType.name }}
                       </ion-select-option>
@@ -55,9 +55,9 @@
 
         <section class="mobile-card">
           <div class="settings-form-actions">
-            <ion-button fill="outline" :disabled="loading || saving" @click="loadPageData">重置</ion-button>
+            <ion-button fill="outline" :disabled="loading || saving" @click="loadPageData">{{ $t('accommodation.common.reset') }}</ion-button>
             <ion-button :disabled="loading || saving" @click="handleSave">
-              {{ saving ? '保存中...' : '保存权限矩阵' }}
+              {{ saving ? $t('channel.mobile.common.saving') : $t('stage5DynamicUi.15') }}
             </ion-button>
           </div>
         </section>
@@ -82,6 +82,7 @@ import {
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { SETTINGS_PERMISSION_TABS, type PermissionItemConfig } from '@/constants/settings'
 import { getRoleById, getRolePermissions, updateRolePermissions, type PermissionDTO } from '@/api/role'
@@ -98,10 +99,11 @@ interface PermissionStateItem {
 }
 
 const route = useRoute()
+const { t } = useI18n()
 
 const loading = ref(false)
 const saving = ref(false)
-const roleTitle = ref('角色权限')
+const roleTitle = ref(t('routes.SettingsRolePermissions'))
 const roomTypes = ref<RoomTypeDTO[]>([])
 const permissionState = ref<Record<string, PermissionStateItem>>({})
 
@@ -150,21 +152,23 @@ function getPermissionScopeValue(item: PermissionItemConfig) {
 function permissionScopeSummary(item: PermissionItemConfig) {
   const state = ensurePermissionState(item)
   if (!state.enabled) {
-    return '未启用'
+    return t('settings.constants.permission.summary.notEnabled')
   }
   if (!item.supportsRoomTypeScope) {
-    return '已启用'
+    return t('settings.constants.permission.summary.enabled')
   }
   if (state.allRoomTypes || !state.roomTypeId) {
-    return '全部房型'
+    return t('settings.constants.permission.summary.allRoomTypes')
   }
   const roomType = roomTypes.value.find((currentItem) => String(currentItem.id) === state.roomTypeId)
-  return roomType ? `仅 ${roomType.name}` : '指定房型'
+  return roomType
+    ? t('settings.constants.permission.summary.roomTypeOnly', { name: roomType.name })
+    : t('settings.constants.permission.summary.specifiedRoomType')
 }
 
 async function loadPageData() {
   if (!roleId.value) {
-    showWarningToast('缺少角色 ID')
+    showWarningToast(t('stage5Pattern.missing'))
     return
   }
 
@@ -176,13 +180,13 @@ async function loadPageData() {
       getAllRoomTypes(),
     ])
     if (!roleResponse.success || !roleResponse.data) {
-      throw new Error(roleResponse.message || '加载角色失败')
+      throw new Error(roleResponse.message || t('stage5Pattern.loadFailed'))
     }
     if (!permissionResponse.success || !permissionResponse.data) {
-      throw new Error(permissionResponse.message || '加载角色权限失败')
+      throw new Error(permissionResponse.message || t('stage5Pattern.loadFailed'))
     }
     if (!roomTypeResponse.success || !roomTypeResponse.data) {
-      throw new Error(roomTypeResponse.message || '加载房型失败')
+      throw new Error(roomTypeResponse.message || t('settingsStage4.roomSort.messages.loadRoomTypesFailed'))
     }
 
     roleTitle.value = roleResponse.data.name
@@ -208,7 +212,7 @@ async function loadPageData() {
     permissionState.value = nextState
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载角色权限失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.loadFailed')))
     }
   } finally {
     loading.value = false
@@ -236,7 +240,7 @@ function handleScopeChange(item: PermissionItemConfig, value: string) {
 
 async function handleSave() {
   if (!roleId.value) {
-    showWarningToast('缺少角色 ID')
+    showWarningToast(t('stage5Pattern.missing'))
     return
   }
 
@@ -270,13 +274,13 @@ async function handleSave() {
 
     const response = await updateRolePermissions(roleId.value, permissions)
     if (!response.success) {
-      throw new Error(response.message || '保存角色权限失败')
+      throw new Error(response.message || t('stage5Pattern.saveFailed'))
     }
-    showSuccessToast('角色权限已保存')
+    showSuccessToast(t('stage5Pattern.saveCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存角色权限失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     saving.value = false

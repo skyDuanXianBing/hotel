@@ -8,12 +8,10 @@
           <div class="auth-panel__heading">
             <button class="auth-back-title" type="button" @click="handleBack">
               <ion-icon :icon="chevronBackOutline" aria-hidden="true" />
-              验证邮箱
+              {{ t('auth.verify.title') }}
             </button>
             <p class="auth-panel__subtitle">
-              请输入发送至
-              <strong>{{ email }}</strong>
-              的6位验证码，如未收到，请尝试重新获取验证码
+              {{ t('auth.verify.description', { email }) }}
             </p>
           </div>
 
@@ -68,6 +66,7 @@
 import { IonButton, IonContent, IonIcon, IonPage, IonSpinner, onIonViewDidEnter } from '@ionic/vue'
 import { chevronBackOutline } from 'ionicons/icons'
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { loginByCode, sendVerificationCode } from '@/api/auth'
 import AuthBrandHeader from '@/components/auth/AuthBrandHeader.vue'
@@ -89,6 +88,7 @@ import WorkspaceSelectionModal from './WorkspaceSelectionModal.vue'
 
 const CODE_LENGTH = 6
 const RESEND_SECONDS = 60
+const { t } = useI18n()
 
 const router = useRouter()
 const route = useRoute()
@@ -117,10 +117,10 @@ const verificationCode = computed(() => verificationDigits.value.join(''))
 const canResend = computed(() => resendCountdown.value === 0)
 const resendButtonText = computed(() => {
   if (canResend.value) {
-    return '重新获取'
+    return t('auth.action.resend')
   }
 
-  return `重新获取 (${resendCountdown.value}s)`
+  return t('auth.action.resendCountdown', { seconds: resendCountdown.value })
 })
 
 const hydrateRuntimeStores = () => {
@@ -186,7 +186,7 @@ const stopResendCountdown = () => {
 
 const validateEmail = () => {
   if (!email.value) {
-    showWarningToast('邮箱不能为空')
+    showWarningToast(t('auth.validation.emailEmpty'))
     return false
   }
 
@@ -202,9 +202,9 @@ const finishCodeLogin = async (responseData: LoginResponse) => {
   clearPendingWorkspaceSelection()
 
   if (sessionResult.target === 'CLEANER') {
-    showSuccessToast('登录成功')
+    showSuccessToast(t('auth.message.loginSuccess'))
   } else {
-    showSuccessToast('登录成功，请选择门店')
+    showSuccessToast(t('auth.message.loginSelectStore'))
   }
 
   await router.replace(sessionResult.redirectPath)
@@ -232,7 +232,7 @@ const handleWorkspaceSelect = async (target: LoginTarget) => {
     await finishCodeLogin(selectedResponse)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showErrorToast(error instanceof Error ? error.message : '登录失败')
+      showErrorToast(error instanceof Error ? error.message : t('auth.message.loginFailed'))
     }
   } finally {
     submitting.value = false
@@ -287,7 +287,7 @@ const trySubmitLogin = async () => {
     })
 
     if (!response.success || !response.data) {
-      showErrorToast(response.message || '登录失败')
+      showErrorToast(response.message || t('auth.message.loginFailed'))
       clearVerificationDigits()
       await focusInput(0)
       return
@@ -308,7 +308,7 @@ const trySubmitLogin = async () => {
     await focusInput(0)
 
     if (!isHandledRequestError(error)) {
-      showErrorToast(error instanceof Error ? error.message : '登录失败')
+      showErrorToast(error instanceof Error ? error.message : t('auth.message.loginFailed'))
     }
   } finally {
     submitting.value = false
@@ -413,17 +413,17 @@ const handleResendCode = async () => {
     })
 
     if (!response.success) {
-      showErrorToast(response.message || '验证码发送失败')
+      showErrorToast(response.message || t('auth.message.codeSendFailed'))
       return
     }
 
     clearVerificationDigits()
     startResendCountdown()
-    showSuccessToast('验证码已重新发送，请查收邮箱')
+    showSuccessToast(t('auth.message.codeResent'))
     await focusInput(0)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showErrorToast(error instanceof Error ? error.message : '验证码发送失败')
+      showErrorToast(error instanceof Error ? error.message : t('auth.message.codeSendFailed'))
     }
   } finally {
     resending.value = false

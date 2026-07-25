@@ -2,9 +2,9 @@
   <ion-modal :is-open="isOpen" @didDismiss="$emit('dismiss')">
     <ion-header translucent>
       <ion-toolbar>
-        <ion-title>新增消费</ion-title>
+        <ion-title>{{ $t('stage5VisibleText.194') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="$emit('dismiss')">关闭</ion-button>
+          <ion-button @click="$emit('dismiss')">{{ $t('home.section.close') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -12,19 +12,19 @@
     <ion-content>
       <ion-list inset>
         <ion-item>
-          <ion-input v-model="form.item" label="项目" label-placement="stacked" placeholder="例如加床、延时退房" />
+          <ion-input v-model="form.item" :label="$t('roomStatus.common.item')" label-placement="stacked" :placeholder="$t('stage5UiAttributes.26')" />
         </ion-item>
         <ion-item>
-          <ion-input v-model.number="form.quantity" type="number" min="1" label="数量" label-placement="stacked" />
+          <ion-input v-model.number="form.quantity" type="number" min="1" :label="$t('roomStatus.consumption.quantity')" label-placement="stacked" />
         </ion-item>
         <ion-item>
-          <ion-input v-model.number="form.amount" type="number" min="0" label="金额" label-placement="stacked" />
+          <ion-input v-model.number="form.amount" type="number" min="0" :label="$t('roomStatus.common.amount')" label-placement="stacked" />
         </ion-item>
         <ion-item>
-          <ion-input v-model="form.date" type="date" label="日期" label-placement="stacked" />
+          <ion-input v-model="form.date" type="date" :label="$t('accommodation.common.date')" label-placement="stacked" />
         </ion-item>
         <ion-item lines="none">
-          <ion-textarea v-model="form.remark" auto-grow label="备注" label-placement="stacked" placeholder="可选" />
+          <ion-textarea v-model="form.remark" auto-grow :label="$t('accommodation.common.remarks')" label-placement="stacked" :placeholder="$t('settingsStage4.autoCheckin.status.optional')" />
         </ion-item>
       </ion-list>
     </ion-content>
@@ -32,8 +32,8 @@
     <ion-footer>
       <ion-toolbar>
         <div class="modal-footer-actions">
-          <ion-button fill="outline" @click="$emit('dismiss')">取消</ion-button>
-          <ion-button :disabled="submitting" @click="handleSubmit">保存消费</ion-button>
+          <ion-button fill="outline" @click="$emit('dismiss')">{{ $t('accommodation.common.cancel') }}</ion-button>
+          <ion-button :disabled="submitting" @click="handleSubmit">{{ $t('stage5VisibleText.126') }}</ion-button>
         </div>
       </ion-toolbar>
     </ion-footer>

@@ -7,13 +7,13 @@
   >
     <ion-header>
       <ion-toolbar>
-        <ion-title>选择工作台</ion-title>
+        <ion-title>{{ t('auth.workspace.title') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content class="ion-padding">
       <p class="workspace-selection__description">
-        该账号可以进入多个工作台，请选择本次要进入的工作空间。
+        {{ t('auth.workspace.description') }}
       </p>
 
       <ul class="workspace-selection__options">
@@ -37,7 +37,7 @@
         :disabled="loading"
         @click="emit('dismiss')"
       >
-        返回登录
+        {{ t('auth.workspace.back') }}
       </ion-button>
     </ion-content>
   </ion-modal>
@@ -45,7 +45,10 @@
 
 <script setup lang="ts">
 import { IonButton, IonContent, IonHeader, IonModal, IonTitle, IonToolbar } from '@ionic/vue'
+import { useI18n } from 'vue-i18n'
 import type { LoginTarget } from '@/types/auth'
+
+const { t } = useI18n()
 
 defineProps<{
   open: boolean
@@ -59,13 +62,13 @@ const emit = defineEmits<{
 }>()
 
 const getWorkspaceTitle = (target: LoginTarget) => {
-  return target === 'CLEANER' ? '保洁工作台' : '酒店管理工作台'
+  return target === 'CLEANER' ? t('auth.workspace.cleaner') : t('auth.workspace.pms')
 }
 
 const getWorkspaceDescription = (target: LoginTarget) => {
   return target === 'CLEANER'
-    ? '查看保洁任务与房间清洁安排'
-    : '管理门店、房态、订单与经营数据'
+    ? t('auth.workspace.cleanerDescription')
+    : t('auth.workspace.pmsDescription')
 }
 </script>
 
@@ -111,11 +114,13 @@ const getWorkspaceDescription = (target: LoginTarget) => {
 }
 
 .workspace-selection__option strong {
+  overflow-wrap: anywhere;
   font-size: 17px;
   font-weight: 600;
 }
 
 .workspace-selection__option span {
+  overflow-wrap: anywhere;
   color: #74777e;
   font-size: 14px;
   line-height: 1.45;

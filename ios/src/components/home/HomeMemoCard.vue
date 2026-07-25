@@ -1,7 +1,7 @@
 <template>
   <section class="memo-section mobile-dashboard-surface">
     <div class="memo-section__header">
-      <h2 class="memo-section__title">备忘录</h2>
+      <h2 class="memo-section__title">{{ t('home.section.memo') }}</h2>
       <span class="memo-status" :class="{ 'memo-status--saving': autoSaving }">
         {{ statusText }}
       </span>
@@ -19,7 +19,7 @@
           auto-grow
           class="memo-textarea"
           fill="outline"
-          placeholder="记录今日重点事项或待办"
+          :placeholder="t('home.section.memoPlaceholder')"
           :rows="4"
         />
       </div>
@@ -30,6 +30,9 @@
 <script setup lang="ts">
 import { IonSkeletonText, IonTextarea } from '@ionic/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 interface Props {
   modelValue: string

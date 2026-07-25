@@ -5,22 +5,22 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.roomsCleaningOverview" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">保洁任务列表</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.RoomsCleaningTasks') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content fullscreen class="mobile-page cleaning-task-list-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新保洁任务" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('iosStage5.cleaning.pullTasks')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <section class="mobile-hero cleaning-task-list-page__hero">
-        <p class="mobile-note cleaning-task-list-page__eyebrow">住宿保洁</p>
-        <h1 class="mobile-title">保洁任务列表</h1>
-        <p class="mobile-subtitle">提供移动端筛选、详情、分配与完成闭环，不首发导出明细。</p>
+        <p class="mobile-note cleaning-task-list-page__eyebrow">{{ $t('iosStage5.cleaning.roomOperations') }}</p>
+        <h1 class="mobile-title">{{ $t('routes.RoomsCleaningTasks') }}</h1>
+        <p class="mobile-subtitle">{{ $t('iosStage5.cleaning.taskListSubtitle') }}</p>
         <div class="mobile-chip-row">
-          <span class="mobile-chip">结果 {{ tasks.length }}</span>
-          <span class="mobile-chip">总量 {{ total }}</span>
+          <span class="mobile-chip">{{ $t('iosStage5.cleaning.resultCount') }} {{ tasks.length }}</span>
+          <span class="mobile-chip">{{ $t('iosStage5.cleaning.totalCount') }} {{ total }}</span>
         </div>
       </section>
 
@@ -28,54 +28,54 @@
         <section class="mobile-card cleaning-task-list-page__filter-card">
           <div class="mobile-inline-row cleaning-task-list-page__section-header">
             <div>
-              <h2 class="mobile-section-title">筛选条件</h2>
-              <p class="mobile-note">支持任务类型、状态、房型、日期区间与关键字。</p>
+              <h2 class="mobile-section-title">{{ $t('iosStage5.cleaning.filters') }}</h2>
+              <p class="mobile-note">{{ $t('iosStage5.cleaning.filterHint') }}</p>
             </div>
             <ion-button fill="clear" size="small" @click="handleToggleAdvancedFilters">
-              {{ showAdvancedFilters ? '收起' : '展开' }}
+              {{ showAdvancedFilters ? $t('iosStage5.cleaning.collapse') : $t('iosStage5.cleaning.expand') }}
             </ion-button>
           </div>
 
           <div class="cleaning-task-list-page__filter-grid">
             <label class="cleaning-task-list-page__field cleaning-task-list-page__field--full">
-              <span>关键字</span>
-              <input v-model="filters.search" placeholder="搜索房号、保洁员或任务备注" type="text" />
+              <span>{{ $t('iosStage5.cleaning.keyword') }}</span>
+              <input v-model="filters.search" :placeholder="$t('iosStage5.cleaning.searchPlaceholder')" type="text" />
             </label>
             <label class="cleaning-task-list-page__field">
-              <span>任务类型</span>
+              <span>{{ $t('iosStage5.cleanerWorkspace.taskType') }}</span>
               <select v-model="filters.taskType">
-                <option value="">全部任务类型</option>
-                <option value="checkout">退房</option>
-                <option value="daily">日常清洁</option>
-                <option value="deep">深度清洁</option>
+                <option value="">{{ $t('iosStage5.cleaning.allTaskTypes') }}</option>
+                <option value="checkout">{{ $t('iosStage5.cleaning.type.checkout') }}</option>
+                <option value="daily">{{ $t('iosStage5.cleaning.type.daily') }}</option>
+                <option value="deep">{{ $t('iosStage5.cleaning.type.deep') }}</option>
               </select>
             </label>
             <label class="cleaning-task-list-page__field">
-              <span>任务状态</span>
+              <span>{{ $t('iosStage5.cleanerWorkspace.taskStatus') }}</span>
               <select v-model="filters.status">
-                <option value="">全部状态</option>
-                <option value="expired">已过期</option>
-                <option value="pending">待分配</option>
-                <option value="assigned">待清洁</option>
-                <option value="in_progress">清洁中</option>
-                <option value="completed">已完成</option>
+                <option value="">{{ $t('iosStage5.cleaning.allStatuses') }}</option>
+                <option value="expired">{{ $t('iosStage5.cleaning.status.expired') }}</option>
+                <option value="pending">{{ $t('iosStage5.cleaning.status.pending') }}</option>
+                <option value="assigned">{{ $t('iosStage5.cleaning.status.assigned') }}</option>
+                <option value="in_progress">{{ $t('iosStage5.cleaning.status.inProgress') }}</option>
+                <option value="completed">{{ $t('iosStage5.cleaning.status.completed') }}</option>
               </select>
             </label>
           </div>
 
           <div v-if="showAdvancedFilters" class="cleaning-task-list-page__filter-grid">
             <label class="cleaning-task-list-page__field">
-              <span>开始日期</span>
+              <span>{{ $t('iosStage5.cleaning.startDate') }}</span>
               <input v-model="filters.startDate" type="date" />
             </label>
             <label class="cleaning-task-list-page__field">
-              <span>结束日期</span>
+              <span>{{ $t('iosStage5.cleaning.endDate') }}</span>
               <input v-model="filters.endDate" type="date" />
             </label>
             <label class="cleaning-task-list-page__field cleaning-task-list-page__field--full">
-              <span>房型</span>
+              <span>{{ $t('iosStage5.cleaning.roomType') }}</span>
               <select v-model="filters.roomTypeIdText">
-                <option value="">全部房型</option>
+                <option value="">{{ $t('iosStage5.cleaning.allRoomTypes') }}</option>
                 <option v-for="roomType in roomTypes" :key="roomType.id" :value="String(roomType.id)">
                   {{ roomType.name }}
                 </option>
@@ -84,8 +84,8 @@
           </div>
 
           <div class="cleaning-task-list-page__actions">
-            <ion-button fill="outline" @click="handleResetFilters">重置</ion-button>
-            <ion-button @click="handleSearch">查询</ion-button>
+            <ion-button fill="outline" @click="handleResetFilters">{{ $t('stage5.common.actions.reset') }}</ion-button>
+            <ion-button @click="handleSearch">{{ $t('stage5.common.actions.query') }}</ion-button>
           </div>
 
           <p v-if="errorMessage" class="mobile-note cleaning-task-list-page__error">{{ errorMessage }}</p>
@@ -94,8 +94,8 @@
         <section class="mobile-card">
           <div class="mobile-inline-row cleaning-task-list-page__section-header">
             <div>
-              <h2 class="mobile-section-title">任务卡片</h2>
-              <p class="mobile-note">点击“查看详情”可进入全屏弹层并处理分配或完成动作。</p>
+              <h2 class="mobile-section-title">{{ $t('iosStage5.cleaning.taskCards') }}</h2>
+              <p class="mobile-note">{{ $t('iosStage5.cleaning.taskCardsHint') }}</p>
             </div>
             <ion-spinner v-if="loading" name="crescent" />
           </div>
@@ -105,38 +105,38 @@
               <div class="cleaning-task-list-page__task-header">
                 <div>
                   <strong>{{ task.roomType }} · {{ task.roomNumber }}</strong>
-                  <p>{{ task.taskDate }} · {{ getCleaningTaskTypeText(task.taskType) }}</p>
+                  <p>{{ task.taskDate }} · {{ getTaskTypeLabel(task.taskType) }}</p>
                 </div>
-                <span :class="getCleaningTaskStatusClass(task.status)">{{ getCleaningTaskStatusText(task.status) }}</span>
+                <span :class="getCleaningTaskStatusClass(task.status)">{{ getStatusLabel(task.status) }}</span>
               </div>
 
               <div class="cleaning-task-list-page__task-grid">
-                <span>保洁员 {{ task.cleanerName || '未分配' }}</span>
-                <span>审批人 {{ task.approverName || '-' }}</span>
-                <span>预计时间 {{ task.estimatedTime || '-' }}</span>
-                <span>更新时间 {{ formatDateTime(task.updatedAt) }}</span>
+                <span>{{ $t('iosStage5.cleaning.cleaner') }} {{ task.cleanerName || $t('iosStage5.cleaning.unassigned') }}</span>
+                <span>{{ $t('iosStage5.cleaning.approver') }} {{ task.approverName || '-' }}</span>
+                <span>{{ $t('iosStage5.cleaning.estimatedTime') }} {{ task.estimatedTime || '-' }}</span>
+                <span>{{ $t('iosStage5.cleaning.updatedAt') }} {{ formatDateTime(task.updatedAt) }}</span>
               </div>
 
               <div class="cleaning-task-list-page__task-actions">
-                <ion-button fill="outline" size="small" @click="handleOpenDetail(task.id)">查看详情</ion-button>
+                <ion-button fill="outline" size="small" @click="handleOpenDetail(task.id)">{{ $t('iosStage5.cleaning.viewDetails') }}</ion-button>
               </div>
             </article>
           </div>
 
-          <p v-else-if="!loading" class="mobile-note">当前筛选条件下暂无保洁任务。</p>
+          <p v-else-if="!loading" class="mobile-note">{{ $t('iosStage5.cleaning.noTasksForFilter') }}</p>
 
           <div v-if="hasMore" class="cleaning-task-list-page__load-more">
             <ion-button fill="outline" :disabled="loadingMore" @click="handleLoadMore">
-              {{ loadingMore ? '加载中...' : '加载更多' }}
+              {{ loadingMore ? $t('iosStage5.common.loading') : $t('iosStage5.cleaning.loadMore') }}
             </ion-button>
           </div>
         </section>
 
         <section class="mobile-card">
-          <h2 class="mobile-section-title">首版说明</h2>
+          <h2 class="mobile-section-title">{{ $t('iosStage5.cleaning.firstReleaseNotes') }}</h2>
           <ul class="mobile-bullet-list">
-            <li>列表页优先保证查询、详情、分配、完成任务四个核心动作。</li>
-            <li>导出明细暂列为二期增强，不阻塞当前移动端闭环。</li>
+            <li>{{ $t('iosStage5.cleaning.taskListScope') }}</li>
+            <li>{{ $t('iosStage5.cleaning.exportLater') }}</li>
           </ul>
         </section>
       </div>
@@ -144,9 +144,9 @@
       <ion-modal :is-open="detailOpen" @didDismiss="handleCloseDetail">
         <ion-header>
           <ion-toolbar>
-            <ion-title>任务详情</ion-title>
+            <ion-title>{{ $t('iosStage5.cleaning.taskDetails') }}</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="handleCloseDetail">关闭</ion-button>
+              <ion-button @click="handleCloseDetail">{{ $t('stage5.common.actions.close') }}</ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -154,41 +154,41 @@
         <ion-content class="mobile-page cleaning-task-list-page__modal-page">
           <section v-if="selectedTask" class="mobile-card cleaning-task-list-page__detail-card">
             <div class="cleaning-task-list-page__detail-grid">
-              <span>日期 {{ selectedTask.taskDate }}</span>
-              <span>房型 {{ selectedTask.roomType }}</span>
-              <span>房间 {{ selectedTask.roomNumber }}</span>
-              <span>状态 {{ getCleaningTaskStatusText(selectedTask.status) }}</span>
-              <span>任务类型 {{ getCleaningTaskTypeText(selectedTask.taskType) }}</span>
-              <span>预计时间 {{ selectedTask.estimatedTime || '-' }}</span>
-              <span>保洁员 {{ selectedTask.cleanerName || '未分配' }}</span>
-              <span>审批人 {{ selectedTask.approverName || '-' }}</span>
-              <span>创建时间 {{ formatDateTime(selectedTask.createdAt) }}</span>
-              <span>完成时间 {{ formatDateTime(selectedTask.completeTime) }}</span>
+              <span>{{ $t('iosStage5.cleaning.date') }} {{ selectedTask.taskDate }}</span>
+              <span>{{ $t('iosStage5.cleaning.roomType') }} {{ selectedTask.roomType }}</span>
+              <span>{{ $t('iosStage5.cleaning.room') }} {{ selectedTask.roomNumber }}</span>
+              <span>{{ $t('iosStage5.cleaning.statusLabel') }} {{ getStatusLabel(selectedTask.status) }}</span>
+              <span>{{ $t('iosStage5.cleanerWorkspace.taskType') }} {{ getTaskTypeLabel(selectedTask.taskType) }}</span>
+              <span>{{ $t('iosStage5.cleaning.estimatedTime') }} {{ selectedTask.estimatedTime || '-' }}</span>
+              <span>{{ $t('iosStage5.cleaning.cleaner') }} {{ selectedTask.cleanerName || $t('iosStage5.cleaning.unassigned') }}</span>
+              <span>{{ $t('iosStage5.cleaning.approver') }} {{ selectedTask.approverName || '-' }}</span>
+              <span>{{ $t('iosStage5.cleaning.createdAt') }} {{ formatDateTime(selectedTask.createdAt) }}</span>
+              <span>{{ $t('iosStage5.cleaning.completedAt') }} {{ formatDateTime(selectedTask.completeTime) }}</span>
             </div>
 
             <label v-if="selectedTask.status === 'pending'" class="cleaning-task-list-page__field">
-              <span>分配保洁员</span>
+              <span>{{ $t('iosStage5.cleaning.assignCleaner') }}</span>
               <select v-model="selectedCleanerIdText">
-                <option value="">请选择保洁员</option>
+                <option value="">{{ $t('iosStage5.cleaning.selectCleaner') }}</option>
                 <option v-for="cleaner in cleaners" :key="cleaner.id" :value="String(cleaner.id)">
                   {{ cleaner.name }}
                 </option>
               </select>
             </label>
 
-            <p v-if="selectedTask.notes" class="mobile-note">备注：{{ selectedTask.notes }}</p>
+            <p v-if="selectedTask.notes" class="mobile-note">{{ $t('iosStage5.cleaning.notesLabel') }}{{ selectedTask.notes }}</p>
 
             <div class="cleaning-task-list-page__actions">
-              <ion-button fill="outline" @click="handleCloseDetail">关闭</ion-button>
+              <ion-button fill="outline" @click="handleCloseDetail">{{ $t('stage5.common.actions.close') }}</ion-button>
               <ion-button v-if="selectedTask.status === 'pending'" :disabled="submitting" @click="handleAssignTask">
-                {{ submitting ? '分配中...' : '分配任务' }}
+                {{ submitting ? $t('iosStage5.cleaning.assigning') : $t('iosStage5.cleaning.assignTask') }}
               </ion-button>
               <ion-button
                 v-if="selectedTask.status === 'assigned' || selectedTask.status === 'in_progress'"
                 :disabled="submitting"
                 @click="handleCompleteTask"
               >
-                {{ submitting ? '提交中...' : '完成任务' }}
+                {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('iosStage5.cleaning.completeTask') }}
               </ion-button>
             </div>
           </section>
@@ -214,6 +214,7 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { onIonViewWillEnter } from '@ionic/vue'
 import {
   assignCleaningTask,
@@ -230,11 +231,10 @@ import { useUserStore } from '@/stores/user'
 import {
   formatDateTime,
   getCleaningTaskStatusClass,
-  getCleaningTaskStatusText,
-  getCleaningTaskTypeText,
   getTodayDate,
   shiftDate,
 } from '@/utils/accommodation'
+import { CLEANER_STATUS_LABELS, CLEANER_TASK_TYPE_LABELS } from '@/constants/cleaner'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
@@ -250,6 +250,7 @@ interface CleaningTaskFilterState {
 const DEFAULT_PAGE_SIZE = 20
 
 const userStore = useUserStore()
+const { t } = useI18n()
 
 const filters = ref<CleaningTaskFilterState>(createDefaultFilters())
 const showAdvancedFilters = ref(false)
@@ -288,13 +289,23 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
   return fallbackMessage
 }
 
+function getStatusLabel(status: string) {
+  const labelKey = CLEANER_STATUS_LABELS[status]
+  return (labelKey ? t(labelKey) : '') || status || t('iosStage5.cleanerWorkspace.unknownStatus')
+}
+
+function getTaskTypeLabel(taskType: string) {
+  const labelKey = CLEANER_TASK_TYPE_LABELS[taskType]
+  return (labelKey ? t(labelKey) : '') || taskType || t('iosStage5.cleanerWorkspace.notSet')
+}
+
 async function loadOptions() {
   const [roomTypeResponse, cleanerResponse] = await Promise.all([getAllRoomTypes(), getCleaners()])
   if (!roomTypeResponse.success || !roomTypeResponse.data) {
-    throw new Error(roomTypeResponse.message || '加载房型失败')
+    throw new Error(roomTypeResponse.message || t('iosStage5.cleaning.roomTypesLoadFailed'))
   }
   if (!cleanerResponse.success || !cleanerResponse.data) {
-    throw new Error(cleanerResponse.message || '加载保洁员失败')
+    throw new Error(cleanerResponse.message || t('iosStage5.cleaning.cleanersLoadFailed'))
   }
 
   roomTypes.value = roomTypeResponse.data
@@ -327,7 +338,7 @@ async function loadTasks(reset = true) {
     })
 
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载任务列表失败')
+      throw new Error(response.message || t('iosStage5.cleaning.taskListLoadFailed'))
     }
 
     total.value = response.data.totalElements
@@ -337,7 +348,7 @@ async function loadTasks(reset = true) {
       tasks.value = [...tasks.value, ...response.data.content]
     }
   } catch (error) {
-    const message = resolveWarningMessage(error, '加载任务列表失败')
+    const message = resolveWarningMessage(error, t('iosStage5.cleaning.taskListLoadFailed'))
     errorMessage.value = message
     if (!isHandledRequestError(error)) {
       showWarningToast(message)
@@ -356,7 +367,7 @@ async function loadPageData() {
     await loadOptions()
     await loadTasks(true)
   } catch (error) {
-    const message = resolveWarningMessage(error, '加载任务列表失败')
+    const message = resolveWarningMessage(error, t('iosStage5.cleaning.taskListLoadFailed'))
     errorMessage.value = message
     if (!isHandledRequestError(error)) {
       showWarningToast(message)
@@ -369,13 +380,13 @@ async function handleOpenDetail(taskId: number) {
   try {
     const response = await getCleaningTaskById(taskId)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载任务详情失败')
+      throw new Error(response.message || t('iosStage5.cleaning.taskDetailLoadFailed'))
     }
     selectedTask.value = response.data
   } catch (error) {
     selectedTask.value = tasks.value.find((item) => item.id === taskId) || null
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载任务详情失败'))
+      showWarningToast(resolveWarningMessage(error, t('iosStage5.cleaning.taskDetailLoadFailed')))
     }
   }
 
@@ -414,7 +425,7 @@ async function handleAssignTask() {
     return
   }
   if (!selectedCleanerIdText.value) {
-    showWarningToast('请选择保洁员')
+    showWarningToast(t('iosStage5.cleaning.selectCleanerRequired'))
     return
   }
 
@@ -422,15 +433,15 @@ async function handleAssignTask() {
   try {
     const response = await assignCleaningTask(selectedTask.value.id, Number(selectedCleanerIdText.value))
     if (!response.success) {
-      throw new Error(response.message || '分配任务失败')
+      throw new Error(response.message || t('iosStage5.cleaning.assignTaskFailed'))
     }
 
-    showSuccessToast('任务已分配')
+    showSuccessToast(t('iosStage5.cleaning.taskAssigned'))
     handleCloseDetail()
     await loadTasks(true)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '分配任务失败'))
+      showWarningToast(resolveWarningMessage(error, t('iosStage5.cleaning.assignTaskFailed')))
     }
   } finally {
     submitting.value = false
@@ -444,7 +455,7 @@ async function handleCompleteTask() {
 
   const approverId = userStore.currentUser?.id
   if (!approverId) {
-    showWarningToast('未获取到当前审批人信息')
+    showWarningToast(t('iosStage5.cleaning.approverMissing'))
     return
   }
 
@@ -452,15 +463,15 @@ async function handleCompleteTask() {
   try {
     const response = await completeCleaningTask(selectedTask.value.id, approverId)
     if (!response.success) {
-      throw new Error(response.message || '完成任务失败')
+      throw new Error(response.message || t('iosStage5.cleaning.completeTaskFailed'))
     }
 
-    showSuccessToast('任务已完成')
+    showSuccessToast(t('iosStage5.cleanerWorkspace.completed'))
     handleCloseDetail()
     await loadTasks(true)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '完成任务失败'))
+      showWarningToast(resolveWarningMessage(error, t('iosStage5.cleaning.completeTaskFailed')))
     }
   } finally {
     submitting.value = false

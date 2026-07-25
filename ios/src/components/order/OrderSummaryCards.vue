@@ -2,8 +2,8 @@
   <section class="mobile-card order-summary-cards">
     <div class="mobile-inline-row order-summary-cards__header">
       <div>
-        <h2 class="mobile-section-title">今日摘要</h2>
-        <p class="mobile-note">点击摘要可快速切换到对应订单视图。</p>
+        <h2 class="mobile-section-title">{{ $t('order.mobile.summary.title') }}</h2>
+        <p class="mobile-note">{{ $t('order.mobile.summary.description') }}</p>
       </div>
       <ion-spinner v-if="loading" name="crescent" />
     </div>

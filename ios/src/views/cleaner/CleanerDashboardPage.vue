@@ -1,11 +1,13 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar class="app-page-header__toolbar">
-        <ion-title class="app-page-header__title">保洁员工作台</ion-title>
+      <ion-toolbar class="app-page-header__toolbar cleaner-dashboard-page__toolbar">
+        <ion-title class="app-page-header__title cleaner-dashboard-page__header-title">
+          {{ $t('routes.CleanerDashboard') }}
+        </ion-title>
         <ion-buttons slot="end">
           <ion-button class="cleaner-dashboard-page__logout-button" @click="handleLogout">
-            退出登录
+            {{ $t('iosStage5.cleanerWorkspace.logout') }}
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
@@ -13,18 +15,18 @@
 
     <ion-content fullscreen class="mobile-page cleaner-dashboard-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新任务" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('iosStage5.cleanerWorkspace.pullToRefresh')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <section class="mobile-card cleaner-dashboard-page__calendar-card">
         <div class="cleaner-dashboard-page__panel-header">
           <div class="cleaner-dashboard-page__panel-copy">
-            <p class="cleaner-dashboard-page__eyebrow">保洁任务</p>
+            <p class="cleaner-dashboard-page__eyebrow">{{ $t('iosStage5.cleanerWorkspace.tasks') }}</p>
             <h1 class="cleaner-dashboard-page__panel-title">{{ cleanerDisplayName }}</h1>
           </div>
           <div class="cleaner-dashboard-page__panel-total">
             <strong>{{ totalCount }}</strong>
-            <span>本月任务</span>
+            <span>{{ $t('iosStage5.cleanerWorkspace.monthlyTasks') }}</span>
           </div>
         </div>
 
@@ -33,7 +35,7 @@
             <span aria-hidden="true">‹</span>
           </button>
           <div class="cleaner-dashboard-page__month-copy">
-            <span class="cleaner-dashboard-page__month-caption">任务日历</span>
+            <span class="cleaner-dashboard-page__month-caption">{{ $t('iosStage5.cleanerWorkspace.calendar') }}</span>
             <strong class="cleaner-dashboard-page__month-value">{{ selectedMonthLabel }}</strong>
           </div>
           <button class="cleaner-dashboard-page__month-nav" type="button" @click="handleNextMonth">
@@ -42,14 +44,14 @@
         </div>
 
         <div class="cleaner-dashboard-page__meta-row">
-          <p class="mobile-note">点击日期查看当天任务。</p>
+          <p class="mobile-note">{{ $t('iosStage5.cleanerWorkspace.tapDate') }}</p>
           <button
             v-if="!isViewingCurrentMonth"
             class="cleaner-dashboard-page__month-reset"
             type="button"
             @click="handleCurrentMonth"
           >
-            回到本月
+            {{ $t('iosStage5.cleanerWorkspace.backToMonth') }}
           </button>
         </div>
 
@@ -108,7 +110,7 @@
           <ion-toolbar>
             <ion-title>{{ selectedDateTitle }}</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="handleCloseDayTasks">关闭</ion-button>
+              <ion-button @click="handleCloseDayTasks">{{ $t('stage5.common.actions.close') }}</ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -146,11 +148,11 @@
                     <template v-if="task.estimatedTime"> · {{ task.estimatedTime }}</template>
                   </p>
                 </div>
-                <span>详情</span>
+                <span>{{ $t('stage5.common.fields.details') }}</span>
               </button>
             </div>
 
-            <p v-else class="mobile-note">当天该状态暂无任务。</p>
+            <p v-else class="mobile-note">{{ $t('iosStage5.cleanerWorkspace.noTasksForStatus') }}</p>
           </section>
         </ion-content>
       </ion-modal>
@@ -173,6 +175,7 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { onIonViewWillEnter } from '@ionic/vue'
 import { getCalendarViewData, type CleaningTaskDTO } from '@/api/cleaning'
 import {
@@ -187,6 +190,7 @@ import { showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 import { readCleanerUser } from '@/utils/cleanerSession'
 import { formatDate } from '@/utils/accommodation'
+import { getIntlLocale } from '@/utils/formatters'
 import {
   buildBusinessMonthCalendarDates,
   buildBusinessMonthRange,
@@ -197,7 +201,6 @@ import {
 } from '@/utils/storeBusinessDate'
 import { useRouter } from 'vue-router'
 
-const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
 const EMPTY_STATUS_COUNT = {
   assigned: 0,
   in_progress: 0,
@@ -214,6 +217,14 @@ interface CalendarDayItem {
 }
 
 const router = useRouter()
+const { d, locale, t } = useI18n()
+const WEEKDAY_LABELS = computed(() =>
+  Array.from({ length: 7 }, (_, index) =>
+    new Intl.DateTimeFormat(getIntlLocale(locale.value), { weekday: 'short' }).format(
+      new Date(2024, 0, 7 + index),
+    ),
+  ),
+)
 
 const cleanerUser = ref(readCleanerUser())
 const selectedMonth = ref(getStoreCurrentMonthValue())
@@ -239,14 +250,14 @@ const cleanerDisplayName = computed(() => {
     return cleanerUser.value.email
   }
 
-  return '保洁员'
+  return t('iosStage5.cleanerWorkspace.cleaner')
 })
 
 const selectedMonthLabel = computed(() => {
   const parsedMonth = parseBusinessMonthParts(selectedMonth.value)
   const year = parsedMonth?.year || 1970
-  const month = String(parsedMonth?.month || 1).padStart(2, '0')
-  return `${year} 年 ${month} 月`
+  const month = parsedMonth?.month || 1
+  return d(new Date(year, month - 1, 1), { year: 'numeric', month: 'long' })
 })
 
 const isViewingCurrentMonth = computed(() => {
@@ -255,10 +266,10 @@ const isViewingCurrentMonth = computed(() => {
 
 const statusSummaryItems = computed(() => {
   return [
-    { key: 'assigned' as CleanerTaskStatusKey, label: '待接受', count: statusCount.value.assigned },
-    { key: 'in_progress' as CleanerTaskStatusKey, label: '进行中', count: statusCount.value.in_progress },
-    { key: 'pending' as CleanerTaskStatusKey, label: '待分配', count: statusCount.value.pending },
-    { key: 'completed' as CleanerTaskStatusKey, label: '已完成', count: statusCount.value.completed },
+    { key: 'assigned' as CleanerTaskStatusKey, label: t(CLEANER_STATUS_LABELS.assigned), count: statusCount.value.assigned },
+    { key: 'in_progress' as CleanerTaskStatusKey, label: t(CLEANER_STATUS_LABELS.in_progress), count: statusCount.value.in_progress },
+    { key: 'pending' as CleanerTaskStatusKey, label: t(CLEANER_STATUS_LABELS.pending), count: statusCount.value.pending },
+    { key: 'completed' as CleanerTaskStatusKey, label: t(CLEANER_STATUS_LABELS.completed), count: statusCount.value.completed },
   ]
 })
 
@@ -277,10 +288,10 @@ const selectedDayTasks = computed(() => {
 
 const selectedDateTitle = computed(() => {
   if (!selectedDate.value) {
-    return '当天任务'
+    return t('iosStage5.cleanerWorkspace.currentDayTasks')
   }
 
-  return `${formatDate(selectedDate.value)} 任务`
+  return `${formatDate(selectedDate.value)} ${t('iosStage5.cleanerWorkspace.taskSuffix')}`
 })
 
 const selectedDayStatusCount = computed<Record<CleanerTaskStatusKey, number>>(() => {
@@ -356,11 +367,13 @@ function getMonthRange() {
 }
 
 function getStatusLabel(status: string) {
-  return CLEANER_STATUS_LABELS[status] || status || '未知状态'
+  const labelKey = CLEANER_STATUS_LABELS[status]
+  return (labelKey ? t(labelKey) : '') || status || t('iosStage5.cleanerWorkspace.unknownStatus')
 }
 
 function getTaskTypeLabel(taskType: string) {
-  return CLEANER_TASK_TYPE_LABELS[taskType] || taskType || '未设置'
+  const labelKey = CLEANER_TASK_TYPE_LABELS[taskType]
+  return (labelKey ? t(labelKey) : '') || taskType || t('iosStage5.cleanerWorkspace.notSet')
 }
 
 function pickDefaultStatus(tasks: CleaningTaskDTO[]) {
@@ -394,7 +407,7 @@ async function loadCalendarData() {
     })
 
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载任务失败')
+      throw new Error(response.message || t('iosStage5.cleanerWorkspace.loadFailed'))
     }
 
     totalCount.value = response.data.totalCount || 0
@@ -416,7 +429,7 @@ async function loadCalendarData() {
     totalCount.value = 0
     buildCalendarDays({})
 
-    const message = error instanceof Error ? error.message : '加载任务失败'
+    const message = error instanceof Error ? error.message : t('iosStage5.cleanerWorkspace.loadFailed')
     errorMessage.value = message
 
     if (!isHandledRequestError(error)) {
@@ -475,15 +488,15 @@ async function handleOpenTask(taskId: number) {
 
 async function confirmLogout() {
   const alert = await alertController.create({
-    header: '退出登录',
-    message: '确认退出当前保洁账号吗？',
+    header: t('iosStage5.cleanerWorkspace.logoutTitle'),
+    message: t('iosStage5.cleanerWorkspace.logoutConfirm'),
     buttons: [
       {
-        text: '取消',
+        text: t('stage5.common.actions.cancel'),
         role: 'cancel',
       },
       {
-        text: '确定',
+        text: t('stage5.common.actions.confirm'),
         role: 'destructive',
       },
     ],
@@ -528,8 +541,23 @@ onIonViewWillEnter(async () => {
   display: block;
 }
 
+.cleaner-dashboard-page__header-title {
+  padding-inline: 16px 96px;
+  font-size: 19px;
+  text-align: left;
+}
+
 .cleaner-dashboard-page__logout-button {
+  min-width: 0;
   --color: var(--ios-pms-header-control-color);
+  --padding-start: 8px;
+  --padding-end: 8px;
+  font-size: 14px;
+}
+
+.cleaner-dashboard-page__logout-button::part(native) {
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .cleaner-dashboard-page__calendar-card {
@@ -667,6 +695,8 @@ onIonViewWillEnter(async () => {
   color: var(--ios-pms-text-muted);
   font-size: 12px;
   font-weight: 700;
+  white-space: normal;
+  line-height: 1.25;
 }
 
 .cleaner-dashboard-page__status-pill::before {
@@ -842,6 +872,8 @@ onIonViewWillEnter(async () => {
   background: rgba(244, 247, 255, 0.96);
   box-shadow: inset 0 0 0 1px var(--ios-pms-border-faint);
   color: var(--ios-pms-text-muted);
+  white-space: normal;
+  line-height: 1.25;
 }
 
 .cleaner-dashboard-page__status-tab strong {
@@ -898,6 +930,8 @@ onIonViewWillEnter(async () => {
   color: var(--ion-color-primary);
   font-size: 12px;
   font-weight: 600;
+  white-space: normal;
+  text-align: right;
 }
 
 @media (max-width: 420px) {

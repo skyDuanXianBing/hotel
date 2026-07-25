@@ -109,25 +109,26 @@ export const sortReviewRecordsByCheckInDate = (records: ReviewRecord[]) => {
 }
 
 export const REVIEW_STATUS_OPTIONS = [
-  { label: '全部状态', value: 'all' },
-  { label: '草稿', value: 'draft' },
-  { label: '待审查', value: 'pending' },
-  { label: '已通过', value: 'approved' },
-  { label: '已驳回', value: 'rejected' },
+  { labelKey: 'iosStage5.cleaning.allStatuses', value: 'all' },
+  { labelKey: 'stage5.common.status.draft', value: 'draft' },
+  { labelKey: 'stage5.common.status.pending', value: 'pending' },
+  { labelKey: 'stage5.common.status.approved', value: 'approved' },
+  { labelKey: 'stage5.common.status.rejected', value: 'rejected' },
 ] as const
 
 export const getReviewStatusLabel = (status: ReviewStatus) => {
   if (status === 'draft') {
-    return '草稿'
+    return i18n.global.t('stage5.common.status.draft')
   }
 
   if (status === 'approved') {
-    return '已通过'
+    return i18n.global.t('stage5.common.status.approved')
   }
 
   if (status === 'rejected') {
-    return '已驳回'
+    return i18n.global.t('stage5.common.status.rejected')
   }
 
-  return '待审查'
+  return i18n.global.t('stage5.common.status.pending')
 }
+import { i18n } from '@/locales'

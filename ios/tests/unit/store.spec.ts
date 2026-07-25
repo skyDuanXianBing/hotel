@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { i18n } from '@/locales'
 import { useStoreStore } from '@/stores/store'
 import type { StoreDTO } from '@/types/store'
 
@@ -62,6 +63,7 @@ function createStoreDto(id: number, overrides: Partial<StoreDTO> = {}): StoreDTO
 
 beforeEach(() => {
   setActivePinia(createPinia())
+  i18n.global.locale.value = 'zh-CN'
   vi.clearAllMocks()
   storageMocks.getStoredCurrentStore.mockReturnValue(null)
   storageMocks.getStoredStores.mockReturnValue([])

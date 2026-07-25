@@ -3,7 +3,10 @@ import { defineStore } from 'pinia'
 import { getAllChannels, type ChannelDTO } from '@/api/channel'
 import { getRegistrationLinkInbox, getRegistrationReviewList, type RegistrationReviewListParams } from '@/api/review'
 import { sortReviewRecordsByCheckInDate, type ReviewLinkEntry, type ReviewRecord } from '@/constants/reviews'
+import { i18n } from '@/locales'
 import { showUnhandledRequestWarning } from '@/utils/requestError'
+
+const reviewText = (key: string) => i18n.global.t(`runtime.review.${key}`)
 
 export const useReviewStore = defineStore('reviews', () => {
   const records = ref<ReviewRecord[]>([])
@@ -41,7 +44,7 @@ export const useReviewStore = defineStore('reviews', () => {
       return true
     } catch (error) {
       records.value = []
-      loadError.value = showUnhandledRequestWarning(error, '加载审查列表失败')
+      loadError.value = showUnhandledRequestWarning(error, reviewText('loadListFailed'))
       hasLoaded.value = true
       return false
     } finally {
@@ -57,7 +60,7 @@ export const useReviewStore = defineStore('reviews', () => {
       const response = await getAllChannels()
 
       if (!response.success) {
-        throw new Error(response.message || '加载渠道失败')
+        throw new Error(response.message || reviewText('loadChannelsFailed'))
       }
 
       channels.value = response.data || []
@@ -65,7 +68,7 @@ export const useReviewStore = defineStore('reviews', () => {
       return true
     } catch (error) {
       channels.value = []
-      channelLoadError.value = showUnhandledRequestWarning(error, '加载渠道失败')
+      channelLoadError.value = showUnhandledRequestWarning(error, reviewText('loadChannelsFailed'))
       hasLoadedChannels.value = true
       return false
     } finally {
@@ -82,7 +85,7 @@ export const useReviewStore = defineStore('reviews', () => {
       return true
     } catch (error) {
       linkEntries.value = []
-      linkLoadError.value = showUnhandledRequestWarning(error, '加载链接列表失败')
+      linkLoadError.value = showUnhandledRequestWarning(error, reviewText('loadLinksFailed'))
       return false
     } finally {
       isLinkLoading.value = false

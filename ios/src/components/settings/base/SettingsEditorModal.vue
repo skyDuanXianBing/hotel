@@ -5,7 +5,7 @@
         <ion-title>{{ title }}</ion-title>
         <ion-buttons slot="end">
           <ion-button :disabled="closeDisabled" @click="emit('close')">
-            {{ closeText }}
+            {{ closeText || $t('stage5Final.settings.close') }}
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
@@ -38,7 +38,7 @@ withDefaults(
     cardClass?: string
   }>(),
   {
-    closeText: '关闭',
+    closeText: '',
     backdropDismiss: true,
     closeDisabled: false,
     contentClass: '',

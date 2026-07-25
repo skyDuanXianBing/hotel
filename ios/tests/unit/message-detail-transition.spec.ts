@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import MessageDetailPage from '@/views/messages/MessageDetailPage.vue'
+import { createTestI18n } from './helpers/i18n'
 
 const apiMocks = vi.hoisted(() => ({
   getMessageThreads: vi.fn(),
@@ -153,7 +154,11 @@ describe('MessageDetailPage transition state', () => {
   })
 
   test('keeps the active thread avatar stable while the route changes during leave', async () => {
-    const wrapper = mount(MessageDetailPage)
+    const wrapper = mount(MessageDetailPage, {
+      global: {
+        plugins: [createTestI18n()],
+      },
+    })
 
     await ionicLifecycle.willEnter?.()
     await flushPromises()

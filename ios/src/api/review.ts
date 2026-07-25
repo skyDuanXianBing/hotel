@@ -7,6 +7,7 @@ import type {
   ReviewRecord,
   ReviewStatus,
 } from '@/constants/reviews'
+import { i18n } from '@/locales'
 import type { ApiResponse } from '@/types/api'
 import request from '@/utils/request'
 import {
@@ -118,6 +119,11 @@ const formatDate = (value?: string | null) => {
 
 const formatDateTime = (value?: string | null) => {
   return formatStoreDateTime(value, 'date-time', '—')
+}
+
+const reviewText = (key: string, params?: Record<string, unknown>) => {
+  const path = `runtime.review.${key}`
+  return params ? i18n.global.t(path, params) : i18n.global.t(path)
 }
 
 const mapBackendStatus = (status?: RegistrationBackendStatus | null): ReviewStatus => {
@@ -250,7 +256,7 @@ const buildRoomLabel = (roomTypeName?: string | null, roomNumber?: string | null
   }
 
   if (segments.length === 0) {
-    return '房间待分配'
+    return reviewText('roomPending')
   }
 
   return segments.join(' ')
@@ -268,7 +274,7 @@ const buildGuestName = (guest: RegistrationGuestDTO) => {
   }
 
   if (segments.length === 0) {
-    return '未命名入住人'
+    return reviewText('unnamedResident')
   }
 
   return segments.join(' ')
@@ -278,26 +284,26 @@ const buildGuestRelation = (guest: RegistrationGuestDTO, index: number) => {
   const sortOrder = guest.sortOrder ?? index + 1
 
   if (sortOrder <= 1) {
-    return '主住客'
+    return reviewText('mainGuest')
   }
 
-  return `同行人 ${sortOrder}`
+  return reviewText('companion', { order: sortOrder })
 }
 
 const buildHistoryAction = (action?: string | null) => {
   if (action === 'APPROVE') {
-    return '审核通过'
+    return reviewText('actionApprove')
   }
 
   if (action === 'REJECT') {
-    return '驳回'
+    return reviewText('actionReject')
   }
 
   if (action === 'SUBMIT') {
-    return '提交审查'
+    return reviewText('actionSubmit')
   }
 
-  return '审查更新'
+  return reviewText('actionUpdate')
 }
 
 const buildHistoryOperator = (log: RegistrationReviewLogDTO) => {
@@ -306,10 +312,10 @@ const buildHistoryOperator = (log: RegistrationReviewLogDTO) => {
   }
 
   if (log.operatorUserId) {
-    return `用户#${log.operatorUserId}`
+    return reviewText('operatorUser', { id: log.operatorUserId })
   }
 
-  return '系统'
+  return reviewText('system')
 }
 
 const mapGuests = (guests?: RegistrationGuestDTO[] | null): ReviewGuest[] => {
@@ -319,7 +325,7 @@ const mapGuests = (guests?: RegistrationGuestDTO[] | null): ReviewGuest[] => {
 
   return guests.map((guest, index) => {
     const sortOrder = guest.sortOrder ?? index + 1
-    const idNumber = guest.passportNumber || '未提供'
+    const idNumber = guest.passportNumber || reviewText('notProvided')
 
     return {
       id: String(guest.id ?? `${index + 1}`),
@@ -328,15 +334,15 @@ const mapGuests = (guests?: RegistrationGuestDTO[] | null): ReviewGuest[] => {
       firstName: guest.firstName || '',
       lastName: guest.lastName || '',
       birthday: guest.birthday ? formatDate(guest.birthday) : '',
-      idType: '护照',
+      idType: reviewText('passport'),
       idNumber,
-      phone: guest.phone || '未提供',
+      phone: guest.phone || reviewText('notProvided'),
       relation: buildGuestRelation(guest, index),
-      nationality: guest.nationality || '未提供',
-      residenceType: guest.residenceType || '未提供',
-      passportNumber: guest.passportNumber || '未提供',
-      priorStay: guest.priorStay || '未提供',
-      nextDestination: guest.nextDestination || '未提供',
+      nationality: guest.nationality || reviewText('notProvided'),
+      residenceType: guest.residenceType || reviewText('notProvided'),
+      passportNumber: guest.passportNumber || reviewText('notProvided'),
+      priorStay: guest.priorStay || reviewText('notProvided'),
+      nextDestination: guest.nextDestination || reviewText('notProvided'),
     }
   })
 }
@@ -351,11 +357,11 @@ const mapAttachments = (attachments?: RegistrationAttachmentDTO[] | null): Revie
       id: String(attachment.id ?? `${index + 1}`),
       attachmentNumericId: attachment.id ?? 0,
       guestId: String(attachment.guestId ?? ''),
-      name: attachment.originalName || `附件 ${index + 1}`,
+      name: attachment.originalName || reviewText('attachmentName', { index: index + 1 }),
       originalName: attachment.originalName || `attachment-${attachment.id ?? index + 1}`,
-      sizeLabel: '大小未知',
-      typeLabel: attachment.type || '附件',
-      type: attachment.type || '附件',
+      sizeLabel: reviewText('unknownSize'),
+      typeLabel: attachment.type || reviewText('attachment'),
+      type: attachment.type || reviewText('attachment'),
     }
   })
 }
@@ -370,7 +376,7 @@ const mapLinkInboxItems = (items?: RegistrationLinkInboxItemDTO[] | null): Revie
       id: String(item.id ?? `${index + 1}`),
       bookingKey: item.bookingKey || '—',
       linkUrl: normalizePublicRegistrationLinkUrl(item.linkUrl),
-      guestName: item.guestName || '未命名住客',
+      guestName: item.guestName || reviewText('unnamedGuest'),
       checkInDate: formatDate(item.checkInDate),
       checkOutDate: formatDate(item.checkOutDate),
       roomCount: item.roomCount ?? 0,
@@ -390,7 +396,7 @@ const mapHistory = (logs?: RegistrationReviewLogDTO[] | null): ReviewHistoryItem
       timestamp: formatDateTime(log.createdAt),
       operator: buildHistoryOperator(log),
       action: buildHistoryAction(log.action),
-      note: log.note?.trim() || '未填写备注',
+      note: log.note?.trim() || reviewText('noteEmpty'),
     }
   })
 }
@@ -403,11 +409,11 @@ export const mapRegistrationListItem = (item: RegistrationListItemDTO): ReviewRe
     formNumericId: item.formId,
     orderNumber: item.orderNumber || '',
     channelOrderNumber: item.channelOrderNumber || '',
-    guestName: item.guestName || '未命名住客',
-    roomLabel: '房间待分配',
+    guestName: item.guestName || reviewText('unnamedGuest'),
+    roomLabel: reviewText('roomPending'),
     roomTypeName: '',
     roomNumber: '',
-    channelName: item.channelName || '渠道待确认',
+    channelName: item.channelName || reviewText('channelPending'),
     checkInDate: formatDate(item.checkInDate),
     checkOutDate: formatDate(item.checkOutDate),
     submittedAt: formatDateTime(item.submittedAt),
@@ -430,11 +436,11 @@ export const mapRegistrationDetail = (detail: RegistrationDetailDTO): ReviewReco
     formNumericId: detail.formId,
     orderNumber: detail.orderNumber || '',
     channelOrderNumber: detail.channelOrderNumber || '',
-    guestName: detail.guestName || '未命名住客',
+    guestName: detail.guestName || reviewText('unnamedGuest'),
     roomLabel: buildRoomLabel(detail.roomTypeName, detail.roomNumber),
-    roomTypeName: detail.roomTypeName || '房型待确认',
-    roomNumber: detail.roomNumber || '未排房',
-    channelName: detail.channelName || '渠道待确认',
+    roomTypeName: detail.roomTypeName || reviewText('roomTypePending'),
+    roomNumber: detail.roomNumber || reviewText('roomUnassigned'),
+    channelName: detail.channelName || reviewText('channelPending'),
     checkInDate: formatDate(detail.checkInDate),
     checkOutDate: formatDate(detail.checkOutDate),
     submittedAt: formatDateTime(detail.submittedAt),
@@ -458,21 +464,21 @@ export const getRegistrationReviewList = async (params?: RegistrationReviewListP
       checkOutDate: params?.checkOutDate,
     },
   })
-  const items = unwrapApiResponse(response, '加载审查列表失败')
+  const items = unwrapApiResponse(response, reviewText('loadListFailed'))
 
   return items.map((item) => mapRegistrationListItem(item))
 }
 
 export const getRegistrationLinkInbox = async () => {
   const response = await request.get<ApiResponse<RegistrationLinkInboxItemDTO[]>>('/registrations/link-inbox')
-  const items = unwrapApiResponse(response, '加载链接列表失败')
+  const items = unwrapApiResponse(response, reviewText('loadLinksFailed'))
 
   return mapLinkInboxItems(items)
 }
 
 export const getRegistrationReviewDetail = async (formId: number) => {
   const response = await request.get<ApiResponse<RegistrationDetailDTO>>(`/registrations/${formId}`)
-  const detail = unwrapApiResponse(response, '加载审查详情失败')
+  const detail = unwrapApiResponse(response, reviewText('loadDetailFailed'))
 
   return mapRegistrationDetail(detail)
 }
@@ -482,7 +488,7 @@ export const approveRegistrationReview = async (formId: number, note: string) =>
     note,
   } satisfies ReviewDecisionRequest)
 
-  unwrapApiResponse(response, '审核通过失败')
+  unwrapApiResponse(response, reviewText('approveFailed'))
 }
 
 export const rejectRegistrationReview = async (formId: number, note: string) => {
@@ -490,7 +496,7 @@ export const rejectRegistrationReview = async (formId: number, note: string) => 
     note,
   } satisfies ReviewDecisionRequest)
 
-  unwrapApiResponse(response, '驳回失败')
+  unwrapApiResponse(response, reviewText('rejectFailed'))
 }
 
 export const downloadRegistrationPdf = async (formId: number) => {

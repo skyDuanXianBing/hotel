@@ -2,9 +2,9 @@
   <ion-modal :is-open="isOpen" @didDismiss="handleDismiss">
     <ion-header>
       <ion-toolbar>
-        <ion-title>记一笔</ion-title>
+        <ion-title>{{ t('tools.transaction.title') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button :disabled="submitting" @click="handleDismiss">关闭</ion-button>
+          <ion-button :disabled="submitting" @click="handleDismiss">{{ t('tools.close') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -13,23 +13,28 @@
       <div class="mobile-stack">
         <section class="mobile-card record-modal-card">
           <div>
-            <h2 class="mobile-section-title">新增账目</h2>
+            <h2 class="mobile-section-title">{{ t('tools.transaction.newEntry') }}</h2>
           </div>
 
           <div class="record-modal-type-row">
             <ion-segment :value="form.type" @ionChange="handleTypeChange">
               <ion-segment-button value="income">
-                <ion-label>收入</ion-label>
+                <ion-label>{{ t('tools.transaction.income') }}</ion-label>
               </ion-segment-button>
               <ion-segment-button value="expense">
-                <ion-label>支出</ion-label>
+                <ion-label>{{ t('tools.transaction.expense') }}</ion-label>
               </ion-segment-button>
             </ion-segment>
           </div>
 
           <label class="record-field">
-            <span>项目</span>
-            <ion-select v-model="form.category" fill="outline" interface="action-sheet" placeholder="请选择项目">
+            <span>{{ t('tools.transaction.category') }}</span>
+            <ion-select
+              v-model="form.category"
+              fill="outline"
+              interface="action-sheet"
+              :placeholder="t('tools.transaction.categoryPlaceholder')"
+            >
               <ion-select-option v-for="item in categoryOptions" :key="item.id" :value="item.name">
                 {{ item.name }}
               </ion-select-option>
@@ -37,12 +42,12 @@
           </label>
 
           <label class="record-field">
-            <span>收款方式</span>
+            <span>{{ t('tools.transaction.paymentMethod') }}</span>
             <ion-select
               v-model="form.paymentMethod"
               fill="outline"
               interface="action-sheet"
-              placeholder="请选择收款方式"
+              :placeholder="t('tools.transaction.paymentMethodPlaceholder')"
             >
               <ion-select-option v-for="item in paymentMethodOptions" :key="item.id" :value="item.name">
                 {{ item.name }}
@@ -51,19 +56,24 @@
           </label>
 
           <label class="record-field">
-            <span>金额</span>
-            <ion-input v-model="form.amount" fill="outline" inputmode="decimal" placeholder="请输入金额" />
+            <span>{{ t('tools.transaction.amount') }}</span>
+            <ion-input
+              v-model="form.amount"
+              fill="outline"
+              inputmode="decimal"
+              :placeholder="t('tools.transaction.amountPlaceholder')"
+            />
           </label>
 
           <label class="record-field">
-            <span>关联房间（可选）</span>
+            <span>{{ t('tools.transaction.room') }}</span>
             <ion-select
               v-model="form.roomId"
               fill="outline"
               interface="action-sheet"
-              placeholder="不关联房间"
+              :placeholder="t('tools.transaction.noRoom')"
             >
-              <ion-select-option :value="null">不关联房间</ion-select-option>
+              <ion-select-option :value="null">{{ t('tools.transaction.noRoom') }}</ion-select-option>
               <ion-select-option v-for="item in roomOptions" :key="item.id" :value="item.id">
                 {{ item.roomNumber }} - {{ item.roomType.name }}
               </ion-select-option>
@@ -71,19 +81,26 @@
           </label>
 
           <label class="record-field">
-            <span>时间</span>
+            <span>{{ t('tools.transaction.datetime') }}</span>
             <input v-model="form.datetime" class="record-field__native-input" type="datetime-local" />
           </label>
 
           <label class="record-field">
-            <span>备注</span>
-            <ion-textarea v-model="form.notes" :rows="4" fill="outline" placeholder="请输入备注，可选" />
+            <span>{{ t('tools.transaction.notes') }}</span>
+            <ion-textarea
+              v-model="form.notes"
+              :rows="4"
+              fill="outline"
+              :placeholder="t('tools.transaction.notesPlaceholder')"
+            />
           </label>
 
           <p v-if="loadNotice" class="mobile-note record-modal-card__notice">{{ loadNotice }}</p>
 
           <div class="record-modal-card__actions">
-            <ion-button fill="outline" :disabled="submitting" @click="handleReset">重置</ion-button>
+            <ion-button fill="outline" :disabled="submitting" @click="handleReset">
+              {{ t('tools.transaction.reset') }}
+            </ion-button>
             <ion-button :disabled="submitting || dependenciesLoading" @click="handleSubmit">
               {{ submitButtonText }}
             </ion-button>
@@ -112,6 +129,7 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { computed, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getCategoriesByType } from '@/api/noteCategory'
 import { createNote, type CreateNoteRequest, type NoteType } from '@/api/notes'
 import { getAllPaymentMethods } from '@/api/paymentMethod'
@@ -139,6 +157,7 @@ interface RecordFormState {
 }
 
 const props = defineProps<Props>()
+const { t } = useI18n()
 
 const emit = defineEmits<{
   dismiss: []
@@ -213,7 +232,7 @@ async function loadFormOptions() {
 
     ensureSelectableCategory()
   } catch (error) {
-    loadNotice.value = resolveWarningMessage(error, '加载记一笔表单失败')
+    loadNotice.value = resolveWarningMessage(error, t('tools.transaction.loadFailed'))
     if (!isHandledRequestError(error)) {
       showWarningToast(loadNotice.value)
     }
@@ -254,24 +273,24 @@ function handleTypeChange(event: CustomEvent) {
 
 function validateForm() {
   if (!form.category) {
-    showWarningToast('请选择项目')
+    showWarningToast(t('tools.transaction.categoryRequired'))
     return false
   }
 
   if (!form.paymentMethod) {
-    showWarningToast('请选择收款方式')
+    showWarningToast(t('tools.transaction.paymentMethodRequired'))
     return false
   }
 
   const amount = Number(form.amount)
   if (!Number.isFinite(amount) || amount <= 0) {
-    showWarningToast('请输入有效金额')
+    showWarningToast(t('tools.transaction.amountInvalid'))
     return false
   }
 
   const datetime = toStoreServerDatetime(form.datetime)
   if (!datetime) {
-    showWarningToast('请选择有效时间')
+    showWarningToast(t('tools.transaction.datetimeInvalid'))
     return false
   }
 
@@ -324,16 +343,16 @@ async function handleSubmit() {
   try {
     const response = await createNote(buildSubmitPayload())
     if (!response.success || !response.data) {
-      throw new Error(response.message || '记一笔提交失败')
+      throw new Error(response.message || t('tools.transaction.submitFailed'))
     }
 
-    showSuccessToast('记一笔已保存')
+    showSuccessToast(t('tools.transaction.saved'))
     resetFormState()
     emit('success')
     emit('dismiss')
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '记一笔提交失败'))
+      showWarningToast(resolveWarningMessage(error, t('tools.transaction.submitFailed')))
     }
   } finally {
     submitting.value = false
@@ -342,14 +361,14 @@ async function handleSubmit() {
 
 const submitButtonText = computed(() => {
   if (submitting.value) {
-    return '提交中...'
+    return t('tools.transaction.submitting')
   }
 
   if (dependenciesLoading.value) {
-    return '加载中...'
+    return t('tools.transaction.loading')
   }
 
-  return '完成'
+  return t('tools.transaction.complete')
 })
 
 watch(

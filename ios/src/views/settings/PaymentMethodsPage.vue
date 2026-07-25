@@ -1,16 +1,16 @@
 <template>
   <SettingsCrudPage
     :back-href="ROUTE_PATHS.settings"
-    title="收款方式"
-    hero-eyebrow="财务设置"
-    hero-title="收款方式"
-    toolbar-action-label="新增"
+    :title="$t('stage5.statistics.notes.paymentReceivedMethod')"
+    :hero-eyebrow="$t('settings.groups.finance')"
+    :hero-title="$t('stage5.statistics.notes.paymentReceivedMethod')"
+    :toolbar-action-label="$t('settingsStage4.roomGroup.addGroup')"
     :show-refresher="true"
-    refresher-pulling-text="下拉刷新收款方式"
-    section-title="方式列表"
+    :refresher-pulling-text="$t('stage5UiAttributes.12')"
+    :section-title="$t('stage5UiAttributes.49')"
     :loading="loading"
     :modal-open="editorOpen"
-    :modal-title="editingMethodId ? '编辑收款方式' : '新增收款方式'"
+    :modal-title="editingMethodId ? $t('stage5DynamicUi.66') : $t('stage5DynamicUi.38')"
     @toolbar-action="handleCreateMethod"
     @refresh="handleRefresh"
     @dismiss-editor="handleDismissEditor"
@@ -21,36 +21,36 @@
           <div class="settings-minimal-card__title-group">
             <strong>{{ method.name }}</strong>
             <p class="settings-minimal-card__summary">
-              顺序 {{ method.displayOrder }} · {{ method.enabled ? '已启用' : '已停用' }}
+              {{ $t('stage5DynamicUi.142') }} {{ method.displayOrder }} · {{ method.enabled ? $t('channel.managementData.statusActive') : $t('stage5DynamicUi.28') }}
             </p>
           </div>
           <span
             class="settings-minimal-card__badge"
             :class="method.enabled ? 'settings-minimal-card__badge--success' : 'settings-minimal-card__badge--warning'"
           >
-            {{ method.enabled ? '启用中' : '已停用' }}
+            {{ method.enabled ? $t('stage5DynamicUi.26') : $t('stage5DynamicUi.28') }}
           </span>
         </div>
 
         <div class="settings-minimal-card__actions settings-minimal-card__actions--dense">
-          <ion-button size="small" fill="outline" @click="handleEditMethod(method)">编辑</ion-button>
+          <ion-button size="small" fill="outline" @click="handleEditMethod(method)">{{ $t('accommodation.roomPrice.editTitle') }}</ion-button>
           <ion-button size="small" fill="outline" @click="handleToggleMethod(method)">
-            {{ method.enabled ? '停用' : '启用' }}
+            {{ method.enabled ? $t('roomStatus.store.roomState.outOfOrder') : $t('settingsStage4.accountList.status.enabled') }}
           </ion-button>
-          <ion-button size="small" fill="outline" :disabled="index === 0" @click="handleMove(index, -1)">上移</ion-button>
-          <ion-button size="small" fill="outline" :disabled="index === methods.length - 1" @click="handleMove(index, 1)">下移</ion-button>
-          <ion-button size="small" color="danger" fill="clear" @click="handleDeleteMethod(method)">删除</ion-button>
+          <ion-button size="small" fill="outline" :disabled="index === 0" @click="handleMove(index, -1)">{{ $t('stage5SourceText.3') }}</ion-button>
+          <ion-button size="small" fill="outline" :disabled="index === methods.length - 1" @click="handleMove(index, 1)">{{ $t('stage5SourceText.4') }}</ion-button>
+          <ion-button size="small" color="danger" fill="clear" @click="handleDeleteMethod(method)">{{ $t('roomStatus.roomLock.actions.delete') }}</ion-button>
         </div>
       </article>
     </div>
 
-    <p v-else-if="!loading" class="mobile-note">当前暂无收款方式。</p>
+    <p v-else-if="!loading" class="mobile-note">{{ $t('stage5SourceText.80') }}</p>
 
     <template #sectionFooter>
       <div class="settings-form-actions settings-form-actions--section">
-        <ion-button fill="outline" :disabled="loading || savingOrder" @click="loadPageData">重置</ion-button>
+        <ion-button fill="outline" :disabled="loading || savingOrder" @click="loadPageData">{{ $t('accommodation.common.reset') }}</ion-button>
         <ion-button :disabled="loading || savingOrder || methods.length === 0" @click="handleSaveOrder">
-          {{ savingOrder ? '保存中...' : '保存顺序' }}
+          {{ savingOrder ? $t('channel.mobile.common.saving') : $t('stage5DynamicUi.24') }}
         </ion-button>
       </div>
     </template>
@@ -58,13 +58,13 @@
     <template #modalContent>
       <div class="settings-form-grid">
         <label class="settings-form-field">
-          <span>名称</span>
-          <ion-input v-model="methodForm.name" fill="outline" placeholder="请输入收款方式名称" />
+          <span>{{ $t('roomStatus.roomLock.fields.name') }}</span>
+          <ion-input v-model="methodForm.name" fill="outline" :placeholder="$t('stage5UiAttributes.81')" />
         </label>
 
         <div class="settings-toggle-field">
           <div>
-            <strong>启用状态</strong>
+            <strong>{{ $t('stage5SourceText.35') }}</strong>
           </div>
           <ion-toggle v-model="methodForm.enabled" />
         </div>
@@ -72,15 +72,16 @@
     </template>
 
     <template #modalActions>
-      <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
+      <ion-button fill="outline" @click="handleDismissEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
       <ion-button :disabled="submitting" @click="handleSaveMethod">
-        {{ submitting ? '提交中...' : '保存方式' }}
+        {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.13') }}
       </ion-button>
     </template>
   </SettingsCrudPage>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   alertController,
   IonButton,
@@ -103,6 +104,8 @@ import type { PaymentMethodDTO } from '@/types/settings'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 import { moveArrayItem } from '@/utils/settings'
+
+const { t } = useI18n()
 
 interface PaymentMethodFormState {
   name: string
@@ -133,11 +136,11 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
 
 async function confirmDelete(name: string) {
   const alert = await alertController.create({
-    header: '删除收款方式',
-    message: `确认删除 ${name} 吗？`,
+    header: t('settingsResidual.common.confirm'),
+    message: t('settingsResidual.common.confirmDelete', { name }),
     buttons: [
-      { text: '取消', role: 'cancel' },
-      { text: '确认删除', role: 'destructive' },
+      { text: t('accommodation.common.cancel'), role: 'cancel' },
+      { text: t('settingsStage4.roomSettings.messages.deleteTitle'), role: 'destructive' },
     ],
   })
   await alert.present()
@@ -150,12 +153,12 @@ async function loadPageData() {
   try {
     const response = await getAllPaymentMethods()
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载收款方式失败')
+      throw new Error(response.message || t('stage5Pattern.loadFailed'))
     }
     methods.value = [...response.data].sort((left, right) => left.displayOrder - right.displayOrder)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载收款方式失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.loadFailed')))
     }
   } finally {
     loading.value = false
@@ -185,7 +188,7 @@ function handleDismissEditor() {
 
 async function handleSaveMethod() {
   if (!methodForm.value.name.trim()) {
-    showWarningToast('请输入收款方式名称')
+    showWarningToast(t('stage5UiAttributes.81'))
     return
   }
 
@@ -197,7 +200,7 @@ async function handleSaveMethod() {
         enabled: methodForm.value.enabled,
       })
       if (!response.success) {
-        throw new Error(response.message || '更新收款方式失败')
+        throw new Error(response.message || t('stage5Pattern.updateFailed'))
       }
     } else {
       const response = await createPaymentMethod({
@@ -205,16 +208,16 @@ async function handleSaveMethod() {
         enabled: methodForm.value.enabled,
       })
       if (!response.success) {
-        throw new Error(response.message || '创建收款方式失败')
+        throw new Error(response.message || t('stage5Pattern.createFailed'))
       }
     }
 
-    showSuccessToast('收款方式已保存')
+    showSuccessToast(t('stage5Pattern.saveCompleted'))
     handleDismissEditor()
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存收款方式失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     submitting.value = false
@@ -225,13 +228,17 @@ async function handleToggleMethod(method: PaymentMethodDTO) {
   try {
     const response = await updatePaymentMethodEnabled(method.id, !method.enabled)
     if (!response.success) {
-      throw new Error(response.message || '更新状态失败')
+      throw new Error(response.message || t('settingsStage4.consumptionItems.messages.statusUpdateFailed'))
     }
-    showSuccessToast(response.data.enabled ? '收款方式已启用' : '收款方式已停用')
+    showSuccessToast(
+      response.data.enabled
+        ? t('settingsResidual.common.enabled')
+        : t('settingsResidual.common.disabled'),
+    )
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '更新收款方式状态失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.updateFailed')))
     }
   }
 }
@@ -249,13 +256,13 @@ async function handleSaveOrder() {
     }))
     const response = await updatePaymentMethodsOrder(payload)
     if (!response.success) {
-      throw new Error(response.message || '保存顺序失败')
+      throw new Error(response.message || t('stage5Pattern.saveFailed'))
     }
-    showSuccessToast('收款方式顺序已保存')
+    showSuccessToast(t('stage5Pattern.saveCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存顺序失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     savingOrder.value = false
@@ -271,13 +278,13 @@ async function handleDeleteMethod(method: PaymentMethodDTO) {
   try {
     const response = await deletePaymentMethod(method.id)
     if (!response.success) {
-      throw new Error(response.message || '删除收款方式失败')
+      throw new Error(response.message || t('stage5Pattern.deleteFailed'))
     }
-    showSuccessToast('收款方式已删除')
+    showSuccessToast(t('stage5Pattern.deleteCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '删除收款方式失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.deleteFailed')))
     }
   }
 }

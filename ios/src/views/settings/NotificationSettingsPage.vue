@@ -1,25 +1,25 @@
 <template>
   <SettingsTogglePage
     :back-href="ROUTE_PATHS.settings"
-    title="通知设置"
-    hero-eyebrow="通用设置"
-    hero-title="通知设置"
+    :title="$t('settings.entries.notification.0')"
+    :hero-eyebrow="$t('settings.groups.general')"
+    :hero-title="$t('settings.entries.notification.0')"
   >
     <SettingsSectionCard
-      title="订单提醒"
+      :title="$t('iosStage5.roomStatus.reservationAlerts')"
       :loading="loading"
       header-class="settings-page-block__section-header"
     >
       <div class="settings-toggle-field">
         <div>
-          <strong>订单弹框</strong>
+          <strong>{{ $t('stage5SourceText.200') }}</strong>
         </div>
         <ion-toggle v-model="form.orderPopup" />
       </div>
 
       <div class="settings-toggle-field">
         <div class="settings-toggle-field__content">
-          <strong>订单声音</strong>
+          <strong>{{ $t('stage5SourceText.199') }}</strong>
           <ion-button
             fill="clear"
             size="small"
@@ -27,24 +27,24 @@
             :disabled="loading || saving || previewingSound === 'order'"
             @click="handlePreviewSound('order')"
           >
-            {{ previewingSound === 'order' ? '试听中...' : '试听提示音' }}
+            {{ previewingSound === 'order' ? $t('stage5DynamicUi.73') : $t('stage5DynamicUi.74') }}
           </ion-button>
         </div>
         <ion-toggle v-model="form.orderSound" />
       </div>
     </SettingsSectionCard>
 
-    <SettingsSectionCard title="聊天提醒">
+    <SettingsSectionCard :title="$t('stage5UiAttributes.58')">
       <div class="settings-toggle-field">
         <div>
-          <strong>聊天弹框</strong>
+          <strong>{{ $t('stage5SourceText.183') }}</strong>
         </div>
         <ion-toggle v-model="form.chatPopup" />
       </div>
 
       <div class="settings-toggle-field">
         <div class="settings-toggle-field__content">
-          <strong>聊天声音</strong>
+          <strong>{{ $t('stage5SourceText.182') }}</strong>
           <ion-button
             fill="clear"
             size="small"
@@ -52,16 +52,16 @@
             :disabled="loading || saving || previewingSound === 'chat'"
             @click="handlePreviewSound('chat')"
           >
-            {{ previewingSound === 'chat' ? '试听中...' : '试听提示音' }}
+            {{ previewingSound === 'chat' ? $t('stage5DynamicUi.73') : $t('stage5DynamicUi.74') }}
           </ion-button>
         </div>
         <ion-toggle v-model="form.chatSound" />
       </div>
 
       <div class="settings-form-actions settings-form-actions--section">
-        <ion-button fill="outline" :disabled="loading || saving" @click="loadPageData">重置</ion-button>
+        <ion-button fill="outline" :disabled="loading || saving" @click="loadPageData">{{ $t('accommodation.common.reset') }}</ion-button>
         <ion-button :disabled="loading || saving" @click="handleSave">
-          {{ saving ? '保存中...' : '保存通知设置' }}
+          {{ saving ? $t('channel.mobile.common.saving') : $t('stage5DynamicUi.21') }}
         </ion-button>
       </div>
 
@@ -73,6 +73,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { IonButton, IonToggle, onIonViewWillEnter } from '@ionic/vue'
 import { ref, watch } from 'vue'
 import { getNotificationSettings, updateNotificationSettings } from '@/api/notification'
@@ -89,13 +90,10 @@ import {
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
+const { t } = useI18n()
+
 const userStore = useUserStore()
 const notificationCenterStore = useNotificationCenterStore()
-const PREVIEW_FAILURE_MESSAGE_MAP: Record<NotificationPreviewSoundType, string> = {
-  order: '订单提示音试听失败',
-  chat: '聊天提示音试听失败',
-}
-
 const loading = ref(false)
 const saving = ref(false)
 const previewingSound = ref<NotificationPreviewSoundType | null>(null)
@@ -124,7 +122,7 @@ async function handlePreviewSound(soundType: NotificationPreviewSoundType) {
   try {
     await playNotificationPreviewSound(soundType)
   } catch (error) {
-    showWarningToast(resolveWarningMessage(error, PREVIEW_FAILURE_MESSAGE_MAP[soundType]))
+    showWarningToast(resolveWarningMessage(error, t('stage5Pattern.operationFailed')))
   } finally {
     previewingSound.value = null
   }
@@ -133,7 +131,7 @@ async function handlePreviewSound(soundType: NotificationPreviewSoundType) {
 async function loadPageData() {
   const userId = userStore.currentUser?.id
   if (!userId) {
-    showWarningToast('请先恢复当前用户信息')
+    showWarningToast(t('stage5Pattern.setup'))
     return
   }
 
@@ -142,7 +140,7 @@ async function loadPageData() {
   try {
     const response = await getNotificationSettings(userId)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载通知设置失败')
+      throw new Error(response.message || t('stage5Pattern.loadFailed'))
     }
     form.value = {
       orderPopup: response.data.orderPopup,
@@ -152,7 +150,7 @@ async function loadPageData() {
     }
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载通知设置失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.loadFailed')))
     }
   } finally {
     loading.value = false
@@ -162,7 +160,7 @@ async function loadPageData() {
 async function handleSave() {
   const userId = userStore.currentUser?.id
   if (!userId) {
-    showWarningToast('请先恢复当前用户信息')
+    showWarningToast(t('stage5Pattern.setup'))
     return
   }
 
@@ -177,15 +175,15 @@ async function handleSave() {
     }
     const response = await updateNotificationSettings(userId, snapshot)
     if (!response.success) {
-      throw new Error(response.message || '保存通知设置失败')
+      throw new Error(response.message || t('stage5Pattern.saveFailed'))
     }
     notificationCenterStore.applySettingsSnapshot(snapshot)
-    saveSuccessMessage.value = '设置已保存'
-    showSuccessToast('设置已保存')
+    saveSuccessMessage.value = t('stage5Pattern.saveCompleted')
+    showSuccessToast(t('stage5Pattern.saveCompleted'))
   } catch (error) {
     saveSuccessMessage.value = ''
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存通知设置失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     saving.value = false

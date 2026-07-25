@@ -1,12 +1,12 @@
 <template>
   <SettingsTogglePage
     :back-href="ROUTE_PATHS.settings"
-    title="支付平台"
-    hero-eyebrow="第三方集成"
-    hero-title="支付平台"
+    :title="$t('settings.entries.paymentPlatforms.0')"
+    :hero-eyebrow="$t('settings.groups.integrations')"
+    :hero-title="$t('settings.entries.paymentPlatforms.0')"
   >
     <section class="mobile-card payment-platforms-page__placeholder">
-      <strong>移动端暂不支持配置支付平台</strong>
+      <strong>{{ $t('stage5SourceText.172') }}</strong>
     </section>
   </SettingsTogglePage>
 </template>

@@ -2,9 +2,9 @@
   <section class="mobile-card">
     <div class="mobile-inline-row room-type-summary__header">
       <div>
-        <h2 class="mobile-section-title">房型视角</h2>
+        <h2 class="mobile-section-title">{{ $t('stage5VisibleText.175') }}</h2>
       </div>
-      <ion-button fill="clear" size="small" @click="$emit('reset')">重置筛选</ion-button>
+      <ion-button fill="clear" size="small" @click="$emit('reset')">{{ $t('roomStatus.roomsPage.empty.resetAction') }}</ion-button>
     </div>
 
     <div class="room-type-summary__list">
@@ -30,13 +30,13 @@
             </span>
             <strong>{{ item.roomType }}</strong>
           </div>
-          <span>{{ item.totalRooms }} 间</span>
+          <span>{{ item.totalRooms }} {{ $t('settingsStage4.common.unitRooms') }}</span>
         </div>
         <div class="room-type-summary__metrics">
-          <span>可售 {{ item.availableRooms }}</span>
-          <span>占用 {{ item.occupiedRooms }}</span>
-          <span>关房 {{ item.closedRooms }}</span>
-          <span>脏房 {{ item.dirtyRooms }}</span>
+          <span>{{ $t('accommodation.roomTable.future.available') }} {{ item.availableRooms }}</span>
+          <span>{{ $t('accommodation.roomTable.future.occupied') }} {{ item.occupiedRooms }}</span>
+          <span>{{ $t('accommodation.roomPrice.closeRoom') }} {{ item.closedRooms }}</span>
+          <span>{{ $t('accommodation.roomTable.columns.dirtyRooms') }} {{ item.dirtyRooms }}</span>
         </div>
       </button>
     </div>

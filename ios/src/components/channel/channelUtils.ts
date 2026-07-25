@@ -10,10 +10,17 @@ import type {
   ChannelPriceAdjustmentRequest,
   PriceAdjustmentType,
 } from '@/api/pricelabs'
+import { i18n } from '@/locales'
 import { resolveMappingStatusNotice } from '@/utils/channelMessage'
+import {
+  compareLocalizedText,
+  formatMoney,
+  type MoneyDisplayContext,
+} from '@/utils/formatters'
+import { formatStoreDateTime } from '@/utils/storeBusinessDate'
 
 export type ChannelBadgeColor = 'success' | 'warning' | 'medium' | 'primary'
-export type PriceAdjustmentUnit = '%' | '¥'
+export type PriceAdjustmentUnit = 'PERCENTAGE' | 'FIXED'
 export type PriceAdjustmentDirection = 'cheaper' | 'expensive'
 
 export interface ChannelViewModel extends OtaIntegrationDTO {
@@ -124,22 +131,25 @@ function getStatusMeta(
 
   if (mappingReady) {
     return {
-      statusLabel: '已设置',
-      statusDescription: `已映射 ${mappingStatus?.mappedRoomIdCount || 0} 个房型，启用 ${mappingStatus?.activeRatePlanCount || 0} 个价盘`,
+      statusLabel: i18n.global.t('channel.list.connected'),
+      statusDescription: i18n.global.t('stage5VisibleText.48', {
+        rooms: mappingStatus?.mappedRoomIdCount || 0,
+        ratePlans: mappingStatus?.activeRatePlanCount || 0,
+      }),
       statusColor: 'success',
-      actionLabel: '查看配置',
-      actionHint: '已完成授权与主要映射，可继续查看详情或调整价格比例。',
+      actionLabel: i18n.global.t('iosStage5.channel.viewConfiguration'),
+      actionHint: i18n.global.t('stage5VisibleText.42'),
       mappingReady: true,
     }
   }
 
   if (!usesSuMapping && isConnected) {
     return {
-      statusLabel: '已授权',
-      statusDescription: '已完成渠道连接，当前没有 Su 映射摘要可展示。',
+      statusLabel: i18n.global.t('iosStage5.channel.authorized'),
+      statusDescription: i18n.global.t('stage5VisibleText.41'),
       statusColor: 'primary',
-      actionLabel: '查看配置',
-      actionHint: '可进入详情页查看渠道状态与后续操作入口。',
+      actionLabel: i18n.global.t('iosStage5.channel.viewConfiguration'),
+      actionHint: i18n.global.t('stage5VisibleText.44'),
       mappingReady: false,
     }
   }
@@ -147,24 +157,24 @@ function getStatusMeta(
   if (isConnected) {
     const localizedErrorMessage = resolveMappingStatusNotice(mappingStatus?.error)
     const errorText = localizedErrorMessage
-      ? `映射检查异常：${localizedErrorMessage}`
-      : '已授权，待补齐房型或价盘映射。'
+      ? i18n.global.t('stage5VisibleText.63', { message: localizedErrorMessage })
+      : i18n.global.t('stage5VisibleText.40')
     return {
-      statusLabel: '映射未完成',
+      statusLabel: i18n.global.t('iosStage5.channel.mappingIncomplete'),
       statusDescription: errorText,
       statusColor: 'warning',
-      actionLabel: '继续映射',
-      actionHint: '建议进入映射页检查酒店/账号分组后，再用授权向导补齐映射。',
+      actionLabel: i18n.global.t('iosStage5.channel.continueMapping'),
+      actionHint: i18n.global.t('stage5VisibleText.46'),
       mappingReady: false,
     }
   }
 
   return {
-    statusLabel: '未授权',
-    statusDescription: '完成授权后，才能同步渠道订单、房态和价盘。',
+    statusLabel: i18n.global.t('iosStage5.channel.unauthorized'),
+    statusDescription: i18n.global.t('stage5VisibleText.45'),
     statusColor: 'medium',
-    actionLabel: '开始授权',
-    actionHint: '会先展示授权说明，再进入 Su 授权 / 映射向导。',
+    actionLabel: i18n.global.t('iosStage5.channel.startAuthorization'),
+    actionHint: i18n.global.t('stage5VisibleText.43'),
     mappingReady: false,
   }
 }
@@ -218,9 +228,9 @@ function buildRatePlanView(
 
   return {
     id: `${hotelKey}-${index}-${toDisplayText(plan.ChannelRateID, 'rate')}`,
-    title: toDisplayText(plan.ChannelMappingName, '未命名映射'),
+    title: toDisplayText(plan.ChannelMappingName, i18n.global.t('channel.mappingPriceSettings.unnamedMapping')),
     mappingStatus,
-    statusLabel: isActive ? '已连接' : '待处理',
+    statusLabel: isActive ? i18n.global.t('channel.mapping.statuses.connected') : i18n.global.t('home.stat.pending.0'),
     statusColor: isActive ? 'success' : 'warning',
     pmsRoomId: toDisplayText(plan.PMSRoomID, '-'),
     pmsRateId: toDisplayText(plan.PMSRateID, '-'),
@@ -255,9 +265,9 @@ function normalizeChannelName(name?: string) {
 
 export function getChannelGroupLabel(code?: string) {
   if (isAirbnbChannelCode(code)) {
-    return '账号'
+    return i18n.global.t('settingsStage4.pricingTools.columns.account')
   }
-  return '酒店'
+  return i18n.global.t('settingsStage4.storeBasic.typeOptions.hotel')
 }
 
 export function getChannelActionCapability(code?: string): ChannelActionCapability {
@@ -303,36 +313,44 @@ export function sortChannelViewModels(items: ChannelViewModel[]) {
       return leftPinned - rightPinned
     }
 
-    return left.name.localeCompare(right.name)
+    return compareLocalizedText(left.name, right.name)
   })
 }
 
 export function formatDateTime(value?: string) {
   if (!value) {
-    return '暂无记录'
+    return i18n.global.t('iosStage5.common.noRecords')
   }
 
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-    date.getDate(),
-  ).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(
-    date.getMinutes(),
-  ).padStart(2, '0')}`
+  return formatStoreDateTime(value, 'date-time', value)
 }
 
-export function formatAdjustmentSummary(item: ChannelPriceAdjustmentDTO) {
+export function formatAdjustmentSummary(
+  item: ChannelPriceAdjustmentDTO,
+  currency = 'CNY',
+  context: MoneyDisplayContext = {},
+) {
   const adjustmentValue = normalizeNumber(item.adjustmentValue)
   if (adjustmentValue === 0) {
-    return '等同于基本价格'
+    return i18n.global.t('channel.priceRatio.sameAsBase')
   }
 
-  const direction = adjustmentValue > 0 ? '贵' : '便宜'
-  const unit = item.adjustmentType === 'FIXED' ? '¥' : '%'
-  return `${Math.abs(adjustmentValue)} ${unit} 比基准价${direction}`
+  const direction = adjustmentValue > 0 ? i18n.global.t('stage5VisibleText.100') : i18n.global.t('stage5VisibleText.99')
+  const isFixed = item.adjustmentType === 'FIXED'
+  const value = isFixed
+    ? formatMoney(
+        Math.abs(adjustmentValue),
+        currency,
+        { maximumFractionDigits: 2 },
+        context,
+      )
+    : Math.abs(adjustmentValue)
+  const unit = isFixed ? '' : '%'
+  return i18n.global.t('stage5Final.channel.adjustmentPreview', {
+    value,
+    unit,
+    direction,
+  })
 }
 
 function resolveOtaPriceAdjustmentType(ota: Pick<OtaIntegrationDTO, 'priceAdjustmentType'>) {
@@ -395,7 +413,7 @@ export function createPriceAdjustmentEditor(
     channelCode: item.channelCode,
     direction: adjustmentValue < 0 ? 'cheaper' : 'expensive',
     value: Math.abs(adjustmentValue),
-    unit: item.adjustmentType === 'FIXED' ? '¥' : '%',
+    unit: item.adjustmentType === 'FIXED' ? 'FIXED' : 'PERCENTAGE',
     autoSyncPrice: item.autoSyncPrice ?? true,
   }
 }
@@ -446,7 +464,7 @@ export function buildPriceAdjustmentRequest(
   editor: PriceAdjustmentEditorValue,
 ): ChannelPriceAdjustmentRequest {
   let adjustmentType: PriceAdjustmentType = 'PERCENTAGE'
-  if (editor.unit === '¥') {
+  if (editor.unit === 'FIXED') {
     adjustmentType = 'FIXED'
   }
 
@@ -499,8 +517,8 @@ export function parseSuMappings(payload: SuMappingsResponse | null | undefined, 
     groups.push({
       id: `${hotelKey}-${index}`,
       hotelKey,
-      title: `酒店 / 账号 ${hotelKey}`,
-      statusLabel: isActive ? '已连接' : '待处理',
+      title: i18n.global.t('stage5VisibleText.84', { id: hotelKey }),
+      statusLabel: isActive ? i18n.global.t('channel.mapping.statuses.connected') : i18n.global.t('home.stat.pending.0'),
       statusColor: isActive ? 'success' : 'warning',
       roomIds,
       ratePlans,

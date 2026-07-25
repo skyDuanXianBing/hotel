@@ -2,9 +2,9 @@
   <ion-modal :is-open="isOpen" @didDismiss="$emit('dismiss')">
     <ion-header translucent>
       <ion-toolbar>
-        <ion-title>新增收款</ion-title>
+        <ion-title>{{ $t('stage5VisibleText.193') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="$emit('dismiss')">关闭</ion-button>
+          <ion-button @click="$emit('dismiss')">{{ $t('home.section.close') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -12,33 +12,33 @@
     <ion-content>
       <ion-list inset>
         <ion-item>
-          <ion-select v-model="form.type" label="类型" label-placement="stacked" interface="action-sheet">
-            <ion-select-option value="收款">收款</ion-select-option>
-            <ion-select-option value="收押金">收押金</ion-select-option>
-            <ion-select-option value="其他">其他</ion-select-option>
+          <ion-select v-model="form.type" :label="$t('roomStatus.sampleLogs.labels.type')" label-placement="stacked" interface="action-sheet">
+            <ion-select-option :value="PAYMENT_TYPE_RECEIPT">{{ $t('roomStatus.payment.tabs.payment') }}</ion-select-option>
+            <ion-select-option :value="PAYMENT_TYPE_DEPOSIT">{{ $t('roomStatus.payment.typeOptions.deposit') }}</ion-select-option>
+            <ion-select-option :value="PAYMENT_TYPE_OTHER">{{ $t('roomStatus.payment.bookingTypeOptions.other') }}</ion-select-option>
           </ion-select>
         </ion-item>
         <ion-item>
           <ion-select
             v-model="form.paymentMethod"
-            label="支付方式"
+            :label="$t('roomStatus.common.paymentMethod')"
             label-placement="stacked"
             interface="action-sheet"
           >
-            <ion-select-option value="微信">微信</ion-select-option>
-            <ion-select-option value="支付宝">支付宝</ion-select-option>
-            <ion-select-option value="现金">现金</ion-select-option>
-            <ion-select-option value="银行卡">银行卡</ion-select-option>
+            <ion-select-option :value="PAYMENT_METHOD_WECHAT">{{ $t('accommodation.paymentMethods.wechat') }}</ion-select-option>
+            <ion-select-option :value="PAYMENT_METHOD_ALIPAY">{{ $t('accommodation.paymentMethods.alipay') }}</ion-select-option>
+            <ion-select-option :value="PAYMENT_METHOD_CASH">{{ $t('accommodation.paymentMethods.cash') }}</ion-select-option>
+            <ion-select-option :value="PAYMENT_METHOD_BANK_CARD">{{ $t('roomStatus.payment.methodOptions.bankCard') }}</ion-select-option>
           </ion-select>
         </ion-item>
         <ion-item>
-          <ion-input v-model.number="form.amount" type="number" min="0" label="金额" label-placement="stacked" />
+          <ion-input v-model.number="form.amount" type="number" min="0" :label="$t('roomStatus.common.amount')" label-placement="stacked" />
         </ion-item>
         <ion-item>
-          <ion-input v-model="form.date" type="date" label="日期" label-placement="stacked" />
+          <ion-input v-model="form.date" type="date" :label="$t('accommodation.common.date')" label-placement="stacked" />
         </ion-item>
         <ion-item lines="none">
-          <ion-textarea v-model="form.remark" auto-grow label="备注" label-placement="stacked" placeholder="可选" />
+          <ion-textarea v-model="form.remark" auto-grow :label="$t('accommodation.common.remarks')" label-placement="stacked" :placeholder="$t('settingsStage4.autoCheckin.status.optional')" />
         </ion-item>
       </ion-list>
     </ion-content>
@@ -46,8 +46,8 @@
     <ion-footer>
       <ion-toolbar>
         <div class="modal-footer-actions">
-          <ion-button fill="outline" @click="$emit('dismiss')">取消</ion-button>
-          <ion-button :disabled="submitting" @click="handleSubmit">保存收款</ion-button>
+          <ion-button fill="outline" @click="$emit('dismiss')">{{ $t('accommodation.common.cancel') }}</ion-button>
+          <ion-button :disabled="submitting" @click="handleSubmit">{{ $t('stage5VisibleText.124') }}</ion-button>
         </div>
       </ion-toolbar>
     </ion-footer>
@@ -74,6 +74,14 @@ import {
 import { ref, watch } from 'vue'
 import { getStoreTodayDate } from '@/utils/storeBusinessDate'
 
+const PAYMENT_TYPE_RECEIPT = '收款'
+const PAYMENT_TYPE_DEPOSIT = '收押金'
+const PAYMENT_TYPE_OTHER = '其他'
+const PAYMENT_METHOD_WECHAT = '微信'
+const PAYMENT_METHOD_ALIPAY = '支付宝'
+const PAYMENT_METHOD_CASH = '现金'
+const PAYMENT_METHOD_BANK_CARD = '银行卡'
+
 export interface PaymentFormSubmitPayload {
   type: string
   paymentMethod: string
@@ -93,8 +101,8 @@ const emit = defineEmits<{
 }>()
 
 const form = ref<PaymentFormSubmitPayload>({
-  type: '收款',
-  paymentMethod: '微信',
+  type: PAYMENT_TYPE_RECEIPT,
+  paymentMethod: PAYMENT_METHOD_WECHAT,
   amount: 0,
   date: getStoreTodayDate(),
   remark: '',
@@ -102,8 +110,8 @@ const form = ref<PaymentFormSubmitPayload>({
 
 function resetForm() {
   form.value = {
-    type: '收款',
-    paymentMethod: '微信',
+    type: PAYMENT_TYPE_RECEIPT,
+    paymentMethod: PAYMENT_METHOD_WECHAT,
     amount: 0,
     date: getStoreTodayDate(),
     remark: '',

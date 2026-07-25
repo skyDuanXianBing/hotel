@@ -1,6 +1,9 @@
+import { i18n } from '@/locales'
+
 const RAW_MAPPING_RESPONSE_SHAPE_MESSAGE = 'Unexpected mappings response shape'
 
-export const MAPPINGS_RESPONSE_SHAPE_NOTICE = '渠道映射数据暂时无法识别，请稍后刷新重试或重新进入授权流程'
+const getMappingsResponseShapeNotice = () =>
+  i18n.global.t('runtime.channel.mappingsResponseShapeNotice')
 
 export function sanitizeChannelWarningMessage(rawMessage: string, fallbackMessage = '') {
   if (!rawMessage) {
@@ -14,7 +17,7 @@ export function sanitizeChannelWarningMessage(rawMessage: string, fallbackMessag
 
   return trimmedMessage.replaceAll(
     RAW_MAPPING_RESPONSE_SHAPE_MESSAGE,
-    MAPPINGS_RESPONSE_SHAPE_NOTICE,
+    getMappingsResponseShapeNotice(),
   )
 }
 

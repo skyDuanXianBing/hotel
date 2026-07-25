@@ -5,12 +5,12 @@
         <strong>{{ reservation.guestName }}</strong>
         <p>{{ reservation.orderNumber }}</p>
       </div>
-      <ion-chip color="primary">{{ reservation.channelName || '自来客' }}</ion-chip>
+      <ion-chip color="primary">{{ reservation.channelName || $t('roomStatus.common.defaultChannel') }}</ion-chip>
     </div>
 
     <div class="reservation-card__body">
-      <span>{{ reservation.checkInDate }} 入住</span>
-      <span>{{ reservation.checkOutDate }} 离店</span>
+      <span>{{ reservation.checkInDate }} {{ $t('roomStatus.action.checkIn') }}</span>
+      <span>{{ reservation.checkOutDate }} {{ $t('roomStatus.hoverCard.checkOutDate') }}</span>
       <span>{{ reservation.roomTypeName || fallbackRoomType }} {{ reservation.roomNumber || fallbackRoomNumber }}</span>
     </div>
 
@@ -26,6 +26,8 @@ import { IonChip } from '@ionic/vue'
 import { computed } from 'vue'
 import type { ReservationDTO } from '@/api/reservation'
 import { getReservationStatusText } from '@/stores/roomStatus'
+import { useStoreStore } from '@/stores/store'
+import { formatMoney } from '@/utils/formatters'
 
 const props = defineProps<{
   reservation: ReservationDTO
@@ -37,7 +39,10 @@ defineEmits<{
   select: []
 }>()
 
+const storeStore = useStoreStore()
 const statusText = computed(() => getReservationStatusText(props.reservation.status))
+const currentCurrency = computed(() => storeStore.currentStore?.currency || 'CNY')
+const currentMoneyContext = computed(() => ({ country: storeStore.currentStore?.country }))
 
 const statusColor = computed(() => {
   if (props.reservation.status === 'CHECKED_IN' || props.reservation.status === 'checked_in') {
@@ -54,14 +59,24 @@ const statusColor = computed(() => {
 
 const moneyText = computed(() => {
   if (props.reservation.totalAmount === null || props.reservation.totalAmount === undefined) {
-    return '¥0.00'
+    return formatMoney(
+      0,
+      currentCurrency.value,
+      { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+      currentMoneyContext.value,
+    )
   }
 
   if (typeof props.reservation.totalAmount !== 'number' || !Number.isFinite(props.reservation.totalAmount)) {
-    throw new Error('订单金额必须是有效数字')
+    throw new Error('Reservation amount must be a valid number')
   }
 
-  return `¥${props.reservation.totalAmount.toFixed(2)}`
+  return formatMoney(
+    props.reservation.totalAmount,
+    currentCurrency.value,
+    { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+    currentMoneyContext.value,
+  )
 })
 </script>
 
@@ -81,7 +96,9 @@ const moneyText = computed(() => {
 
 .reservation-card__header,
 .reservation-card__footer {
+  min-width: 0;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px;
   align-items: center;
@@ -97,5 +114,7 @@ const moneyText = computed(() => {
 .reservation-card__body {
   display: grid;
   gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 </style>

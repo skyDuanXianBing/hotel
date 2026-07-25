@@ -1,7 +1,7 @@
 <template>
   <section class="occ-section mobile-dashboard-surface">
     <div class="occ-section__header">
-      <h2 class="occ-section__title">近7天入住率</h2>
+      <h2 class="occ-section__title">{{ t('home.section.occupancy') }}</h2>
       <span class="occ-section__range">{{ dateRangeLabel }}</span>
     </div>
 
@@ -24,17 +24,17 @@
     <template v-else-if="items.length > 0">
       <div class="occ-overview">
         <div class="occ-lead">
-          <span class="occ-lead__label">今日</span>
+          <span class="occ-lead__label">{{ t('home.section.today') }}</span>
           <strong class="occ-lead__value">{{ latestRateLabel }}</strong>
         </div>
 
         <div class="occ-chips">
           <div class="occ-chip">
-            <span class="occ-chip__label">平均</span>
+            <span class="occ-chip__label">{{ t('home.section.average') }}</span>
             <strong class="occ-chip__value">{{ averageRateLabel }}</strong>
           </div>
           <div class="occ-chip">
-            <span class="occ-chip__label">峰值</span>
+            <span class="occ-chip__label">{{ t('home.section.peak') }}</span>
             <strong class="occ-chip__value">{{ peakRateLabel }}</strong>
           </div>
         </div>
@@ -53,13 +53,14 @@
       </div>
     </template>
 
-    <p v-else class="occ-empty">暂无入住率数据</p>
+    <p v-else class="occ-empty">{{ t('home.section.noOccupancy') }}</p>
   </section>
 </template>
 
 <script setup lang="ts">
 import { IonSkeletonText } from '@ionic/vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { DailyOccupancyDTO } from '@/api/home'
 import { formatBusinessDateLabel } from '@/utils/storeBusinessDate'
 
@@ -69,6 +70,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const { t } = useI18n()
 
 const normalizeRate = (rate: number) => {
   if (Number.isNaN(rate)) {
@@ -128,12 +130,12 @@ const latestRateLabel = computed(() => {
 
 const dateRangeLabel = computed(() => {
   if (normalizedItems.value.length === 0) {
-    return '近 7 天'
+    return t('home.section.recentDays')
   }
   const start = normalizedItems.value[0]?.date
   const end = normalizedItems.value[normalizedItems.value.length - 1]?.date
   if (!start || !end) {
-    return '近 7 天'
+    return t('home.section.recentDays')
   }
   return `${formatShortDate(start)} - ${formatShortDate(end)}`
 })

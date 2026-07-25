@@ -1,4 +1,5 @@
 import { getStoredCurrentStore } from '@/utils/storage'
+import { getIntlLocale } from '@/utils/formatters'
 
 export const DEFAULT_BUSINESS_TIME_ZONE = 'Asia/Tokyo'
 
@@ -9,7 +10,6 @@ const EXPLICIT_TIME_ZONE_PATTERN = /(Z|[+-]\d{2}:?\d{2})$/i
 const DAYS_PER_WEEK = 7
 const MONTH_GRID_DAYS = 42
 const MS_PER_DAY = 24 * 60 * 60 * 1000
-const BUSINESS_WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
 
 export interface BusinessDateParts {
   year: number
@@ -269,29 +269,59 @@ function getStoreDateTimeParts(value: Date | string, storeTimeZone?: string | nu
   return getStoreDateTimePartsFromInstant(trimmedValue, storeTimeZone)
 }
 
-function getDateTimeFormatText(parts: BusinessDateTimeParts, format: StoreDateTimeFormat) {
-  const month = String(parts.month).padStart(2, '0')
-  const day = String(parts.day).padStart(2, '0')
-  const hours = String(parts.hours).padStart(2, '0')
-  const minutes = String(parts.minutes).padStart(2, '0')
+function getDateTimeFormatText(
+  parts: BusinessDateTimeParts,
+  format: StoreDateTimeFormat,
+  locale = getIntlLocale(),
+) {
+  const date = new Date(
+    Date.UTC(parts.year, parts.month - 1, parts.day, parts.hours, parts.minutes, parts.seconds),
+  )
+  const baseOptions: Intl.DateTimeFormatOptions = { timeZone: 'UTC' }
 
   if (format === 'time') {
-    return `${hours}:${minutes}`
+    return new Intl.DateTimeFormat(locale, {
+      ...baseOptions,
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date)
   }
 
   if (format === 'date') {
-    return formatParts(parts)
+    return new Intl.DateTimeFormat(locale, {
+      ...baseOptions,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date)
   }
 
   if (format === 'month-day') {
-    return `${month}-${day}`
+    return new Intl.DateTimeFormat(locale, {
+      ...baseOptions,
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date)
   }
 
   if (format === 'month-day-time') {
-    return `${month}-${day} ${hours}:${minutes}`
+    return new Intl.DateTimeFormat(locale, {
+      ...baseOptions,
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date)
   }
 
-  return `${formatParts(parts)} ${hours}:${minutes}`
+  return new Intl.DateTimeFormat(locale, {
+    ...baseOptions,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
 }
 
 export function shiftBusinessDate(date: string, offsetDays: number) {
@@ -322,8 +352,15 @@ export function getBusinessDateWeekdayIndex(date: string) {
 }
 
 export function getBusinessDateWeekdayLabel(date: string, prefix = '') {
-  const weekdayIndex = getBusinessDateWeekdayIndex(date)
-  const weekday = BUSINESS_WEEKDAY_LABELS[weekdayIndex] || BUSINESS_WEEKDAY_LABELS[0]
+  const parts = parseBusinessDateParts(normalizeBusinessDate(date))
+  if (!parts) {
+    return ''
+  }
+
+  const weekday = new Intl.DateTimeFormat(getIntlLocale(), {
+    weekday: 'short',
+    timeZone: 'UTC',
+  }).format(toUtcDate(parts))
   return `${prefix}${weekday}`
 }
 
@@ -357,6 +394,7 @@ export function formatBusinessDateLabel(
   value?: string | null,
   format: BusinessDateLabelFormat = 'date',
   fallback = '-',
+  locale = getIntlLocale(),
 ) {
   if (!value) {
     return fallback
@@ -368,27 +406,43 @@ export function formatBusinessDateLabel(
     return trimmedValue || fallback
   }
 
-  const date = formatParts(dateParts)
-  const month = String(dateParts.month).padStart(2, '0')
-  const day = String(dateParts.day).padStart(2, '0')
-
+  const date = toUtcDate(dateParts)
   if (format === 'slash-date') {
-    return `${dateParts.year}/${month}/${day}`
+    return new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: 'UTC',
+    }).format(date)
   }
 
   if (format === 'month-day') {
-    return `${month}-${day}`
+    return new Intl.DateTimeFormat(locale, {
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: 'UTC',
+    }).format(date)
   }
 
   if (format === 'month-day-weekday') {
-    return `${month}-${day} ${getBusinessDateWeekdayLabel(date, '周')}`
+    return new Intl.DateTimeFormat(locale, {
+      month: '2-digit',
+      day: '2-digit',
+      weekday: 'short',
+      timeZone: 'UTC',
+    }).format(date)
   }
 
   if (format === 'weekday') {
-    return getBusinessDateWeekdayLabel(date, '周')
+    return getBusinessDateWeekdayLabel(formatParts(dateParts))
   }
 
-  return date
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'UTC',
+  }).format(date)
 }
 
 export function formatStoreDateTime(
@@ -396,6 +450,7 @@ export function formatStoreDateTime(
   format: StoreDateTimeFormat = 'date-time',
   fallback = '-',
   storeTimeZone?: string | null,
+  locale = getIntlLocale(),
 ) {
   if (!value) {
     return fallback
@@ -406,7 +461,7 @@ export function formatStoreDateTime(
     return typeof value === 'string' ? value : fallback
   }
 
-  return getDateTimeFormatText(parts, format)
+  return getDateTimeFormatText(parts, format, locale)
 }
 
 export function getStoreBusinessDateFromDateTime(

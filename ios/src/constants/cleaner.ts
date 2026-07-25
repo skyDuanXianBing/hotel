@@ -3,15 +3,15 @@ export const CLEANER_STATUS_ORDER = ['assigned', 'in_progress', 'pending', 'comp
 export type CleanerTaskStatusKey = (typeof CLEANER_STATUS_ORDER)[number]
 
 export const CLEANER_STATUS_LABELS: Record<string, string> = {
-  pending: '待分配',
-  assigned: '待接受',
-  in_progress: '待打扫',
-  completed: '已完成',
-  expired: '已过期',
+  pending: 'iosStage5.cleaning.status.pending',
+  assigned: 'iosStage5.cleaning.status.assigned',
+  in_progress: 'iosStage5.cleaning.status.inProgress',
+  completed: 'iosStage5.cleaning.status.completed',
+  expired: 'iosStage5.cleaning.status.expired',
 }
 
 export const CLEANER_TASK_TYPE_LABELS: Record<string, string> = {
-  checkout: '退房清洁',
-  daily: '日常清洁',
-  deep: '深度清洁',
+  checkout: 'iosStage5.cleaning.type.checkout',
+  daily: 'iosStage5.cleaning.type.daily',
+  deep: 'iosStage5.cleaning.type.deep',
 }

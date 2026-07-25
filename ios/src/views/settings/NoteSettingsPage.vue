@@ -1,16 +1,16 @@
 <template>
   <SettingsSortablePage
     :back-href="ROUTE_PATHS.settings"
-    title="记一笔设置"
-    hero-eyebrow="财务设置"
-    hero-title="记一笔分类"
-    toolbar-action-label="新增"
+    :title="$t('settings.entries.noteSettings.0')"
+    :hero-eyebrow="$t('settings.groups.finance')"
+    :hero-title="$t('stage5UiAttributes.60')"
+    :toolbar-action-label="$t('settingsStage4.roomGroup.addGroup')"
     :show-refresher="true"
-    refresher-pulling-text="下拉刷新记一笔设置"
-    section-title="分类列表"
+    :refresher-pulling-text="$t('stage5UiAttributes.17')"
+    :section-title="$t('stage5UiAttributes.30')"
     :loading="loading"
     :modal-open="editorOpen"
-    :modal-title="editingCategoryId ? '编辑分类' : '新增分类'"
+    :modal-title="editingCategoryId ? $t('settingsStage4.consumptionItems.dialog.editCategory') : $t('settingsStage4.consumptionItems.addCategory')"
     @toolbar-action="handleCreateCategory"
     @refresh="handleRefresh"
     @dismiss-editor="handleDismissEditor"
@@ -18,10 +18,10 @@
     <template #controls>
       <ion-segment :value="activeType" @ionChange="handleTypeChange">
         <ion-segment-button value="income">
-          <ion-label>收入</ion-label>
+          <ion-label>{{ $t('stage5.statistics.notes.income') }}</ion-label>
         </ion-segment-button>
         <ion-segment-button value="expense">
-          <ion-label>支出</ion-label>
+          <ion-label>{{ $t('stage5.statistics.notes.expense') }}</ion-label>
         </ion-segment-button>
       </ion-segment>
     </template>
@@ -31,39 +31,39 @@
         <div class="settings-minimal-card__header">
           <div class="settings-minimal-card__title-group">
             <strong>{{ category.name }}</strong>
-            <p class="settings-minimal-card__summary">顺序 {{ index + 1 }}</p>
+            <p class="settings-minimal-card__summary">{{ $t('stage5DynamicUi.142') }} {{ index + 1 }}</p>
           </div>
           <span
             class="settings-minimal-card__badge"
             :class="category.type === 'income' ? 'settings-minimal-card__badge--success' : 'settings-minimal-card__badge--warning'"
           >
-            {{ category.type === 'income' ? '收入' : '支出' }}
+            {{ category.type === 'income' ? $t('stage5.statistics.notes.income') : $t('stage5.statistics.notes.expense') }}
           </span>
         </div>
 
         <div class="settings-minimal-card__actions settings-minimal-card__actions--dense">
-          <ion-button size="small" fill="outline" @click="handleEditCategory(category)">编辑</ion-button>
-          <ion-button size="small" fill="outline" :disabled="index === 0" @click="handleMove(index, -1)">上移</ion-button>
+          <ion-button size="small" fill="outline" @click="handleEditCategory(category)">{{ $t('accommodation.roomPrice.editTitle') }}</ion-button>
+          <ion-button size="small" fill="outline" :disabled="index === 0" @click="handleMove(index, -1)">{{ $t('stage5SourceText.3') }}</ion-button>
           <ion-button
             size="small"
             fill="outline"
             :disabled="index === currentCategories.length - 1"
             @click="handleMove(index, 1)"
           >
-            下移
+            {{ $t('stage5SourceText.4') }}
           </ion-button>
-          <ion-button size="small" color="danger" fill="clear" @click="handleDeleteCategory(category)">删除</ion-button>
+          <ion-button size="small" color="danger" fill="clear" @click="handleDeleteCategory(category)">{{ $t('roomStatus.roomLock.actions.delete') }}</ion-button>
         </div>
       </article>
     </div>
 
-    <p v-else-if="!loading" class="mobile-note">当前分类为空。</p>
+    <p v-else-if="!loading" class="mobile-note">{{ $t('stage5SourceText.56') }}</p>
 
     <template #sectionFooter>
       <div class="settings-form-actions settings-form-actions--section">
-        <ion-button fill="outline" :disabled="loading || savingOrder" @click="loadPageData">重置</ion-button>
+        <ion-button fill="outline" :disabled="loading || savingOrder" @click="loadPageData">{{ $t('accommodation.common.reset') }}</ion-button>
         <ion-button :disabled="loading || savingOrder || currentCategories.length === 0" @click="handleSaveOrder">
-          {{ savingOrder ? '保存中...' : '保存顺序' }}
+          {{ savingOrder ? $t('channel.mobile.common.saving') : $t('stage5DynamicUi.24') }}
         </ion-button>
       </div>
     </template>
@@ -71,30 +71,31 @@
     <template #modalContent>
       <div class="settings-form-grid">
         <label class="settings-form-field">
-          <span>分类名称</span>
-          <ion-input v-model="categoryForm.name" fill="outline" placeholder="请输入分类名称" />
+          <span>{{ $t('settingsStage4.consumptionItems.fields.categoryName') }}</span>
+          <ion-input v-model="categoryForm.name" fill="outline" :placeholder="$t('settingsStage4.consumptionItems.placeholders.categoryName')" />
         </label>
 
         <label class="settings-form-field">
-          <span>分类类型</span>
+          <span>{{ $t('stage5SourceText.19') }}</span>
           <ion-select v-model="categoryForm.type" fill="outline" interface="action-sheet">
-            <ion-select-option value="income">收入</ion-select-option>
-            <ion-select-option value="expense">支出</ion-select-option>
+            <ion-select-option value="income">{{ $t('stage5.statistics.notes.income') }}</ion-select-option>
+            <ion-select-option value="expense">{{ $t('stage5.statistics.notes.expense') }}</ion-select-option>
           </ion-select>
         </label>
       </div>
     </template>
 
     <template #modalActions>
-      <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
+      <ion-button fill="outline" @click="handleDismissEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
       <ion-button :disabled="submitting" @click="handleSaveCategory">
-        {{ submitting ? '提交中...' : '保存分类' }}
+        {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.7') }}
       </ion-button>
     </template>
   </SettingsSortablePage>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   alertController,
   IonButton,
@@ -114,6 +115,8 @@ import type { NoteCategoryDTO, NoteCategoryType } from '@/types/settings'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 import { moveArrayItem } from '@/utils/settings'
+
+const { t } = useI18n()
 
 interface CategoryFormState {
   name: string
@@ -149,11 +152,11 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
 
 async function confirmDelete(name: string) {
   const alert = await alertController.create({
-    header: '删除分类',
-    message: `确认删除 ${name} 吗？`,
+    header: t('settingsResidual.common.confirm'),
+    message: t('settingsResidual.common.confirmDelete', { name }),
     buttons: [
-      { text: '取消', role: 'cancel' },
-      { text: '确认删除', role: 'destructive' },
+      { text: t('accommodation.common.cancel'), role: 'cancel' },
+      { text: t('settingsStage4.roomSettings.messages.deleteTitle'), role: 'destructive' },
     ],
   })
   await alert.present()
@@ -166,12 +169,12 @@ async function loadPageData() {
   try {
     const response = await getAllCategories()
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载分类失败')
+      throw new Error(response.message || t('settingsStage4.consumptionItems.messages.loadCategoriesFailed'))
     }
     categories.value = [...response.data].sort((left, right) => left.displayOrder - right.displayOrder)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载分类失败'))
+      showWarningToast(resolveWarningMessage(error, t('settingsStage4.consumptionItems.messages.loadCategoriesFailed')))
     }
   } finally {
     loading.value = false
@@ -202,7 +205,7 @@ function handleDismissEditor() {
 
 async function handleSaveCategory() {
   if (!categoryForm.value.name.trim()) {
-    showWarningToast('请输入分类名称')
+    showWarningToast(t('settingsStage4.consumptionItems.placeholders.categoryName'))
     return
   }
 
@@ -214,7 +217,7 @@ async function handleSaveCategory() {
         type: categoryForm.value.type,
       })
       if (!response.success) {
-        throw new Error(response.message || '更新分类失败')
+        throw new Error(response.message || t('stage5Pattern.updateFailed'))
       }
     } else {
       const response = await createCategory({
@@ -222,16 +225,16 @@ async function handleSaveCategory() {
         type: categoryForm.value.type,
       })
       if (!response.success) {
-        throw new Error(response.message || '创建分类失败')
+        throw new Error(response.message || t('stage5Pattern.createFailed'))
       }
     }
 
-    showSuccessToast('分类已保存')
+    showSuccessToast(t('stage5Pattern.saveCompleted'))
     handleDismissEditor()
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存分类失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     submitting.value = false
@@ -267,13 +270,13 @@ async function handleSaveOrder() {
     const payload = currentCategories.value.map((item, index) => ({ id: item.id, displayOrder: index + 1 }))
     const response = await updateCategoriesOrder(payload)
     if (!response.success) {
-      throw new Error(response.message || '保存顺序失败')
+      throw new Error(response.message || t('stage5Pattern.saveFailed'))
     }
-    showSuccessToast('分类顺序已保存')
+    showSuccessToast(t('stage5Pattern.saveCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存顺序失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     savingOrder.value = false
@@ -289,13 +292,13 @@ async function handleDeleteCategory(category: NoteCategoryDTO) {
   try {
     const response = await deleteCategory(category.id)
     if (!response.success) {
-      throw new Error(response.message || '删除分类失败')
+      throw new Error(response.message || t('stage5Pattern.deleteFailed'))
     }
-    showSuccessToast('分类已删除')
+    showSuccessToast(t('stage5Pattern.deleteCompleted'))
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '删除分类失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.deleteFailed')))
     }
   }
 }

@@ -179,6 +179,7 @@
 }
 
 .settings-card-item {
+  min-width: 0;
   padding: 14px;
   border-radius: 18px;
   border: 1px solid var(--app-border);
@@ -201,6 +202,7 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .settings-card-item__header strong,
@@ -219,6 +221,17 @@
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 12px;
+}
+
+.settings-card-item strong,
+.settings-card-item p,
+.settings-card-item__header > *,
+.settings-minimal-card__title-group,
+.settings-minimal-card__summary,
+.settings-minimal-card__badge,
+.settings-toggle-field > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .settings-minimal-list {
@@ -257,6 +270,7 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .settings-minimal-card__title-group {
@@ -305,6 +319,8 @@
   font-size: 11px;
   font-weight: var(--ios-pms-weight-bold);
   letter-spacing: 0.01em;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .settings-minimal-card__badge--success {
@@ -408,6 +424,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
   padding: 12px 14px;
   border-radius: 18px;
   background: var(--app-primary-soft);

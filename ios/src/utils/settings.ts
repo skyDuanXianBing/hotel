@@ -1,4 +1,5 @@
 import { PermissionAction, PermissionModule, type PermissionDTO } from '@/api/role'
+import { i18n } from '@/locales'
 
 export interface PermissionRoomScope {
   allRoomTypes: boolean
@@ -55,7 +56,7 @@ export const parseJsonNumberList = (rawValue: string) => {
 
 export const formatDateTimeText = (rawValue?: string) => {
   if (!rawValue) {
-    return '未设置'
+    return i18n.global.t('runtime.settings.unset')
   }
 
   const date = new Date(rawValue)
@@ -73,7 +74,7 @@ export const formatDateTimeText = (rawValue?: string) => {
 
 export const formatDateText = (rawValue?: string) => {
   if (!rawValue) {
-    return '未设置'
+    return i18n.global.t('runtime.settings.unset')
   }
 
   const date = new Date(rawValue)
@@ -112,10 +113,10 @@ export const normalizeTimeText = (rawValue: string) => {
 
 export const formatPermissionSummary = (count: number) => {
   if (count <= 0) {
-    return '未配置权限'
+    return i18n.global.t('runtime.settings.permissionsNone')
   }
 
-  return `已选 ${count} 项权限`
+  return i18n.global.t('runtime.settings.permissionsSelected', { count })
 }
 
 export const isRoomTypeScopedPermission = (module: string, action: string) => {

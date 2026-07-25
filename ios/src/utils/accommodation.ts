@@ -1,24 +1,35 @@
 import {
+  formatBusinessDateLabel,
+  formatStoreDateTime,
   getBusinessDateWeekdayIndex,
   getStoreTodayDate,
   parseBusinessDateParts,
   shiftBusinessDate,
 } from '@/utils/storeBusinessDate'
+import { i18n } from '@/locales'
 
-const WEEKDAY_TEXT = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+const WEEKDAY_KEYS = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+] as const
 
-const CLEANING_TASK_STATUS_TEXT_MAP: Record<string, string> = {
-  expired: '已过期',
-  pending: '待分配',
-  assigned: '待清洁',
-  in_progress: '清洁中',
-  completed: '已完成',
+const CLEANING_TASK_STATUS_TEXT_KEY_MAP: Record<string, string> = {
+  expired: 'expired',
+  pending: 'pending',
+  assigned: 'assigned',
+  in_progress: 'inProgress',
+  completed: 'completed',
 }
 
-const CLEANING_TASK_TYPE_TEXT_MAP: Record<string, string> = {
-  checkout: '退房',
-  daily: '日常清洁',
-  deep: '深度清洁',
+const CLEANING_TASK_TYPE_TEXT_KEY_MAP: Record<string, string> = {
+  checkout: 'checkout',
+  daily: 'daily',
+  deep: 'deep',
 }
 
 const DEFAULT_ESTIMATED_TIME = {
@@ -30,6 +41,13 @@ const getDefaultEstimatedTime = () => ({
   startTime: DEFAULT_ESTIMATED_TIME.startTime,
   endTime: DEFAULT_ESTIMATED_TIME.endTime,
 })
+
+const accommodationText = (key: string) => i18n.global.t(`runtime.accommodation.${key}`)
+
+const getWeekdayText = (weekdayIndex: number) => {
+  const weekdayKey = WEEKDAY_KEYS[weekdayIndex] || WEEKDAY_KEYS[0]
+  return accommodationText(`weekday.${weekdayKey}`)
+}
 
 export interface AccommodationDateItem {
   date: string
@@ -49,15 +67,11 @@ export const shiftDate = (date: string, offsetDays: number) => {
 }
 
 export const formatDate = (date: string) => {
-  const parsed = parseBusinessDateParts(date) || parseBusinessDateParts(getTodayDate())
-  const year = parsed?.year || 1970
-  const month = String(parsed?.month || 1).padStart(2, '0')
-  const day = String(parsed?.day || 1).padStart(2, '0')
-  return `${year}/${month}/${day}`
+  return formatBusinessDateLabel(date || getTodayDate(), 'slash-date')
 }
 
 export const formatDateWithWeekday = (date: string) => {
-  return `${formatDate(date)} ${WEEKDAY_TEXT[getBusinessDateWeekdayIndex(date)]}`
+  return `${formatDate(date)} ${getWeekdayText(getBusinessDateWeekdayIndex(date))}`
 }
 
 export const buildDateWindow = (startDate: string, days: number) => {
@@ -66,16 +80,14 @@ export const buildDateWindow = (startDate: string, days: number) => {
 
   for (let index = 0; index < days; index += 1) {
     const currentDateText = shiftDate(startDate, index)
-    const currentDateParts = parseBusinessDateParts(currentDateText)
-    const month = String(currentDateParts?.month || 1).padStart(2, '0')
-    const day = String(currentDateParts?.day || 1).padStart(2, '0')
     const weekdayIndex = getBusinessDateWeekdayIndex(currentDateText)
-    const weekday = WEEKDAY_TEXT[weekdayIndex]
+    const weekday = getWeekdayText(weekdayIndex)
+    const shortLabel = formatBusinessDateLabel(currentDateText, 'month-day')
 
     items.push({
       date: currentDateText,
-      label: `${month}/${day} ${weekday}`,
-      shortLabel: `${month}/${day}`,
+      label: `${shortLabel} ${weekday}`,
+      shortLabel,
       weekday,
       isToday: currentDateText === today,
       isWeekend: weekdayIndex === 0 || weekdayIndex === 6,
@@ -83,14 +95,6 @@ export const buildDateWindow = (startDate: string, days: number) => {
   }
 
   return items
-}
-
-export const formatCurrency = (value?: number | null) => {
-  if (value === undefined || value === null || Number.isNaN(Number(value))) {
-    return '¥0'
-  }
-
-  return `¥${Number(value).toFixed(0)}`
 }
 
 export const formatPercent = (value?: number | null) => {
@@ -102,30 +106,17 @@ export const formatPercent = (value?: number | null) => {
 }
 
 export const formatDateTime = (value?: string) => {
-  if (!value) {
-    return '-'
-  }
-
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
-    return value
-  }
-
-  return parsed.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return formatStoreDateTime(value, 'date-time')
 }
 
 export const getCleaningTaskStatusText = (status: string) => {
-  return CLEANING_TASK_STATUS_TEXT_MAP[status] || status || '未知状态'
+  const statusKey = CLEANING_TASK_STATUS_TEXT_KEY_MAP[status]
+  return statusKey ? accommodationText(`cleaningStatus.${statusKey}`) : status || accommodationText('cleaningStatus.unknown')
 }
 
 export const getCleaningTaskTypeText = (taskType: string) => {
-  return CLEANING_TASK_TYPE_TEXT_MAP[taskType] || taskType || '未设置'
+  const typeKey = CLEANING_TASK_TYPE_TEXT_KEY_MAP[taskType]
+  return typeKey ? accommodationText(`cleaningType.${typeKey}`) : taskType || accommodationText('cleaningType.unset')
 }
 
 export const getCleaningTaskStatusClass = (status: string) => {
@@ -168,5 +159,5 @@ export const resolveUserLabel = (nickname?: string, email?: string) => {
   if (email) {
     return email
   }
-  return '系统'
+  return accommodationText('system')
 }

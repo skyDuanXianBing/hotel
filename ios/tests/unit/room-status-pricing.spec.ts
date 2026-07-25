@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { RoomPriceManagementDTO } from '@/api/roomPrice'
+import { i18n } from '@/locales'
 import {
   buildRoomStatusDailyPricingMap,
   formatRoomStatusPrice,
@@ -71,11 +72,27 @@ describe('room status daily pricing', () => {
     )
   })
 
-  test('formats a positive price with two decimal places', () => {
-    expect(formatRoomStatusPrice(288)).toBe('¥288.00')
-    expect(formatRoomStatusPrice(288.5)).toBe('¥288.50')
-    expect(formatRoomStatusPrice(288.567)).toBe('¥288.57')
+  test('formats a positive price with the temporary CNY compatibility currency', () => {
+    const symbol = String.fromCharCode(0xa5)
+
+    expect(formatRoomStatusPrice(288)).toBe(`${symbol}288.00`)
+    expect(formatRoomStatusPrice(288.5, 'JPY')).toBe(`${symbol}288.50`)
+    expect(formatRoomStatusPrice(288.567, 'USD')).toBe(`${symbol}288.57`)
     expect(formatRoomStatusPrice(0)).toBe('')
+  })
+
+  test('formats CNY prices with the zh-CN currency symbol regardless of app locale', () => {
+    const previousLocale = i18n.global.locale.value
+
+    try {
+      i18n.global.locale.value = 'zh-TW'
+      expect(formatRoomStatusPrice(25000, 'CNY')).toBe('¥25,000.00')
+
+      i18n.global.locale.value = 'en'
+      expect(formatRoomStatusPrice(25000, 'CNY')).toBe('¥25,000.00')
+    } finally {
+      i18n.global.locale.value = previousLocale
+    }
   })
 
   test('falls back to the room type default price only for the default source', () => {

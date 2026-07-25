@@ -35,9 +35,12 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { IonButton, IonCard, IonCardContent } from '@ionic/vue'
 import { computed } from 'vue'
 import { normalizeChannelCode, type ChannelViewModel } from '@/components/channel/channelUtils'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   item: ChannelViewModel
@@ -158,14 +161,14 @@ const compactStatusLabel = computed(() => {
   }
 
   if (props.item.mappingReady) {
-    return '已设置'
+    return t('channel.list.connected')
   }
 
   if (props.item.mappingStatus && props.item.suChannelId) {
-    return '待补齐'
+    return t('iosStage5.channel.incomplete')
   }
 
-  return '已连接'
+  return t('channel.mapping.statuses.connected')
 })
 
 const stateClass = computed(() => {
@@ -186,14 +189,14 @@ const summaryText = computed(() => {
   }
 
   if (props.item.mappingReady) {
-    return '已完成授权与核心映射。'
+    return t('stage5Pattern.operationCompleted')
   }
 
   if (props.item.mappingStatus && props.item.suChannelId) {
-    return '已授权，继续补齐映射。'
+    return t('stage5Final.channel.authorizedNeedsMapping')
   }
 
-  return '已授权，可进入详情继续管理。'
+  return t('stage5Final.channel.authorizedManage')
 })
 
 const showSummary = computed(() => Boolean(summaryText.value))
@@ -208,11 +211,11 @@ const metaChips = computed(() => {
   const rateCount = props.item.mappingStatus.activeRatePlanCount
 
   if (roomCount > 0) {
-    chips.push(`房型 ${roomCount}`)
+    chips.push(t('accommodation.common.roomType') + ` ${roomCount}`)
   }
 
   if (rateCount > 0) {
-    chips.push(`价盘 ${rateCount}`)
+    chips.push(t('channel.mobile.common.ratePlans') + ` ${rateCount}`)
   }
 
   return chips
@@ -220,14 +223,14 @@ const metaChips = computed(() => {
 
 const actionText = computed(() => {
   if (!props.item.isConnected) {
-    return '授权'
+    return t('iosStage5.channel.authorization')
   }
 
   if (props.item.mappingReady) {
-    return '管理'
+    return t('home.manage.title')
   }
 
-  return '继续'
+  return t('stage5.common.actions.continue')
 })
 </script>
 
@@ -242,24 +245,24 @@ const actionText = computed(() => {
 }
 
 .channel-overview-card__content {
-  --channel-logo-width: clamp(124px, 40vw, 152px);
-  --channel-column-gap: clamp(18px, 8.4vw, 34px);
+  --channel-logo-width: clamp(104px, 32vw, 124px);
+  --channel-column-gap: clamp(12px, 4vw, 16px);
   display: grid;
   grid-template-columns: var(--channel-logo-width) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) 24px;
+  grid-template-rows: minmax(96px, auto);
   column-gap: var(--channel-column-gap);
-  row-gap: 9px;
-  min-height: 102px;
+  align-items: center;
   padding: 18px 14px 20px;
 }
 
 .channel-overview-card__main {
   grid-column: 1 / -1;
-  grid-row: 1 / -1;
+  grid-row: 1;
   display: grid;
   grid-template-columns: var(--channel-logo-width) minmax(0, 1fr);
-  align-items: start;
+  align-items: center;
   column-gap: var(--channel-column-gap);
+  min-height: 96px;
   min-width: 0;
   width: 100%;
   padding: 0;
@@ -271,13 +274,15 @@ const actionText = computed(() => {
 
 .channel-overview-card__body {
   display: grid;
-  align-content: start;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  align-self: stretch;
+  align-items: center;
   min-width: 0;
-  padding-top: 4px;
 }
 
 .channel-overview-card__headline {
-  display: block;
+  grid-row: 1;
+  display: flex;
   align-items: center;
   min-width: 0;
 }
@@ -325,26 +330,31 @@ const actionText = computed(() => {
 }
 
 .channel-overview-card__chips {
+  grid-row: 2;
   display: flex;
-  flex-wrap: nowrap;
-  gap: 14px;
-  margin-top: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-self: center;
+  margin: 0;
 }
 
 .channel-overview-card__chip {
   display: inline-flex;
+  flex: 1 1 0;
   align-items: center;
   justify-content: center;
   min-width: 0;
-  min-height: 20px;
-  padding: 0 10px;
+  min-height: 24px;
+  padding: 4px 7px;
   border-radius: 4px;
   background: var(--channel-brand-soft);
   color: var(--channel-brand-accent, var(--ion-color-primary));
   font-size: 12px;
   font-weight: 400;
-  line-height: 20px;
-  white-space: nowrap;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .channel-overview-card__state {
@@ -363,12 +373,13 @@ const actionText = computed(() => {
 
 .channel-overview-card__action {
   grid-column: 2;
-  grid-row: 2;
+  grid-row: 1;
+  align-self: end;
   z-index: 2;
   width: 100%;
-  height: 24px;
+  height: auto;
   min-width: 0;
-  min-height: 24px;
+  min-height: 32px;
   margin: 0;
   --background: var(--channel-brand-accent, var(--ion-color-primary));
   --color: var(--channel-brand-button-text, #ffffff);
@@ -379,6 +390,15 @@ const actionText = computed(() => {
   font-size: 13px;
   font-weight: 400;
   letter-spacing: 0;
+}
+
+.channel-overview-card__action::part(native) {
+  min-width: 0;
+  min-height: 32px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  line-height: 1.2;
+  white-space: normal;
 }
 
 .channel-overview-card__action--soft {
@@ -392,8 +412,8 @@ const actionText = computed(() => {
 
 @media (max-width: 360px) {
   .channel-overview-card__content {
-    --channel-logo-width: clamp(118px, 40vw, 136px);
-    --channel-column-gap: 18px;
+    --channel-logo-width: clamp(92px, 30vw, 108px);
+    --channel-column-gap: 10px;
     padding-right: 12px;
     padding-left: 12px;
   }

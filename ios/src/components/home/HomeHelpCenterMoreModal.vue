@@ -10,11 +10,11 @@
         <section class="mobile-card home-help-center-modal-card">
           <div class="home-help-center-modal-card__header">
             <div>
-              <h2 class="mobile-section-title">更多帮助</h2>
+              <h2 class="mobile-section-title">{{ t('home.section.moreHelp') }}</h2>
             </div>
 
             <ion-button fill="outline" size="small" @click="handleContactSupport">
-              联系客服
+              {{ t('home.section.contactSupport') }}
             </ion-button>
           </div>
 
@@ -32,7 +32,7 @@
             <ion-icon :icon="chevronForwardOutline" />
           </button>
 
-          <ion-button fill="outline" @click="handleDismiss">关闭</ion-button>
+          <ion-button fill="outline" @click="handleDismiss">{{ t('home.section.close') }}</ion-button>
         </section>
       </div>
     </ion-content>
@@ -42,7 +42,10 @@
 <script setup lang="ts">
 import { IonButton, IonContent, IonIcon, IonModal } from '@ionic/vue'
 import { chevronForwardOutline } from 'ionicons/icons'
+import { useI18n } from 'vue-i18n'
 import type { HomeHelpCenterItem } from '@/components/home/HomeHelpCenter.vue'
+
+const { t } = useI18n()
 
 interface Props {
   isOpen: boolean

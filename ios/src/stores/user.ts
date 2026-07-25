@@ -7,6 +7,7 @@ import type { UserDTO } from '@/types/auth'
 import { getStoredUser, writeStoredJson, USER_KEY } from '@/utils/storage'
 import { clearAutoLoginCredentials } from '@/utils/autoLogin'
 import { clearCleanerSession } from '@/utils/cleanerSession'
+import { i18n } from '@/locales'
 
 export const useUserStore = defineStore('user', () => {
   const currentUser = ref<UserDTO | null>(null)
@@ -38,7 +39,7 @@ export const useUserStore = defineStore('user', () => {
     try {
       const response = await getCurrentUser()
       if (!response.success || !response.data) {
-        throw new Error(response.message || '获取用户信息失败')
+        throw new Error(response.message || i18n.global.t('runtime.user.loadFailed'))
       }
 
       setUser(response.data)

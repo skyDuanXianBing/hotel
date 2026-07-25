@@ -2,7 +2,9 @@
   <ion-page>
     <ion-header translucent>
       <ion-toolbar class="app-page-header__toolbar">
-        <ion-title class="app-page-header__title">公开入住登记</ion-title>
+        <ion-title class="app-page-header__title public-page-header__title">
+          {{ t('routeTitle') }}
+        </ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -194,7 +196,7 @@
                 <img
                   class="public-passport-card__image"
                   :src="buildAttachmentPreviewUrl(activeGuestAttachment.id)"
-                  alt="passport"
+                  :alt="t('passportImageAlt')"
                 />
                 <div class="public-passport-card__actions">
                   <ion-button fill="outline" size="small" @click="handleOpenPassportPreview">{{ t('preview') }}</ion-button>
@@ -268,7 +270,11 @@
       <ion-modal :is-open="passportPreviewOpen" @didDismiss="handleClosePassportPreview">
         <ion-content class="public-passport-modal">
           <div class="public-passport-modal__body">
-            <img v-if="passportPreviewUrl" :src="passportPreviewUrl" alt="passport preview" />
+            <img
+              v-if="passportPreviewUrl"
+              :src="passportPreviewUrl"
+              :alt="t('passportPreviewAlt')"
+            />
           </div>
         </ion-content>
       </ion-modal>
@@ -279,7 +285,7 @@
 <script setup lang="ts">
 import { IonButton, IonChip, IonContent, IonHeader, IonLabel, IonModal, IonPage, IonSpinner, IonTitle, IonToolbar } from '@ionic/vue'
 import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   buildPublicRegistrationAttachmentUrl,
   downloadPublicRegistrationAttachment,
@@ -288,6 +294,7 @@ import {
   submitPublicRegistration,
   uploadPublicRegistrationPassport,
 } from '@/api/publicRegistration'
+import { usePublicRegistrationI18n } from '@/composables/usePublicRegistrationI18n'
 import type {
   PublicRegistrationAttachment,
   PublicRegistrationGuest,
@@ -299,224 +306,24 @@ import {
   compressImageIfNeeded,
   downloadBlobFile,
   findLatestPassportAttachment,
-  formatPublicDate,
-  formatPublicDateTime,
+  formatPublicDate as formatPublicDateValue,
+  formatPublicDateTime as formatPublicDateTimeValue,
   normalizeExternalLink,
-  resolvePublicRegistrationLanguage,
+  resolvePublicRegistrationErrorKey,
   resolveRegistrationStatusColor,
-  writePublicRegistrationLanguage,
 } from '@/utils/publicRegistration'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
+import { isHandledPublicRequestError } from '@/utils/publicRequest'
 
 const route = useRoute()
+const router = useRouter()
 
-const languageOptions: Array<{ value: PublicRegistrationLanguage; shortLabel: string }> = [
-  { value: 'en', shortLabel: 'EN' },
-  { value: 'ja', shortLabel: 'JA' },
-  { value: 'zh', shortLabel: '中文' },
-  { value: 'ko', shortLabel: 'KO' },
-]
-
-const translations = {
-  en: {
-    heroEyebrow: 'Guest Form',
-    title: 'Registration Form',
-    subtitle: 'Fill in each guest information and submit for review.',
-    bookingNumber: 'Booking',
-    stay: 'Stay',
-    status: 'Status',
-    loading: 'Loading form...',
-    loadFailed: 'Failed to load form',
-    retry: 'Retry',
-    guestName: 'Guest',
-    guestCount: 'Guests',
-    lastSavedAt: 'Last saved',
-    guest: 'Guest',
-    guestSubtitle: 'Please complete the required fields carefully.',
-    residenceType: 'Residence',
-    residenceJapan: 'Japan',
-    residenceOther: 'Other than Japan',
-    birthday: 'Birthday',
-    firstName: 'First name',
-    lastName: 'Last name',
-    phone: 'Phone',
-    address: 'Address',
-    passportNumber: 'Passport number',
-    nationality: 'Nationality',
-    address1: 'Address 1',
-    address2: 'Address 2',
-    city: 'City',
-    state: 'State',
-    country: 'Country',
-    priorStay: 'Previous location',
-    nextDestination: 'Next destination',
-    passportPhoto: 'Passport photo',
-    preview: 'Preview',
-    download: 'Download',
-    previous: 'Previous',
-    saveDraft: 'Save draft',
-    next: 'Next',
-    reviewAndSubmit: 'Review & Submit',
-    reviewNotice: 'Please confirm all guest data before sending.',
-    submit: 'Submit',
-    approvedTitle: 'Approved',
-    guideNotice: 'The check-in guide is ready.',
-    openGuide: 'Open guide',
-    draft: 'Draft',
-    submitted: 'Submitted',
-    approved: 'Approved',
-    rejected: 'Rejected',
-  },
-  ja: {
-    heroEyebrow: 'Guest Form',
-    title: '宿泊者名簿',
-    subtitle: '各宿泊者情報を入力し、確認後に送信してください。',
-    bookingNumber: '予約番号',
-    stay: '宿泊期間',
-    status: '状態',
-    loading: 'フォームを読み込み中...',
-    loadFailed: 'フォームの読み込みに失敗しました',
-    retry: '再試行',
-    guestName: '宿泊者',
-    guestCount: '宿泊人数',
-    lastSavedAt: '最終保存',
-    guest: '宿泊者',
-    guestSubtitle: '必須項目を確認しながら入力してください。',
-    residenceType: '居住地',
-    residenceJapan: '日本',
-    residenceOther: '海外',
-    birthday: '生年月日',
-    firstName: '名',
-    lastName: '姓',
-    phone: '電話番号',
-    address: '住所',
-    passportNumber: '旅券番号',
-    nationality: '国籍',
-    address1: '住所1',
-    address2: '住所2',
-    city: '市区町村',
-    state: '都道府県',
-    country: '国',
-    priorStay: '前泊地',
-    nextDestination: '行先',
-    passportPhoto: '旅券画像',
-    preview: 'プレビュー',
-    download: '保存',
-    previous: '戻る',
-    saveDraft: '下書き保存',
-    next: '次へ',
-    reviewAndSubmit: '確認して送信',
-    reviewNotice: '送信前に宿泊者情報をご確認ください。',
-    submit: '送信',
-    approvedTitle: '承認済み',
-    guideNotice: 'チェックインガイドを確認できます。',
-    openGuide: 'ガイドを開く',
-    draft: '未提出',
-    submitted: '提出済み',
-    approved: '承認済み',
-    rejected: '要再提出',
-  },
-  zh: {
-    heroEyebrow: '住客登记表',
-    title: '入住登记表',
-    subtitle: '请逐位填写入住人信息，并在确认后提交审查。',
-    bookingNumber: '预订号',
-    stay: '入住期间',
-    status: '状态',
-    loading: '正在加载登记表...',
-    loadFailed: '登记表加载失败',
-    retry: '重试',
-    guestName: '客人',
-    guestCount: '入住人数',
-    lastSavedAt: '最后保存',
-    guest: '入住人',
-    guestSubtitle: '请认真填写必填信息。',
-    residenceType: '居住地',
-    residenceJapan: '日本',
-    residenceOther: '海外',
-    birthday: '出生日期',
-    firstName: '名',
-    lastName: '姓',
-    phone: '电话',
-    address: '住址',
-    passportNumber: '护照号',
-    nationality: '国籍',
-    address1: '地址1',
-    address2: '地址2',
-    city: '城市',
-    state: '州',
-    country: '国家',
-    priorStay: '前泊地',
-    nextDestination: '行先',
-    passportPhoto: '护照照片',
-    preview: '预览',
-    download: '下载',
-    previous: '上一步',
-    saveDraft: '保存草稿',
-    next: '下一步',
-    reviewAndSubmit: '确认并提交',
-    reviewNotice: '提交前请再次确认所有入住人信息。',
-    submit: '提交',
-    approvedTitle: '已通过审查',
-    guideNotice: '现在可以查看入住指南。',
-    openGuide: '打开指南',
-    draft: '未提交',
-    submitted: '已提交',
-    approved: '已通过',
-    rejected: '需重填',
-  },
-  ko: {
-    heroEyebrow: 'Guest Form',
-    title: '투숙자 등록 폼',
-    subtitle: '각 투숙객 정보를 입력하고 확인 후 제출하세요.',
-    bookingNumber: '예약 번호',
-    stay: '숙박 기간',
-    status: '상태',
-    loading: '폼을 불러오는 중...',
-    loadFailed: '폼을 불러오지 못했습니다',
-    retry: '다시 시도',
-    guestName: '투숙객',
-    guestCount: '숙박 인원',
-    lastSavedAt: '마지막 저장',
-    guest: '투숙객',
-    guestSubtitle: '필수 정보를 정확히 입력해 주세요.',
-    residenceType: '거주지',
-    residenceJapan: '일본',
-    residenceOther: '해외',
-    birthday: '생년월일',
-    firstName: '이름',
-    lastName: '성',
-    phone: '전화번호',
-    address: '주소',
-    passportNumber: '여권번호',
-    nationality: '국적',
-    address1: '주소1',
-    address2: '주소2',
-    city: '도시',
-    state: '주',
-    country: '국가',
-    priorStay: '이전 숙박지',
-    nextDestination: '다음 목적지',
-    passportPhoto: '여권 사진',
-    preview: '미리보기',
-    download: '다운로드',
-    previous: '이전',
-    saveDraft: '임시 저장',
-    next: '다음',
-    reviewAndSubmit: '확인 후 제출',
-    reviewNotice: '제출 전에 투숙객 정보를 다시 확인하세요.',
-    submit: '제출',
-    approvedTitle: '승인됨',
-    guideNotice: '체크인 가이드를 확인할 수 있습니다.',
-    openGuide: '가이드 열기',
-    draft: '미제출',
-    submitted: '제출됨',
-    approved: '승인됨',
-    rejected: '재작성 필요',
-  },
-}
-
-const selectedLanguage = ref<PublicRegistrationLanguage>(resolvePublicRegistrationLanguage(route.query.lang))
+const {
+  t,
+  locale: selectedLanguage,
+  languageOptions,
+  setLocale,
+} = usePublicRegistrationI18n('form', () => route.query.lang)
 const registration = ref<PublicRegistrationResponse | null>(null)
 const guestForms = ref<PublicRegistrationGuest[]>([])
 const loading = ref(false)
@@ -529,6 +336,12 @@ const passportPreviewUrl = ref('')
 
 const orderNumber = computed(() => String(route.params.orderNumber || ''))
 const token = computed(() => String(route.query.t || ''))
+const formatPublicDate = (value?: string | null) => {
+  return formatPublicDateValue(value, selectedLanguage.value)
+}
+const formatPublicDateTime = (value?: string | null) => {
+  return formatPublicDateTimeValue(value, selectedLanguage.value)
+}
 const currentGuest = computed(() => {
   if (activeStepIndex.value >= guestForms.value.length) {
     return null
@@ -553,8 +366,8 @@ const activeGuestAttachment = computed<PublicRegistrationAttachment | null>(() =
 })
 const normalizedGuideLink = computed(() => normalizeExternalLink(registration.value?.checkInGuideLink))
 
-const t = (key: keyof (typeof translations)['zh']) => {
-  return translations[selectedLanguage.value][key]
+const requiredMessage = (field: string) => {
+  return t('required', { field })
 }
 
 const statusLabel = (status?: RegistrationFormStatus) => {
@@ -584,7 +397,7 @@ const applyRegistration = (response: PublicRegistrationResponse) => {
 
 const loadRegistration = async () => {
   if (!orderNumber.value || !token.value) {
-    errorMessage.value = '缺少 orderNumber 或 t 参数'
+    errorMessage.value = t('missingParams')
     return
   }
 
@@ -594,13 +407,15 @@ const loadRegistration = async () => {
   try {
     const response = await getPublicRegistration(orderNumber.value, token.value)
     if (!response.success || !response.data) {
-      errorMessage.value = response.message || t('loadFailed')
+      errorMessage.value = t(resolvePublicRegistrationErrorKey(response.message))
       return
     }
 
     applyRegistration(response.data)
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : t('loadFailed')
+    errorMessage.value = t(
+      resolvePublicRegistrationErrorKey(error instanceof Error ? error.message : null),
+    )
   } finally {
     loading.value = false
   }
@@ -610,47 +425,47 @@ const validateGuest = (guest: PublicRegistrationGuest) => {
   const errors: string[] = []
 
   if (!String(guest.firstName || '').trim()) {
-    errors.push(`${t('firstName')}不能为空`)
+    errors.push(requiredMessage(t('firstName')))
   }
 
   if (!String(guest.lastName || '').trim()) {
-    errors.push(`${t('lastName')}不能为空`)
+    errors.push(requiredMessage(t('lastName')))
   }
 
   if (!String(guest.phone || '').trim()) {
-    errors.push(`${t('phone')}不能为空`)
+    errors.push(requiredMessage(t('phone')))
   }
 
   if (!String(guest.birthday || '').trim()) {
-    errors.push(`${t('birthday')}不能为空`)
+    errors.push(requiredMessage(t('birthday')))
   }
 
   if (guest.residenceType === 'OTHER') {
     if (!String(guest.passportNumber || '').trim()) {
-      errors.push(`${t('passportNumber')}不能为空`)
+      errors.push(requiredMessage(t('passportNumber')))
     }
 
     if (!String(guest.nationality || '').trim()) {
-      errors.push(`${t('nationality')}不能为空`)
+      errors.push(requiredMessage(t('nationality')))
     }
 
     if (!String(guest.address1 || '').trim()) {
-      errors.push(`${t('address1')}不能为空`)
+      errors.push(requiredMessage(t('address1')))
     }
 
     if (!String(guest.city || '').trim()) {
-      errors.push(`${t('city')}不能为空`)
+      errors.push(requiredMessage(t('city')))
     }
 
     if (!String(guest.country || '').trim()) {
-      errors.push(`${t('country')}不能为空`)
+      errors.push(requiredMessage(t('country')))
     }
 
     if (!findLatestPassportAttachment(registration.value?.attachments, guest.id)) {
-      errors.push(`${t('passportPhoto')}不能为空`)
+      errors.push(requiredMessage(t('passportPhoto')))
     }
   } else if (!String(guest.address || '').trim()) {
-    errors.push(`${t('address')}不能为空`)
+    errors.push(requiredMessage(t('address')))
   }
 
   return errors
@@ -684,14 +499,23 @@ const handleSaveDraft = async () => {
   try {
     const response = await savePublicRegistration(orderNumber.value, token.value, buildSavePayload())
     if (!response.success || !response.data) {
-      showWarningToast(response.message || '保存失败')
+      showWarningToast(t(resolvePublicRegistrationErrorKey(response.message, 'saveFailed')))
       return
     }
 
     applyRegistration(response.data)
-    showSuccessToast('草稿已保存')
-  } catch {
-    return
+    showSuccessToast(t('draftSaved'))
+  } catch (error) {
+    if (!isHandledPublicRequestError(error)) {
+      showWarningToast(
+        t(
+          resolvePublicRegistrationErrorKey(
+            error instanceof Error ? error.message : null,
+            'saveFailed',
+          ),
+        ),
+      )
+    }
   } finally {
     saving.value = false
   }
@@ -735,20 +559,29 @@ const handleSubmit = async () => {
   try {
     const saveResponse = await savePublicRegistration(orderNumber.value, token.value, buildSavePayload())
     if (!saveResponse.success || !saveResponse.data) {
-      showWarningToast(saveResponse.message || '保存失败')
+      showWarningToast(t(resolvePublicRegistrationErrorKey(saveResponse.message, 'saveFailed')))
       return
     }
 
     const submitResponse = await submitPublicRegistration(orderNumber.value, token.value)
     if (!submitResponse.success || !submitResponse.data) {
-      showWarningToast(submitResponse.message || '提交失败')
+      showWarningToast(t(resolvePublicRegistrationErrorKey(submitResponse.message, 'submitFailed')))
       return
     }
 
     applyRegistration(submitResponse.data)
-    showSuccessToast('登记表已提交')
-  } catch {
-    return
+    showSuccessToast(t('submittedSuccess'))
+  } catch (error) {
+    if (!isHandledPublicRequestError(error)) {
+      showWarningToast(
+        t(
+          resolvePublicRegistrationErrorKey(
+            error instanceof Error ? error.message : null,
+            'submitFailed',
+          ),
+        ),
+      )
+    }
   } finally {
     submitting.value = false
   }
@@ -771,7 +604,9 @@ const handlePassportFileChange = async (event: Event) => {
     )
 
     if (!response.success || !response.data || !registration.value) {
-      showWarningToast(response.message || '护照上传失败')
+      showWarningToast(
+        t(resolvePublicRegistrationErrorKey(response.message, 'passportUploadFailed')),
+      )
       return
     }
 
@@ -793,9 +628,18 @@ const handlePassportFileChange = async (event: Event) => {
       attachments: filteredAttachments,
     }
 
-    showSuccessToast('护照上传成功')
-  } catch {
-    return
+    showSuccessToast(t('passportUploaded'))
+  } catch (error) {
+    if (!isHandledPublicRequestError(error)) {
+      showWarningToast(
+        t(
+          resolvePublicRegistrationErrorKey(
+            error instanceof Error ? error.message : null,
+            'passportUploadFailed',
+          ),
+        ),
+      )
+    }
   } finally {
     inputElement.value = ''
   }
@@ -839,8 +683,13 @@ const handleDownloadPassport = async () => {
 }
 
 const handleChangeLanguage = (language: PublicRegistrationLanguage) => {
-  selectedLanguage.value = language
-  writePublicRegistrationLanguage(language)
+  setLocale(language)
+  void router.replace({
+    query: {
+      ...route.query,
+      lang: language,
+    },
+  })
 }
 
 const handleOpenGuide = () => {

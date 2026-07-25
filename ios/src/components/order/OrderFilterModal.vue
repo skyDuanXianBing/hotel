@@ -12,9 +12,11 @@
         <section class="filter-modal__header">
           <div class="filter-modal__context">
             <p class="filter-modal__title">{{ activeTabLabel }}</p>
-            <p class="filter-modal__subtitle">按条件组合筛选当前订单列表</p>
+            <p class="filter-modal__subtitle">{{ $t('order.mobile.filterDescription') }}</p>
           </div>
-          <button type="button" class="filter-modal__close" @click="$emit('dismiss')">关闭</button>
+          <button type="button" class="filter-modal__close" @click="$emit('dismiss')">
+            {{ $t('iosStage5.roomStatus.close') }}
+          </button>
         </section>
 
         <section class="filter-modal__anchors">
@@ -30,20 +32,7 @@
           </button>
         </section>
 
-        <section v-if="activePanel === 'date'" class="filter-modal__section">
-          <div class="filter-modal__grid filter-modal__grid--tight">
-            <button
-              v-for="item in dateTypeOptions"
-              :key="item.value"
-              type="button"
-              class="filter-modal__pill"
-              :class="{ 'is-active': dateType === item.value }"
-              @click="dateType = item.value"
-            >
-              {{ item.label }}
-            </button>
-          </div>
-
+        <section v-if="activePanel === 'date' && isDateRangeTab" class="filter-modal__section">
           <div class="filter-modal__grid filter-modal__grid--tight filter-modal__grid--stacked">
             <button
               v-for="item in dateShortcutOptions"
@@ -59,12 +48,33 @@
 
           <div class="filter-modal__date-inputs">
             <label class="filter-modal__date-field">
-              <span>开始日期</span>
+              <span>{{ $t('accommodation.common.startDate') }}</span>
               <ion-input v-model="form.startDate" type="date" fill="outline" />
             </label>
             <label class="filter-modal__date-field">
-              <span>结束日期</span>
+              <span>{{ $t('accommodation.common.endDate') }}</span>
               <ion-input v-model="form.endDate" type="date" fill="outline" />
+            </label>
+          </div>
+        </section>
+        <section v-else-if="activePanel === 'date' && isOperationDateTab" class="filter-modal__section">
+          <div class="filter-modal__grid filter-modal__grid--tight filter-modal__grid--stacked">
+            <button
+              v-for="item in dateShortcutOptions"
+              :key="item.value"
+              type="button"
+              class="filter-modal__pill"
+              :class="{ 'is-active': activeDateShortcut === item.value }"
+              @click="applyDateShortcut(item.value)"
+            >
+              {{ item.label }}
+            </button>
+          </div>
+
+          <div class="filter-modal__date-inputs">
+            <label class="filter-modal__date-field">
+              <span>{{ operationDateLabel }}</span>
+              <ion-input v-model="form.operationDate" type="date" fill="outline" />
             </label>
           </div>
         </section>
@@ -77,7 +87,7 @@
               :class="{ 'is-active': form.roomType.length === 0 }"
               @click="form.roomType = []"
             >
-              全部房间
+              {{ $t('order.mobile.allRooms') }}
             </button>
             <button
               v-for="item in roomTypes"
@@ -100,7 +110,7 @@
               :class="{ 'is-active': form.channel.length === 0 }"
               @click="form.channel = []"
             >
-              全部渠道
+              {{ $t('order.mobile.allChannels') }}
             </button>
             <button
               v-for="item in channels"
@@ -162,10 +172,10 @@
 
         <footer class="filter-modal__footer">
           <ion-button expand="block" fill="outline" class="filter-modal__footer-btn" @click="handleReset">
-            重置
+            {{ $t('accommodation.common.reset') }}
           </ion-button>
           <ion-button expand="block" class="filter-modal__footer-btn filter-modal__footer-btn--primary" @click="handleApply">
-            确认
+            {{ $t('common.confirm') }}
           </ion-button>
         </footer>
       </div>
@@ -176,6 +186,7 @@
 <script setup lang="ts">
 import { IonButton, IonContent, IonInput, IonModal } from '@ionic/vue'
 import { computed, nextTick, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   createDefaultOrderFilters,
   getOrderTabLabel,
@@ -187,7 +198,6 @@ import { getStoreTodayDate, shiftBusinessDate } from '@/utils/storeBusinessDate'
 
 type FilterPanelKey = 'date' | 'roomType' | 'channel' | 'status' | 'paymentStatus' | 'checkinType'
 type DateShortcutKey = 'yesterday' | 'today' | 'tomorrow' | 'recent7' | 'recent30'
-type DateTypeKey = 'checkin' | 'checkout' | 'created'
 type MultiSelectField = 'roomType' | 'channel'
 
 const props = defineProps<{
@@ -198,6 +208,7 @@ const props = defineProps<{
   initialFilters: OrderFilterForm
   initialPanel?: FilterPanelKey
 }>()
+const { t } = useI18n()
 
 const emit = defineEmits<{
   dismiss: []
@@ -207,52 +218,73 @@ const emit = defineEmits<{
 
 const form = ref<OrderFilterForm>(createDefaultOrderFilters())
 const activePanel = ref<FilterPanelKey>('date')
-const dateType = ref<DateTypeKey>('checkout')
 const activeDateShortcut = ref<DateShortcutKey | ''>('')
 let isApplyingDateShortcut = false
 
-const panelTabs: Array<{ key: FilterPanelKey; label: string }> = [
-  { key: 'date', label: '时间' },
-  { key: 'roomType', label: '房间' },
-  { key: 'channel', label: '渠道' },
-  { key: 'status', label: '入住状态' },
-  { key: 'paymentStatus', label: '房费' },
-  { key: 'checkinType', label: '入住类型' },
-]
+const isDateRangeTab = computed(() => props.activeTab === 'all')
+const isOperationDateTab = computed(() => {
+  return ['today-checkin', 'today-checkout', 'today-new'].includes(props.activeTab)
+})
+const showDatePanel = computed(() => isDateRangeTab.value || isOperationDateTab.value)
 
-const dateTypeOptions: Array<{ label: string; value: DateTypeKey }> = [
-  { label: '入住时间', value: 'checkin' },
-  { label: '退房时间', value: 'checkout' },
-  { label: '下单时间', value: 'created' },
-]
+const operationDateLabel = computed(() => {
+  if (props.activeTab === 'today-checkin') {
+    return t('order.filters.todayCheckinDate')
+  }
+  if (props.activeTab === 'today-checkout') {
+    return t('order.filters.todayCheckoutDate')
+  }
+  if (props.activeTab === 'today-new') {
+    return t('order.filters.todayNewDate')
+  }
+  return t('order.filters.operationDate')
+})
 
-const dateShortcutOptions: Array<{ label: string; value: DateShortcutKey }> = [
-  { label: '昨日', value: 'yesterday' },
-  { label: '今天', value: 'today' },
-  { label: '明日', value: 'tomorrow' },
-  { label: '最近7天', value: 'recent7' },
-  { label: '最近30天', value: 'recent30' },
-]
+const panelTabs = computed<Array<{ key: FilterPanelKey; label: string }>>(() => [
+  ...(showDatePanel.value
+    ? [{
+        key: 'date' as FilterPanelKey,
+        label: isDateRangeTab.value ? t('order.filters.createdAt') : operationDateLabel.value,
+      }]
+    : []),
+  { key: 'roomType', label: t('order.filters.roomType') },
+  { key: 'channel', label: t('order.filters.channel') },
+  { key: 'status', label: t('order.filters.stayStatus') },
+  { key: 'paymentStatus', label: t('order.table.roomFee') },
+  { key: 'checkinType', label: t('order.filters.checkinType') },
+])
 
-const statusOptions = [
-  { label: '全部状态', value: '' },
-  { label: '已入住', value: 'checked-in' },
-  { label: '未入住', value: 'not-checked-in' },
-  { label: '已退房', value: 'checked-out' },
-]
+const dateShortcutOptions = computed<Array<{ label: string; value: DateShortcutKey }>>(() => [
+  { label: t('order.mobile.yesterday'), value: 'yesterday' },
+  { label: t('order.mobile.today'), value: 'today' },
+  { label: t('order.mobile.tomorrow'), value: 'tomorrow' },
+  ...(isDateRangeTab.value
+    ? [
+        { label: t('order.mobile.recent7Days'), value: 'recent7' as DateShortcutKey },
+        { label: t('order.mobile.recent30Days'), value: 'recent30' as DateShortcutKey },
+      ]
+    : []),
+])
 
-const paymentStatusOptions = [
-  { label: '全部房费', value: '' },
-  { label: '已结清', value: 'paid' },
-  { label: '未结清', value: 'unpaid' },
-]
+const statusOptions = computed(() => [
+  { label: t('order.mobile.allStatus'), value: '' },
+  { label: t('order.options.checkedIn'), value: 'checked-in' },
+  { label: t('order.options.notCheckedIn'), value: 'not-checked-in' },
+  { label: t('order.options.checkedOut'), value: 'checked-out' },
+])
 
-const checkinTypeOptions = [
-  { label: '全部类型', value: '' },
-  { label: '正常入住', value: 'normal' },
-  { label: '提前入住', value: 'early' },
-  { label: '延迟入住', value: 'late' },
-]
+const paymentStatusOptions = computed(() => [
+  { label: t('order.mobile.allRoomFees'), value: '' },
+  { label: t('order.options.paid'), value: 'paid' },
+  { label: t('order.options.unpaid'), value: 'unpaid' },
+])
+
+const checkinTypeOptions = computed(() => [
+  { label: t('order.mobile.allStayTypes'), value: '' },
+  { label: t('order.options.normalCheckin'), value: 'normal' },
+  { label: t('order.options.earlyCheckin'), value: 'early' },
+  { label: t('order.options.lateCheckin'), value: 'late' },
+])
 
 const activeTabLabel = computed(() => getOrderTabLabel(props.activeTab))
 
@@ -265,13 +297,21 @@ function cloneFilters(filters: OrderFilterForm): OrderFilterForm {
     paymentStatus: filters.paymentStatus,
     startDate: filters.startDate,
     endDate: filters.endDate,
+    operationDate: filters.operationDate,
   }
+}
+
+function resolvePanel(panel?: FilterPanelKey) {
+  if (panel === 'date' && !showDatePanel.value) {
+    return 'roomType'
+  }
+  return panel || (showDatePanel.value ? 'date' : 'roomType')
 }
 
 function resetForm() {
   form.value = cloneFilters(props.initialFilters)
   activeDateShortcut.value = ''
-  activePanel.value = props.initialPanel || 'date'
+  activePanel.value = resolvePanel(props.initialPanel)
 }
 
 function applyDateShortcut(type: DateShortcutKey) {
@@ -292,8 +332,13 @@ function applyDateShortcut(type: DateShortcutKey) {
     startDate = shiftBusinessDate(today, -29)
   }
 
-  form.value.startDate = startDate
-  form.value.endDate = endDate
+  if (isOperationDateTab.value) {
+    form.value.operationDate = startDate
+  } else {
+    form.value.startDate = startDate
+    form.value.endDate = endDate
+  }
+
   activeDateShortcut.value = type
   void nextTick(() => {
     isApplyingDateShortcut = false
@@ -312,6 +357,17 @@ function toggleMultiSelectValue(field: MultiSelectField, value: string) {
 }
 
 function handleApply() {
+  if (isDateRangeTab.value) {
+    if (form.value.startDate && !form.value.endDate) {
+      form.value.endDate = form.value.startDate
+    } else if (!form.value.startDate && form.value.endDate) {
+      form.value.startDate = form.value.endDate
+    }
+  } else if (isOperationDateTab.value) {
+    form.value.startDate = ''
+    form.value.endDate = ''
+  }
+
   emit('apply', cloneFilters(form.value))
 }
 
@@ -333,19 +389,24 @@ watch(
 watch(
   () => props.initialPanel,
   (panel) => {
-    if (panel) {
-      activePanel.value = panel
-    }
+    activePanel.value = resolvePanel(panel)
   },
 )
 
 watch(
-  () => [form.value.startDate, form.value.endDate],
+  () => [form.value.startDate, form.value.endDate, form.value.operationDate],
   () => {
     if (isApplyingDateShortcut) {
       return
     }
     activeDateShortcut.value = ''
+  },
+)
+
+watch(
+  () => props.activeTab,
+  () => {
+    activePanel.value = resolvePanel(activePanel.value)
   },
 )
 </script>

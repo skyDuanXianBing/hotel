@@ -21,6 +21,7 @@ import {
   getStoredToken,
 } from '@/utils/storage'
 import { API_BASE_URL } from '@/constants/api'
+import { i18n } from '@/locales'
 import type { LoginByPasswordRequest, LoginResponse } from '@/types/auth'
 import { showErrorToast, sanitizeUserFacingMessage } from '@/utils/notify'
 
@@ -37,6 +38,8 @@ const AUTHENTICATION_FREE_PATHS = [
 const PUBLIC_ROUTE_PREFIXES = ['/public/']
 
 let silentReauthPromise: Promise<UnifiedLoginSessionResult | null> | null = null
+
+const requestMessage = (key: string) => i18n.global.t(`request.${key}`)
 
 const trimLeadingSlash = (value: string) => value.replace(/^\/+/, '')
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
@@ -248,7 +251,7 @@ const restoredSessionMatchesRoute = (sessionResult: UnifiedLoginSessionResult, r
 
 const handleRestoredSessionRouteMismatch = async (status?: number) => {
   await handleRecoveredUnifiedSessionRedirect(false)
-  throw buildHandledError('登录身份已更新，请重新打开页面', status)
+  throw buildHandledError(requestMessage('sessionChanged'), status)
 }
 
 const ensureUnifiedSessionIfNeeded = async (force = false, validateRestoredTarget = false) => {
@@ -397,7 +400,7 @@ const handleUnauthorized = async (clearAutoLogin = false) => {
   })
   useAuthStore().clearToken()
 
-  showErrorToast('登录已过期，请重新登录')
+  showErrorToast(requestMessage('sessionExpired'))
 
   const redirectPath = ROUTE_PATHS.login
 
@@ -476,7 +479,7 @@ const executeRequest = async <T>(config: RequestConfig, responseType: 'json' | '
     }
 
     if (!response.ok) {
-      const message = resolveErrorMessage(payload, response.statusText || '请求失败')
+      const message = resolveErrorMessage(payload, response.statusText || requestMessage('failed'))
       const shouldSuppressErrorToast =
         config.suppressErrorToast === true ||
         config.suppressErrorStatuses?.includes(response.status) === true
@@ -510,13 +513,13 @@ const executeRequest = async <T>(config: RequestConfig, responseType: 'json' | '
         await handleUnauthorized(canRecoverUnauthorized)
       } else if (!shouldSuppressErrorToast) {
         if (response.status === 403) {
-          showErrorToast(message || '您没有权限执行此操作')
+          showErrorToast(message || requestMessage('forbidden'))
         } else {
-          showErrorToast(message || '请求失败')
+          showErrorToast(message || requestMessage('failed'))
         }
       }
 
-      throw buildHandledError(message || '请求失败', response.status)
+      throw buildHandledError(message || requestMessage('failed'), response.status)
     }
 
     if (responseType === 'blob') {
@@ -535,13 +538,15 @@ const executeRequest = async <T>(config: RequestConfig, responseType: 'json' | '
       }
 
       if (!config.suppressErrorToast) {
-        showErrorToast('请求超时，请稍后重试')
+        showErrorToast(requestMessage('timeout'))
       }
-      throw buildHandledError('请求超时，请稍后重试')
+      throw buildHandledError(requestMessage('timeout'))
     }
 
     const message =
-      error instanceof Error && error.message ? sanitizeUserFacingMessage(error.message) : '网络异常，请稍后重试'
+      error instanceof Error && error.message
+        ? sanitizeUserFacingMessage(error.message)
+        : requestMessage('networkError')
 
     if (!config.suppressErrorToast) {
       showErrorToast(message)

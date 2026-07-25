@@ -3,7 +3,7 @@
     <div class="mobile-app-background" aria-hidden="true"></div>
     <ion-router-outlet id="app-router-outlet" />
     <div id="app-overlay-root"></div>
-    <ion-loading :is-open="appStore.isRestoring" message="正在恢复会话..." />
+    <ion-loading :is-open="appStore.isRestoring" :message="t('app.restoringSession')" />
     <ion-toast
       :is-open="appStore.toastOpen"
       :message="appStore.toastMessage"
@@ -20,6 +20,7 @@
 import { App as CapacitorApp } from '@capacitor/app'
 import { IonApp, IonLoading, IonRouterOutlet, IonToast } from '@ionic/vue'
 import { onBeforeUnmount, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppNotificationOverlay from '@/components/global/AppNotificationOverlay.vue'
 import { useAppStore } from '@/stores/app'
 import { hasCleanerSession, hasCleanerStore } from '@/utils/cleanerSession'
@@ -27,6 +28,7 @@ import { APP_TOAST_EVENT_NAME, type AppToastEventDetail } from '@/utils/notify'
 import { restoreUnifiedSessionIfNeeded } from '@/utils/request'
 
 const appStore = useAppStore()
+const { t } = useI18n()
 let removeAppStateListener: (() => void) | null = null
 
 const handleToastEvent: EventListener = (event) => {

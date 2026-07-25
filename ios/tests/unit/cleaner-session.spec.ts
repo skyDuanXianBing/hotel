@@ -1,6 +1,8 @@
 import { describe, expect, test, beforeEach, afterEach, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import router from '@/router'
+import { i18n } from '@/locales'
 import type { LoginResponse, UserDTO } from '@/types/auth'
 import type { StoreDTO } from '@/types/store'
 import request, { isHandledRequestError } from '@/utils/request'
@@ -12,8 +14,83 @@ import {
   readCleanerUser,
 } from '@/utils/cleanerSession'
 import { applyUnifiedLoginResponse } from '@/utils/loginSessionResolver'
-import { resolveDefaultAuthenticatedPath, ROUTE_PATHS } from '@/router/guards'
+import {
+  registerRouterGuards,
+  resolveDefaultAuthenticatedPath,
+  ROUTE_PATHS,
+} from '@/router/guards'
 import { saveAutoLoginCredentials } from '@/utils/autoLogin'
+
+vi.mock('@/router', async () => {
+  const { shallowRef } = await import('vue')
+  const currentRoute = shallowRef({
+    path: '/',
+    fullPath: '/',
+    query: {},
+    params: {},
+    hash: '',
+    name: undefined,
+    matched: [],
+    meta: {},
+    redirectedFrom: undefined,
+  })
+
+  return {
+    default: {
+      currentRoute,
+      replace: vi.fn(async (path: string) => {
+        currentRoute.value = {
+          ...currentRoute.value,
+          path,
+          fullPath: path,
+        }
+      }),
+    },
+  }
+})
+
+const createCleanerTestRouter = () => {
+  const testRouter = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      {
+        path: ROUTE_PATHS.login,
+        name: 'Login',
+        component: { template: '<div />' },
+        meta: { publicOnly: true },
+      },
+      {
+        path: ROUTE_PATHS.cleanerLogin,
+        name: 'CleanerLogin',
+        redirect: (to) => ({
+          path: ROUTE_PATHS.login,
+          query: {
+            ...to.query,
+            workspace: 'CLEANER',
+          },
+        }),
+      },
+      {
+        path: ROUTE_PATHS.home,
+        name: 'Home',
+        component: { template: '<div />' },
+        meta: { requiresAuth: true, requiresStore: true },
+      },
+      {
+        path: ROUTE_PATHS.cleanerDashboard,
+        name: 'CleanerDashboard',
+        component: { template: '<div />' },
+        meta: { requiresCleanerAuth: true, requiresCleanerStore: true },
+      },
+    ],
+  })
+  const disposeGuards = registerRouterGuards(testRouter)
+
+  return {
+    router: testRouter,
+    disposeGuards,
+  }
+}
 
 const buildUser = (overrides: Partial<UserDTO> = {}): UserDTO => ({
   id: 10,
@@ -82,6 +159,14 @@ describe('cleaner session routing', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     window.localStorage.clear()
+    i18n.global.locale.value = 'zh-CN'
+    router.currentRoute.value = {
+      ...router.currentRoute.value,
+      path: '/',
+      fullPath: '/',
+      query: {},
+    }
+    vi.mocked(router.replace).mockClear()
   })
 
   afterEach(() => {
@@ -141,21 +226,28 @@ describe('cleaner session routing', () => {
     )
     window.localStorage.setItem(CLEANER_STORE_KEY, JSON.stringify({ id: 2 }))
 
-    await router.push(ROUTE_PATHS.home)
+    const { router: isolatedRouter, disposeGuards } = createCleanerTestRouter()
 
-    expect(router.currentRoute.value.path).toBe(ROUTE_PATHS.cleanerDashboard)
+    await isolatedRouter.push(ROUTE_PATHS.home)
+
+    expect(isolatedRouter.currentRoute.value.path).toBe(ROUTE_PATHS.cleanerDashboard)
+    disposeGuards()
   })
 
   test('redirects the legacy cleaner login route to unified login and preserves query', async () => {
-    await router.push({
+    const { router: isolatedRouter, disposeGuards } = createCleanerTestRouter()
+
+    await isolatedRouter.push({
       path: ROUTE_PATHS.cleanerLogin,
       query: {
         email: 'cleaner@example.com',
       },
     })
 
-    expect(router.currentRoute.value.path).toBe(ROUTE_PATHS.login)
-    expect(router.currentRoute.value.query.email).toBe('cleaner@example.com')
+    expect(isolatedRouter.currentRoute.value.path).toBe(ROUTE_PATHS.login)
+    expect(isolatedRouter.currentRoute.value.query.email).toBe('cleaner@example.com')
+    expect(isolatedRouter.currentRoute.value.query.workspace).toBe('CLEANER')
+    disposeGuards()
   })
 
   test('redirects incomplete cleaner sessions without a store back to unified login', async () => {
@@ -171,9 +263,11 @@ describe('cleaner session routing', () => {
       }),
     )
 
-    await router.push(ROUTE_PATHS.cleanerDashboard)
+    const { router: isolatedRouter, disposeGuards } = createCleanerTestRouter()
+    await isolatedRouter.push(ROUTE_PATHS.cleanerDashboard)
 
-    expect(router.currentRoute.value.path).toBe(ROUTE_PATHS.login)
+    expect(isolatedRouter.currentRoute.value.path).toBe(ROUTE_PATHS.login)
+    disposeGuards()
   })
 
   test('applies PMS login target and clears stale cleaner session', () => {
@@ -276,65 +370,70 @@ describe('cleaner session routing', () => {
   })
 
   test('stops a stale admin route request when silent reauth restores a cleaner target', async () => {
-    const adminStore = buildStore({ id: 1, name: '前台门店' })
-    const expiringAdminToken = createFakeJwt(Date.now() + 1_000)
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const requestUrl = String(input)
+      const adminStore = buildStore({ id: 1, name: '前台门店' })
+      const expiringAdminToken = createFakeJwt(Date.now() + 1_000)
+      const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const requestUrl = String(input)
 
-      if (requestUrl.includes('/auth/login/password')) {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            data: buildCleanerPayload(),
-          }),
-          {
-            status: 200,
-            headers: {
-              'Content-Type': 'application/json',
+        if (requestUrl.includes('/auth/login/password')) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: buildCleanerPayload(),
+            }),
+            {
+              status: 200,
+              headers: {
+                'Content-Type': 'application/json',
+              },
             },
+          )
+        }
+
+        return new Response(JSON.stringify({ success: true, data: [] }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
           },
-        )
+        })
+      })
+
+      vi.stubGlobal('fetch', fetchMock)
+      window.localStorage.setItem('token', expiringAdminToken)
+      window.localStorage.setItem('currentStore', JSON.stringify(adminStore))
+
+      await saveAutoLoginCredentials({
+        email: 'member@example.com',
+        password: 'password123',
+        token: expiringAdminToken,
+        preferredLoginTarget: 'CLEANER',
+      })
+      router.currentRoute.value = {
+        ...router.currentRoute.value,
+        path: ROUTE_PATHS.home,
+        fullPath: ROUTE_PATHS.home,
       }
 
-      return new Response(JSON.stringify({ success: true, data: [] }), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      let caughtError: unknown = null
+      try {
+        await request.get('/rooms')
+      } catch (error) {
+        caughtError = error
+      }
+
+      expect(isHandledRequestError(caughtError)).toBe(true)
+      expect(caughtError).toBeInstanceOf(Error)
+      expect((caughtError as Error).message).toBe(i18n.global.t('request.sessionChanged'))
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(String(fetchMock.mock.calls[0][0])).toContain('/auth/login/password')
+      expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
+        email: 'member@example.com',
+        password: 'password123',
+        rememberMe: true,
+        preferredLoginTarget: 'CLEANER',
       })
-    })
-
-    vi.stubGlobal('fetch', fetchMock)
-    window.localStorage.setItem('token', expiringAdminToken)
-    window.localStorage.setItem('currentStore', JSON.stringify(adminStore))
-
-    await saveAutoLoginCredentials({
-      email: 'member@example.com',
-      password: 'password123',
-      token: expiringAdminToken,
-      preferredLoginTarget: 'CLEANER',
-    })
-    await router.push(ROUTE_PATHS.home)
-
-    let caughtError: unknown = null
-    try {
-      await request.get('/rooms')
-    } catch (error) {
-      caughtError = error
-    }
-
-    expect(isHandledRequestError(caughtError)).toBe(true)
-    expect(caughtError).toBeInstanceOf(Error)
-    expect((caughtError as Error).message).toBe('登录身份已更新，请重新打开页面')
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(String(fetchMock.mock.calls[0][0])).toContain('/auth/login/password')
-    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
-      email: 'member@example.com',
-      password: 'password123',
-      rememberMe: true,
-      preferredLoginTarget: 'CLEANER',
-    })
-    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/rooms'))).toBe(false)
-    expect(router.currentRoute.value.path).toBe(ROUTE_PATHS.cleanerDashboard)
+      expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/rooms'))).toBe(false)
+      expect(router.currentRoute.value.path).toBe(ROUTE_PATHS.cleanerDashboard)
+      expect(router.replace).toHaveBeenCalledWith(ROUTE_PATHS.cleanerDashboard)
   })
 })

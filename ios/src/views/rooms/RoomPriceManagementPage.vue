@@ -5,10 +5,10 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.rooms" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">房价管理</ion-title>
+        <ion-title class="app-page-header__title">{{ $t('routes.RoomsPricing') }}</ion-title>
         <ion-buttons slot="end">
           <ion-button class="room-price-page__history-button" @click="handleOpenHistory">
-            改价记录
+            {{ $t('accommodation.layout.priceChangeHistory') }}
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
@@ -16,27 +16,27 @@
 
     <ion-content fullscreen class="mobile-page room-price-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新房价" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('stage5UiAttributes.5')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <section class="mobile-hero room-price-page__hero">
-        <p class="mobile-note room-price-page__eyebrow">住宿运营</p>
-        <h1 class="mobile-title">房价管理</h1>
-        <p class="mobile-subtitle">移动端提供长周期运营矩阵、批量更新、导出与单元格编辑，补齐房价管理核心闭环。</p>
+        <p class="mobile-note room-price-page__eyebrow">{{ $t('stage5VisibleText.121') }}</p>
+        <h1 class="mobile-title">{{ $t('routes.RoomsPricing') }}</h1>
+        <p class="mobile-subtitle">{{ $t('stage5VisibleText.219') }}</p>
         <div class="mobile-chip-row">
-          <span class="mobile-chip">起始日 {{ formatDate(selectedDate) }}</span>
-          <span class="mobile-chip">连续 {{ windowDays }} 天</span>
+          <span class="mobile-chip">{{ $t('stage5DynamicUi.136') }} {{ formatDate(selectedDate) }}</span>
+          <span class="mobile-chip">{{ $t('stage5DynamicUi.137') }} {{ windowDays }} {{ $t('accommodation.common.dayUnit') }}</span>
         </div>
       </section>
 
       <div class="mobile-stack">
         <section class="mobile-card room-price-page__toolbar-card">
           <div class="room-price-page__toolbar-row">
-            <ion-button fill="outline" size="small" @click="handleShiftDate(-7)">上周</ion-button>
-            <ion-button fill="outline" size="small" @click="handleShiftDate(-1)">前一天</ion-button>
-            <ion-button fill="outline" size="small" @click="handleGoToday">今天</ion-button>
-            <ion-button fill="outline" size="small" @click="handleShiftDate(1)">后一天</ion-button>
-            <ion-button fill="outline" size="small" @click="handleShiftDate(7)">下周</ion-button>
+            <ion-button fill="outline" size="small" @click="handleShiftDate(-7)">{{ $t('accommodation.roomPrice.previousWeek') }}</ion-button>
+            <ion-button fill="outline" size="small" @click="handleShiftDate(-1)">{{ $t('accommodation.roomPrice.previousDay') }}</ion-button>
+            <ion-button fill="outline" size="small" @click="handleGoToday">{{ $t('accommodation.common.today') }}</ion-button>
+            <ion-button fill="outline" size="small" @click="handleShiftDate(1)">{{ $t('accommodation.roomPrice.nextDay') }}</ion-button>
+            <ion-button fill="outline" size="small" @click="handleShiftDate(7)">{{ $t('accommodation.roomPrice.nextWeek') }}</ion-button>
           </div>
 
           <div class="room-price-page__toolbar-row room-price-page__toolbar-row--compact">
@@ -48,20 +48,20 @@
               type="button"
               @click="handleChangeWindowDays(preset)"
             >
-              {{ preset }} 天
+              {{ preset }} {{ $t('accommodation.common.dayUnit') }}
             </button>
           </div>
 
           <div class="room-price-page__filter-grid">
             <label class="room-price-page__field">
-              <span>起始日期</span>
+              <span>{{ $t('stage5VisibleText.232') }}</span>
               <input :value="selectedDate" type="date" @input="handleDateInput" />
             </label>
 
             <label class="room-price-page__field">
-              <span>房型筛选</span>
+              <span>{{ $t('accommodation.roomPrice.roomTypeFilter') }}</span>
               <select :value="roomTypeSelectValue" @change="handleRoomTypeChange">
-                <option value="">全部房型</option>
+                <option value="">{{ $t('accommodation.priceHistory.allRoomTypes') }}</option>
                 <option v-for="roomType in roomTypes" :key="roomType.id" :value="String(roomType.id)">
                   {{ roomType.name }}
                 </option>
@@ -69,9 +69,9 @@
             </label>
 
             <label class="room-price-page__field">
-              <span>分组筛选</span>
+              <span>{{ $t('accommodation.roomPrice.groupFilter') }}</span>
               <select :value="roomGroupSelectValue" @change="handleRoomGroupChange">
-                <option value="">全部分组</option>
+                <option value="">{{ $t('channel.mobile.mapping.filters.allGroups') }}</option>
                 <option v-for="group in roomGroups" :key="group.id" :value="String(group.id)">
                   {{ group.name }}
                 </option>
@@ -80,8 +80,8 @@
           </div>
 
           <div class="room-price-page__toolbar-row room-price-page__toolbar-row--actions">
-            <ion-button fill="outline" @click="handleExportCurrentView">导出 CSV</ion-button>
-            <ion-button @click="handleOpenBulkUpdate">批量更新</ion-button>
+            <ion-button fill="outline" @click="handleExportCurrentView">{{ $t('stage5VisibleText.153') }}</ion-button>
+            <ion-button @click="handleOpenBulkUpdate">{{ $t('accommodation.roomPrice.bulkUpdate') }}</ion-button>
           </div>
 
           <p v-if="errorMessage" class="mobile-note room-price-page__error">{{ errorMessage }}</p>
@@ -90,24 +90,24 @@
         <section class="mobile-card">
           <div class="mobile-inline-row room-price-page__section-header">
             <div>
-              <h2 class="mobile-section-title">运营矩阵</h2>
-              <p class="mobile-note">横向查看 {{ windowDays }} 天价格，点击任意单元格可进入区间编辑。</p>
+              <h2 class="mobile-section-title">{{ $t('stage5VisibleText.233') }}</h2>
+              <p class="mobile-note">{{ $t('stage5DynamicUi.130') }} {{ windowDays }} {{ $t('stage5DynamicUi.106') }}</p>
             </div>
             <ion-spinner v-if="loading" name="crescent" />
           </div>
 
           <div class="mobile-chip-row room-price-page__summary-row">
-            <span class="mobile-chip">房型 {{ summaryMetrics.roomTypeCount }} 个</span>
-            <span class="mobile-chip">价格计划 {{ summaryMetrics.planCount }} 个</span>
-            <span class="mobile-chip">售罄/关房 {{ summaryMetrics.unavailableCellCount }} 天</span>
+            <span class="mobile-chip">{{ $t('accommodation.common.roomType') }} {{ summaryMetrics.roomTypeCount }} {{ $t('stage5DynamicUi.87') }}</span>
+            <span class="mobile-chip">{{ $t('accommodation.roomPriceBulk.table.pricePlan') }} {{ summaryMetrics.planCount }} {{ $t('stage5DynamicUi.87') }}</span>
+            <span class="mobile-chip">{{ $t('stage5DynamicUi.104') }} {{ summaryMetrics.unavailableCellCount }} {{ $t('accommodation.common.dayUnit') }}</span>
           </div>
 
           <div v-if="matrixRows.length > 0" class="room-price-page__matrix-shell">
             <div class="room-price-page__matrix-scroll">
               <div class="room-price-page__matrix-row room-price-page__matrix-row--header" :style="matrixGridStyle">
                 <div class="room-price-page__matrix-leading room-price-page__matrix-leading--header">
-                  <strong>房型 / 价格计划</strong>
-                  <span>点击单元格编辑</span>
+                  <strong>{{ $t('stage5VisibleText.173') }}</strong>
+                  <span>{{ $t('stage5VisibleText.214') }}</span>
                 </div>
                 <div
                   v-for="day in dateWindow"
@@ -129,7 +129,7 @@
                 <div class="room-price-page__matrix-leading room-price-page__matrix-leading--body">
                   <strong>{{ row.roomTypeName }}</strong>
                   <span>{{ row.pricePlanName }}</span>
-                  <small>{{ row.roomTypeCode || '未设置编码' }}</small>
+                  <small>{{ row.roomTypeCode || $t('stage5DynamicUi.51') }}</small>
                 </div>
 
                 <button
@@ -148,15 +148,15 @@
             </div>
           </div>
 
-          <p v-else-if="!loading" class="mobile-note">当前日期范围暂无可展示的运营房价数据。</p>
+          <p v-else-if="!loading" class="mobile-note">{{ $t('stage5VisibleText.165') }}</p>
         </section>
 
         <section class="mobile-card">
-          <h2 class="mobile-section-title">移动端操作提示</h2>
+          <h2 class="mobile-section-title">{{ $t('stage5VisibleText.220') }}</h2>
           <ul class="mobile-bullet-list">
-            <li>支持 7 / 14 / 30 天矩阵浏览，长周期通过横向滚动查看。</li>
-            <li>支持批量更新多个房型、多个日期段与星期模板。</li>
-            <li>支持导出当前筛选窗口的 CSV 明细，便于移动端快速下发。</li>
+            <li>{{ $t('stage5VisibleText.187') }}</li>
+            <li>{{ $t('stage5VisibleText.190') }}</li>
+            <li>{{ $t('stage5VisibleText.189') }}</li>
           </ul>
         </section>
       </div>
@@ -164,9 +164,9 @@
       <ion-modal :is-open="editorOpen" @didDismiss="handleCloseEditor">
         <ion-header>
           <ion-toolbar>
-            <ion-title>编辑房价</ion-title>
+            <ion-title>{{ $t('settingsStage4.pricePlan.dialog.editRate') }}</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="handleCloseEditor">关闭</ion-button>
+              <ion-button @click="handleCloseEditor">{{ $t('home.section.close') }}</ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -190,31 +190,31 @@
                 {{ getPriceSourceText(editorRecord) }} · {{ getStayRestrictionText(editorRecord) }}
               </p>
               <p v-if="editorRecord.priceLabsBasePrice !== undefined && editorRecord.priceLabsBasePrice !== null" class="mobile-note">
-                PriceLabs 基价 {{ formatCurrency(editorRecord.priceLabsBasePrice) }}，最近同步 {{ formatDateTime(editorRecord.priceLabsUpdatedAt) }}
+                {{ $t('stage5DynamicUi.79') }} {{ formatMoney(editorRecord.priceLabsBasePrice) }}{{ $t('stage5DynamicUi.145') }} {{ formatDateTime(editorRecord.priceLabsUpdatedAt) }}
               </p>
               <p v-if="editorRecord.manualOverrideUntil" class="mobile-note">
-                手动覆盖有效至 {{ formatDate(editorRecord.manualOverrideUntil) }}
+                {{ $t('stage5DynamicUi.116') }} {{ formatDate(editorRecord.manualOverrideUntil) }}
               </p>
             </div>
 
             <div class="room-price-page__filter-grid">
               <label class="room-price-page__field">
-                <span>开始日期</span>
+                <span>{{ $t('accommodation.common.startDate') }}</span>
                 <input v-model="editorForm.startDate" type="date" />
               </label>
 
               <label class="room-price-page__field">
-                <span>结束日期</span>
+                <span>{{ $t('accommodation.common.endDate') }}</span>
                 <input v-model="editorForm.endDate" type="date" />
               </label>
 
               <label class="room-price-page__field room-price-page__field--full">
-                <span>编辑项</span>
+                <span>{{ $t('stage5VisibleText.223') }}</span>
                 <select v-model="editorForm.settingType">
-                  <option value="price">价格</option>
-                  <option value="minStay">最小入住天数</option>
-                  <option value="maxStay">最大入住天数</option>
-                  <option value="closeRoom">关房</option>
+                  <option value="price">{{ $t('accommodation.roomPrice.settingType.price') }}</option>
+                  <option value="minStay">{{ $t('accommodation.roomPrice.settingType.minStay') }}</option>
+                  <option value="maxStay">{{ $t('accommodation.roomPrice.settingType.maxStay') }}</option>
+                  <option value="closeRoom">{{ $t('accommodation.roomPrice.closeRoom') }}</option>
                   <option value="cta">CTA</option>
                   <option value="ctd">CTD</option>
                 </select>
@@ -223,10 +223,10 @@
 
             <div class="room-price-page__weekday-section">
               <div class="room-price-page__weekday-header">
-                <span>适用星期</span>
+                <span>{{ $t('stage5VisibleText.236') }}</span>
                 <div class="room-price-page__weekday-actions">
-                  <ion-button fill="clear" size="small" @click="handleSelectAllWeekdays">全选</ion-button>
-                  <ion-button fill="clear" size="small" @click="handleInvertWeekdays">反选</ion-button>
+                  <ion-button fill="clear" size="small" @click="handleSelectAllWeekdays">{{ $t('roomStatus.filterDrawer.selectAll') }}</ion-button>
+                  <ion-button fill="clear" size="small" @click="handleInvertWeekdays">{{ $t('accommodation.roomPrice.invertSelection') }}</ion-button>
                 </div>
               </div>
               <div class="room-price-page__weekday-grid">
@@ -245,24 +245,24 @@
             </div>
 
             <label v-if="editorForm.settingType === 'price'" class="room-price-page__field room-price-page__field--full">
-              <span>价格</span>
-              <input v-model="editorForm.price" inputmode="decimal" placeholder="请输入价格" type="number" />
+              <span>{{ $t('accommodation.roomPrice.settingType.price') }}</span>
+              <input v-model="editorForm.price" inputmode="decimal" :placeholder="$t('accommodation.roomPrice.inputPrice')" type="number" />
             </label>
 
             <label v-if="editorForm.settingType === 'minStay'" class="room-price-page__field room-price-page__field--full">
-              <span>最小入住天数</span>
-              <input v-model="editorForm.minStay" inputmode="numeric" placeholder="请输入最小入住天数" type="number" />
+              <span>{{ $t('accommodation.roomPrice.settingType.minStay') }}</span>
+              <input v-model="editorForm.minStay" inputmode="numeric" :placeholder="$t('accommodation.roomPrice.inputMinStay')" type="number" />
             </label>
 
             <label v-if="editorForm.settingType === 'maxStay'" class="room-price-page__field room-price-page__field--full">
-              <span>最大入住天数</span>
-              <input v-model="editorForm.maxStay" inputmode="numeric" placeholder="请输入最大入住天数" type="number" />
+              <span>{{ $t('accommodation.roomPrice.settingType.maxStay') }}</span>
+              <input v-model="editorForm.maxStay" inputmode="numeric" :placeholder="$t('accommodation.roomPrice.inputMaxStay')" type="number" />
             </label>
 
             <div v-if="editorForm.settingType === 'closeRoom'" class="room-price-page__toggle-row">
               <div>
-                <strong>关房</strong>
-                <p>开启后该日期范围不可售。</p>
+                <strong>{{ $t('accommodation.roomPrice.closeRoom') }}</strong>
+                <p>{{ $t('stage5VisibleText.161') }}</p>
               </div>
               <ion-toggle v-model="editorForm.closeRoom" />
             </div>
@@ -270,7 +270,7 @@
             <div v-if="editorForm.settingType === 'cta'" class="room-price-page__toggle-row">
               <div>
                 <strong>CTA</strong>
-                <p>控制该价格是否禁止到店入住。</p>
+                <p>{{ $t('stage5VisibleText.182') }}</p>
               </div>
               <ion-toggle v-model="editorForm.cta" />
             </div>
@@ -278,15 +278,15 @@
             <div v-if="editorForm.settingType === 'ctd'" class="room-price-page__toggle-row">
               <div>
                 <strong>CTD</strong>
-                <p>控制该价格是否禁止离店。</p>
+                <p>{{ $t('stage5VisibleText.183') }}</p>
               </div>
               <ion-toggle v-model="editorForm.ctd" />
             </div>
 
             <div class="room-price-page__editor-actions">
-              <ion-button fill="outline" @click="handleCloseEditor">取消</ion-button>
+              <ion-button fill="outline" @click="handleCloseEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
               <ion-button :disabled="saving" @click="handleSaveEditor">
-                {{ saving ? '保存中...' : '保存修改' }}
+                {{ saving ? $t('channel.mobile.common.saving') : $t('roomStatus.bookingModal.submit.edit') }}
               </ion-button>
             </div>
           </section>
@@ -296,9 +296,9 @@
       <ion-modal :is-open="bulkUpdateOpen" @didDismiss="handleCloseBulkUpdate">
         <ion-header>
           <ion-toolbar>
-            <ion-title>批量更新</ion-title>
+            <ion-title>{{ $t('accommodation.roomPrice.bulkUpdate') }}</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="handleCloseBulkUpdate">关闭</ion-button>
+              <ion-button @click="handleCloseBulkUpdate">{{ $t('home.section.close') }}</ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -306,17 +306,17 @@
         <ion-content class="mobile-page room-price-page__modal-page">
           <section class="mobile-card room-price-page__editor-card">
             <div class="mobile-chip-row">
-              <span class="mobile-chip">房型 {{ bulkForm.roomTypeIds.length }} 个</span>
-              <span class="mobile-chip">日期段 {{ bulkForm.dateRanges.length }} 个</span>
-              <span class="mobile-chip">星期 {{ bulkSelectedWeekdayCountLabel }}</span>
+              <span class="mobile-chip">{{ $t('accommodation.common.roomType') }} {{ bulkForm.roomTypeIds.length }} {{ $t('stage5DynamicUi.87') }}</span>
+              <span class="mobile-chip">{{ $t('stage5DynamicUi.120') }} {{ bulkForm.dateRanges.length }} {{ $t('stage5DynamicUi.87') }}</span>
+              <span class="mobile-chip">{{ $t('accommodation.common.weekday') }} {{ bulkSelectedWeekdayCountLabel }}</span>
             </div>
 
             <div class="room-price-page__bulk-section">
               <div class="room-price-page__bulk-section-header">
-                <strong>1. 选择房型</strong>
+                <strong>{{ $t('stage5VisibleText.102') }}</strong>
                 <div class="room-price-page__weekday-actions">
-                  <ion-button fill="clear" size="small" @click="handleSelectAllBulkRoomTypes">全选</ion-button>
-                  <ion-button fill="clear" size="small" @click="handleClearBulkRoomTypes">清空</ion-button>
+                  <ion-button fill="clear" size="small" @click="handleSelectAllBulkRoomTypes">{{ $t('roomStatus.filterDrawer.selectAll') }}</ion-button>
+                  <ion-button fill="clear" size="small" @click="handleClearBulkRoomTypes">{{ $t('accommodation.roomPriceBulk.clear') }}</ion-button>
                 </div>
               </div>
 
@@ -336,8 +336,8 @@
 
             <div class="room-price-page__bulk-section">
               <div class="room-price-page__bulk-section-header">
-                <strong>2. 选择日期段</strong>
-                <ion-button fill="clear" size="small" @click="handleAddBulkDateRange">添加日期段</ion-button>
+                <strong>{{ $t('stage5VisibleText.103') }}</strong>
+                <ion-button fill="clear" size="small" @click="handleAddBulkDateRange">{{ $t('stage5VisibleText.212') }}</ion-button>
               </div>
 
               <div class="room-price-page__bulk-range-list">
@@ -347,11 +347,11 @@
                   class="room-price-page__bulk-range-item"
                 >
                   <label class="room-price-page__field">
-                    <span>开始日期</span>
+                    <span>{{ $t('accommodation.common.startDate') }}</span>
                     <input v-model="range.startDate" type="date" />
                   </label>
                   <label class="room-price-page__field">
-                    <span>结束日期</span>
+                    <span>{{ $t('accommodation.common.endDate') }}</span>
                     <input v-model="range.endDate" type="date" />
                   </label>
                   <ion-button
@@ -360,7 +360,7 @@
                     color="danger"
                     @click="handleRemoveBulkDateRange(index)"
                   >
-                    删除
+                    {{ $t('roomStatus.roomLock.actions.delete') }}
                   </ion-button>
                 </div>
               </div>
@@ -368,10 +368,10 @@
 
             <div class="room-price-page__bulk-section">
               <div class="room-price-page__bulk-section-header">
-                <strong>3. 适用星期</strong>
+                <strong>{{ $t('stage5VisibleText.104') }}</strong>
                 <div class="room-price-page__weekday-actions">
-                  <ion-button fill="clear" size="small" @click="handleSelectAllBulkWeekdays">全选</ion-button>
-                  <ion-button fill="clear" size="small" @click="handleClearBulkWeekdays">清空</ion-button>
+                  <ion-button fill="clear" size="small" @click="handleSelectAllBulkWeekdays">{{ $t('roomStatus.filterDrawer.selectAll') }}</ion-button>
+                  <ion-button fill="clear" size="small" @click="handleClearBulkWeekdays">{{ $t('accommodation.roomPriceBulk.clear') }}</ion-button>
                 </div>
               </div>
 
@@ -392,34 +392,34 @@
             <div class="room-price-page__bulk-section">
               <div class="room-price-page__toggle-row">
                 <div>
-                  <strong>区分平日 / 周末</strong>
-                  <p>开启后可分别设置平日价与周末价。</p>
+                  <strong>{{ $t('stage5VisibleText.142') }}</strong>
+                  <p>{{ $t('stage5VisibleText.160') }}</p>
                 </div>
                 <ion-toggle v-model="bulkForm.weekendDifferentiation" />
               </div>
 
               <div class="room-price-page__filter-grid">
                 <label class="room-price-page__field">
-                  <span>平日价</span>
-                  <input v-model="bulkForm.weekdayPrice" inputmode="decimal" placeholder="请输入平日价" type="number" />
+                  <span>{{ $t('settingsStage4.roomTypeManagement.fields.weekdayPrice') }}</span>
+                  <input v-model="bulkForm.weekdayPrice" inputmode="decimal" :placeholder="$t('stage5UiAttributes.75')" type="number" />
                 </label>
 
                 <label v-if="bulkForm.weekendDifferentiation" class="room-price-page__field">
-                  <span>周末价</span>
-                  <input v-model="bulkForm.weekendPrice" inputmode="decimal" placeholder="请输入周末价" type="number" />
+                  <span>{{ $t('settingsStage4.roomTypeManagement.fields.weekendPrice') }}</span>
+                  <input v-model="bulkForm.weekendPrice" inputmode="decimal" :placeholder="$t('stage5UiAttributes.68')" type="number" />
                 </label>
 
                 <label class="room-price-page__field room-price-page__field--full">
-                  <span>备注</span>
-                  <textarea v-model="bulkForm.notes" rows="3" placeholder="可选，写入本次批量更新备注"></textarea>
+                  <span>{{ $t('accommodation.common.remarks') }}</span>
+                  <textarea v-model="bulkForm.notes" rows="3" :placeholder="$t('stage5UiAttributes.36')"></textarea>
                 </label>
               </div>
             </div>
 
             <div class="room-price-page__editor-actions">
-              <ion-button fill="outline" @click="handleCloseBulkUpdate">取消</ion-button>
+              <ion-button fill="outline" @click="handleCloseBulkUpdate">{{ $t('accommodation.common.cancel') }}</ion-button>
               <ion-button :disabled="bulkSubmitting" @click="handleSubmitBulkUpdate">
-                {{ bulkSubmitting ? '提交中...' : '应用批量更新' }}
+                {{ bulkSubmitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.31') }}
               </ion-button>
             </div>
           </section>
@@ -446,6 +446,7 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { onIonViewWillEnter } from '@ionic/vue'
 import {
@@ -459,17 +460,21 @@ import {
 import { getAllRoomGroups, getGroupMembers } from '@/api/roomGroup'
 import { getAllRoomTypes, getAllRoomTypesWithRooms, type RoomTypeDTO } from '@/api/roomType'
 import { ROUTE_PATHS } from '@/router/guards'
+import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
 import type { RoomGroupDTO } from '@/types/settings'
 import {
   buildDateWindow,
-  formatCurrency,
   formatDate,
   formatDateTime,
   getTodayDate,
   resolveUserLabel,
   shiftDate,
 } from '@/utils/accommodation'
+import {
+  compareLocalizedText,
+  formatMoney as formatBusinessMoney,
+} from '@/utils/formatters'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
@@ -557,7 +562,9 @@ const MAX_STAY_LIMIT = 99
 const MAX_BULK_DATE_RANGES = 10
 
 const router = useRouter()
+const storeStore = useStoreStore()
 const userStore = useUserStore()
+const { t } = useI18n()
 
 const selectedDate = ref(getTodayDate())
 const windowDays = ref(DEFAULT_WINDOW_DAYS)
@@ -576,26 +583,26 @@ const errorMessage = ref('')
 const editorRecord = ref<RoomPriceManagementDTO | null>(null)
 let hasLoadedReferenceData = false
 
-const weekdayOptions = [
-  { label: '全部', value: 0 },
-  { label: '周一', value: 1 },
-  { label: '周二', value: 2 },
-  { label: '周三', value: 3 },
-  { label: '周四', value: 4 },
-  { label: '周五', value: 5 },
-  { label: '周六', value: 6 },
-  { label: '周日', value: 7 },
-]
+const weekdayOptions = computed(() => [
+  { label: t('home.section.all'), value: 0 },
+  { label: t('accommodation.weekdays.short.1'), value: 1 },
+  { label: t('accommodation.weekdays.short.2'), value: 2 },
+  { label: t('accommodation.weekdays.short.3'), value: 3 },
+  { label: t('accommodation.weekdays.short.4'), value: 4 },
+  { label: t('accommodation.weekdays.short.5'), value: 5 },
+  { label: t('accommodation.weekdays.short.6'), value: 6 },
+  { label: t('accommodation.weekdays.short.7'), value: 7 },
+])
 
-const bulkWeekdayOptions = [
-  { label: '周一', value: 1 },
-  { label: '周二', value: 2 },
-  { label: '周三', value: 3 },
-  { label: '周四', value: 4 },
-  { label: '周五', value: 5 },
-  { label: '周六', value: 6 },
-  { label: '周日', value: 0 },
-]
+const bulkWeekdayOptions = computed(() => [
+  { label: t('accommodation.weekdays.short.1'), value: 1 },
+  { label: t('accommodation.weekdays.short.2'), value: 2 },
+  { label: t('accommodation.weekdays.short.3'), value: 3 },
+  { label: t('accommodation.weekdays.short.4'), value: 4 },
+  { label: t('accommodation.weekdays.short.5'), value: 5 },
+  { label: t('accommodation.weekdays.short.6'), value: 6 },
+  { label: t('accommodation.weekdays.short.7'), value: 0 },
+])
 
 const editorForm = ref<EditorState>({
   roomTypeId: 0,
@@ -630,6 +637,8 @@ const createDefaultBulkForm = (): BulkFormState => ({
 })
 
 const bulkForm = ref<BulkFormState>(createDefaultBulkForm())
+const currentCurrency = computed(() => storeStore.currentStore?.currency || 'CNY')
+const currentMoneyContext = computed(() => ({ country: storeStore.currentStore?.country }))
 
 const dateWindow = computed(() => {
   return buildDateWindow(selectedDate.value, windowDays.value)
@@ -688,7 +697,7 @@ const groupedRecords = computed<RoomPriceGroupView[]>(() => {
   for (const record of filteredRecords.value) {
     const roomTypeId = record.roomTypeId
     const pricePlanId = record.pricePlanId ?? 0
-    const pricePlanName = record.pricePlanName || '未命名价格计划'
+    const pricePlanName = record.pricePlanName || t('accommodation.roomPrice.unnamedPricePlan')
     const roomKey = roomTypeId
     const planKey = `${roomTypeId}-${pricePlanId}`
 
@@ -739,7 +748,7 @@ const groupedRecords = computed<RoomPriceGroupView[]>(() => {
     }
   }
 
-  groups.sort((left, right) => left.roomTypeName.localeCompare(right.roomTypeName, 'zh-CN'))
+  groups.sort((left, right) => compareLocalizedText(left.roomTypeName, right.roomTypeName))
   return groups
 })
 
@@ -781,15 +790,15 @@ const bulkSelectableRoomTypes = computed(() => {
 
       return true
     })
-    .sort((left, right) => left.name.localeCompare(right.name, 'zh-CN'))
+    .sort((left, right) => compareLocalizedText(left.name, right.name))
 })
 
 const bulkSelectedWeekdayCountLabel = computed(() => {
   if (bulkForm.value.weekdays.length === BULK_WEEKDAY_VALUES.length) {
-    return '全部'
+    return t('home.section.all')
   }
 
-  return `${bulkForm.value.weekdays.length} 天`
+  return `${bulkForm.value.weekdays.length} ${t('accommodation.common.dayUnit')}`
 })
 
 const summaryMetrics = computed<SummaryMetrics>(() => {
@@ -816,15 +825,15 @@ const summaryMetrics = computed<SummaryMetrics>(() => {
 
 const editorWeekdayHint = computed(() => {
   if (!editorForm.value.startDate || !editorForm.value.endDate) {
-    return '多天范围会按日期逐天生效，已选星期只过滤范围内命中的日期。'
+    return t('stage5Final.roomPrice.multiDayHint')
   }
 
   const normalizedRange = normalizeDateRange(editorForm.value.startDate, editorForm.value.endDate)
   if (normalizedRange.startDate === normalizedRange.endDate) {
-    return '单天范围选择星期时，将按星期模板兼容保存；只改当天可不选星期。'
+    return t('stage5Final.roomPrice.singleDayHint')
   }
 
-  return '多天范围会按日期逐天生效，已选星期只过滤范围内命中的日期。'
+  return t('stage5Final.roomPrice.multiDayHint')
 })
 
 function resolveWarningMessage(error: unknown, fallbackMessage: string) {
@@ -888,81 +897,87 @@ function isUnavailableRecord(record: RoomPriceManagementDTO | null) {
 
 function getDisplayPriceText(record: RoomPriceManagementDTO | null) {
   if (!record) {
-    return '未配置'
+    return t('stage5DynamicUi.52')
   }
 
-  return formatCurrency(record.price)
+  return formatMoney(record.price)
+}
+
+function formatMoney(value?: number | null) {
+  return formatBusinessMoney(Number(value || 0), currentCurrency.value, {
+    maximumFractionDigits: 0,
+  }, currentMoneyContext.value)
 }
 
 function getAvailabilityText(record: RoomPriceManagementDTO | null) {
   if (!record) {
-    return '暂无房量信息'
+    return t('stage5Final.roomPrice.noInventory')
   }
 
   if (record.closeRoom) {
-    return '已关房'
+    return t('stage5Final.roomPrice.closed')
   }
 
   if (typeof record.availableRooms === 'number') {
     if (record.availableRooms <= 0) {
-      return '已售罄'
+      return t('stage5Final.roomPrice.soldOut')
     }
-    return `可售 ${record.availableRooms} 间`
+    return `${t('accommodation.roomTable.future.available')} ${record.availableRooms} ${t('settingsStage4.common.unitRooms')}`
   }
 
-  return '房量待确认'
+  return t('stage5Final.roomPrice.inventoryPending')
 }
 
 function getAvailabilityCompactText(record: RoomPriceManagementDTO | null) {
   if (!record) {
-    return '未配'
+    return t('stage5Final.roomPrice.notConfigured')
   }
 
   if (record.closeRoom) {
-    return '关房'
+    return t('accommodation.roomPrice.closeRoom')
   }
 
   if (typeof record.availableRooms === 'number') {
     if (record.availableRooms <= 0) {
-      return '售罄'
+      return t('stage5Final.roomPrice.soldOut')
     }
-    return `余${record.availableRooms}`
+    return `${t('stage5DynamicUi.92')} ${record.availableRooms}`
   }
 
-  return '待定'
+  return t('stage5Final.roomPrice.pending')
 }
 
 function getStayRestrictionText(record: RoomPriceManagementDTO | null) {
   if (!record) {
-    return '暂无入住限制'
+    return t('stage5Final.roomPrice.noRestriction')
   }
 
   const minStay = record.minStay ?? 1
   if (record.maxStay) {
-    return `入住 ${minStay}-${record.maxStay} 晚`
+    return `${t('roomStatus.action.checkIn')} ${minStay}-${record.maxStay} ${t('channel.dialogs.bookingSettings.nightUnit')}`
   }
 
-  return `最少入住 ${minStay} 晚`
+  return `${t('stage5DynamicUi.122')} ${minStay} ${t('channel.dialogs.bookingSettings.nightUnit')}`
 }
 
 function getPriceSourceText(record: RoomPriceManagementDTO | null) {
   if (!record?.priceSource) {
-    return '来源：默认周价'
+    return t('stage5Final.roomPrice.sourceDefault')
   }
 
   if (record.priceSource === 'MANUAL') {
-    return '来源：手动覆盖'
+    return t('stage5Final.roomPrice.sourceManual')
   }
 
   if (record.priceSource === 'PRICELABS') {
-    return '来源：PriceLabs'
+    return t('stage5Final.roomPrice.sourcePriceLabs')
   }
 
   if (record.priceSource === 'SYSTEM') {
-    return '来源：系统周价'
+    return t('stage5Final.roomPrice.sourceSystem')
   }
 
-  return `来源：${record.priceSource}`
+  return `${t('stage5DynamicUi.129')}${record.priceSource}`
 }
 
 function getStatusTags(record: RoomPriceManagementDTO | null) {
@@ -974,14 +989,14 @@ function getStatusTags(record: RoomPriceManagementDTO | null) {
 
   if (typeof record.availableRooms === 'number') {
     if (record.availableRooms <= 0) {
-      tags.push('售罄')
+      tags.push(t('stage5Final.roomPrice.soldOut'))
     } else {
-      tags.push(`余房 ${record.availableRooms}`)
+      tags.push(t('stage5Final.roomPrice.remainingRooms', { count: record.availableRooms }))
     }
   }
 
   if (record.closeRoom) {
-    tags.push('关房')
+    tags.push(t('accommodation.roomPrice.closeRoom'))
   }
   if (record.cta) {
     tags.push('CTA')
@@ -990,7 +1005,7 @@ function getStatusTags(record: RoomPriceManagementDTO | null) {
     tags.push('CTD')
   }
   if (record.manualOverride) {
-    tags.push('手动覆盖')
+    tags.push(t('stage5Final.roomPrice.manualOverride'))
   }
   if (record.priceLabsBasePrice !== undefined && record.priceLabsBasePrice !== null) {
     tags.push('PriceLabs')
@@ -1001,19 +1016,23 @@ function getStatusTags(record: RoomPriceManagementDTO | null) {
 
 function getMatrixStatusText(record: RoomPriceManagementDTO | null) {
   if (!record) {
-    return '未配置'
+    return t('stage5DynamicUi.52')
   }
 
-  const tags = getStatusTags(record).filter((tag) => tag !== '手动覆盖' && tag !== 'PriceLabs')
+  const tags = getStatusTags(record).filter(
+    (tag) => tag !== t('stage5Final.roomPrice.soldOut') && tag !== 'PriceLabs',
+  )
   if (tags.length > 0) {
     return tags.slice(0, 2).join(' · ')
   }
 
   if (record.manualOverride) {
-    return '手动覆盖'
+    return t('stage5Final.roomPrice.manualOverride')
   }
 
-  return record.minStay && record.minStay > 1 ? `最少 ${record.minStay} 晚` : '可编辑'
+  return record.minStay && record.minStay > 1
+    ? t('stage5Final.roomPrice.minimumStay', { count: record.minStay })
+    : t('stage5Final.roomPrice.defaultStatus')
 }
 
 function getDateCardClass(record: RoomPriceManagementDTO | null) {
@@ -1053,24 +1072,24 @@ function downloadCsvFile(filename: string, content: string) {
 
 function handleExportCurrentView() {
   if (matrixRows.value.length === 0) {
-    showWarningToast('当前没有可导出的房价数据')
+    showWarningToast(t('stage5Final.roomPrice.noExportData'))
     return
   }
 
   const header = [
-    '房型',
-    '房型编码',
-    '价格计划',
-    '日期',
-    '价格',
-    '可售房量',
-    '最小入住',
-    '最大入住',
-    '关房',
+    t('stage5Final.roomPrice.csv.roomType'),
+    t('stage5Final.roomPrice.csv.roomTypeCode'),
+    t('stage5Final.roomPrice.csv.pricePlan'),
+    t('stage5Final.roomPrice.csv.date'),
+    t('stage5Final.roomPrice.csv.price'),
+    t('stage5Final.roomPrice.csv.availableRooms'),
+    t('stage5Final.roomPrice.csv.minStay'),
+    t('stage5Final.roomPrice.csv.maxStay'),
+    t('stage5Final.roomPrice.csv.closeRoom'),
     'CTA',
     'CTD',
-    '价格来源',
-    '备注',
+    t('stage5Final.roomPrice.csv.priceSource'),
+    t('stage5Final.roomPrice.csv.notes'),
   ]
 
   const rows: string[] = [header.map((item) => escapeCsvValue(item)).join(',')]
@@ -1087,9 +1106,15 @@ function handleExportCurrentView() {
           cell.record?.availableRooms ?? '',
           cell.record?.minStay ?? '',
           cell.record?.maxStay ?? '',
-          cell.record?.closeRoom ? '是' : '否',
-          cell.record?.cta ? '是' : '否',
-          cell.record?.ctd ? '是' : '否',
+          cell.record?.closeRoom
+            ? t('stage5Final.roomPrice.csv.yes')
+            : t('stage5Final.roomPrice.csv.no'),
+          cell.record?.cta
+            ? t('stage5Final.roomPrice.csv.yes')
+            : t('stage5Final.roomPrice.csv.no'),
+          cell.record?.ctd
+            ? t('stage5Final.roomPrice.csv.yes')
+            : t('stage5Final.roomPrice.csv.no'),
           cell.record?.priceSource || '',
           cell.record?.notes || '',
         ]
@@ -1100,7 +1125,7 @@ function handleExportCurrentView() {
   }
 
   downloadCsvFile(`room-price-${selectedDate.value}-${windowDays.value}d.csv`, rows.join('\n'))
-  showSuccessToast('房价 CSV 已导出')
+  showSuccessToast(t('stage5Final.roomPrice.exportCompleted'))
 }
 
 async function loadReferenceData() {
@@ -1111,7 +1136,7 @@ async function loadReferenceData() {
   ])
 
   if (!roomTypeResponse.success || !roomTypeResponse.data) {
-    throw new Error(roomTypeResponse.message || '加载房型失败')
+    throw new Error(roomTypeResponse.message || t('settingsStage4.roomSort.messages.loadRoomTypesFailed'))
   }
 
   roomTypes.value = roomTypeResponse.data
@@ -1181,7 +1206,7 @@ async function loadPriceData() {
   )
 
   if (!response.success || !response.data) {
-    throw new Error(response.message || '加载房价失败')
+    throw new Error(response.message || t('stage5Pattern.loadFailed'))
   }
 
   records.value = response.data
@@ -1198,7 +1223,7 @@ async function loadPageData(forceReloadReferences = false) {
     }
     await Promise.all(tasks)
   } catch (error) {
-    const message = resolveWarningMessage(error, '加载房价失败')
+    const message = resolveWarningMessage(error, t('stage5Pattern.loadFailed'))
     errorMessage.value = message
     if (!isHandledRequestError(error)) {
       showWarningToast(message)
@@ -1305,7 +1330,7 @@ function syncBulkFormWithCurrentView() {
 
 function handleOpenBulkUpdate() {
   if (bulkSelectableRoomTypes.value.length === 0) {
-    showWarningToast('当前筛选条件下没有可批量更新的房型')
+    showWarningToast(t('stage5Final.roomPrice.noBulkRoomTypes'))
     return
   }
 
@@ -1337,7 +1362,7 @@ function handleToggleBulkRoomType(roomTypeId: number) {
 
 function handleAddBulkDateRange() {
   if (bulkForm.value.dateRanges.length >= MAX_BULK_DATE_RANGES) {
-    showWarningToast(`最多只能添加 ${MAX_BULK_DATE_RANGES} 个日期段`)
+    showWarningToast(t('roomStatus.roomPrice.bulkDateRangeLimit', { count: MAX_BULK_DATE_RANGES }))
     return
   }
 
@@ -1369,7 +1394,7 @@ function handleToggleBulkWeekday(weekday: number) {
 
 async function handleSubmitBulkUpdate() {
   if (bulkForm.value.roomTypeIds.length === 0) {
-    showWarningToast('请至少选择一个房型')
+    showWarningToast(t('stage5Pattern.atLeast'))
     return
   }
 
@@ -1378,18 +1403,18 @@ async function handleSubmitBulkUpdate() {
     .map((range) => normalizeDateRange(range.startDate, range.endDate))
 
   if (normalizedDateRanges.length === 0) {
-    showWarningToast('请至少填写一个完整日期段')
+    showWarningToast(t('stage5Pattern.atLeast'))
     return
   }
 
   if (bulkForm.value.weekdays.length === 0) {
-    showWarningToast('请至少选择一个星期')
+    showWarningToast(t('stage5Pattern.atLeast'))
     return
   }
 
   const weekdayPrice = Number(bulkForm.value.weekdayPrice)
   if (!Number.isFinite(weekdayPrice) || weekdayPrice < 0) {
-    showWarningToast('请输入有效的平日价')
+    showWarningToast(t('stage5Pattern.enter'))
     return
   }
 
@@ -1397,7 +1422,7 @@ async function handleSubmitBulkUpdate() {
   if (bulkForm.value.weekendDifferentiation) {
     weekendPrice = Number(bulkForm.value.weekendPrice)
     if (!Number.isFinite(weekendPrice) || weekendPrice < 0) {
-      showWarningToast('请输入有效的周末价')
+      showWarningToast(t('stage5Pattern.enter'))
       return
     }
   }
@@ -1419,15 +1444,15 @@ async function handleSubmitBulkUpdate() {
   try {
     const response = await bulkPriceChange(requestData)
     if (!response.success) {
-      throw new Error(response.message || '批量更新失败')
+      throw new Error(response.message || t('stage5Pattern.updateFailed'))
     }
 
-    showSuccessToast(response.message || '批量房价已更新')
+    showSuccessToast(response.message || t('roomStatus.roomPrice.bulkUpdateSuccess'))
     bulkUpdateOpen.value = false
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '批量更新失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.updateFailed')))
     }
   } finally {
     bulkSubmitting.value = false
@@ -1457,31 +1482,31 @@ function hasMatchedWeekdayInRange(startDate: string, endDate: string, weekdays: 
 
 function buildSaveSuccessMessage(settingType: SettingType) {
   if (settingType === 'price') {
-    return '房价设置已更新'
+    return t('roomStatus.roomPrice.saveSuccess.price')
   }
   if (settingType === 'minStay') {
-    return '最小入住天数已更新'
+    return t('roomStatus.roomPrice.saveSuccess.minStay')
   }
   if (settingType === 'maxStay') {
-    return '最大入住天数已更新'
+    return t('roomStatus.roomPrice.saveSuccess.maxStay')
   }
   if (settingType === 'closeRoom') {
-    return '关房状态已更新'
+    return t('roomStatus.roomPrice.saveSuccess.closeRoom')
   }
   if (settingType === 'cta') {
-    return 'CTA 已更新'
+    return t('roomStatus.roomPrice.saveSuccess.cta')
   }
-  return 'CTD 已更新'
+  return t('roomStatus.roomPrice.saveSuccess.ctd')
 }
 
 async function handleSaveEditor() {
   if (!editorForm.value.roomTypeId || !editorForm.value.pricePlanId) {
-    showWarningToast('当前价格计划信息不完整，无法保存')
+    showWarningToast(t('stage5Pattern.unavailable'))
     return
   }
 
   if (!editorForm.value.startDate || !editorForm.value.endDate) {
-    showWarningToast('请选择完整日期范围')
+    showWarningToast(t('stage5Pattern.select'))
     return
   }
 
@@ -1505,7 +1530,7 @@ async function handleSaveEditor() {
     !payloadWeekdays.includes(0) &&
     !hasMatchedWeekdayInRange(normalizedRange.startDate, normalizedRange.endDate, payloadWeekdays)
   ) {
-    showWarningToast('所选日期范围内没有匹配的星期，请调整后再保存')
+    showWarningToast(t('stage5Final.roomPrice.noMatchingWeekday'))
     return
   }
 
@@ -1521,7 +1546,7 @@ async function handleSaveEditor() {
   if (editorForm.value.settingType === 'price') {
     const price = Number(editorForm.value.price)
     if (!Number.isFinite(price) || price < 0) {
-      showWarningToast('请输入有效价格')
+      showWarningToast(t('accommodation.roomPriceBulk.messages.invalidPrice'))
       return
     }
     requestData.price = price
@@ -1530,11 +1555,11 @@ async function handleSaveEditor() {
   if (editorForm.value.settingType === 'minStay') {
     const minStay = Number(editorForm.value.minStay)
     if (!Number.isFinite(minStay) || minStay <= 0 || minStay > MAX_STAY_LIMIT) {
-      showWarningToast('请输入 1 到 99 之间的最小入住天数')
+      showWarningToast(t('stage5Pattern.enter'))
       return
     }
     if (typeof editorRecord.value?.maxStay === 'number' && minStay > editorRecord.value.maxStay) {
-      showWarningToast('最小入住天数不能大于当前最大入住天数')
+      showWarningToast(t('stage5Pattern.unsupported'))
       return
     }
     requestData.minStay = minStay
@@ -1543,12 +1568,12 @@ async function handleSaveEditor() {
   if (editorForm.value.settingType === 'maxStay') {
     const maxStay = Number(editorForm.value.maxStay)
     if (!Number.isFinite(maxStay) || maxStay <= 0 || maxStay > MAX_STAY_LIMIT) {
-      showWarningToast('请输入 1 到 99 之间的最大入住天数')
+      showWarningToast(t('stage5Pattern.enter'))
       return
     }
     const currentMinStay = editorRecord.value?.minStay ?? 1
     if (maxStay < currentMinStay) {
-      showWarningToast('最大入住天数不能小于当前最小入住天数')
+      showWarningToast(t('stage5Pattern.unsupported'))
       return
     }
     requestData.maxStay = maxStay
@@ -1572,7 +1597,7 @@ async function handleSaveEditor() {
   try {
     const response = await updatePriceByPlan(requestData, operator)
     if (!response.success) {
-      throw new Error(response.message || '保存房价失败')
+      throw new Error(response.message || t('stage5Pattern.saveFailed'))
     }
 
     const successMessage = response.message || buildSaveSuccessMessage(editorForm.value.settingType)
@@ -1581,7 +1606,7 @@ async function handleSaveEditor() {
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存房价失败'))
+      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.saveFailed')))
     }
   } finally {
     saving.value = false

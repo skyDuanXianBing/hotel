@@ -2,25 +2,25 @@
   <ion-page>
     <ion-content fullscreen class="auth-page">
       <div class="auth-shell">
-        <AuthBrandHeader back-label="找回密码" @select-back="handleBackToLogin" />
+        <AuthBrandHeader :back-label="t('auth.forgot.title')" @select-back="handleBackToLogin" />
 
         <main class="auth-panel auth-panel--forgot">
           <ion-list lines="none" class="auth-list">
             <div class="auth-field">
-              <p class="auth-field-label">邮箱</p>
+              <p class="auth-field-label">{{ t('auth.field.email') }}</p>
               <ion-item class="auth-item">
                 <ion-input
                   v-model="form.email"
                   autocomplete="email"
                   inputmode="email"
-                  placeholder="请输入邮箱"
+                  :placeholder="t('auth.placeholder.email')"
                   type="email"
                 />
               </ion-item>
             </div>
 
             <div class="auth-field">
-              <p class="auth-field-label">邮箱验证码</p>
+              <p class="auth-field-label">{{ t('auth.field.emailCode') }}</p>
               <div class="auth-code-row">
                 <ion-item class="auth-item auth-item--code">
                   <ion-input
@@ -28,7 +28,7 @@
                     autocomplete="one-time-code"
                     inputmode="numeric"
                     :maxlength="VERIFICATION_CODE_LENGTH"
-                    placeholder="请输入验证码"
+                    :placeholder="t('auth.placeholder.code')"
                     type="text"
                   />
                 </ion-item>
@@ -46,24 +46,24 @@
             </div>
 
             <div class="auth-field">
-              <p class="auth-field-label">新密码</p>
+              <p class="auth-field-label">{{ t('auth.field.newPassword') }}</p>
               <ion-item class="auth-item">
                 <ion-input
                   v-model="form.newPassword"
                   autocomplete="new-password"
-                  placeholder="请输入 6-20 位新密码"
+                  :placeholder="t('auth.placeholder.newPassword')"
                   type="password"
                 />
               </ion-item>
             </div>
 
             <div class="auth-field auth-field--last">
-              <p class="auth-field-label">确认密码</p>
+              <p class="auth-field-label">{{ t('auth.field.confirmPassword') }}</p>
               <ion-item class="auth-item">
                 <ion-input
                   v-model="form.confirmPassword"
                   autocomplete="new-password"
-                  placeholder="再次输入新密码"
+                  :placeholder="t('auth.placeholder.confirmNewPassword')"
                   type="password"
                 />
               </ion-item>
@@ -77,7 +77,7 @@
             @click="handleResetPassword"
           >
             <ion-spinner v-if="submitting" name="crescent" />
-            <span v-else>确认</span>
+            <span v-else>{{ t('auth.action.confirm') }}</span>
           </ion-button>
         </main>
       </div>
@@ -96,6 +96,7 @@ import {
   IonSpinner,
 } from '@ionic/vue'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { resetPassword, sendVerificationCode } from '@/api/auth'
 import AuthBrandHeader from '@/components/auth/AuthBrandHeader.vue'
@@ -109,6 +110,7 @@ const PASSWORD_MAX_LENGTH = 20
 const VERIFICATION_CODE_LENGTH = 6
 const VERIFICATION_CODE_SECONDS = 60
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const { t } = useI18n()
 
 const router = useRouter()
 const route = useRoute()
@@ -127,10 +129,10 @@ let countdownTimer: number | null = null
 
 const sendCodeButtonLabel = computed(() => {
   if (countdown.value > 0) {
-    return `${countdown.value}s 后可重发`
+    return t('auth.action.resendAfter', { seconds: countdown.value })
   }
 
-  return '发送验证码'
+  return t('auth.action.sendCode')
 })
 
 const resolveErrorMessage = (error: unknown, fallbackMessage: string) => {
@@ -208,12 +210,12 @@ const validateEmail = () => {
   const email = normalizeEmail()
 
   if (!email) {
-    showWarningToast('请输入邮箱')
+    showWarningToast(t('auth.validation.emailRequired'))
     return ''
   }
 
   if (!EMAIL_PATTERN.test(email)) {
-    showWarningToast('请输入正确的邮箱格式')
+    showWarningToast(t('auth.validation.emailInvalid'))
     return ''
   }
 
@@ -231,37 +233,37 @@ const validateResetPasswordForm = (): ResetPasswordRequest | null => {
   }
 
   if (!verificationCode) {
-    showWarningToast('请输入验证码')
+    showWarningToast(t('auth.validation.codeRequired'))
     return null
   }
 
   if (verificationCode.length !== VERIFICATION_CODE_LENGTH) {
-    showWarningToast(`验证码需为 ${VERIFICATION_CODE_LENGTH} 位`)
+    showWarningToast(t('auth.validation.codeLength', { length: VERIFICATION_CODE_LENGTH }))
     return null
   }
 
   if (!newPassword) {
-    showWarningToast('请输入新密码')
+    showWarningToast(t('auth.validation.newPasswordRequired'))
     return null
   }
 
   if (newPassword.length < PASSWORD_MIN_LENGTH) {
-    showWarningToast(`密码长度至少为 ${PASSWORD_MIN_LENGTH} 位`)
+    showWarningToast(t('auth.validation.passwordMin', { min: PASSWORD_MIN_LENGTH }))
     return null
   }
 
   if (newPassword.length > PASSWORD_MAX_LENGTH) {
-    showWarningToast(`密码长度不能超过 ${PASSWORD_MAX_LENGTH} 位`)
+    showWarningToast(t('auth.validation.passwordMax', { max: PASSWORD_MAX_LENGTH }))
     return null
   }
 
   if (!confirmPassword) {
-    showWarningToast('请再次输入新密码')
+    showWarningToast(t('auth.validation.confirmNewPasswordRequired'))
     return null
   }
 
   if (newPassword !== confirmPassword) {
-    showWarningToast('两次输入的密码不一致')
+    showWarningToast(t('auth.validation.passwordMismatch'))
     return null
   }
 
@@ -291,15 +293,15 @@ const handleSendVerificationCode = async () => {
     })
 
     if (!response.success) {
-      showErrorToast(response.message || '验证码发送失败')
+      showErrorToast(response.message || t('auth.message.codeSendFailed'))
       return
     }
 
-    showSuccessToast('验证码已发送，请查收邮箱')
+    showSuccessToast(t('auth.message.codeSent'))
     startCountdown()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showErrorToast(resolveErrorMessage(error, '验证码发送失败'))
+      showErrorToast(resolveErrorMessage(error, t('auth.message.codeSendFailed')))
     }
   } finally {
     isSendingCode.value = false
@@ -322,15 +324,15 @@ const handleResetPassword = async () => {
     const response = await resetPassword(payload)
 
     if (!response.success) {
-      showErrorToast(response.message || '密码重置失败')
+      showErrorToast(response.message || t('auth.message.resetFailed'))
       return
     }
 
-    showSuccessToast('密码重置成功，请使用新密码登录')
+    showSuccessToast(t('auth.message.resetSuccess'))
     await router.replace(buildLoginRouteLocation())
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showErrorToast(resolveErrorMessage(error, '密码重置失败'))
+      showErrorToast(resolveErrorMessage(error, t('auth.message.resetFailed')))
     }
   } finally {
     submitting.value = false

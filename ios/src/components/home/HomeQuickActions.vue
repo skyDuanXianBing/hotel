@@ -60,7 +60,7 @@ const handleSelect = (item: HomeQuickActionItem) => {
   gap: 2px;
   width: 100%;
   min-width: 0;
-  min-height: 56px;
+  min-height: 72px;
   padding: 2px 2px 1px;
   border: none;
   border-radius: var(--ios-pms-radius-icon);
@@ -101,12 +101,17 @@ const handleSelect = (item: HomeQuickActionItem) => {
 }
 
 .quick-item__label {
+  display: -webkit-box;
+  min-height: 34px;
+  overflow: hidden;
   color: var(--ios-pms-text-secondary);
   font-size: 14px;
   font-weight: 400;
   text-align: center;
   line-height: 1.2;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 @media (max-width: 374px) {
@@ -116,7 +121,7 @@ const handleSelect = (item: HomeQuickActionItem) => {
   }
 
   .quick-item {
-    min-height: 53px;
+    min-height: 68px;
   }
 
   .quick-item__icon-shell {
@@ -131,6 +136,7 @@ const handleSelect = (item: HomeQuickActionItem) => {
 
   .quick-item__label {
     font-size: 12px;
+    min-height: 29px;
   }
 }
 

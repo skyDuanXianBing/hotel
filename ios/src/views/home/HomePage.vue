@@ -2,16 +2,18 @@
   <ion-page>
     <ion-header translucent>
       <ion-toolbar class="app-page-header__toolbar">
-        <ion-title class="app-page-header__title">首页</ion-title>
+        <ion-title class="app-page-header__title">{{ t('home.title') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button class="app-page-header__text-btn" fill="clear" @click="goToStoreSelection">切换门店</ion-button>
+          <ion-button class="app-page-header__text-btn" fill="clear" @click="goToStoreSelection">
+            {{ t('home.switchStore') }}
+          </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
     <ion-content fullscreen class="mobile-page mobile-page--dashboard home-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="t('home.pullToRefresh')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <div class="home-shell">
@@ -79,6 +81,7 @@ import {
   receiptOutline,
 } from 'ionicons/icons'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { getDailyOccupancy, getHomeStatistics, type DailyOccupancyDTO, type HomeStatisticsDTO } from '@/api/home'
 import ContactSupportModal from '@/components/global/ContactSupportModal.vue'
@@ -90,8 +93,9 @@ import HomeQuickActions from '@/components/home/HomeQuickActions.vue'
 import HomeStatsGrid, { type HomeStatCardItem } from '@/components/home/HomeStatsGrid.vue'
 import {
   buildHomeQuickActionItems,
+  buildHomeQuickActionCustomizeItem,
   findHomeQuickActionDefinition,
-  HOME_QUICK_ACTION_CUSTOMIZE_ITEM,
+  HOME_QUICK_ACTION_CUSTOMIZE_KEY,
   type HomeQuickActionItem,
 } from '@/constants/homeQuickActions'
 import { ROUTE_PATHS } from '@/router/guards'
@@ -107,6 +111,7 @@ import {
 } from '@/utils/storeBusinessDate'
 
 const router = useRouter()
+const { t } = useI18n()
 const homeShortcutsStore = useHomeShortcutsStore()
 const storeStore = useStoreStore()
 const memoStore = useMemoStore()
@@ -114,8 +119,8 @@ const memoStore = useMemoStore()
 const dashboardLoading = ref(false)
 const hasLoadedHomeContent = ref(false)
 const occupancyData = ref<DailyOccupancyDTO[]>([])
-const statCards = ref<HomeStatCardItem[]>(buildStatCards())
-const loadNotice = ref('')
+const homeStatistics = ref<HomeStatisticsDTO | undefined>()
+const loadNoticeKeys = ref<string[]>([])
 const helpCenterMoreOpen = ref(false)
 const supportModalOpen = ref(false)
 
@@ -124,19 +129,19 @@ interface HomeHelpRouteItem extends HomeHelpCenterItem {
   query?: Record<string, string>
 }
 
-const helpItems: HomeHelpRouteItem[] = [
+const helpItems = computed<HomeHelpRouteItem[]>(() => [
   {
     key: 'operation-report',
-    title: '营业统报表',
-    description: '如何生成营业统计报表数据？',
+    title: t('home.help.operation.0'),
+    description: t('home.help.operation.1'),
     icon: barChartOutline,
     tone: 'primary',
     path: ROUTE_PATHS.statisticsOperationReport,
   },
   {
     key: 'repair-order',
-    title: '订单操作',
-    description: '如何修复在住订单营业？',
+    title: t('home.help.orders.0'),
+    description: t('home.help.orders.1'),
     icon: receiptOutline,
     tone: 'warning',
     path: ROUTE_PATHS.orders,
@@ -144,91 +149,19 @@ const helpItems: HomeHelpRouteItem[] = [
   },
   {
     key: 'room-status',
-    title: '房态',
-    description: '如何房间单历房态设置的房型？',
+    title: t('home.help.roomStatus.0'),
+    description: t('home.help.roomStatus.1'),
     icon: bedOutline,
     tone: 'success',
     path: ROUTE_PATHS.rooms,
   },
-]
-
-/*
-const legacyQuickActions: HomeQuickActionItem[] = [
-  {
-    key: 'orders',
-    title: '住宿订单',
-    description: '快速进入订单页，继续处理预抵、预离与待处理订单。',
-    icon: receiptOutline,
-    tone: 'warning',
-  },
-  {
-    key: 'rooms',
-    title: '房态',
-    description: '查看今日可售与房间状态，衔接房态核心操作。',
-    icon: bedOutline,
-    tone: 'primary',
-  },
-  {
-    key: 'channels',
-    title: '渠道',
-    description: '跳到渠道管理，查看连接、映射和后续操作入口。',
-    icon: gitNetworkOutline,
-    tone: 'secondary',
-  },
-  {
-    key: 'statistics',
-    title: '统计',
-    description: '进入统计工作台，查看经营概况、报表和数据中心。',
-    icon: barChartOutline,
-    tone: 'primary',
-  },
-  {
-    key: 'messages',
-    title: '消息',
-    description: '查看住客会话、未读消息与待处理聊天。',
-    icon: chatbubblesOutline,
-    tone: 'primary',
-  },
-  {
-    key: 'system-notifications',
-    title: '系统通知',
-    description: '查看系统、保洁与任务相关通知。',
-    icon: notificationsOutline,
-    tone: 'warning',
-  },
-  {
-    key: 'order-notifications',
-    title: '订单通知',
-    description: '集中处理订单类提醒与未读通知。',
-    icon: receiptOutline,
-    tone: 'secondary',
-  },
-  {
-    key: 'wallet',
-    title: '钱包',
-    description: '查看余额、流水、提现记录与认证说明。',
-    icon: walletOutline,
-    tone: 'success',
-  },
-  {
-    key: 'profile',
-    title: '个人中心',
-    description: '更新昵称、头像、性别并修改密码。',
-    icon: personCircleOutline,
-    tone: 'primary',
-  },
-  {
-    key: 'settings',
-    title: '设置',
-    description: '继续进入门店、账号与业务配置的移动端入口。',
-    icon: settingsOutline,
-    tone: 'success',
-  },
-]
-*/
+])
 
 const quickActions = computed<HomeQuickActionItem[]>(() => {
-  return [...buildHomeQuickActionItems(homeShortcutsStore.visibleKeys), HOME_QUICK_ACTION_CUSTOMIZE_ITEM]
+  return [
+    ...buildHomeQuickActionItems(homeShortcutsStore.visibleKeys, t),
+    buildHomeQuickActionCustomizeItem(t),
+  ]
 })
 
 const memoValue = computed({
@@ -240,87 +173,93 @@ const memoValue = computed({
 
 const storeName = computed(() => {
   if (!storeStore.currentStore?.name) {
-    return '未选择门店'
+    return t('home.noStore')
   }
 
   return storeStore.currentStore.name
 })
 
 const todayLabel = computed(() => {
-  return `今日 ${formatBusinessDateLabel(getStoreTodayDate(), 'month-day')}`
+  return t('home.today', { date: formatBusinessDateLabel(getStoreTodayDate(), 'month-day') })
 })
 
 const businessHint = computed(() => {
   const pendingCard = findStatCard('pending')
   if (pendingCard && pendingCard.value > 0) {
-    return `当前有 ${pendingCard.value} 条待处理订单，建议优先处理异常或未完成事项。`
+    return t('home.hint.pending', { count: pendingCard.value })
   }
 
   const arrivalCard = findStatCard('arrivals')
   if (arrivalCard && arrivalCard.value >= 5) {
-    return `今日预抵较多，建议先检查排房与入住准备情况。`
+    return t('home.hint.arrivals')
   }
 
   const availableCard = findStatCard('available')
   if (availableCard && availableCard.value <= 3) {
-    return `今日可售房量偏紧，请留意房态与订单节奏。`
+    return t('home.hint.inventory')
   }
 
-  return '首页已同步今日统计、入住率趋势与备忘录，适合开班后快速查看。'
+  return t('home.hint.default')
 })
 
 const showLoadNotice = computed(() => {
-  return Boolean(loadNotice.value)
+  return loadNoticeKeys.value.length > 0
 })
+
+const loadNotice = computed(() =>
+  loadNoticeKeys.value.map((key) => t(key)).join(t('home.noticeSeparator')),
+)
+
+const statCards = computed<HomeStatCardItem[]>(() => buildStatCards(homeStatistics.value))
 
 function buildStatCards(statistics?: HomeStatisticsDTO): HomeStatCardItem[] {
   return [
     {
       key: 'arrivals',
-      title: '今日预抵',
+      title: t('home.stat.arrivals.0'),
       value: statistics?.todayArrivals ?? 0,
-      description: '进入订单页查看今日待入住订单。',
-      actionLabel: '查看订单',
+      description: t('home.stat.arrivals.1'),
+      actionLabel: t('home.stat.arrivals.2'),
       tone: 'primary',
     },
     {
       key: 'departures',
-      title: '今日预离',
+      title: t('home.stat.departures.0'),
       value: statistics?.todayDepartures ?? 0,
-      description: '进入订单页查看今日待离店订单。',
-      actionLabel: '查看订单',
+      description: t('home.stat.departures.1'),
+      actionLabel: t('home.stat.departures.2'),
       tone: 'warning',
     },
     {
       key: 'newOrders',
-      title: '今日新办',
+      title: t('home.stat.newOrders.0'),
       value: statistics?.todayNewOrders ?? 0,
-      description: '查看今日新增订单与处理进度。',
-      actionLabel: '查看订单',
+      description: t('home.stat.newOrders.1'),
+      actionLabel: t('home.stat.newOrders.2'),
       tone: 'secondary',
     },
     {
       key: 'unassigned',
-      title: '未排房',
+      title: t('home.stat.unassigned.0'),
       value: statistics?.unassignedOrders ?? 0,
-      description: '查看尚未分配房间的订单。',
-      actionLabel: '查看订单',
+      description: t('home.stat.unassigned.1'),
+      actionLabel: t('home.stat.unassigned.2'),
       tone: 'warning',
     },
     {
       key: 'available',
-      title: '今日可售',
+      title: t('home.stat.available.0'),
       value: statistics?.availableRooms ?? 0,
-      description: '直接跳到房态页查看今日可售房量。',
-      actionLabel: '查看房态',
+      description: t('home.stat.available.1'),
+      actionLabel: t('home.stat.available.2'),
       tone: 'success',
     },
     {
       key: 'pending',
-      title: '待处理',
+      title: t('home.stat.pending.0'),
       value: statistics?.pendingOrders ?? 0,
-      description: '集中查看仍需跟进的订单事项。',
-      actionLabel: '查看订单',
+      description: t('home.stat.pending.1'),
+      actionLabel: t('home.stat.pending.2'),
       tone: 'primary',
     },
   ]
@@ -371,10 +310,10 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
 async function loadStatistics() {
   const response = await getHomeStatistics()
   if (!response.success || !response.data) {
-    throw new Error(response.message || '加载今日统计失败')
+    throw new Error(response.message || t('home.error.statistics'))
   }
 
-  statCards.value = buildStatCards(response.data)
+  homeStatistics.value = response.data
 }
 
 async function loadOccupancy() {
@@ -387,7 +326,7 @@ async function loadOccupancy() {
   })
 
   if (!response.success || !response.data) {
-    throw new Error(response.message || '加载近 7 天入住率失败')
+    throw new Error(response.message || t('home.error.occupancy'))
   }
 
   const nextItems: DailyOccupancyDTO[] = []
@@ -407,7 +346,7 @@ async function loadHomeContent(forceMemo = false, showLoading = true) {
     dashboardLoading.value = true
   }
 
-  loadNotice.value = ''
+  loadNoticeKeys.value = []
 
   const [statisticsResult, occupancyResult, memoResult] = await Promise.allSettled([
     loadStatistics(),
@@ -415,25 +354,23 @@ async function loadHomeContent(forceMemo = false, showLoading = true) {
     memoStore.loadMemo(forceMemo),
   ])
 
-  const warnings: string[] = []
+  const warningKeys: string[] = []
 
   if (statisticsResult.status === 'rejected') {
-    statCards.value = buildStatCards()
-    warnings.push(resolveWarningMessage(statisticsResult.reason, '今日统计同步失败'))
+    homeStatistics.value = undefined
+    warningKeys.push('home.error.statisticsSync')
   }
 
   if (occupancyResult.status === 'rejected') {
     occupancyData.value = []
-    warnings.push(resolveWarningMessage(occupancyResult.reason, '近 7 天入住率同步失败'))
+    warningKeys.push('home.error.occupancySync')
   }
 
   if (memoResult.status === 'rejected') {
-    warnings.push(resolveWarningMessage(memoResult.reason, '备忘录加载失败'))
+    warningKeys.push('home.error.memo')
   }
 
-  if (warnings.length > 0) {
-    loadNotice.value = warnings.join('；')
-  }
+  loadNoticeKeys.value = warningKeys
 
   if (showLoading) {
     dashboardLoading.value = false
@@ -467,7 +404,7 @@ async function handleStatSelect(item: HomeStatCardItem) {
 }
 
 async function handleQuickActionSelect(item: HomeQuickActionItem) {
-  if (item.key === HOME_QUICK_ACTION_CUSTOMIZE_ITEM.key) {
+  if (item.key === HOME_QUICK_ACTION_CUSTOMIZE_KEY) {
     await router.push(ROUTE_PATHS.homeCustomize)
     return
   }
@@ -489,7 +426,7 @@ async function handleQuickActionSelect(item: HomeQuickActionItem) {
 }
 
 function findHelpRouteItem(key: string) {
-  for (const item of helpItems) {
+  for (const item of helpItems.value) {
     if (item.key === key) {
       return item
     }
@@ -539,7 +476,7 @@ async function handleRefresh(event: CustomEvent) {
     await loadHomeContent(true, true)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '首页刷新失败'))
+      showWarningToast(resolveWarningMessage(error, t('home.error.refresh')))
     }
   } finally {
     event.detail.complete()
@@ -561,7 +498,7 @@ watch(
       await loadHomeContent(true, !hasLoadedHomeContent.value)
     } catch (error) {
       if (!isHandledRequestError(error)) {
-        showWarningToast(resolveWarningMessage(error, '首页同步失败'))
+        showWarningToast(resolveWarningMessage(error, t('home.error.sync')))
       }
     }
   },
@@ -572,7 +509,7 @@ onIonViewWillEnter(async () => {
     await loadHomeContent(true, !hasLoadedHomeContent.value)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '首页加载失败'))
+      showWarningToast(resolveWarningMessage(error, t('home.error.load')))
     }
   }
 })

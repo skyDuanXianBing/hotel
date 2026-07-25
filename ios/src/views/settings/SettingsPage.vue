@@ -5,7 +5,7 @@
         <ion-buttons slot="start">
           <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.home" />
         </ion-buttons>
-        <ion-title class="app-page-header__title">设置</ion-title>
+        <ion-title class="app-page-header__title">{{ t('settings.title') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -51,14 +51,24 @@
         </section>
 
         <section class="settings-group">
-          <h2 class="settings-group__title">账号操作</h2>
+          <h2 class="settings-group__title">{{ t('settings.groups.account') }}</h2>
           <div class="settings-group__list">
+            <button type="button" class="settings-entry" @click="handleChangeLanguage">
+              <div class="settings-entry__icon">
+                <ion-icon :icon="languageOutline" />
+              </div>
+              <div class="settings-entry__body">
+                <strong>{{ t('language.title') }}</strong>
+                <p>{{ t(`language.option.${languageStore.locale}`) }}</p>
+              </div>
+              <ion-icon :icon="chevronForwardOutline" class="settings-entry__arrow" />
+            </button>
             <button type="button" class="settings-entry" @click="handleOpenProfile">
               <div class="settings-entry__icon settings-entry__icon--secondary">
                 <ion-icon :icon="personOutline" />
               </div>
               <div class="settings-entry__body">
-                <strong>个人中心</strong>
+                <strong>{{ t('settings.profile') }}</strong>
                 <p>{{ currentUserLabel }}</p>
               </div>
               <ion-icon :icon="chevronForwardOutline" class="settings-entry__arrow" />
@@ -68,26 +78,26 @@
                 <ion-icon :icon="logOutOutline" />
               </div>
               <div class="settings-entry__body">
-                <strong>退出登录</strong>
+                <strong>{{ t('settings.logout') }}</strong>
               </div>
             </button>
           </div>
         </section>
 
         <section class="settings-group">
-          <h2 class="settings-group__title">快捷工具</h2>
+          <h2 class="settings-group__title">{{ t('settings.groups.tools') }}</h2>
           <div class="settings-tools-row">
             <button type="button" class="settings-tool-btn" @click="handleOpenMemoTool">
               <ion-icon :icon="documentTextOutline" />
-              <span>备忘录</span>
+              <span>{{ t('settings.memo') }}</span>
             </button>
             <button type="button" class="settings-tool-btn" @click="handleOpenRecordTool">
               <ion-icon :icon="createOutline" />
-              <span>记一笔</span>
+              <span>{{ t('settings.record') }}</span>
             </button>
             <button type="button" class="settings-tool-btn" @click="handleOpenContactTool">
               <ion-icon :icon="headsetOutline" />
-              <span>联系客服</span>
+              <span>{{ t('settings.support') }}</span>
             </button>
           </div>
         </section>
@@ -108,6 +118,7 @@
 
 <script setup lang="ts">
 import {
+  actionSheetController,
   alertController,
   IonBackButton,
   IonButtons,
@@ -129,6 +140,7 @@ import {
   createOutline,
   documentTextOutline,
   headsetOutline,
+  languageOutline,
   logOutOutline,
   notificationsOutline,
   peopleOutline,
@@ -141,18 +153,41 @@ import {
   walletOutline,
 } from 'ionicons/icons'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import ContactSupportModal from '@/components/global/ContactSupportModal.vue'
 import MemoSheetModal from '@/components/global/MemoSheetModal.vue'
 import RecordTransactionModal from '@/components/notes/RecordTransactionModal.vue'
 import { useRouter } from 'vue-router'
 import { ROUTE_PATHS } from '@/router/guards'
+import { SUPPORTED_LOCALES, type SupportedLocale } from '@/locales'
+import { useLanguageStore } from '@/stores/language'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
 import { useVisibleToolsStore } from '@/stores/visibleTools'
 import { showSuccessToast } from '@/utils/notify'
 
+type SettingsEntryKey =
+  | 'storeProfile'
+  | 'storeDetails'
+  | 'storeMembers'
+  | 'roomTypes'
+  | 'roomGroups'
+  | 'roomSort'
+  | 'pricePlans'
+  | 'consumptionItems'
+  | 'paymentMethods'
+  | 'noteSettings'
+  | 'notification'
+  | 'channelSettings'
+  | 'quickReplies'
+  | 'autoMessages'
+  | 'cleaningSettings'
+  | 'cleaningSupplies'
+  | 'pricingTools'
+  | 'paymentPlatforms'
+
 interface SettingsEntry {
-  key: string
+  key: SettingsEntryKey
   title: string
   description: string
   path: string
@@ -168,13 +203,15 @@ interface SettingsGroup {
 }
 
 const router = useRouter()
+const { t } = useI18n()
+const languageStore = useLanguageStore()
 const storeStore = useStoreStore()
 const userStore = useUserStore()
 const visibleToolsStore = useVisibleToolsStore()
 
 const currentUserLabel = computed(() => {
   if (!userStore.currentUser) {
-    return '未恢复用户信息'
+    return t('common.unavailableUser')
   }
 
   return `${userStore.currentUser.nickname} · ${userStore.currentUser.email}`
@@ -182,7 +219,7 @@ const currentUserLabel = computed(() => {
 
 const storeTitle = computed(() => {
   if (!storeStore.currentStore?.name) {
-    return '当前门店'
+    return t('common.currentStore')
   }
 
   return storeStore.currentStore.name
@@ -191,186 +228,91 @@ const storeTitle = computed(() => {
 const storeRoleLabel = computed(() => {
   const role = storeStore.currentStore?.userRole
   if (role === 'owner') {
-    return '负责人'
+    return t('settings.role.owner')
   }
   if (role === 'admin') {
-    return '管理员'
+    return t('settings.role.admin')
   }
   if (role === 'member') {
-    return '成员'
+    return t('settings.role.member')
   }
-  return '待确认'
+  return t('settings.role.unknown')
 })
 
 const entryGroups = computed<SettingsGroup[]>(() => {
+  const entry = (
+    key: SettingsEntryKey,
+    path: string,
+    icon: string,
+    badge?: string,
+  ): SettingsEntry => ({
+    key,
+    title: t(`settings.entries.${key}.0`),
+    description: t(`settings.entries.${key}.1`),
+    path,
+    icon,
+    badge,
+  })
+
   return [
     {
       key: 'store-account',
-      title: '门店与账号',
-      description: '门店基础资料、成员角色与权限。',
+      title: t('settings.groups.storeAccount'),
+      description: '',
       items: [
-        {
-          key: 'store-profile',
-          title: '门店资料',
-          description: '基础资料、联系方式',
-          path: ROUTE_PATHS.settingsStoreProfile,
-          icon: storefrontOutline,
-          badge: storeStore.currentStore?.city || '',
-        },
-        {
-          key: 'store-details',
-          title: '门店详情',
-          description: '设施、时区、币种',
-          path: ROUTE_PATHS.settingsStoreDetails,
-          icon: buildOutline,
-        },
-        {
-          key: 'store-members',
-          title: '门店成员',
-          description: '成员管理、角色分配',
-          path: ROUTE_PATHS.settingsStoreMembers,
-          icon: peopleOutline,
-        },
+        entry('storeProfile', ROUTE_PATHS.settingsStoreProfile, storefrontOutline, storeStore.currentStore?.city || ''),
+        entry('storeDetails', ROUTE_PATHS.settingsStoreDetails, buildOutline),
+        entry('storeMembers', ROUTE_PATHS.settingsStoreMembers, peopleOutline),
       ],
     },
     {
       key: 'accommodation',
-      title: '住宿设置',
-      description: '房型、分组、价格计划与消费项。',
+      title: t('settings.groups.accommodation'),
+      description: '',
       items: [
-        {
-          key: 'room-types',
-          title: '房型设置',
-          description: '房型、房间号、价格',
-          path: ROUTE_PATHS.settingsRoomTypes,
-          icon: bedOutline,
-        },
-        {
-          key: 'room-groups',
-          title: '房间分组',
-          description: '分组与成员管理',
-          path: ROUTE_PATHS.settingsRoomGroups,
-          icon: buildOutline,
-        },
-        {
-          key: 'room-sort',
-          title: '排序设置',
-          description: '房型、房间显示顺序',
-          path: ROUTE_PATHS.settingsRoomSort,
-          icon: swapHorizontalOutline,
-        },
-        {
-          key: 'price-plans',
-          title: '价格计划',
-          description: '价格计划与房型关联',
-          path: ROUTE_PATHS.settingsPricePlans,
-          icon: pricetagOutline,
-        },
-        {
-          key: 'consumption-items',
-          title: '消费项',
-          description: '消费项维护与分类',
-          path: ROUTE_PATHS.settingsConsumptionItems,
-          icon: receiptOutline,
-        },
+        entry('roomTypes', ROUTE_PATHS.settingsRoomTypes, bedOutline),
+        entry('roomGroups', ROUTE_PATHS.settingsRoomGroups, buildOutline),
+        entry('roomSort', ROUTE_PATHS.settingsRoomSort, swapHorizontalOutline),
+        entry('pricePlans', ROUTE_PATHS.settingsPricePlans, pricetagOutline),
+        entry('consumptionItems', ROUTE_PATHS.settingsConsumptionItems, receiptOutline),
       ],
     },
     {
       key: 'finance',
-      title: '财务设置',
-      description: '收款方式和记一笔分类。',
+      title: t('settings.groups.finance'),
+      description: '',
       items: [
-        {
-          key: 'payment-methods',
-          title: '收款方式',
-          description: '收款方式与启停',
-          path: ROUTE_PATHS.settingsPaymentMethods,
-          icon: walletOutline,
-        },
-        {
-          key: 'note-settings',
-          title: '记一笔设置',
-          description: '收入/支出分类',
-          path: ROUTE_PATHS.settingsNoteSettings,
-          icon: cashOutline,
-        },
+        entry('paymentMethods', ROUTE_PATHS.settingsPaymentMethods, walletOutline),
+        entry('noteSettings', ROUTE_PATHS.settingsNoteSettings, cashOutline),
       ],
     },
     {
       key: 'general',
-      title: '通用设置',
-      description: '通知、渠道、快捷回复与自动消息。',
+      title: t('settings.groups.general'),
+      description: '',
       items: [
-        {
-          key: 'notification',
-          title: '通知设置',
-          description: '弹框与声音提醒',
-          path: ROUTE_PATHS.settingsNotification,
-          icon: notificationsOutline,
-        },
-        {
-          key: 'channel-settings',
-          title: '渠道设置',
-          description: '渠道名称、颜色与状态',
-          path: ROUTE_PATHS.settingsChannelSettings,
-          icon: colorWandOutline,
-        },
-        {
-          key: 'quick-replies',
-          title: '快捷回复',
-          description: '常用回复模板',
-          path: ROUTE_PATHS.settingsQuickReplies,
-          icon: chatboxEllipsesOutline,
-        },
-        {
-          key: 'auto-messages',
-          title: '自动消息',
-          description: '触发消息与发送时机',
-          path: ROUTE_PATHS.settingsAutoMessages,
-          icon: settingsOutline,
-        },
+        entry('notification', ROUTE_PATHS.settingsNotification, notificationsOutline),
+        entry('channelSettings', ROUTE_PATHS.settingsChannelSettings, colorWandOutline),
+        entry('quickReplies', ROUTE_PATHS.settingsQuickReplies, chatboxEllipsesOutline),
+        entry('autoMessages', ROUTE_PATHS.settingsAutoMessages, settingsOutline),
       ],
     },
     {
       key: 'cleaning',
-      title: '保洁设置',
-      description: '保洁时段、保洁员与易耗品。',
+      title: t('settings.groups.cleaning'),
+      description: '',
       items: [
-        {
-          key: 'cleaning-settings',
-          title: '保洁设置',
-          description: '时间窗口与保洁员',
-          path: ROUTE_PATHS.settingsCleaningSettings,
-          icon: constructOutline,
-        },
-        {
-          key: 'cleaning-supplies',
-          title: '易耗品',
-          description: '按房型维护补给项',
-          path: ROUTE_PATHS.settingsCleaningSupplies,
-          icon: documentTextOutline,
-        },
+        entry('cleaningSettings', ROUTE_PATHS.settingsCleaningSettings, constructOutline),
+        entry('cleaningSupplies', ROUTE_PATHS.settingsCleaningSupplies, documentTextOutline),
       ],
     },
     {
       key: 'third-party',
-      title: '第三方集成',
-      description: '定价工具与支付平台。',
+      title: t('settings.groups.integrations'),
+      description: '',
       items: [
-        {
-          key: 'pricing-tools',
-          title: '定价工具',
-          description: 'PriceLabs 集成与同步',
-          path: ROUTE_PATHS.settingsPricingTools,
-          icon: pricetagOutline,
-        },
-        {
-          key: 'payment-platforms',
-          title: '支付平台',
-          description: '平台状态与说明',
-          path: ROUTE_PATHS.settingsPaymentPlatforms,
-          icon: walletOutline,
-        },
+        entry('pricingTools', ROUTE_PATHS.settingsPricingTools, pricetagOutline),
+        entry('paymentPlatforms', ROUTE_PATHS.settingsPaymentPlatforms, walletOutline),
       ],
     },
   ]
@@ -390,15 +332,15 @@ async function handleOpenEntry(path: string) {
 
 async function confirmLogout() {
   const alert = await alertController.create({
-    header: '退出登录',
-    message: '确认退出当前账号吗？',
+    header: t('settings.logout'),
+    message: t('settings.logoutConfirm'),
     buttons: [
       {
-        text: '取消',
+        text: t('common.cancel'),
         role: 'cancel',
       },
       {
-        text: '确定',
+        text: t('common.confirm'),
         role: 'destructive',
       },
     ],
@@ -407,6 +349,31 @@ async function confirmLogout() {
   await alert.present()
   const result = await alert.onDidDismiss()
   return result.role === 'destructive'
+}
+
+async function handleChangeLanguage() {
+  const actionSheet = await actionSheetController.create({
+    header: t('language.title'),
+    subHeader: t('language.description'),
+    buttons: [
+      ...SUPPORTED_LOCALES.map((locale) => ({
+        text: t(`language.option.${locale}`),
+        role: languageStore.locale === locale ? 'selected' : undefined,
+        handler: async () => {
+          const changed = await languageStore.setLocale(locale as SupportedLocale)
+          if (changed) {
+            showSuccessToast(t('language.changed'))
+          }
+        },
+      })),
+      {
+        text: t('common.cancel'),
+        role: 'cancel',
+      },
+    ],
+  })
+
+  await actionSheet.present()
 }
 
 async function handleLogout() {
@@ -436,7 +403,7 @@ function handleOpenContactTool() {
 }
 
 function handleRecordSuccess() {
-  showSuccessToast('已完成记一笔录入')
+  showSuccessToast(t('settings.recordSuccess'))
 }
 
 </script>
@@ -516,9 +483,8 @@ function handleRecordSuccess() {
   font-size: 14px;
   font-weight: 400;
   line-height: 1.24;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .settings-group {
@@ -613,9 +579,8 @@ function handleRecordSuccess() {
   color: var(--ios-pms-text-secondary);
   font-size: var(--ios-pms-font-body-sm-size);
   line-height: 1.4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .settings-entry__badge {

@@ -3,7 +3,7 @@
     <ion-header translucent>
       <ion-toolbar class="app-page-header__toolbar">
         <ion-buttons slot="start">
-          <ion-back-button class="app-page-header__back-btn" :default-href="defaultBackHref" text="返回" />
+          <ion-back-button class="app-page-header__back-btn" :default-href="defaultBackHref" />
         </ion-buttons>
         <ion-title class="app-page-header__title">{{ pageTitle }}</ion-title>
       </ion-toolbar>
@@ -11,7 +11,7 @@
 
     <ion-content fullscreen class="mobile-page channel-mapping-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新映射数据" refreshing-spinner="crescent" />
+        <ion-refresher-content :pulling-text="$t('channel.mobile.refreshMapping')" refreshing-spinner="crescent" />
       </ion-refresher>
 
       <div v-if="channelView" class="channel-mapping-page__cards">
@@ -22,10 +22,10 @@
               {{ channelView.statusLabel }}
             </span>
             <span class="mobile-chip channel-mapping-hero__chip channel-mapping-hero__chip--metric">
-              分组 {{ mappingGroups.length }}
+              {{ $t('channel.mobile.mapping.groups') }} {{ mappingGroups.length }}
             </span>
             <span class="mobile-chip channel-mapping-hero__chip channel-mapping-hero__chip--metric">
-              价盘 {{ totalRatePlanCount }}
+              {{ $t('channel.mobile.common.ratePlans') }} {{ totalRatePlanCount }}
             </span>
           </div>
         </section>
@@ -34,12 +34,12 @@
           <div class="channel-mapping-page__toolbar">
             <div class="channel-mapping-page__toolbar-main">
               <strong>{{ mappingOverviewText }}</strong>
-              <p>按{{ groupLabel }}分组查看并继续编辑</p>
+              <p>{{ $t('channel.mobile.mapping.groupDescription', { group: groupLabel }) }}</p>
             </div>
             <div class="channel-mapping-page__toolbar-actions">
               <ion-spinner v-if="loading" name="crescent" />
               <ion-button size="small" class="channel-mapping-page__action-primary" @click="openConnectEntry">
-                编辑映射
+                {{ $t('channel.mobile.mapping.edit') }}
               </ion-button>
               <ion-button
                 size="small"
@@ -47,7 +47,7 @@
                 class="channel-mapping-page__action-secondary"
                 @click="reloadMapping"
               >
-                刷新
+                {{ $t('channel.mobile.common.refresh') }}
               </ion-button>
             </div>
           </div>
@@ -55,13 +55,13 @@
           <div class="channel-mapping-page__filters">
             <ion-segment class="channel-mapping-page__filter-segment" :value="filterMode" @ionChange="handleFilterModeChange">
               <ion-segment-button value="all">
-                <ion-label>全部</ion-label>
+                <ion-label>{{ $t('channel.mobile.mapping.filters.all') }}</ion-label>
               </ion-segment-button>
               <ion-segment-button value="active">
-                <ion-label>已映射</ion-label>
+                <ion-label>{{ $t('channel.mobile.mapping.filters.mapped') }}</ion-label>
               </ion-segment-button>
               <ion-segment-button value="problem">
-                <ion-label>待处理</ion-label>
+                <ion-label>{{ $t('channel.mobile.common.pending') }}</ion-label>
               </ion-segment-button>
             </ion-segment>
 
@@ -72,11 +72,11 @@
               <ion-select
                 class="channel-mapping-page__filter-select"
                 :value="selectedHotelKey"
-                aria-label="选择分组"
+                :aria-label="$t('channel.mobile.mapping.filters.selectGroup')"
                 interface="action-sheet"
                 @ionChange="handleHotelChange"
               >
-                <ion-select-option value="all">全部分组</ion-select-option>
+                <ion-select-option value="all">{{ $t('channel.mobile.mapping.filters.allGroups') }}</ion-select-option>
                 <ion-select-option v-for="item in hotelOptions" :key="item" :value="item">
                   {{ item }}
                 </ion-select-option>
@@ -98,7 +98,7 @@
                 <div class="channel-mapping-page__group-header">
                   <div class="channel-mapping-page__group-copy">
                     <h3>{{ group.title }}</h3>
-                    <p>{{ groupLabel }}标识：{{ group.hotelKey }}</p>
+                    <p>{{ groupLabel }} {{ $t('channel.mobile.common.identifier') }}: {{ group.hotelKey }}</p>
                   </div>
                   <div class="channel-mapping-page__group-header-side">
                     <ion-badge :color="group.statusColor">{{ group.statusLabel }}</ion-badge>
@@ -112,9 +112,9 @@
                 </div>
 
                 <div class="channel-mapping-page__group-meta">
-                  <span>房型 {{ group.roomIds.length }}</span>
-                  <span>活跃价盘 {{ group.activeRatePlanCount }}</span>
-                  <span>总价盘 {{ group.ratePlans.length }}</span>
+                  <span>{{ $t('channel.mobile.common.roomTypes') }} {{ group.roomIds.length }}</span>
+                  <span>{{ $t('channel.mobile.common.activeRatePlans') }} {{ group.activeRatePlanCount }}</span>
+                  <span>{{ $t('channel.mobile.common.totalRatePlans') }} {{ group.ratePlans.length }}</span>
                   <span
                     v-if="resolveDraftBadge(group.hotelKey)"
                     class="channel-mapping-page__draft-badge"
@@ -126,14 +126,14 @@
 
               <div class="channel-mapping-page__management-actions">
                 <ion-button size="small" fill="outline" @click="toggleGroupExpansion(group.hotelKey)">
-                  {{ isGroupExpanded(group.hotelKey) ? '收起明细' : '展开明细' }}
+                  {{ isGroupExpanded(group.hotelKey) ? $t('channel.mobile.mapping.collapse') : $t('channel.mobile.mapping.expand') }}
                 </ion-button>
-                <ion-button size="small" @click="openEditor(group)">深度编辑</ion-button>
+                <ion-button size="small" @click="openEditor(group)">{{ $t('channel.mobile.mapping.advancedEdit') }}</ion-button>
               </div>
 
               <div v-if="isGroupExpanded(group.hotelKey)" class="channel-mapping-page__group-details">
                 <p v-if="group.roomIds.length > 0" class="mobile-note channel-mapping-page__group-ids">
-                  房型标识：{{ group.roomIds.join(' / ') }}
+                  {{ $t('channel.mobile.common.roomTypeIdentifier') }}：{{ group.roomIds.join(' / ') }}
                 </p>
 
                 <div v-if="group.ratePlans.length > 0" class="channel-mapping-page__plans">
@@ -142,13 +142,13 @@
                       <strong>{{ plan.title }}</strong>
                       <ion-badge :color="plan.statusColor">{{ plan.statusLabel }}</ion-badge>
                     </div>
-                    <p>PMS：房型 {{ plan.pmsRoomId }} · 价盘 {{ plan.pmsRateId }}</p>
-                    <p>渠道：房型 {{ plan.channelRoomId }} · 价盘 {{ plan.channelRateId }}</p>
-                    <p class="channel-mapping-page__plan-secondary">价格模型 {{ plan.pricingModel }}</p>
+                    <p>PMS：{{ $t('channel.mobile.common.roomTypes') }} {{ plan.pmsRoomId }} · {{ $t('channel.mobile.common.ratePlans') }} {{ plan.pmsRateId }}</p>
+                    <p>{{ $t('channel.mobile.common.channel') }}：{{ $t('channel.mobile.common.roomTypes') }} {{ plan.channelRoomId }} · {{ $t('channel.mobile.common.ratePlans') }} {{ plan.channelRateId }}</p>
+                    <p class="channel-mapping-page__plan-secondary">{{ $t('channel.mobile.mapping.priceModel') }} {{ plan.pricingModel }}</p>
                   </div>
                 </div>
 
-                <p v-else class="mobile-note">该分组暂无可展示的价盘映射。</p>
+                <p v-else class="mobile-note">{{ $t('channel.mobile.mapping.noRatePlans') }}</p>
               </div>
             </article>
           </div>
@@ -160,7 +160,9 @@
       </div>
 
       <section v-else class="mobile-card">
-        <p class="mobile-note">{{ loading ? '映射数据加载中...' : '未找到该渠道配置。' }}</p>
+        <p class="mobile-note">
+          {{ loading ? $t('channel.mobile.mapping.loading') : $t('channel.mobile.common.notFound') }}
+        </p>
       </section>
     </ion-content>
 
@@ -182,9 +184,11 @@
     <ion-modal :is-open="editorOpen" @didDismiss="handleEditorDidDismiss">
       <ion-header translucent>
         <ion-toolbar>
-          <ion-title>{{ editorGroup ? `${editorGroup.title} · 深度编辑` : '映射深编辑' }}</ion-title>
+          <ion-title>
+            {{ editorGroup ? `${editorGroup.title} · ${$t('channel.mobile.mapping.advancedEdit')}` : $t('channel.mobile.mapping.editorTitle') }}
+          </ion-title>
           <ion-buttons slot="end">
-            <ion-button :disabled="editorSubmitting" @click="closeEditor">关闭</ion-button>
+            <ion-button :disabled="editorSubmitting" @click="closeEditor">{{ $t('channel.mobile.common.close') }}</ion-button>
           </ion-buttons>
         </ion-toolbar>
       </ion-header>
@@ -194,24 +198,24 @@
           <div v-if="editorGroup && editorState">
             <div class="channel-mapping-page__editor-hero">
               <strong>{{ editorGroup.title }}</strong>
-              <p>先保存本地草稿，再按需打开向导完成最终提交。</p>
+              <p>{{ $t('channel.mobile.mapping.editorDescription') }}</p>
             </div>
 
             <section v-if="editorLoading" class="channel-mapping-page__editor-loading">
               <ion-spinner name="crescent" />
-              <p>正在加载 PMS 房型与价盘选项...</p>
+              <p>{{ $t('channel.mobile.mapping.editorLoading') }}</p>
             </section>
 
             <div v-else class="channel-mapping-page__editor-stack">
               <label class="channel-mapping-page__editor-field">
-                <span>PMS 房型</span>
+                <span>{{ $t('channel.mobile.mapping.pmsRoomType') }}</span>
                 <ion-select
                   v-model="editorState.selectedPmsRoomType"
                   fill="outline"
                   interface="action-sheet"
-                  placeholder="请选择 PMS 房型"
+                  :placeholder="$t('channel.mobile.mapping.selectPmsRoomType')"
                 >
-                  <ion-select-option value="">暂不选择</ion-select-option>
+                  <ion-select-option value="">{{ $t('channel.mobile.mapping.skipSelection') }}</ion-select-option>
                   <ion-select-option v-for="item in roomTypeOptions" :key="item.value" :value="item.value">
                     {{ item.label }}
                   </ion-select-option>
@@ -228,18 +232,18 @@
                     <strong>{{ plan.title }}</strong>
                     <ion-badge color="medium">{{ plan.channelRateId }}</ion-badge>
                   </div>
-                  <p>渠道房型：{{ plan.channelRoomId }}</p>
-                  <p>当前 PMS 价盘：{{ plan.currentPmsRatePlan || '未设置' }}</p>
+                  <p>{{ $t('channel.mobile.mapping.channelRoomType') }}：{{ plan.channelRoomId }}</p>
+                  <p>{{ $t('channel.mobile.mapping.currentPmsRatePlan') }}：{{ plan.currentPmsRatePlan || $t('channel.mobile.mapping.notSet') }}</p>
 
                   <label class="channel-mapping-page__editor-field">
-                    <span>目标 PMS 价盘</span>
+                    <span>{{ $t('channel.mobile.mapping.targetPmsRatePlan') }}</span>
                     <ion-select
                       v-model="plan.selectedPmsRatePlan"
                       fill="outline"
                       interface="action-sheet"
-                      placeholder="请选择 PMS 价盘"
+                      :placeholder="$t('channel.mobile.mapping.selectPmsRatePlan')"
                     >
-                      <ion-select-option value="">暂不选择</ion-select-option>
+                      <ion-select-option value="">{{ $t('channel.mobile.mapping.skipSelection') }}</ion-select-option>
                       <ion-select-option
                         v-for="item in pricePlanOptions"
                         :key="item.value"
@@ -253,12 +257,12 @@
               </div>
 
               <div class="channel-mapping-page__editor-actions">
-                <ion-button fill="outline" :disabled="editorSubmitting" @click="closeEditor">取消</ion-button>
+                <ion-button fill="outline" :disabled="editorSubmitting" @click="closeEditor">{{ $t('channel.mobile.common.cancel') }}</ion-button>
                 <ion-button fill="outline" :disabled="editorSubmitting" @click="handleSaveEditor(false)">
-                  {{ editorSubmitting ? '保存中...' : '保存草稿' }}
+                  {{ editorSubmitting ? $t('channel.mobile.common.saving') : $t('channel.mobile.mapping.saveDraft') }}
                 </ion-button>
                 <ion-button :disabled="editorSubmitting" @click="handleSaveEditor(true)">
-                  保存并打开向导
+                  {{ $t('channel.mobile.mapping.saveAndOpenWizard') }}
                 </ion-button>
               </div>
             </div>
@@ -292,6 +296,7 @@ import {
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import ChannelConnectModal from '@/components/channel/ChannelConnectModal.vue'
 import ChannelWidgetModal from '@/components/channel/ChannelWidgetModal.vue'
@@ -310,6 +315,7 @@ import {
   getSuMappings,
   type OtaIntegrationDTO,
   type SuMappingStatusSummary,
+  type SuMappingsResponse,
 } from '@/api/otaIntegration'
 import { getAllPricePlans, type PricePlanDTO } from '@/api/pricePlan'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
@@ -360,12 +366,13 @@ interface MappingEditorState {
 const MAPPING_DRAFT_STORAGE_KEY = 'ios_channel_mapping_drafts_v1'
 
 const route = useRoute()
+const { locale, t } = useI18n()
 const userStore = useUserStore()
 
 const loading = ref(false)
 const channel = ref<OtaIntegrationDTO | null>(null)
 const mappingStatus = ref<SuMappingStatusSummary | null>(null)
-const mappingGroups = ref<SuHotelMappingView[]>([])
+const mappingPayload = ref<SuMappingsResponse | null>(null)
 const filterMode = ref<MappingFilterMode>('all')
 const selectedHotelKey = ref('all')
 const expandedGroupKeys = ref<string[]>([])
@@ -393,9 +400,13 @@ const channelView = computed(() => {
 
 const pageTitle = computed(() => {
   if (!channelView.value) {
-    return '映射详情'
+    return t('routes.ChannelMapping')
   }
-  return `${channelView.value.name} 映射`
+  return `${channelView.value.name} · ${t('routes.ChannelMapping')}`
+})
+const mappingGroups = computed(() => {
+  locale.value
+  return parseSuMappings(mappingPayload.value, channelView.value?.suChannelId || undefined)
 })
 
 const groupLabel = computed(() => getChannelGroupLabel(channel.value?.code))
@@ -414,7 +425,7 @@ const hotelOptions = computed(() => {
 
 const selectedHotelLabel = computed(() => {
   if (selectedHotelKey.value === 'all') {
-    return '全部分组'
+    return t('channel.mobile.mapping.filters.allGroups')
   }
   return selectedHotelKey.value
 })
@@ -434,32 +445,38 @@ const totalRatePlanCount = computed(() => {
 const mappingOverviewText = computed(() => {
   if (!mappingStatus.value) {
     if (mappingGroups.value.length > 0) {
-      return `分组 ${mappingGroups.value.length} · 价盘 ${totalRatePlanCount.value}`
+      return t('channel.mobile.mapping.groupCount', {
+        groups: mappingGroups.value.length,
+        ratePlans: totalRatePlanCount.value,
+      })
     }
-    return '映射数据待刷新'
+    return t('channel.mobile.mapping.pendingRefresh')
   }
 
   if (mappingStatus.value.error) {
-    return '当前未映射或映射异常'
+    return t('channel.mobile.mapping.mappingIssue')
   }
 
   const mappedRoomCount = mappingStatus.value.mappedRoomIdCount || 0
   const activeRatePlanCount = mappingStatus.value.activeRatePlanCount || 0
   if (mappedRoomCount === 0 && activeRatePlanCount === 0) {
-    return '当前未映射'
+    return t('channel.mobile.mapping.notMapped')
   }
 
-  return `房型 ${mappedRoomCount} · 活跃价盘 ${activeRatePlanCount}`
+  return t('channel.mobile.mapping.overview', {
+    rooms: mappedRoomCount,
+    ratePlans: activeRatePlanCount,
+  })
 })
 
 const emptyStateText = computed(() => {
   if (!channelView.value) {
-    return '暂无可展示的映射数据。'
+    return t('channel.mobile.mapping.empty')
   }
   if (!resolveSuChannelId(channelView.value.code)) {
-    return '该渠道当前不支持映射明细。'
+    return t('channel.mobile.mapping.unsupported')
   }
-  return '当前筛选下没有映射结果。'
+  return t('channel.mobile.mapping.filterEmpty')
 })
 
 function resolveWarningMessage(error: unknown, fallbackMessage: string) {
@@ -542,7 +559,9 @@ function resolveDraftBadge(hotelKey: string) {
     return ''
   }
 
-  return `有草稿 · ${formatDraftBadgeTime(draft.savedAt)}`
+  return t('channel.mobile.mapping.draftBadge', {
+    time: formatDraftBadgeTime(draft.savedAt),
+  })
 }
 
 function createEditorState(group: SuHotelMappingView): MappingEditorState {
@@ -604,7 +623,7 @@ async function ensureEditorOptions() {
     if (nextRoomTypeOptions.length === 0) {
       const roomTypeResponse = await getAllRoomTypes()
       if (!roomTypeResponse.success || !roomTypeResponse.data) {
-        throw new Error(roomTypeResponse.message || '加载 PMS 房型失败')
+        throw new Error(roomTypeResponse.message || t('channel.mobile.mapping.roomTypeLoadFailed'))
       }
 
       nextRoomTypeOptions = roomTypeResponse.data.map((item: RoomTypeDTO) => {
@@ -618,11 +637,11 @@ async function ensureEditorOptions() {
     if (nextPricePlanOptions.length === 0) {
       const userId = userStore.currentUser?.id
       if (!userId) {
-        showWarningToast('未获取到当前用户信息，暂无法加载 PMS 价盘选项')
+        showWarningToast(t('channel.mobile.mapping.userUnavailable'))
       } else {
         const pricePlanResponse = await getAllPricePlans(userId)
         if (!pricePlanResponse.success || !pricePlanResponse.data) {
-          throw new Error(pricePlanResponse.message || '加载 PMS 价盘失败')
+          throw new Error(pricePlanResponse.message || t('channel.mobile.mapping.ratePlanLoadFailed'))
         }
 
         nextPricePlanOptions = pricePlanResponse.data.map((item: PricePlanDTO) => {
@@ -634,9 +653,17 @@ async function ensureEditorOptions() {
       }
     }
 
-    nextRoomTypeOptions = ensureOption(nextRoomTypeOptions, editorState.value.selectedPmsRoomType, '当前房型')
+    nextRoomTypeOptions = ensureOption(
+      nextRoomTypeOptions,
+      editorState.value.selectedPmsRoomType,
+      t('channel.mobile.mapping.currentRoomType'),
+    )
     for (const plan of editorState.value.plans) {
-      nextPricePlanOptions = ensureOption(nextPricePlanOptions, plan.selectedPmsRatePlan, '当前价盘')
+      nextPricePlanOptions = ensureOption(
+        nextPricePlanOptions,
+        plan.selectedPmsRatePlan,
+        t('channel.mobile.mapping.currentRatePlan'),
+      )
     }
 
     roomTypeOptions.value = nextRoomTypeOptions
@@ -658,14 +685,14 @@ async function loadMappingPage() {
   try {
     const detailResponse = await getOtaIntegrationById(otaId.value)
     if (!detailResponse.success || !detailResponse.data) {
-      throw new Error(detailResponse.message || '加载渠道详情失败')
+      throw new Error(detailResponse.message || t('channel.mobile.mapping.detailLoadFailed'))
     }
 
     channel.value = detailResponse.data
     const suChannelId = resolveSuChannelId(detailResponse.data.code)
     if (!suChannelId) {
       mappingStatus.value = null
-      mappingGroups.value = []
+      mappingPayload.value = null
       expandedGroupKeys.value = []
       return
     }
@@ -681,17 +708,17 @@ async function loadMappingPage() {
       mappingStatus.value = null
       loadNotice.value = resolveWarningMessage(
         statusResult.status === 'rejected' ? statusResult.reason : statusResult.value.message,
-        '映射状态加载失败',
+        t('channel.mobile.mapping.statusLoadFailed'),
       )
     }
 
     if (mappingsResult.status === 'fulfilled' && mappingsResult.value.success) {
-      mappingGroups.value = parseSuMappings(mappingsResult.value.data || null, suChannelId)
+      mappingPayload.value = mappingsResult.value.data || null
     } else {
-      mappingGroups.value = []
+      mappingPayload.value = null
       const nextWarning = resolveWarningMessage(
         mappingsResult.status === 'rejected' ? mappingsResult.reason : mappingsResult.value.message,
-        '映射结果加载失败',
+        t('channel.mobile.mapping.resultLoadFailed'),
       )
       loadNotice.value = loadNotice.value ? `${loadNotice.value}；${nextWarning}` : nextWarning
     }
@@ -756,7 +783,7 @@ function handleWidgetDismiss() {
 }
 
 function handleWidgetError(message: string) {
-  loadNotice.value = sanitizeChannelWarningMessage(message, '映射操作异常，请稍后重试')
+  loadNotice.value = sanitizeChannelWarningMessage(message, t('channel.mobile.mapping.operationFailed'))
 }
 
 async function openEditor(group: SuHotelMappingView) {
@@ -768,7 +795,7 @@ async function openEditor(group: SuHotelMappingView) {
     await ensureEditorOptions()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '加载编辑选项失败'))
+      showWarningToast(resolveWarningMessage(error, t('channel.mobile.mapping.editorOptionsLoadFailed')))
     }
   }
 }
@@ -805,7 +832,7 @@ async function handleSaveEditor(openWidgetAfterSave: boolean) {
   }
 
   if (!editorState.value.selectedPmsRoomType && selectedPlanCount === 0) {
-    showWarningToast('请至少选择一个 PMS 房型或价盘后再保存草稿')
+    showWarningToast(t('channel.mobile.mapping.selectionRequired'))
     return
   }
 
@@ -835,13 +862,13 @@ async function handleSaveEditor(openWidgetAfterSave: boolean) {
     persistMappingDrafts()
 
     if (openWidgetAfterSave) {
-      showSuccessToast('映射草稿已保存，正在打开向导继续提交')
+      showSuccessToast(t('channel.mobile.mapping.draftSavedOpenWizard'))
       closeEditor()
       widgetModalOpen.value = true
       return
     }
 
-    showSuccessToast('映射草稿已保存；当前后端仍需通过向导完成最终提交')
+    showSuccessToast(t('channel.mobile.mapping.draftSaved'))
     closeEditor()
   } finally {
     editorSubmitting.value = false
@@ -853,7 +880,7 @@ async function reloadMapping() {
     await loadMappingPage()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '刷新映射失败'))
+      showWarningToast(resolveWarningMessage(error, t('channel.mobile.mapping.refreshFailed')))
     }
   }
 }
@@ -911,12 +938,16 @@ onIonViewWillEnter(async () => {
 }
 
 .channel-mapping-hero__chip {
+  max-width: 100%;
   min-height: 29px;
   padding: 0 12px;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
 }
 
 .channel-mapping-hero__chip--status {
@@ -1029,6 +1060,7 @@ onIonViewWillEnter(async () => {
 .channel-mapping-page__action-secondary::part(native),
 .channel-mapping-page__management-actions ion-button::part(native) {
   min-height: 37px;
+  white-space: normal;
 }
 
 .channel-mapping-page__action-primary {
@@ -1076,6 +1108,7 @@ onIonViewWillEnter(async () => {
 .channel-mapping-page__filter-segment ion-segment-button::part(native) {
   min-height: 36px;
   padding: 0;
+  white-space: normal;
 }
 
 .channel-mapping-page__filter-segment ion-segment-button::part(indicator-background) {
@@ -1232,6 +1265,9 @@ onIonViewWillEnter(async () => {
   border-radius: 11px;
   font-size: 14px;
   font-weight: 700;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .channel-mapping-page__group-header ion-badge {
@@ -1278,6 +1314,9 @@ onIonViewWillEnter(async () => {
   color: #59626f;
   font-size: 13px;
   font-weight: 500;
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
 }
 
 .channel-mapping-page__draft-badge {
@@ -1407,6 +1446,12 @@ onIonViewWillEnter(async () => {
 .channel-mapping-page__editor-field span {
   font-size: 13px;
   font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.channel-mapping-page__editor-field ion-select::part(text) {
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 @media (max-width: 480px) {

@@ -1,8 +1,8 @@
 <template>
   <section class="stats-section mobile-dashboard-surface">
     <div class="stats-section__header">
-      <h2 class="stats-section__title">今日经营</h2>
-      <span class="stats-section__tag">实时</span>
+      <h2 class="stats-section__title">{{ t('home.section.operations') }}</h2>
+      <span class="stats-section__tag">{{ t('home.section.realtime') }}</span>
     </div>
 
     <div class="stats-grid" :class="{ 'stats-grid--loading': loading }">
@@ -37,6 +37,9 @@
 
 <script setup lang="ts">
 import { IonSkeletonText } from '@ionic/vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 export interface HomeStatCardItem {
   key: string

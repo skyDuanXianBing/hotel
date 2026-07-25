@@ -11,7 +11,7 @@
         <button
           type="button"
           class="system-notification-card__more-btn"
-          aria-label="更多通知操作"
+          :aria-label="$t('stage5Final.notification.moreActions')"
           @click="$emit('openActions')"
         >
           <ion-icon :icon="ellipsisHorizontal" />
@@ -20,7 +20,7 @@
     </div>
 
     <div class="system-notification-card__content-band">
-      <span class="system-notification-card__content-label">通知内容</span>
+      <span class="system-notification-card__content-label">{{ $t('stage5Final.notification.content') }}</span>
       <p class="system-notification-card__content">{{ contentText }}</p>
     </div>
 
@@ -43,6 +43,7 @@
 import { IonIcon } from '@ionic/vue'
 import { ellipsisHorizontal } from 'ionicons/icons'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '@/components/order/orderUtils'
 import type { NotificationMessageDTO } from '@/types/notification'
 
@@ -54,41 +55,55 @@ defineEmits<{
   openActions: []
 }>()
 
-const titleText = computed(() => props.notification.title?.trim() || '系统通知')
-const contentText = computed(() => props.notification.content?.trim() || '暂无通知内容')
+const { t } = useI18n()
+const titleText = computed(
+  () => props.notification.title?.trim() || t('stage5Final.notification.systemNotification'),
+)
+const contentText = computed(
+  () => props.notification.content?.trim() || t('stage5Final.notification.emptyContent'),
+)
 const createdAtText = computed(() => formatDateTime(props.notification.createdAt))
 const readAtText = computed(() => formatDateTime(props.notification.readAt))
-const statusText = computed(() => (props.notification.isRead ? '已读' : '未读'))
+const statusText = computed(() =>
+  props.notification.isRead
+    ? t('stage5Final.notification.read')
+    : t('stage5Final.notification.unread'),
+)
 const statusClass = computed(() => (props.notification.isRead ? 'is-medium' : 'is-danger'))
 const typeText = computed(() => formatTypeLabel(props.notification.notificationType))
 const metaItems = computed(() => {
-  const items = [typeText.value, props.notification.isRead ? '已处理' : '待处理']
+  const items = [
+    typeText.value,
+    props.notification.isRead
+      ? t('stage5Final.notification.handled')
+      : t('stage5Final.notification.pending'),
+  ]
 
   if (props.notification.relatedId) {
-    items.push(`关联 ${props.notification.relatedId}`)
+    items.push(t('stage5Final.notification.related', { id: props.notification.relatedId }))
   }
 
   return items
 })
 const supportingText = computed(() => {
   if (props.notification.readAt) {
-    return `已读时间 · ${readAtText.value}`
+    return t('stage5Final.notification.readAt', { time: readAtText.value })
   }
 
-  return '可在右上角菜单中标记已读或删除通知'
+  return t('stage5Final.notification.manageHint')
 })
 
 function formatTypeLabel(type: string) {
   if (type === 'SYSTEM') {
-    return '系统通知'
+    return t('stage5Final.notification.systemNotification')
   }
   if (type === 'CLEANING') {
-    return '保洁通知'
+    return t('stage5Final.notification.cleaningNotification')
   }
   if (type === 'TASK') {
-    return '任务通知'
+    return t('stage5Final.notification.taskNotification')
   }
-  return type || '系统通知'
+  return type || t('stage5Final.notification.systemNotification')
 }
 </script>
 
