@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { ArrowDown, ArrowUp, Delete, Plus } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import type { IndependentSitePageSection } from '@/types/independentSite'
 import {
   INDEPENDENT_SITE_MAX_GALLERY_IMAGES,
   INDEPENDENT_SITE_MAX_LIST_ITEMS,
   safeIndependentSiteImageUrl,
 } from '../pageSchema'
-import { INDEPENDENT_SITE_SECTION_TYPE_LABELS } from './constants'
+import { getIndependentSiteSectionTypeLabel } from './constants'
 import SectionImageUpload from './SectionImageUpload.vue'
 
 // section 是编辑器内部响应式 schema 的直接引用，此处修改会触发父级 watch 并实时刷新预览
@@ -15,12 +16,14 @@ const props = defineProps<{
   section: IndependentSitePageSection
 }>()
 
+const { t } = useI18n()
+
 const ITEM_SECTION_TYPES = new Set(['HIGHLIGHTS', 'AMENITIES', 'HOUSE_RULES'])
 const IMAGE_URL_SECTION_TYPES = new Set(['HERO', 'ABOUT'])
 // body 仅对实际渲染它的类型展示（HIGHLIGHTS/AMENITIES 不渲染正文）
 const BODY_SECTION_TYPES = new Set(['HERO', 'ABOUT', 'LOCATION', 'HOUSE_RULES', 'GALLERY', 'BOOKING'])
 
-const typeLabel = computed(() => INDEPENDENT_SITE_SECTION_TYPE_LABELS[props.section.type])
+const typeLabel = computed(() => getIndependentSiteSectionTypeLabel(t, props.section.type))
 const hasItems = computed(() => ITEM_SECTION_TYPES.has(props.section.type))
 const hasBody = computed(() => BODY_SECTION_TYPES.has(props.section.type))
 const hasImageUrl = computed(() => IMAGE_URL_SECTION_TYPES.has(props.section.type))
@@ -101,23 +104,23 @@ const galleryThumb = (url: string) => safeIndependentSiteImageUrl(url)
       type="info"
       :closable="false"
       show-icon
-      title="此区块展示订房入口"
-      description="公开页面会将访客引导至页面底部的实时订房流程，不会产生第二套订房流程。"
+      :title="t('independentSite.editor.bookingBlockTitle')"
+      :description="t('independentSite.editor.bookingBlockDescription')"
     />
 
     <div class="field">
-      <label>标题 <span class="field-required">必填</span></label>
+      <label>{{ t('independentSite.editor.title') }} <span class="field-required">{{ t('independentSite.editor.required') }}</span></label>
       <el-input
         v-model="section.title"
         maxlength="120"
         show-word-limit
         autocomplete="off"
-        placeholder="区块标题（为空时区块不会通过校验）"
+        :placeholder="t('independentSite.editor.titlePlaceholder')"
       />
     </div>
 
     <div v-if="hasBody" class="field">
-      <label>正文</label>
+      <label>{{ t('independentSite.editor.body') }}</label>
       <el-input
         v-model="section.body"
         type="textarea"
@@ -125,33 +128,36 @@ const galleryThumb = (url: string) => safeIndependentSiteImageUrl(url)
         maxlength="600"
         show-word-limit
         resize="vertical"
-        placeholder="补充说明文字，可多行"
+        :placeholder="t('independentSite.editor.bodyPlaceholder')"
       />
     </div>
 
     <div class="field">
-      <label>对齐方式</label>
+      <label>{{ t('independentSite.editor.alignment') }}</label>
       <el-radio-group v-model="section.alignment">
-        <el-radio-button value="LEFT">左对齐</el-radio-button>
-        <el-radio-button value="CENTER">居中</el-radio-button>
+        <el-radio-button value="LEFT">{{ t('independentSite.editor.alignLeft') }}</el-radio-button>
+        <el-radio-button value="CENTER">{{ t('independentSite.editor.alignCenter') }}</el-radio-button>
       </el-radio-group>
     </div>
 
     <div v-if="hasItems" class="field">
-      <label>列表项 <span class="field-limit">至多 {{ INDEPENDENT_SITE_MAX_LIST_ITEMS }} 项</span></label>
+      <label>
+        {{ t('independentSite.editor.listItems') }}
+        <span class="field-limit">{{ t('independentSite.editor.maxItems', { count: INDEPENDENT_SITE_MAX_LIST_ITEMS }) }}</span>
+      </label>
       <div class="item-list">
         <div v-for="(item, index) in ensureItems()" :key="index" class="item-row">
           <el-input
             v-model="ensureItems()[index]"
             maxlength="100"
             autocomplete="off"
-            placeholder="列表项内容"
+            :placeholder="t('independentSite.editor.listItemPlaceholder')"
           />
           <el-button
             :icon="ArrowUp"
             circle
             size="small"
-            aria-label="上移列表项"
+            :aria-label="t('independentSite.editor.moveItemUp')"
             :disabled="index === 0"
             @click="moveItem(index, -1)"
           />
@@ -159,7 +165,7 @@ const galleryThumb = (url: string) => safeIndependentSiteImageUrl(url)
             :icon="ArrowDown"
             circle
             size="small"
-            aria-label="下移列表项"
+            :aria-label="t('independentSite.editor.moveItemDown')"
             :disabled="index === ensureItems().length - 1"
             @click="moveItem(index, 1)"
           />
@@ -169,7 +175,7 @@ const galleryThumb = (url: string) => safeIndependentSiteImageUrl(url)
             size="small"
             type="danger"
             plain
-            aria-label="删除列表项"
+            :aria-label="t('independentSite.editor.deleteItem')"
             @click="removeItem(index)"
           />
         </div>
@@ -181,48 +187,55 @@ const galleryThumb = (url: string) => safeIndependentSiteImageUrl(url)
         :disabled="ensureItems().length >= INDEPENDENT_SITE_MAX_LIST_ITEMS"
         @click="addItem"
       >
-        添加一项
+        {{ t('independentSite.editor.addItem') }}
       </el-button>
     </div>
 
     <div v-if="hasImageUrl" class="field">
-      <label>配图地址</label>
+      <label>{{ t('independentSite.editor.imageUrl') }}</label>
       <div class="image-url-row">
         <el-input
           v-model="section.imageUrl"
           maxlength="1500"
           autocomplete="off"
-          placeholder="https://… 或 /media/… 相对地址"
+          :placeholder="t('independentSite.editor.imageUrlPlaceholder')"
         />
         <SectionImageUpload @uploaded="(url: string) => (section.imageUrl = url)" />
       </div>
-      <img v-if="safeImageUrl" class="image-thumb" :src="safeImageUrl" alt="配图预览" />
+      <img
+        v-if="safeImageUrl"
+        class="image-thumb"
+        :src="safeImageUrl"
+        :alt="t('independentSite.editor.imagePreview')"
+      />
       <p v-else-if="section.imageUrl" class="field-warning">
-        地址格式不合法（仅支持 http(s) 或以 / 开头的相对地址），保存时会被忽略。
+        {{ t('independentSite.editor.invalidImageUrl') }}
       </p>
     </div>
 
     <div v-if="isGallery" class="field">
       <label>
-        图片列表
-        <span class="field-limit">至多 {{ INDEPENDENT_SITE_MAX_GALLERY_IMAGES }} 张，至少 1 张才会展示</span>
+        {{ t('independentSite.editor.images') }}
+        <span class="field-limit">
+          {{ t('independentSite.editor.imagesLimit', { count: INDEPENDENT_SITE_MAX_GALLERY_IMAGES }) }}
+        </span>
       </label>
       <div class="gallery-list">
         <div v-for="(image, index) in ensureImages()" :key="index" class="gallery-row">
           <img v-if="galleryThumb(image.url)" class="gallery-thumb" :src="galleryThumb(image.url)" alt="" />
-          <span v-else class="gallery-thumb gallery-thumb--empty">无图</span>
+          <span v-else class="gallery-thumb gallery-thumb--empty">{{ t('independentSite.editor.noImage') }}</span>
           <div class="gallery-fields">
             <el-input
               v-model="image.url"
               maxlength="1500"
               autocomplete="off"
-              placeholder="图片地址"
+              :placeholder="t('independentSite.editor.imageUrl')"
             />
             <el-input
               v-model="image.alt"
               maxlength="100"
               autocomplete="off"
-              placeholder="图片描述（可选，≤100 字）"
+              :placeholder="t('independentSite.editor.imageDescription')"
             />
           </div>
           <div class="gallery-actions">
@@ -230,7 +243,7 @@ const galleryThumb = (url: string) => safeIndependentSiteImageUrl(url)
               :icon="ArrowUp"
               circle
               size="small"
-              aria-label="上移图片"
+              :aria-label="t('independentSite.editor.moveImageUp')"
               :disabled="index === 0"
               @click="moveGalleryImage(index, -1)"
             />
@@ -238,7 +251,7 @@ const galleryThumb = (url: string) => safeIndependentSiteImageUrl(url)
               :icon="ArrowDown"
               circle
               size="small"
-              aria-label="下移图片"
+              :aria-label="t('independentSite.editor.moveImageDown')"
               :disabled="index === ensureImages().length - 1"
               @click="moveGalleryImage(index, 1)"
             />
@@ -248,7 +261,7 @@ const galleryThumb = (url: string) => safeIndependentSiteImageUrl(url)
               size="small"
               type="danger"
               plain
-              aria-label="删除图片"
+              :aria-label="t('independentSite.editor.deleteImage')"
               @click="removeGalleryImage(index)"
             />
           </div>
@@ -256,7 +269,7 @@ const galleryThumb = (url: string) => safeIndependentSiteImageUrl(url)
       </div>
       <div class="gallery-add-row">
         <SectionImageUpload
-          button-text="上传图片"
+          :button-text="t('independentSite.common.uploadImage')"
           :disabled="ensureImages().length >= INDEPENDENT_SITE_MAX_GALLERY_IMAGES"
           @uploaded="(url: string) => addGalleryImage(url)"
         />
@@ -266,7 +279,7 @@ const galleryThumb = (url: string) => safeIndependentSiteImageUrl(url)
           :disabled="ensureImages().length >= INDEPENDENT_SITE_MAX_GALLERY_IMAGES"
           @click="addGalleryImage()"
         >
-          手动添加地址
+          {{ t('independentSite.editor.addImageUrl') }}
         </el-button>
       </div>
     </div>

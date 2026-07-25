@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { CopyDocument } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import {
   getIndependentSiteStripeSettings,
   updateIndependentSiteStripeSettings,
@@ -20,6 +21,8 @@ const emit = defineEmits<{
   saved: []
 }>()
 
+const { t } = useI18n()
+
 const loading = ref(false)
 const saving = ref(false)
 const settings = ref<IndependentSiteStripeSettings | null>(null)
@@ -35,14 +38,18 @@ const webhookUrl = `${window.location.origin}/api/public/independent-sites/strip
 
 const secretKeyPlaceholder = computed(() =>
   settings.value?.secretKeyConfigured
-    ? `已配置（尾号 ${settings.value.secretKeyLast4 ?? '****'}），留空保持不变`
-    : '粘贴 Stripe Secret key（sk_...）',
+    ? t('independentSite.stripe.configuredPlaceholder', {
+        last4: settings.value.secretKeyLast4 ?? '****',
+      })
+    : t('independentSite.stripe.secretKeyPlaceholder'),
 )
 
 const webhookSecretPlaceholder = computed(() =>
   settings.value?.webhookSecretConfigured
-    ? `已配置（尾号 ${settings.value.webhookSecretLast4 ?? '****'}），留空保持不变`
-    : '粘贴 Webhook Signing secret（whsec_...）',
+    ? t('independentSite.stripe.configuredPlaceholder', {
+        last4: settings.value.webhookSecretLast4 ?? '****',
+      })
+    : t('independentSite.stripe.webhookSecretPlaceholder'),
 )
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -67,14 +74,14 @@ const loadSettings = async () => {
   try {
     const response = await getIndependentSiteStripeSettings()
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载 Stripe 设置失败')
+      throw new Error(response.message || t('independentSite.stripe.loadFailed'))
     }
     settings.value = response.data
     // sk/whsec 明文不回传，只回显 pk 与已配置状态
     form.publishableKey = response.data.publishableKey || ''
   } catch (error) {
     settings.value = null
-    ElMessage.error(getErrorMessage(error, '加载 Stripe 设置失败'))
+    ElMessage.error(getErrorMessage(error, t('independentSite.stripe.loadFailed')))
   } finally {
     loading.value = false
   }
@@ -92,25 +99,37 @@ watch(
 const copyWebhookUrl = async () => {
   try {
     await navigator.clipboard.writeText(webhookUrl)
-    ElMessage.success('Webhook URL 已复制')
+    ElMessage.success(t('independentSite.stripe.copied'))
   } catch {
-    ElMessage.error('复制失败，请手动复制')
+    ElMessage.error(t('independentSite.stripe.copyFailed'))
   }
 }
 
 // 轻校验仅提示不拦截，格式终验在服务端
-const PREFIX_HINTS: Array<{ value: () => string; prefix: string; label: string }> = [
-  { value: () => form.publishableKey, prefix: 'pk_', label: 'Publishable Key' },
-  { value: () => form.secretKey, prefix: 'sk_', label: 'Secret Key' },
-  { value: () => form.webhookSecret, prefix: 'whsec_', label: 'Webhook Secret' },
+const prefixHints = (): Array<{ value: () => string; prefix: string; label: string }> => [
+  {
+    value: () => form.publishableKey,
+    prefix: 'pk_',
+    label: t('independentSite.stripe.publishableKey'),
+  },
+  { value: () => form.secretKey, prefix: 'sk_', label: t('independentSite.stripe.secretKey') },
+  {
+    value: () => form.webhookSecret,
+    prefix: 'whsec_',
+    label: t('independentSite.stripe.webhookSecret'),
+  },
 ]
 
 const warnInvalidPrefixes = () => {
-  const invalidLabels = PREFIX_HINTS.filter(
+  const invalidLabels = prefixHints()
+    .filter(
     (item) => item.value().trim() && !item.value().trim().startsWith(item.prefix),
-  ).map((item) => `${item.label}（应以 ${item.prefix} 开头）`)
+    )
+    .map((item) => t('independentSite.stripe.prefixHint', item))
   if (invalidLabels.length > 0) {
-    ElMessage.warning(`${invalidLabels.join('、')} 格式可能不正确，仍以服务端校验结果为准`)
+    ElMessage.warning(
+      t('independentSite.stripe.invalidPrefixWarning', { labels: invalidLabels.join('、') }),
+    )
   }
 }
 
@@ -129,7 +148,7 @@ const handleSave = async () => {
     payload.webhookSecret = webhookSecret
   }
   if (Object.keys(payload).length === 0) {
-    ElMessage.info('没有需要保存的变更，留空表示保持不变')
+    ElMessage.info(t('independentSite.stripe.noChanges'))
     return
   }
 
@@ -138,17 +157,17 @@ const handleSave = async () => {
   try {
     const response = await updateIndependentSiteStripeSettings(payload)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '保存 Stripe 设置失败')
+      throw new Error(response.message || t('independentSite.stripe.saveFailed'))
     }
     settings.value = response.data
     form.publishableKey = response.data.publishableKey || ''
     form.secretKey = ''
     form.webhookSecret = ''
-    ElMessage.success('Stripe 设置已保存')
+    ElMessage.success(t('independentSite.stripe.saved'))
     emit('saved')
     emit('update:modelValue', false)
   } catch (error) {
-    ElMessage.error(getErrorMessage(error, '保存 Stripe 设置失败'))
+    ElMessage.error(getErrorMessage(error, t('independentSite.stripe.saveFailed')))
   } finally {
     saving.value = false
   }
@@ -158,7 +177,7 @@ const handleSave = async () => {
 <template>
   <el-dialog
     :model-value="modelValue"
-    title="Stripe 设置"
+    :title="t('independentSite.stripe.title')"
     width="640px"
     :close-on-click-modal="!saving"
     @update:model-value="$emit('update:modelValue', $event)"
@@ -166,22 +185,26 @@ const handleSave = async () => {
     <div v-loading="loading" class="stripe-settings">
       <div class="status-row">
         <el-tag :type="settings?.configured ? 'success' : 'info'" effect="plain">
-          {{ settings?.configured ? '门店密钥已配齐' : '门店密钥未配齐' }}
+          {{
+            settings?.configured
+              ? t('independentSite.stripe.configured')
+              : t('independentSite.stripe.notConfigured')
+          }}
         </el-tag>
         <span class="status-hint">
-          密钥按门店保存并加密存储，该门店所有独立站共享；保存后不再回显明文。
+          {{ t('independentSite.stripe.statusHint') }}
         </span>
       </div>
 
       <el-form label-position="top" :disabled="saving">
-        <el-form-item label="Publishable Key">
+        <el-form-item :label="t('independentSite.stripe.publishableKey')">
           <el-input
             v-model="form.publishableKey"
             autocomplete="off"
-            placeholder="粘贴 Stripe Publishable key（pk_...）"
+            :placeholder="t('independentSite.stripe.publishableKeyPlaceholder')"
           />
         </el-form-item>
-        <el-form-item label="Secret Key">
+        <el-form-item :label="t('independentSite.stripe.secretKey')">
           <el-input
             v-model="form.secretKey"
             type="password"
@@ -190,7 +213,7 @@ const handleSave = async () => {
             :placeholder="secretKeyPlaceholder"
           />
         </el-form-item>
-        <el-form-item label="Webhook Secret">
+        <el-form-item :label="t('independentSite.stripe.webhookSecret')">
           <el-input
             v-model="form.webhookSecret"
             type="password"
@@ -202,30 +225,34 @@ const handleSave = async () => {
       </el-form>
 
       <div class="webhook-block">
-        <span class="webhook-label">Webhook URL</span>
+        <span class="webhook-label">{{ t('independentSite.stripe.webhookUrl') }}</span>
         <div class="webhook-url-row">
           <el-input :model-value="webhookUrl" readonly>
             <template #append>
-              <el-button :icon="CopyDocument" @click="copyWebhookUrl">复制</el-button>
+              <el-button :icon="CopyDocument" @click="copyWebhookUrl">
+                {{ t('independentSite.common.copy') }}
+              </el-button>
             </template>
           </el-input>
         </div>
       </div>
 
       <div class="guide-block">
-        <span class="guide-title">配置指引</span>
+        <span class="guide-title">{{ t('independentSite.stripe.guideTitle') }}</span>
         <ol class="guide-list">
-          <li>打开 Stripe Dashboard → Developers → Webhooks → Add endpoint，填写上方 Webhook URL。</li>
-          <li>订阅事件 <code>payment_intent.succeeded</code> 与 <code>payment_intent.payment_failed</code>。</li>
-          <li>把该 endpoint 的 Signing secret（<code>whsec_...</code>）填回上方「Webhook Secret」。</li>
-          <li>测试卡号 <code>4242 4242 4242 4242</code>，有效期填任意未来日期，CVC 任意填写。</li>
+          <li>{{ t('independentSite.stripe.guideStepOne') }}</li>
+          <li>{{ t('independentSite.stripe.guideStepTwo') }}</li>
+          <li>{{ t('independentSite.stripe.guideStepThree') }}</li>
+          <li>{{ t('independentSite.stripe.guideStepFour') }}</li>
         </ol>
       </div>
     </div>
     <template #footer>
-      <el-button :disabled="saving" @click="$emit('update:modelValue', false)">取消</el-button>
+      <el-button :disabled="saving" @click="$emit('update:modelValue', false)">
+        {{ t('independentSite.common.cancel') }}
+      </el-button>
       <el-button type="primary" :loading="saving" :disabled="loading" @click="handleSave">
-        保存
+        {{ t('independentSite.common.save') }}
       </el-button>
     </template>
   </el-dialog>

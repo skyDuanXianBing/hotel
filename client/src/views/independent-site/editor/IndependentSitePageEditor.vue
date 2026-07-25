@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type {
   IndependentSitePageSchema,
   IndependentSitePageSection,
@@ -25,12 +26,14 @@ const props = withDefaults(
   },
 )
 
+const { t } = useI18n()
+
 const emit = defineEmits<{
   change: [schema: IndependentSitePageSchema | null]
 }>()
 
 const cloneSchema = (value: unknown): IndependentSitePageSchema =>
-  normalizeIndependentSiteSchema(value) ?? createEmptyIndependentSiteSchema()
+  normalizeIndependentSiteSchema(value) ?? createEmptyIndependentSiteSchema(t)
 
 const editableSchema = ref<IndependentSitePageSchema>(cloneSchema(props.schema))
 const selectedId = ref(editableSchema.value.sections[0]?.id ?? '')
@@ -118,7 +121,7 @@ const handleAdd = (type: IndependentSiteSectionType) => {
   if (sections.value.some((section) => section.type === type)) {
     return
   }
-  const section = createIndependentSiteSection(type)
+  const section = createIndependentSiteSection(type, t)
   sections.value.push(section)
   selectedId.value = section.id ?? ''
 }
@@ -143,12 +146,12 @@ const scrollPreviewToBottom = () => {
     />
 
     <SectionFormPanel v-if="selectedSection" :key="selectedSection.id" :section="selectedSection" />
-    <div v-else class="form-placeholder">选择左侧区块进行编辑</div>
+    <div v-else class="form-placeholder">{{ t('independentSite.editor.selectBlock') }}</div>
 
     <div class="editor-preview">
       <div class="preview-toolbar">
-        <span>实时预览</span>
-        <span class="preview-tip">修改会即时应用；保存草稿后才会进入发布流程</span>
+        <span>{{ t('independentSite.editor.livePreview') }}</span>
+        <span class="preview-tip">{{ t('independentSite.editor.livePreviewTip') }}</span>
       </div>
       <div ref="previewScrollRef" class="preview-scroll">
         <IndependentSitePageRenderer
@@ -160,7 +163,7 @@ const scrollPreviewToBottom = () => {
         />
         <el-empty
           v-else
-          description="当前内容未通过校验（例如首屏标题为空），补齐后预览自动恢复"
+          :description="t('independentSite.editor.invalidPreview')"
         />
       </div>
     </div>

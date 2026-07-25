@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { Calendar, Check, Lock, User } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import { loadStripe } from '@stripe/stripe-js/pure'
 import type { Stripe, StripeCardElement } from '@stripe/stripe-js'
 import {
@@ -67,6 +68,8 @@ const props = withDefaults(
     previewAuthorized: false,
   },
 )
+
+const { locale, t } = useI18n()
 
 const searchFormRef = ref<FormInstance>()
 const guestFormRef = ref<FormInstance>()
@@ -139,13 +142,13 @@ const hasBookableQuotes = computed(
 const paymentStatus = computed(() => paymentResult.value?.status || checkout.value?.status)
 
 const bookingUnavailableTitle = computed(() => {
-  return '当前站点未开放在线支付'
+  return t('independentSite.booking.unavailableTitle')
 })
 
 const bookingUnavailableDescription = computed(() => {
   return (
     props.site.paymentNotice ||
-    '您可以查询实时房量与价格，但暂时无法在线下单支付。请联系门店完成预订。'
+    t('independentSite.booking.unavailableDescription')
   )
 })
 
@@ -168,9 +171,9 @@ const bookingReference = computed(() => {
     return attempt.groupOrderNo
   }
   if (attempt?.reservationOrderNumbers?.length) {
-    return attempt.reservationOrderNumbers.join('、')
+    return attempt.reservationOrderNumbers.join(t('independentSite.booking.referenceSeparator'))
   }
-  return '处理中'
+  return t('independentSite.booking.processing')
 })
 
 const numberOfNights = computed(() => {
@@ -186,13 +189,15 @@ const termsUrl = computed(() => safeLegalUrl(undefined, '/legal/terms'))
 const privacyUrl = computed(() => safeLegalUrl(undefined, '/legal/privacy'))
 
 const searchRules: FormRules = {
-  checkInDate: [{ required: true, message: '请选择入住日期', trigger: 'change' }],
+  checkInDate: [
+    { required: true, message: t('independentSite.booking.validation.checkInRequired'), trigger: 'change' },
+  ],
   checkOutDate: [
-    { required: true, message: '请选择离店日期', trigger: 'change' },
+    { required: true, message: t('independentSite.booking.validation.checkOutRequired'), trigger: 'change' },
     {
       validator: (_rule, value, callback) => {
         if (value && searchForm.checkInDate && String(value) <= String(searchForm.checkInDate)) {
-          callback(new Error('离店日期必须晚于入住日期'))
+          callback(new Error(t('independentSite.booking.validation.checkOutAfterCheckIn')))
           return
         }
         callback()
@@ -204,7 +209,7 @@ const searchRules: FormRules = {
     {
       validator: (_rule, value, callback) => {
         if (Number(value) < searchForm.roomCount) {
-          callback(new Error('每间房至少需要一位成人'))
+          callback(new Error(t('independentSite.booking.validation.adultsPerRoom')))
           return
         }
         callback()
@@ -216,26 +221,28 @@ const searchRules: FormRules = {
 
 const guestRules: FormRules = {
   firstName: [
-    { required: true, message: '请输入名字', trigger: 'blur' },
-    { min: 1, max: 49, message: '名字不能超过 49 个字符', trigger: 'blur' },
+    { required: true, message: t('independentSite.booking.validation.firstNameRequired'), trigger: 'blur' },
+    { min: 1, max: 49, message: t('independentSite.booking.validation.firstNameLength'), trigger: 'blur' },
   ],
   lastName: [
-    { required: true, message: '请输入姓氏', trigger: 'blur' },
-    { min: 1, max: 49, message: '姓氏不能超过 49 个字符', trigger: 'blur' },
+    { required: true, message: t('independentSite.booking.validation.lastNameRequired'), trigger: 'blur' },
+    { min: 1, max: 49, message: t('independentSite.booking.validation.lastNameLength'), trigger: 'blur' },
   ],
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入有效邮箱', trigger: ['blur', 'change'] },
+    { required: true, message: t('independentSite.booking.validation.emailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('independentSite.booking.validation.emailInvalid'), trigger: ['blur', 'change'] },
   ],
   phone: [
-    { required: true, message: '请输入联系电话', trigger: 'blur' },
+    { required: true, message: t('independentSite.booking.validation.phoneRequired'), trigger: 'blur' },
     {
       pattern: /^[+()\-\s0-9]{6,30}$/,
-      message: '请输入有效联系电话',
+      message: t('independentSite.booking.validation.phoneInvalid'),
       trigger: ['blur', 'change'],
     },
   ],
-  specialRequests: [{ max: 500, message: '特殊需求不能超过 500 个字符', trigger: 'blur' }],
+  specialRequests: [
+    { max: 500, message: t('independentSite.booking.validation.requestsLength'), trigger: 'blur' },
+  ],
 }
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -281,7 +288,7 @@ const formatMoney = (amount: unknown, currency?: string) => {
     return '—'
   }
   try {
-    return new Intl.NumberFormat('zh-CN', {
+    return new Intl.NumberFormat(locale.value, {
       style: 'currency',
       currency: currency || props.site.currency || 'CNY',
       minimumFractionDigits: 2,
@@ -298,7 +305,7 @@ const formatDate = (value?: string) => {
   const date = new Date(`${value.slice(0, 10)}T00:00:00`)
   return Number.isNaN(date.getTime())
     ? value
-    : new Intl.DateTimeFormat('zh-CN', {
+    : new Intl.DateTimeFormat(locale.value, {
         month: 'short',
         day: 'numeric',
         weekday: 'short',
@@ -312,7 +319,7 @@ const formatDateTime = (value?: string) => {
   const date = new Date(value)
   return Number.isNaN(date.getTime())
     ? value
-    : new Intl.DateTimeFormat('zh-CN', {
+    : new Intl.DateTimeFormat(locale.value, {
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
@@ -372,7 +379,7 @@ const handleSearch = async () => {
   idempotencyKey.value = ''
   try {
     if (!requestedSite.roomTypes.length) {
-      throw new Error('此站点尚未发布可订房型')
+      throw new Error(t('independentSite.booking.errors.noPublishedRooms'))
     }
 
     const quoteResults = await Promise.allSettled(
@@ -382,7 +389,10 @@ const handleSearch = async () => {
           ...searchSnapshot,
         })
         if (!response.success || !response.data) {
-          throw new Error(response.message || `${roomType.name} 暂时无法报价`)
+          throw new Error(
+            response.message ||
+              t('independentSite.booking.errors.roomQuoteUnavailable', { name: roomType.name }),
+          )
         }
         return {
           ...response.data,
@@ -407,7 +417,7 @@ const handleSearch = async () => {
       const firstFailure = quoteResults.find(
         (result): result is PromiseRejectedResult => result.status === 'rejected',
       )
-      throw firstFailure?.reason || new Error('当前条件下没有可订房型')
+      throw firstFailure?.reason || new Error(t('independentSite.booking.errors.quoteUnavailable'))
     }
 
     const firstQuote = availableQuotes[0]
@@ -422,7 +432,7 @@ const handleSearch = async () => {
       roomTypes: availableQuotes,
     }
     if (availableQuotes.length < quoteResults.length) {
-      quoteError.value = '部分房型暂时无法报价，以下仅显示服务端已成功核算的房型。'
+      quoteError.value = t('independentSite.booking.errors.partialQuote')
     }
     await nextTick()
     if (!isCurrentSearch()) {
@@ -438,7 +448,7 @@ const handleSearch = async () => {
       return
     }
     quote.value = null
-    quoteError.value = getErrorMessage(error, '暂时无法获取实时房量与报价，请重试。')
+    quoteError.value = getErrorMessage(error, t('independentSite.booking.errors.loadQuotes'))
   } finally {
     if (isCurrentSearch()) {
       quoteLoading.value = false
@@ -478,7 +488,7 @@ const applyInitialRoomTypeSelection = async () => {
 
 const handleCheckout = async () => {
   if (!quote.value || !selectedQuote.value) {
-    checkoutError.value = '请先选择可订房型'
+    checkoutError.value = t('independentSite.booking.errors.selectRoom')
     return
   }
   if (!canBookOnline.value) {
@@ -512,7 +522,7 @@ const handleCheckout = async () => {
       },
     })
     if (!response.success || !response.data) {
-      throw new Error(response.message || '暂时无法保留房间')
+      throw new Error(response.message || t('independentSite.booking.errors.holdFailed'))
     }
     checkout.value = response.data
     paymentResult.value = null
@@ -525,7 +535,7 @@ const handleCheckout = async () => {
       block: 'start',
     })
   } catch (error) {
-    checkoutError.value = getErrorMessage(error, '房量或价格可能已变化，请重新查询后再提交。')
+    checkoutError.value = getErrorMessage(error, t('independentSite.booking.errors.priceChanged'))
   } finally {
     checkoutLoading.value = false
   }
@@ -540,14 +550,14 @@ const refreshPaymentStatus = async () => {
     checkout.value.paymentAttemptId,
   )
   if (!response.success || !response.data) {
-    throw new Error(response.message || '无法确认支付状态')
+    throw new Error(response.message || t('independentSite.booking.errors.statusFailed'))
   }
   paymentResult.value = response.data
 }
 
 const handleSimulatedPayment = async () => {
   if (!checkout.value || !canBookOnline.value) {
-    paymentError.value = '当前站点未开放在线支付'
+    paymentError.value = t('independentSite.booking.unavailableTitle')
     return
   }
 
@@ -559,12 +569,12 @@ const handleSimulatedPayment = async () => {
       checkout.value.paymentAttemptId,
     )
     if (!response.success || !response.data) {
-      throw new Error(response.message || '模拟支付处理失败')
+      throw new Error(response.message || t('independentSite.booking.errors.simulatedPaymentFailed'))
     }
     paymentResult.value = response.data
     await refreshPaymentStatus()
   } catch (error) {
-    paymentError.value = getErrorMessage(error, '模拟支付处理失败，请重试。')
+    paymentError.value = getErrorMessage(error, t('independentSite.booking.errors.simulatedPaymentRetry'))
   } finally {
     paymentLoading.value = false
   }
@@ -634,7 +644,7 @@ const setupStripePayment = async () => {
       checkout.value.paymentAttemptId,
     )
     if (!response.success || !response.data) {
-      throw new Error(response.message || '暂时无法初始化银行卡支付')
+      throw new Error(response.message || t('independentSite.booking.errors.stripeInit'))
     }
     const intent = response.data
     // attempt 已非 PENDING（如 15 分钟保留过期）：直接同步服务端最新状态，走现有终态提示
@@ -643,17 +653,17 @@ const setupStripePayment = async () => {
       return
     }
     if (!intent.clientSecret || !intent.publishableKey) {
-      throw new Error('支付初始化响应不完整，请重试')
+      throw new Error(t('independentSite.booking.errors.stripeResponse'))
     }
     const stripe = await loadStripe(intent.publishableKey)
     if (!stripe) {
-      throw new Error('Stripe.js 加载失败，请检查网络后重试')
+      throw new Error(t('independentSite.booking.errors.stripeLoad'))
     }
     stripeInstance = stripe
     stripeClientSecret = intent.clientSecret
     await mountStripeCardElement()
   } catch (error) {
-    stripeIntentError.value = getErrorMessage(error, '暂时无法初始化银行卡支付，请重试。')
+    stripeIntentError.value = getErrorMessage(error, t('independentSite.booking.errors.stripeRetry'))
   } finally {
     stripeIntentLoading.value = false
   }
@@ -686,7 +696,7 @@ const pollPaymentStatusUntilFinal = async () => {
       await new Promise((resolve) => window.setTimeout(resolve, PAYMENT_POLL_INTERVAL_MS))
     }
   }
-  paymentError.value = '支付结果确认中，请稍后点击"刷新支付状态"查看最新结果。'
+  paymentError.value = t('independentSite.booking.errors.paymentPending')
 }
 
 // 确认 Stripe 卡支付；卡被拒等错误保留原 intent，可修正后重试，不新建 hold
@@ -708,12 +718,12 @@ const handleStripePayment = async () => {
       },
     })
     if (error) {
-      paymentError.value = error.message || '银行卡支付失败，请检查卡片信息后重试。'
+      paymentError.value = error.message || t('independentSite.booking.errors.cardPayment')
       return
     }
     await pollPaymentStatusUntilFinal()
   } catch (error) {
-    paymentError.value = getErrorMessage(error, '支付确认失败，请重试。')
+    paymentError.value = getErrorMessage(error, t('independentSite.booking.errors.confirmPayment'))
   } finally {
     paymentLoading.value = false
   }
@@ -724,7 +734,7 @@ const handleRefreshPaymentStatus = async () => {
   try {
     await refreshPaymentStatus()
   } catch (error) {
-    paymentError.value = getErrorMessage(error, '暂时无法获取支付状态，请稍后重试。')
+    paymentError.value = getErrorMessage(error, t('independentSite.booking.errors.refreshPayment'))
   }
 }
 
@@ -780,7 +790,7 @@ watch(
     selectedRoomTypeId.value = null
     checkout.value = null
     paymentResult.value = null
-    quoteError.value = '搜索条件已变化，请重新查询实时房量与价格。'
+    quoteError.value = t('independentSite.booking.errors.searchChanged')
   },
 )
 
@@ -811,14 +821,14 @@ watch(
   <section id="booking" class="booking-section">
     <div class="booking-heading">
       <div>
-        <span>BOOK YOUR STAY</span>
-        <h2>查询实时可订房间</h2>
+        <span>{{ t('independentSite.booking.headingEyebrow') }}</span>
+        <h2>{{ t('independentSite.booking.heading') }}</h2>
       </div>
-      <ol class="booking-progress" aria-label="预订进度">
-        <li :class="{ active: currentStep >= 1 }">1 查询</li>
-        <li :class="{ active: currentStep >= 2 }">2 资料</li>
-        <li :class="{ active: currentStep >= 3 }">3 支付</li>
-        <li :class="{ active: currentStep >= 4 }">4 完成</li>
+      <ol class="booking-progress" :aria-label="t('independentSite.booking.progress')">
+        <li :class="{ active: currentStep >= 1 }">1 {{ t('independentSite.booking.stepSearch') }}</li>
+        <li :class="{ active: currentStep >= 2 }">2 {{ t('independentSite.booking.stepDetails') }}</li>
+        <li :class="{ active: currentStep >= 3 }">3 {{ t('independentSite.booking.stepPayment') }}</li>
+        <li :class="{ active: currentStep >= 4 }">4 {{ t('independentSite.booking.stepComplete') }}</li>
       </ol>
     </div>
 
@@ -830,31 +840,31 @@ watch(
       class="search-panel"
       :aria-busy="quoteLoading"
     >
-      <el-form-item label="入住日期" prop="checkInDate">
+      <el-form-item :label="t('independentSite.booking.checkIn')" prop="checkInDate">
         <el-date-picker
           v-model="searchForm.checkInDate"
           type="date"
           value-format="YYYY-MM-DD"
           format="YYYY-MM-DD"
-          placeholder="选择日期"
+          :placeholder="t('independentSite.booking.selectDate')"
           :disabled-date="disableCheckInDate"
           :prefix-icon="Calendar"
           style="width: 100%"
         />
       </el-form-item>
-      <el-form-item label="离店日期" prop="checkOutDate">
+      <el-form-item :label="t('independentSite.booking.checkOut')" prop="checkOutDate">
         <el-date-picker
           v-model="searchForm.checkOutDate"
           type="date"
           value-format="YYYY-MM-DD"
           format="YYYY-MM-DD"
-          placeholder="选择日期"
+          :placeholder="t('independentSite.booking.selectDate')"
           :disabled-date="disableCheckOutDate"
           :prefix-icon="Calendar"
           style="width: 100%"
         />
       </el-form-item>
-      <el-form-item label="成人" prop="adults">
+      <el-form-item :label="t('independentSite.booking.adults')" prop="adults">
         <el-input-number
           v-model="searchForm.adults"
           :min="searchForm.roomCount"
@@ -863,7 +873,7 @@ watch(
           style="width: 100%"
         />
       </el-form-item>
-      <el-form-item label="儿童">
+      <el-form-item :label="t('independentSite.booking.children')">
         <el-input-number
           v-model="searchForm.children"
           :min="0"
@@ -872,7 +882,7 @@ watch(
           style="width: 100%"
         />
       </el-form-item>
-      <el-form-item label="房间数">
+      <el-form-item :label="t('independentSite.booking.rooms')">
         <el-input-number
           v-model="searchForm.roomCount"
           :min="1"
@@ -882,7 +892,7 @@ watch(
         />
       </el-form-item>
       <el-button class="search-action" type="primary" :loading="quoteLoading" @click="handleSearch">
-        查询实时价格
+        {{ t('independentSite.booking.searchPrices') }}
       </el-button>
     </el-form>
 
@@ -898,22 +908,32 @@ watch(
     <section v-if="quote" id="availability-results" class="availability-results">
       <div class="result-heading">
         <div>
-          <span>REAL-TIME AVAILABILITY</span>
+          <span>{{ t('independentSite.booking.resultsEyebrow') }}</span>
           <h3>
             {{ formatDate(quote.checkInDate || searchForm.checkInDate) }} –
             {{ formatDate(quote.checkOutDate || searchForm.checkOutDate) }}
           </h3>
         </div>
         <p>
-          {{ numberOfNights }} 晚 · {{ searchForm.adults }} 位成人
-          <template v-if="searchForm.children">· {{ searchForm.children }} 位儿童</template>
-          · {{ searchForm.roomCount }} 间房
+          {{
+            t(
+              searchForm.children
+                ? 'independentSite.booking.staySummary'
+                : 'independentSite.booking.staySummaryWithoutChildren',
+              {
+                nights: numberOfNights,
+                adults: searchForm.adults,
+                children: searchForm.children,
+                rooms: searchForm.roomCount,
+              },
+            )
+          }}
         </p>
       </div>
 
       <el-empty
         v-if="quote.roomTypes.length === 0 || !hasBookableQuotes"
-        description="所选日期与人数下没有可订房型，请调整条件后重新查询"
+        :description="t('independentSite.booking.emptyResults')"
       />
 
       <div v-else class="room-quote-list">
@@ -924,7 +944,10 @@ watch(
           :class="{ selected: selectedRoomTypeId === roomQuote.roomTypeId }"
         >
           <div v-if="roomImage(roomQuote)" class="room-image-shell">
-            <img :src="roomImage(roomQuote)" :alt="`${roomQuote.roomTypeName} 房型图片`" />
+            <img
+              :src="roomImage(roomQuote)"
+              :alt="t('independentSite.booking.roomImageAlt', { name: roomQuote.roomTypeName })"
+            />
           </div>
           <div v-else class="room-image-placeholder" aria-hidden="true">
             <span></span>
@@ -934,12 +957,14 @@ watch(
               <h4>{{ roomQuote.roomTypeName }}</h4>
               <p v-if="roomQuote.description">{{ roomQuote.description }}</p>
               <div class="room-meta">
-                <span v-if="roomQuote.maxGuests">最多 {{ roomQuote.maxGuests }} 人</span>
-                <span>剩余 {{ roomQuote.availableRooms }} 间</span>
+                <span v-if="roomQuote.maxGuests">
+                  {{ t('independentSite.booking.maxGuests', { count: roomQuote.maxGuests }) }}
+                </span>
+                <span>{{ t('independentSite.booking.availableRooms', { count: roomQuote.availableRooms }) }}</span>
               </div>
             </div>
             <div class="room-price">
-              <small>{{ numberOfNights }} 晚合计</small>
+              <small>{{ t('independentSite.booking.totalNights', { count: numberOfNights }) }}</small>
               <strong>{{ formatMoney(roomQuote.totalAmount, quote.currency) }}</strong>
               <button
                 type="button"
@@ -948,12 +973,12 @@ watch(
               >
                 {{
                   roomQuote.availableRooms < searchForm.roomCount
-                    ? '房量不足'
+                    ? t('independentSite.booking.insufficientAvailability')
                     : selectedRoomTypeId === roomQuote.roomTypeId
-                      ? '已选择'
+                      ? t('independentSite.booking.selected')
                       : canBookOnline
-                        ? '选择房型'
-                        : '查看预订说明'
+                        ? t('independentSite.booking.selectRoomType')
+                        : t('independentSite.booking.viewBookingNotice')
                 }}
               </button>
             </div>
@@ -961,18 +986,18 @@ watch(
         </article>
       </div>
       <p v-if="quote.expiresAt && hasBookableQuotes" class="quote-expiry">
-        此报价有效至 {{ formatDateTime(quote.expiresAt) }}；提交时服务端会重新核价与检查房量。
+        {{ t('independentSite.booking.quoteExpiry', { time: formatDateTime(quote.expiresAt) }) }}
       </p>
     </section>
 
     <section v-if="selectedQuote && !checkout" id="guest-details" class="checkout-panel">
       <div class="checkout-heading">
-        <span>{{ canBookOnline ? 'GUEST DETAILS' : 'BOOKING NOTICE' }}</span>
-        <h3>{{ canBookOnline ? '填写预订信息' : '实时报价已就绪' }}</h3>
+        <span>{{ t(canBookOnline ? 'independentSite.booking.guestDetails' : 'independentSite.booking.bookingNotice') }}</span>
+        <h3>{{ t(canBookOnline ? 'independentSite.booking.guestDetailsHeading' : 'independentSite.booking.quoteReady') }}</h3>
         <p v-if="canBookOnline">
-          已选 {{ selectedQuote.roomTypeName }}，下单时不会采用浏览器传入的金额。
+          {{ t('independentSite.booking.selectedRoomNotice', { name: selectedQuote.roomTypeName }) }}
         </p>
-        <p v-else>已查看 {{ selectedQuote.roomTypeName }} 的服务端实时报价。</p>
+        <p v-else>{{ t('independentSite.booking.quoteViewedNotice', { name: selectedQuote.roomTypeName }) }}</p>
       </div>
 
       <el-alert
@@ -994,20 +1019,20 @@ watch(
           class="guest-form"
         >
           <div class="guest-name-grid">
-            <el-form-item label="名字" prop="firstName">
+            <el-form-item :label="t('independentSite.booking.firstName')" prop="firstName">
               <el-input v-model.trim="guestForm.firstName" autocomplete="given-name" />
             </el-form-item>
-            <el-form-item label="姓氏" prop="lastName">
+            <el-form-item :label="t('independentSite.booking.lastName')" prop="lastName">
               <el-input v-model.trim="guestForm.lastName" autocomplete="family-name" />
             </el-form-item>
           </div>
-          <el-form-item label="邮箱" prop="email">
+          <el-form-item :label="t('independentSite.booking.email')" prop="email">
             <el-input v-model.trim="guestForm.email" type="email" autocomplete="email" />
           </el-form-item>
-          <el-form-item label="联系电话" prop="phone">
+          <el-form-item :label="t('independentSite.booking.phone')" prop="phone">
             <el-input v-model.trim="guestForm.phone" type="tel" autocomplete="tel" />
           </el-form-item>
-          <el-form-item label="特殊需求（可选）" prop="specialRequests">
+          <el-form-item :label="t('independentSite.booking.specialRequests')" prop="specialRequests">
             <el-input
               v-model="guestForm.specialRequests"
               type="textarea"
@@ -1017,13 +1042,13 @@ watch(
             />
           </el-form-item>
           <p class="consent-copy">
-            提交即表示同意
-            <a :href="termsUrl" target="_blank" rel="noopener noreferrer">预订条款</a>
-            与
-            <a :href="privacyUrl" target="_blank" rel="noopener noreferrer">隐私政策</a>。
+            {{ t('independentSite.booking.consentPrefix') }}
+            <a :href="termsUrl" target="_blank" rel="noopener noreferrer">{{ t('independentSite.booking.terms') }}</a>
+            {{ t('independentSite.booking.consentJoiner') }}
+            <a :href="privacyUrl" target="_blank" rel="noopener noreferrer">{{ t('independentSite.booking.privacy') }}</a>{{ t('independentSite.booking.consentSuffix') }}
           </p>
           <el-button type="primary" size="large" :loading="checkoutLoading" @click="handleCheckout">
-            重新核价并创建预订保留
+            {{ t('independentSite.booking.createHold') }}
           </el-button>
           <el-alert
             v-if="checkoutError"
@@ -1035,29 +1060,29 @@ watch(
           />
         </el-form>
 
-        <aside class="booking-summary" aria-label="预订摘要">
+        <aside class="booking-summary" :aria-label="t('independentSite.booking.summary')">
           <el-icon><User /></el-icon>
-          <span>预订摘要</span>
+          <span>{{ t('independentSite.booking.summary') }}</span>
           <h4>{{ selectedQuote.roomTypeName }}</h4>
           <dl>
             <div>
-              <dt>入住</dt>
+              <dt>{{ t('independentSite.booking.summaryCheckIn') }}</dt>
               <dd>{{ formatDate(searchForm.checkInDate) }}</dd>
             </div>
             <div>
-              <dt>离店</dt>
+              <dt>{{ t('independentSite.booking.summaryCheckOut') }}</dt>
               <dd>{{ formatDate(searchForm.checkOutDate) }}</dd>
             </div>
             <div>
-              <dt>房间</dt>
-              <dd>{{ searchForm.roomCount }} 间</dd>
+              <dt>{{ t('independentSite.booking.summaryRooms') }}</dt>
+              <dd>{{ t('independentSite.booking.roomCount', { count: searchForm.roomCount }) }}</dd>
             </div>
             <div>
-              <dt>当前报价</dt>
+              <dt>{{ t('independentSite.booking.currentQuote') }}</dt>
               <dd>{{ formatMoney(selectedQuote.totalAmount, quote?.currency) }}</dd>
             </div>
           </dl>
-          <small>最终金额与可售以提交后的服务端重算结果为准。</small>
+          <small>{{ t('independentSite.booking.recalculationNote') }}</small>
         </aside>
       </div>
     </section>
@@ -1067,20 +1092,20 @@ watch(
         <div class="success-mark" aria-hidden="true">
           <el-icon><Check /></el-icon>
         </div>
-        <span>BOOKING CONFIRMED</span>
-        <h3>预订已确认</h3>
-        <p>预订编号：{{ bookingReference }}</p>
-        <p>服务端已确认支付状态并推进预订；请保存此编号以便后续查询。</p>
-        <el-button @click="resetBooking">预订其他日期</el-button>
+        <span>{{ t('independentSite.booking.confirmedEyebrow') }}</span>
+        <h3>{{ t('independentSite.booking.confirmedTitle') }}</h3>
+        <p>{{ t('independentSite.booking.reference', { reference: bookingReference }) }}</p>
+        <p>{{ t('independentSite.booking.confirmedDescription') }}</p>
+        <el-button @click="resetBooking">{{ t('independentSite.booking.bookAnother') }}</el-button>
       </template>
 
       <template v-else>
         <div class="payment-heading">
           <el-icon><Lock /></el-icon>
           <div>
-            <span>PAYMENT</span>
-            <h3>完成支付</h3>
-            <p>预订编号：{{ bookingReference }}</p>
+            <span>{{ t('independentSite.booking.paymentEyebrow') }}</span>
+            <h3>{{ t('independentSite.booking.paymentTitle') }}</h3>
+            <p>{{ t('independentSite.booking.reference', { reference: bookingReference }) }}</p>
           </div>
           <strong>{{ formatMoney(checkout.amount, checkout.currency) }}</strong>
         </div>
@@ -1090,17 +1115,17 @@ watch(
           type="error"
           show-icon
           :closable="false"
-          title="在线支付未开放"
-          description="当前站点未开放在线支付，请联系门店完成预订。"
+          :title="t('independentSite.booking.paymentClosedTitle')"
+          :description="t('independentSite.booking.paymentClosedDescription')"
         />
         <el-alert
           v-else-if="isStripePayment"
           type="info"
           show-icon
           :closable="false"
-          title="银行卡安全支付"
+          :title="t('independentSite.booking.cardPaymentTitle')"
           :description="
-            site.paymentNotice || '银行卡信息由 Stripe 安全处理与加密传输，本站不读取或存储卡号。'
+            site.paymentNotice || t('independentSite.booking.cardPaymentDescription')
           "
         />
         <el-alert
@@ -1108,9 +1133,9 @@ watch(
           type="warning"
           show-icon
           :closable="false"
-          title="模拟支付"
+          :title="t('independentSite.booking.simulatedPaymentTitle')"
           :description="
-            site.paymentNotice || '当前为模拟支付，不会产生真实扣款；成功状态由服务端确认。'
+            site.paymentNotice || t('independentSite.booking.simulatedPaymentDescription')
           "
         />
 
@@ -1118,15 +1143,17 @@ watch(
           v-if="isStripePayment && paymentStatus !== 'FAILED' && paymentStatus !== 'EXPIRED'"
           class="stripe-payment"
         >
-          <p v-if="stripeIntentLoading" class="stripe-payment-status">正在初始化安全支付…</p>
+          <p v-if="stripeIntentLoading" class="stripe-payment-status">
+            {{ t('independentSite.booking.initializingCardPayment') }}
+          </p>
           <template v-else-if="stripeIntentError">
             <el-alert type="error" :title="stripeIntentError" show-icon :closable="false" />
             <el-button class="stripe-retry-action" @click="setupStripePayment">
-              重新初始化支付
+              {{ t('independentSite.booking.reinitializePayment') }}
             </el-button>
           </template>
           <template v-else>
-            <span class="stripe-card-label">银行卡信息</span>
+            <span class="stripe-card-label">{{ t('independentSite.booking.cardDetails') }}</span>
             <div ref="stripeCardContainer" class="stripe-card-element"></div>
             <p v-if="stripeCardError" class="stripe-card-error">{{ stripeCardError }}</p>
             <div class="stripe-payment-actions">
@@ -1137,10 +1164,10 @@ watch(
                 :disabled="!stripeReady || !stripeCardComplete"
                 @click="handleStripePayment"
               >
-                确认支付 {{ formatMoney(checkout.amount, checkout.currency) }}
+                {{ t('independentSite.booking.confirmPayment', { amount: formatMoney(checkout.amount, checkout.currency) }) }}
               </el-button>
               <el-button :disabled="paymentLoading" @click="handleRefreshPaymentStatus">
-                刷新支付状态
+                {{ t('independentSite.booking.refreshPayment') }}
               </el-button>
             </div>
           </template>
@@ -1155,7 +1182,7 @@ watch(
             :loading="paymentLoading"
             @click="handleSimulatedPayment"
           >
-            确认模拟支付成功
+            {{ t('independentSite.booking.confirmSimulatedPayment') }}
           </el-button>
         </div>
         <el-alert
@@ -1165,7 +1192,7 @@ watch(
           :title="
             paymentResult?.failureReason ||
             checkout.failureReason ||
-            '支付尝试失败，服务端已更新预订状态'
+            t('independentSite.booking.paymentFailed')
           "
           show-icon
           :closable="false"
@@ -1174,7 +1201,7 @@ watch(
           v-if="paymentStatus === 'EXPIRED'"
           class="booking-alert"
           type="warning"
-          title="支付尝试已过期，服务端已释放本次房量保留"
+          :title="t('independentSite.booking.paymentExpired')"
           show-icon
           :closable="false"
         />
@@ -1183,7 +1210,7 @@ watch(
           class="restart-booking-action"
           @click="resetBooking"
         >
-          重新查询并预订
+          {{ t('independentSite.booking.restartBooking') }}
         </el-button>
         <el-alert
           v-if="paymentError"
@@ -1194,7 +1221,7 @@ watch(
           :closable="false"
         />
         <p v-if="checkout.expiresAt" class="hold-expiry">
-          房间保留至 {{ formatDateTime(checkout.expiresAt) }}。
+          {{ t('independentSite.booking.holdExpiry', { time: formatDateTime(checkout.expiresAt) }) }}
         </p>
       </template>
     </section>

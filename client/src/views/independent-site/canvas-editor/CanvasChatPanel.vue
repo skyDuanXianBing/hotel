@@ -2,10 +2,11 @@
 // 画布编辑器左侧聊天面板：对话流为本地组件状态（不持久化）。
 // 面板只负责收集指令与展示消息，AI 请求由父组件 CanvasEditor 发出；
 // AI 成功后父组件通过 expose 的 appendAiDelivery/appendAiError 追加交付消息。
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { MagicStick, RefreshLeft } from '@element-plus/icons-vue'
-import { CANVAS_STYLE_PRESETS, type CanvasStylePreset } from '../canvasStylePresets'
+import { useI18n } from 'vue-i18n'
+import { getCanvasStylePresets, type CanvasStylePreset } from '../canvasStylePresets'
 
 const props = withDefaults(
   defineProps<{
@@ -26,6 +27,9 @@ const emit = defineEmits<{
   undo: []
 }>()
 
+const { t } = useI18n()
+const stylePresets = computed(() => getCanvasStylePresets(t))
+
 interface ChatMessage {
   id: number
   role: 'user' | 'ai'
@@ -45,7 +49,7 @@ const messages = ref<ChatMessage[]>([
     id: nextMessageId(),
     role: 'ai',
     kind: 'text',
-    text: '你好，我是 AI 设计助手。点击上方风格卡一键换风格，或直接告诉我想要的修改（例如「把首屏改成秋冬氛围」）；也可以直接点击画布中的文字、图片进行直改，所有修改都会自动保存。',
+    text: t('independentSite.canvas.assistantGreeting'),
   },
 ])
 
@@ -81,11 +85,11 @@ const handleSend = () => {
     return
   }
   if (props.aiBusy) {
-    ElMessage.warning('AI 正在处理上一条指令，请稍候')
+    ElMessage.warning(t('independentSite.canvas.aiBusy'))
     return
   }
   if (instruction.length > 2000) {
-    ElMessage.warning('修改指令不能超过 2000 个字符')
+    ElMessage.warning(t('independentSite.canvas.aiInstructionLength'))
     return
   }
   pushMessage({ role: 'user', kind: 'text', text: instruction })
@@ -95,10 +99,10 @@ const handleSend = () => {
 
 const handlePreset = (preset: CanvasStylePreset) => {
   if (props.aiBusy) {
-    ElMessage.warning('AI 正在处理上一条指令，请稍候')
+    ElMessage.warning(t('independentSite.canvas.aiBusy'))
     return
   }
-  pushMessage({ role: 'user', kind: 'text', text: `使用「${preset.name}」风格` })
+  pushMessage({ role: 'user', kind: 'text', text: t('independentSite.canvas.usePreset', { name: preset.name }) })
   emit('preset', preset)
 }
 </script>
@@ -108,25 +112,25 @@ const handlePreset = (preset: CanvasStylePreset) => {
     <header class="chat-header">
       <div class="chat-title">
         <el-icon><MagicStick /></el-icon>
-        <span>AI 设计助手</span>
+        <span>{{ t('independentSite.canvas.assistantTitle') }}</span>
       </div>
       <el-button
         size="small"
         :icon="RefreshLeft"
         :loading="undoingAi"
         :disabled="!hasAiBackup || aiBusy"
-        title="恢复最近一次 AI 修改前的草稿"
+        :title="t('independentSite.canvas.undoRecentAiTitle')"
         @click="emit('undo')"
       >
-        撤销 AI 修改
+        {{ t('independentSite.canvas.undoAi') }}
       </el-button>
     </header>
 
     <div class="preset-area">
-      <p class="preset-hint">风格预设</p>
+      <p class="preset-hint">{{ t('independentSite.canvas.stylePresets') }}</p>
       <div class="preset-grid">
         <button
-          v-for="preset in CANVAS_STYLE_PRESETS"
+          v-for="preset in stylePresets"
           :key="preset.id"
           type="button"
           class="preset-card"
@@ -156,14 +160,14 @@ const handlePreset = (preset: CanvasStylePreset) => {
               :disabled="!hasAiBackup || aiBusy"
               @click="emit('undo')"
             >
-              撤销这次
+              {{ t('independentSite.canvas.undoThis') }}
             </el-button>
           </div>
         </div>
       </div>
       <div v-if="aiBusy" class="message-row is-ai">
         <div class="message-bubble is-pending">
-          <p class="message-text">AI 正在修改页面，通常需要几十秒…</p>
+          <p class="message-text">{{ t('independentSite.canvas.aiPending') }}</p>
         </div>
       </div>
     </div>
@@ -175,7 +179,7 @@ const handlePreset = (preset: CanvasStylePreset) => {
         :rows="2"
         maxlength="2000"
         resize="none"
-        placeholder="描述想要的修改，Enter 发送"
+        :placeholder="t('independentSite.canvas.instructionPlaceholder')"
         :disabled="aiBusy"
         @keyup.enter.exact="handleSend"
       />
@@ -186,7 +190,7 @@ const handlePreset = (preset: CanvasStylePreset) => {
         :disabled="!draft.trim()"
         @click="handleSend"
       >
-        发送
+        {{ t('independentSite.canvas.send') }}
       </el-button>
     </footer>
   </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { IndependentSitePageSchema, IndependentSiteThemeKey } from '@/types/independentSite'
 import { normalizeIndependentSiteSchema } from '../pageSchema'
 import { buildIndependentSiteCssVars, normalizeIndependentSiteThemeKey } from '../themes'
@@ -18,6 +19,8 @@ const props = withDefaults(
 const emit = defineEmits<{
   bookingRequest: []
 }>()
+
+const { t } = useI18n()
 
 const safeSchema = computed(() => normalizeIndependentSiteSchema(props.schema))
 
@@ -59,11 +62,11 @@ const themeClasses = computed(() => {
       >
         <template v-if="section.type === 'HERO'">
           <div class="hero-copy">
-            <p class="hero-eyebrow">DIRECT STAY</p>
+            <p class="hero-eyebrow">{{ t('independentSite.renderer.directStay') }}</p>
             <h1>{{ section.title }}</h1>
             <p v-if="section.body" class="hero-subtitle">{{ section.body }}</p>
             <button type="button" class="hero-action" @click="emit('bookingRequest')">
-              查看可订房型
+              {{ t('independentSite.renderer.viewAvailableRooms') }}
             </button>
           </div>
           <img
@@ -81,7 +84,7 @@ const themeClasses = computed(() => {
 
         <template v-else-if="section.type === 'ABOUT'">
           <div class="section-heading">
-            <span>ABOUT</span>
+            <span>{{ t('independentSite.renderer.about') }}</span>
             <h2>{{ section.title }}</h2>
           </div>
           <div class="section-body">
@@ -98,7 +101,7 @@ const themeClasses = computed(() => {
 
         <template v-else-if="section.type === 'HIGHLIGHTS'">
           <div class="section-heading">
-            <span>HIGHLIGHTS</span>
+            <span>{{ t('independentSite.renderer.highlights') }}</span>
             <h2>{{ section.title }}</h2>
           </div>
           <div class="highlight-grid">
@@ -111,7 +114,7 @@ const themeClasses = computed(() => {
 
         <template v-else-if="section.type === 'AMENITIES'">
           <div class="section-heading">
-            <span>AMENITIES</span>
+            <span>{{ t('independentSite.renderer.amenities') }}</span>
             <h2>{{ section.title }}</h2>
           </div>
           <ul class="amenity-grid">
@@ -124,7 +127,7 @@ const themeClasses = computed(() => {
 
         <template v-else-if="section.type === 'LOCATION'">
           <div class="section-heading">
-            <span>LOCATION</span>
+            <span>{{ t('independentSite.renderer.location') }}</span>
             <h2>{{ section.title }}</h2>
           </div>
           <p v-if="section.body" class="intro-body">{{ section.body }}</p>
@@ -132,7 +135,7 @@ const themeClasses = computed(() => {
 
         <template v-else-if="section.type === 'HOUSE_RULES'">
           <div class="section-heading">
-            <span>HOUSE RULES</span>
+            <span>{{ t('independentSite.renderer.houseRules') }}</span>
             <h2>{{ section.title }}</h2>
           </div>
           <div class="policy-list">
@@ -145,7 +148,7 @@ const themeClasses = computed(() => {
 
         <template v-else-if="section.type === 'GALLERY'">
           <div class="section-heading">
-            <span>GALLERY</span>
+            <span>{{ t('independentSite.renderer.gallery') }}</span>
             <h2>{{ section.title }}</h2>
           </div>
           <div class="section-body">
@@ -161,22 +164,22 @@ const themeClasses = computed(() => {
 
         <template v-else-if="section.type === 'BOOKING'">
           <div class="section-heading">
-            <span>BOOK DIRECT</span>
+            <span>{{ t('independentSite.renderer.bookDirect') }}</span>
             <h2>{{ section.title }}</h2>
           </div>
           <div class="booking-cta">
             <h3>{{ section.title }}</h3>
             <p v-if="section.body">{{ section.body }}</p>
             <button type="button" class="booking-cta-action" @click="emit('bookingRequest')">
-              立即查询可订房间
+              {{ t('independentSite.renderer.searchAvailableRooms') }}
             </button>
           </div>
         </template>
       </section>
 
       <div v-if="safeSchema.sections.length === 0" class="brand-empty">
-        <p>尚未配置品牌内容</p>
-        <span>订房组件仍会保持可用。</span>
+        <p>{{ t('independentSite.renderer.emptyTitle') }}</p>
+        <span>{{ t('independentSite.renderer.emptyDescription') }}</span>
       </div>
     </template>
   </div>

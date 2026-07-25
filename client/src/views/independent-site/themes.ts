@@ -1,5 +1,7 @@
 import type { IndependentSiteTheme, IndependentSiteThemeKey } from '@/types/independentSite'
 
+type Translator = (key: string, values?: Record<string, unknown>) => string
+
 export interface IndependentSiteThemeTokens {
   primaryColor: string
   accentColor: string
@@ -18,12 +20,6 @@ export const INDEPENDENT_SITE_THEME_KEYS: IndependentSiteThemeKey[] = [
   'modern',
   'elegant',
 ]
-
-export const INDEPENDENT_SITE_THEME_LABELS: Record<IndependentSiteThemeKey, string> = {
-  classic: '经典旅宿',
-  modern: '现代简约',
-  elegant: '雅致精品',
-}
 
 export const DEFAULT_INDEPENDENT_SITE_THEME_KEY: IndependentSiteThemeKey = 'classic'
 
@@ -72,6 +68,9 @@ export const normalizeIndependentSiteThemeKey = (value: unknown): IndependentSit
     ? (normalized as IndependentSiteThemeKey)
     : DEFAULT_INDEPENDENT_SITE_THEME_KEY
 }
+
+export const getIndependentSiteThemeLabel = (t: Translator, themeKey: unknown): string =>
+  t(`independentSite.themes.${normalizeIndependentSiteThemeKey(themeKey)}`)
 
 export const resolveIndependentSiteThemeTokens = (
   themeKey: unknown,

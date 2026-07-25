@@ -64,7 +64,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 
 const loading = ref(true)
 const loadError = ref('')
@@ -178,16 +178,16 @@ const canPublish = computed(() =>
 
 const publishDisabledReason = computed(() => {
   if (hasUnsavedChanges.value) {
-    return '有修改正在等待自动保存'
+    return t('independentSite.canvas.pendingAutosave')
   }
   if (saveState.value === 'saving') {
-    return '正在自动保存草稿'
+    return t('independentSite.canvas.autosaving')
   }
   if (saveState.value === 'error') {
-    return '自动保存失败，请先重试'
+    return t('independentSite.canvas.autosaveFailed')
   }
   if (aiBusy.value) {
-    return 'AI 正在修改页面'
+    return t('independentSite.canvas.aiUpdating')
   }
   return ''
 })
@@ -196,16 +196,18 @@ const pad2 = (value: number) => String(value).padStart(2, '0')
 
 const saveStatusText = computed(() => {
   if (saveState.value === 'saving') {
-    return '保存中…'
+    return t('independentSite.canvas.saving')
   }
   if (saveState.value === 'error') {
-    return '保存失败'
+    return t('independentSite.canvas.saveFailed')
   }
   if (lastSavedAt.value) {
     const time = lastSavedAt.value
-    return `已自动保存 ${pad2(time.getHours())}:${pad2(time.getMinutes())}:${pad2(time.getSeconds())}`
+    return t('independentSite.canvas.autoSaved', {
+      time: `${pad2(time.getHours())}:${pad2(time.getMinutes())}:${pad2(time.getSeconds())}`,
+    })
   }
-  return '更改将自动保存'
+  return t('independentSite.canvas.autoSaveHint')
 })
 
 const themeStyle = computed(() =>
@@ -262,7 +264,7 @@ const applyServerDetail = (detail: IndependentSitePageDetail): boolean => {
   if (applyPageDetail(detail)) {
     return true
   }
-  schemaError.value = '服务端返回的页面内容不符合画布契约，请重新加载编辑器'
+  schemaError.value = t('independentSite.canvas.schemaFromServerInvalid')
   ElMessage.error(schemaError.value)
   return false
 }
@@ -285,10 +287,10 @@ const loadPage = async () => {
   try {
     const response = await getIndependentSitePage(props.siteId, props.pageId)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '加载页面详情失败')
+      throw new Error(response.message || t('independentSite.canvas.loadPageFailed'))
     }
     if (!applyPageDetail(response.data)) {
-      schemaError.value = '页面内容不符合画布契约（Canvas Schema v1），无法使用画布编辑器'
+      schemaError.value = t('independentSite.canvas.schemaInvalid')
       return
     }
     if (props.overrideSchema) {
@@ -302,7 +304,7 @@ const loadPage = async () => {
       }
     }
   } catch (error) {
-    loadError.value = getErrorMessage(error, '加载页面详情失败')
+    loadError.value = getErrorMessage(error, t('independentSite.canvas.loadPageFailed'))
   } finally {
     loading.value = false
   }
@@ -337,14 +339,14 @@ const performAutosave = async (): Promise<boolean> => {
   const errors = validateCanvasSchema(draftSchema.value)
   if (errors.length > 0) {
     saveState.value = 'error'
-    saveError.value = `内容未通过安全校验：${errors[0]}`
+    saveError.value = t('independentSite.canvas.securityValidationFailed')
     ElMessage.error(saveError.value)
     return false
   }
   const normalized = normalizeCanvasSchema(draftSchema.value)
   if (!normalized) {
     saveState.value = 'error'
-    saveError.value = '内容未通过安全校验'
+    saveError.value = t('independentSite.canvas.securityValidationFailed')
     ElMessage.error(saveError.value)
     return false
   }
@@ -364,15 +366,15 @@ const performAutosave = async (): Promise<boolean> => {
       expectedDraftVersion: draftVersion.value ?? undefined,
     })
     if (!response.success || !response.data) {
-      throw new Error(response.message || '保存页面草稿失败')
+      throw new Error(response.message || t('independentSite.canvas.draftSaveFailed'))
     }
     const saved = normalizeCanvasSchema(response.data.draftSchema)
     if (!saved) {
-      throw new Error('服务端返回的草稿不符合画布契约')
+      throw new Error(t('independentSite.canvas.serverDraftInvalid'))
     }
     const savedVersion = Number(response.data.draftVersion)
     if (!Number.isInteger(savedVersion) || savedVersion < 0) {
-      throw new Error('服务端返回的草稿版本无效')
+      throw new Error(t('independentSite.canvas.serverDraftVersionInvalid'))
     }
     savedDraftJson.value = JSON.stringify(saved)
     draftVersion.value = savedVersion
@@ -384,12 +386,12 @@ const performAutosave = async (): Promise<boolean> => {
   } catch (error) {
     if (isDraftVersionConflict(error)) {
       saveState.value = 'error'
-      saveError.value = '页面草稿已被其他操作更新，已重新加载最新内容'
-      ElMessage.error(`${saveError.value}，请确认后再修改`)
+      saveError.value = t('independentSite.canvas.draftUpdatedElsewhere')
+      ElMessage.error(t('independentSite.canvas.confirmBeforeEditing', { message: saveError.value }))
       await reloadPageDetail()
     } else {
       saveState.value = 'error'
-      saveError.value = getErrorMessage(error, '自动保存失败')
+      saveError.value = getErrorMessage(error, t('independentSite.canvas.autosaveRequestFailed'))
       ElMessage.error(saveError.value)
     }
   } finally {
@@ -475,15 +477,17 @@ const diffTopSections = (
 const buildDiffSummary = (diff: { changed: string[]; added: string[]; removed: number }) => {
   const parts: string[] = []
   if (diff.changed.length > 0) {
-    parts.push(`修改 ${diff.changed.length} 个区块`)
+    parts.push(t('independentSite.canvas.changedBlocks', { count: diff.changed.length }))
   }
   if (diff.added.length > 0) {
-    parts.push(`新增 ${diff.added.length} 个区块`)
+    parts.push(t('independentSite.canvas.addedBlocks', { count: diff.added.length }))
   }
   if (diff.removed > 0) {
-    parts.push(`删除 ${diff.removed} 个区块`)
+    parts.push(t('independentSite.canvas.removedBlocks', { count: diff.removed }))
   }
-  return parts.length > 0 ? `已更新页面：${parts.join('，')}` : '已更新页面：内容细节已调整'
+  return parts.length > 0
+    ? t('independentSite.canvas.updatedBlocks', { parts: parts.join(', ') })
+    : t('independentSite.canvas.updatedDetail')
 }
 
 const highlightSections = (ids: string[]) => {
@@ -510,12 +514,12 @@ const runAiEdit = async (instruction: string) => {
     return
   }
   if (text.length > 2000) {
-    ElMessage.warning('修改指令不能超过 2000 个字符')
+    ElMessage.warning(t('independentSite.canvas.aiInstructionLength'))
     return
   }
   const flushed = await flushSave()
   if (!flushed) {
-    const message = '草稿尚未保存成功，AI 修改未执行，请先解决顶部的保存问题'
+    const message = t('independentSite.canvas.draftNotSavedAiEdit')
     ElMessage.warning(message)
     chatPanelRef.value?.appendAiError(message)
     return
@@ -527,10 +531,10 @@ const runAiEdit = async (instruction: string) => {
       instruction: text,
     })
     if (!response.success || !response.data) {
-      throw new Error(response.message || 'AI 修改失败')
+      throw new Error(response.message || t('independentSite.canvas.aiEditFailed'))
     }
     if (!applyServerDetail(response.data)) {
-      chatPanelRef.value?.appendAiError('AI 返回内容未通过本地校验，请重新加载编辑器')
+      chatPanelRef.value?.appendAiError(t('independentSite.canvas.aiInvalidResponse'))
       return
     }
     const diff = diffTopSections(before, topSectionSignatures(draftSchema.value))
@@ -539,7 +543,7 @@ const runAiEdit = async (instruction: string) => {
     chatPanelRef.value?.appendAiDelivery(buildDiffSummary(diff))
     emit('updated')
   } catch (error) {
-    const message = getErrorMessage(error, 'AI 修改失败，请稍后重试')
+    const message = getErrorMessage(error, t('independentSite.canvas.aiEditRetry'))
     ElMessage.error(message)
     chatPanelRef.value?.appendAiError(message)
   } finally {
@@ -553,7 +557,7 @@ const runGenerate = async (prompt: string) => {
   }
   const flushed = await flushSave()
   if (!flushed) {
-    const message = '草稿尚未保存成功，AI 生成未执行，请先解决顶部的保存问题'
+    const message = t('independentSite.canvas.draftNotSavedAiGenerate')
     ElMessage.warning(message)
     chatPanelRef.value?.appendAiError(message)
     return
@@ -566,15 +570,15 @@ const runGenerate = async (prompt: string) => {
       language: locale.value,
     })
     if (!response.success || !response.data) {
-      throw new Error(response.message || 'AI 页面生成失败')
+      throw new Error(response.message || t('independentSite.canvas.aiGenerateFailed'))
     }
     if (!response.data.publishable) {
-      throw new Error('AI 返回的页面草稿不可发布，已保留当前页面内容')
+      throw new Error(t('independentSite.canvas.aiDraftUnpublishable'))
     }
     const rawSchema = (response.data as { pageSchema?: unknown }).pageSchema ?? response.data
     const normalized = normalizeCanvasSchema(rawSchema)
     if (!normalized) {
-      throw new Error('AI 返回的内容不符合画布契约，已保留当前页面内容')
+      throw new Error(t('independentSite.canvas.aiSchemaInvalid'))
     }
     suppressAutosave = true
     draftSchema.value = normalized
@@ -587,10 +591,10 @@ const runGenerate = async (prompt: string) => {
     if (saved) {
       chatPanelRef.value?.appendAiDelivery(buildDiffSummary(diff))
     } else {
-      chatPanelRef.value?.appendAiError('AI 草稿已生成但自动保存失败，请检查顶部保存状态后重试')
+      chatPanelRef.value?.appendAiError(t('independentSite.canvas.aiDraftAutosaveFailed'))
     }
   } catch (error) {
-    const message = getErrorMessage(error, 'AI 页面生成失败，已保留当前页面内容')
+    const message = getErrorMessage(error, t('independentSite.canvas.aiGenerateRetry'))
     ElMessage.error(message)
     chatPanelRef.value?.appendAiError(message)
   } finally {
@@ -618,14 +622,14 @@ const handleUndoAi = async () => {
   try {
     const response = await undoIndependentSitePageAiEdit(props.siteId, props.pageId)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '撤销 AI 修改失败')
+      throw new Error(response.message || t('independentSite.canvas.undoAiFailed'))
     }
     applyServerDetail(response.data)
     lastSavedAt.value = new Date()
-    ElMessage.success('已撤销最近一次 AI 修改')
+    ElMessage.success(t('independentSite.canvas.undoAiSuccess'))
     emit('updated')
   } catch (error) {
-    ElMessage.error(getErrorMessage(error, '撤销 AI 修改失败'))
+    ElMessage.error(getErrorMessage(error, t('independentSite.canvas.undoAiFailed')))
   } finally {
     undoingAi.value = false
   }
@@ -665,19 +669,19 @@ const handleRequestImage = (nodeId: string) => {
 const applyImageUrl = (url: string) => {
   const safeUrl = safeIndependentSiteImageUrl(url)
   if (!safeUrl) {
-    ElMessage.warning('请输入合法的图片地址（http/https 或以 / 开头的相对路径）')
+    ElMessage.warning(t('independentSite.canvas.invalidImageUrl'))
     return
   }
   const root = draftSchema.value?.root
   const node = root ? findCanvasNodeById(root, imageTargetId.value) : null
   if (!node || !isCanvasElementNode(node) || node.tag !== 'img') {
     imageDialogVisible.value = false
-    ElMessage.error('目标图片节点不存在，请重新加载编辑器')
+    ElMessage.error(t('independentSite.canvas.imageNodeMissing'))
     return
   }
   node.attrs = { ...node.attrs, src: safeUrl }
   imageDialogVisible.value = false
-  ElMessage.success('图片已更新')
+  ElMessage.success(t('independentSite.canvas.imageUpdated'))
 }
 
 const handleMoveSection = (nodeId: string, offset: number) => {
@@ -704,17 +708,21 @@ const handleRemoveSection = async (nodeId: string) => {
     return
   }
   try {
-    await ElMessageBox.confirm('确定删除该区块吗？删除后会自动保存，暂不支持恢复。', '删除区块', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(
+      t('independentSite.canvas.deleteBlockConfirm'),
+      t('independentSite.editor.deleteBlock'),
+      {
+        confirmButtonText: t('independentSite.common.delete'),
+        cancelButtonText: t('independentSite.common.cancel'),
       type: 'warning',
       confirmButtonClass: 'el-button--danger',
-    })
+      },
+    )
   } catch {
     return
   }
   children.splice(index, 1)
-  ElMessage.success('区块已删除')
+  ElMessage.success(t('independentSite.editor.deleteBlock'))
 }
 
 const handleAiRedoSection = (nodeId: string) => {
@@ -726,17 +734,19 @@ const handleAiRedoSection = (nodeId: string) => {
 const submitAiRedo = () => {
   const text = aiRedoInstruction.value.trim()
   if (!text) {
-    ElMessage.warning('请输入修改要求')
+    ElMessage.warning(t('independentSite.canvas.redoInstructionRequired'))
     return
   }
   if (text.length > 1900) {
-    ElMessage.warning('修改要求不能超过 1900 个字符')
+    ElMessage.warning(t('independentSite.canvas.redoInstructionLength'))
     return
   }
   const nodeId = aiRedoNodeId.value
   aiRedoVisible.value = false
-  chatPanelRef.value?.appendUserMessage(`重做区块 ${nodeId}：${text}`)
-  void runAiEdit(`仅修改 id 为 ${nodeId} 的子树，其余部分原样返回。修改要求：${text}`)
+  chatPanelRef.value?.appendUserMessage(
+    t('independentSite.canvas.redoChatMessage', { id: nodeId, text }),
+  )
+  void runAiEdit(t('independentSite.canvas.redoInstruction', { id: nodeId, text }))
 }
 
 // ------------------------------------------------------------------
@@ -749,11 +759,11 @@ const handlePublish = async () => {
   }
   const flushed = await flushSave()
   if (!flushed) {
-    ElMessage.warning('草稿尚未保存成功，请先解决顶部的保存问题再发布')
+    ElMessage.warning(t('independentSite.canvas.draftNotSavedPublish'))
     return
   }
   if (draftVersion.value === null) {
-    ElMessage.warning('草稿版本缺失，无法发布，请重新加载编辑器')
+    ElMessage.warning(t('independentSite.canvas.draftVersionMissing'))
     return
   }
   publishing.value = true
@@ -762,17 +772,17 @@ const handlePublish = async () => {
       draftVersion: draftVersion.value,
     })
     if (!response.success || !response.data) {
-      throw new Error(response.message || '发布页面失败')
+      throw new Error(response.message || t('independentSite.canvas.publishFailed'))
     }
     applyServerDetail(response.data)
-    ElMessage.success('页面已发布')
+    ElMessage.success(t('independentSite.canvas.pagePublished'))
     emit('updated')
   } catch (error) {
     if (isDraftVersionConflict(error)) {
-      ElMessage.error('页面草稿版本已变化，已重新加载最新页面数据，请确认后重试')
+      ElMessage.error(t('independentSite.canvas.draftVersionChanged'))
       await reloadPageDetail()
     } else {
-      ElMessage.error(getErrorMessage(error, '发布页面失败'))
+      ElMessage.error(getErrorMessage(error, t('independentSite.canvas.publishFailed')))
     }
   } finally {
     publishing.value = false
@@ -781,7 +791,7 @@ const handlePublish = async () => {
 
 const openSite = () => {
   if (!previewUrl.value) {
-    ElMessage.warning('站点链接未配置，无法打开')
+    ElMessage.warning(t('independentSite.canvas.previewUrlMissing'))
     return
   }
   window.open(previewUrl.value, '_blank', 'noopener,noreferrer')
@@ -798,11 +808,11 @@ const prepareClose = async (): Promise<boolean> => {
   }
   try {
     await ElMessageBox.confirm(
-      '草稿尚未保存成功，关闭将丢失最近的修改，确定关闭吗？',
-      '关闭画布编辑器',
+      t('independentSite.canvas.closeConfirm'),
+      t('independentSite.canvas.closeEditor'),
       {
-        confirmButtonText: '关闭',
-        cancelButtonText: '继续编辑',
+        confirmButtonText: t('independentSite.common.close'),
+        cancelButtonText: t('independentSite.canvas.continueEditing'),
         type: 'warning',
       },
     )
@@ -840,19 +850,19 @@ onBeforeUnmount(() => {
 <template>
   <div v-loading="loading" class="canvas-editor">
     <div v-if="loadError" class="canvas-editor-state">
-      <el-result icon="error" title="页面加载失败" :sub-title="loadError">
+      <el-result icon="error" :title="t('independentSite.canvas.pageLoadFailed')" :sub-title="loadError">
         <template #extra>
-          <el-button type="primary" @click="loadPage">重新加载</el-button>
-          <el-button @click="emit('close')">关闭</el-button>
+          <el-button type="primary" @click="loadPage">{{ t('independentSite.common.reload') }}</el-button>
+          <el-button @click="emit('close')">{{ t('independentSite.common.close') }}</el-button>
         </template>
       </el-result>
     </div>
 
     <div v-else-if="schemaError" class="canvas-editor-state">
-      <el-result icon="warning" title="无法使用画布编辑器" :sub-title="schemaError">
+      <el-result icon="warning" :title="t('independentSite.canvas.unavailable')" :sub-title="schemaError">
         <template #extra>
-          <el-button type="primary" @click="loadPage">重新加载</el-button>
-          <el-button @click="emit('close')">关闭</el-button>
+          <el-button type="primary" @click="loadPage">{{ t('independentSite.common.reload') }}</el-button>
+          <el-button @click="emit('close')">{{ t('independentSite.common.close') }}</el-button>
         </template>
       </el-result>
     </div>
@@ -875,12 +885,16 @@ onBeforeUnmount(() => {
             type="primary"
             @click="void performAutosave()"
           >
-            重试
+            {{ t('independentSite.common.retry') }}
           </el-button>
         </div>
         <div class="toolbar-actions">
           <el-button size="small" :icon="ChatDotRound" @click="chatCollapsed = !chatCollapsed">
-            {{ chatCollapsed ? '展开聊天' : '收起聊天' }}
+            {{
+              chatCollapsed
+                ? t('independentSite.canvas.expandChat')
+                : t('independentSite.canvas.collapseChat')
+            }}
           </el-button>
           <template v-if="hasUnpublishedChanges">
             <el-button
@@ -892,14 +906,14 @@ onBeforeUnmount(() => {
               :title="publishDisabledReason || undefined"
               @click="handlePublish"
             >
-              发布
+              {{ t('independentSite.canvas.publish') }}
             </el-button>
           </template>
           <template v-else>
-            <el-tag type="info" effect="plain">已发布</el-tag>
-            <el-button size="small" :icon="TopRight" @click="openSite">打开网站</el-button>
+            <el-tag type="info" effect="plain">{{ t('independentSite.common.published') }}</el-tag>
+            <el-button size="small" :icon="TopRight" @click="openSite">{{ t('independentSite.canvas.openSite') }}</el-button>
           </template>
-          <el-button size="small" :icon="Close" @click="handleCloseClick">关闭</el-button>
+          <el-button size="small" :icon="Close" @click="handleCloseClick">{{ t('independentSite.common.close') }}</el-button>
         </div>
       </header>
 
@@ -931,30 +945,29 @@ onBeforeUnmount(() => {
       </div>
     </template>
 
-    <el-dialog v-model="imageDialogVisible" title="更换图片" width="440px">
+    <el-dialog v-model="imageDialogVisible" :title="t('independentSite.canvas.replaceImage')" width="440px">
       <div class="image-dialog-body">
-        <SectionImageUpload button-text="上传新图片" @uploaded="applyImageUrl" />
-        <el-divider content-position="center">或粘贴图片地址</el-divider>
+        <SectionImageUpload :button-text="t('independentSite.canvas.uploadNewImage')" @uploaded="applyImageUrl" />
+        <el-divider content-position="center">{{ t('independentSite.canvas.pasteImageUrl') }}</el-divider>
         <el-input
           v-model.trim="imageUrlInput"
           maxlength="1500"
           autocomplete="off"
-          placeholder="https://… 或以 / 开头的相对路径"
+          :placeholder="t('independentSite.canvas.imageUrlPlaceholder')"
           @keyup.enter="applyImageUrl(imageUrlInput)"
         >
           <template #prepend>URL</template>
         </el-input>
       </div>
       <template #footer>
-        <el-button @click="imageDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="applyImageUrl(imageUrlInput)">使用此图片</el-button>
+        <el-button @click="imageDialogVisible = false">{{ t('independentSite.common.cancel') }}</el-button>
+        <el-button type="primary" @click="applyImageUrl(imageUrlInput)">{{ t('independentSite.canvas.useThisImage') }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="aiRedoVisible" title="AI 重做这一块" width="480px">
+    <el-dialog v-model="aiRedoVisible" :title="t('independentSite.canvas.redoDialogTitle')" width="480px">
       <p class="ai-redo-hint">
-        只修改当前区块（id：<code>{{ aiRedoNodeId }}</code
-        >），页面其余部分保持不变。
+        {{ t('independentSite.canvas.redoDialogHint', { id: aiRedoNodeId }) }}
       </p>
       <el-input
         v-model="aiRedoInstruction"
@@ -963,12 +976,12 @@ onBeforeUnmount(() => {
         maxlength="1900"
         show-word-limit
         resize="vertical"
-        placeholder="例如：改成深色背景配金色标题，文案更简短"
+        :placeholder="t('independentSite.canvas.redoPlaceholder')"
       />
       <template #footer>
-        <el-button @click="aiRedoVisible = false">取消</el-button>
+        <el-button @click="aiRedoVisible = false">{{ t('independentSite.common.cancel') }}</el-button>
         <el-button type="primary" :icon="MagicStick" :loading="aiBusy" @click="submitAiRedo">
-          开始重做
+          {{ t('independentSite.canvas.startRedo') }}
         </el-button>
       </template>
     </el-dialog>

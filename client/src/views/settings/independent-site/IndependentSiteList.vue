@@ -25,9 +25,9 @@ import { useStoreStore } from '@/stores/store'
 import type { IndependentSiteDetail, IndependentSiteSummary } from '@/types/independentSite'
 import StripeSettingsDialog from '@/views/settings/independent-site/StripeSettingsDialog.vue'
 import { normalizeCanvasSchema } from '@/views/independent-site/canvasSchema'
-import { CANVAS_STYLE_PRESETS } from '@/views/independent-site/canvasStylePresets'
+import { getCanvasStylePresets } from '@/views/independent-site/canvasStylePresets'
 import {
-  INDEPENDENT_SITE_THEME_LABELS,
+  getIndependentSiteThemeLabel,
   normalizeIndependentSiteThemeKey,
 } from '@/views/independent-site/themes'
 
@@ -42,7 +42,7 @@ interface CreateSiteForm {
 
 const router = useRouter()
 const storeStore = useStoreStore()
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 const createFormRef = ref<FormInstance>()
 const loading = ref(true)
 // 创建流程分两阶段：创建站点 → 生成首页 AI 初稿（按钮文案随阶段变化）
@@ -62,18 +62,20 @@ const createForm = reactive<CreateSiteForm>({
   stylePresetId: '',
 })
 
+const stylePresets = computed(() => getCanvasStylePresets(t))
+
 const slugValidator: FormItemRule['validator'] = (_rule, value, callback) => {
   const slug = String(value || '').trim()
   if (!slug) {
-    callback(new Error('请输入公开链接后缀'))
+    callback(new Error(t('independentSite.list.validation.slugRequired')))
     return
   }
   if (slug.length < 3 || slug.length > 63) {
-    callback(new Error('链接后缀需为 3–63 个字符'))
+    callback(new Error(t('independentSite.list.validation.slugLength')))
     return
   }
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
-    callback(new Error('仅支持小写字母、数字和单个连字符，不能以连字符开头或结尾'))
+    callback(new Error(t('independentSite.list.validation.slugFormat')))
     return
   }
   callback()
@@ -81,11 +83,13 @@ const slugValidator: FormItemRule['validator'] = (_rule, value, callback) => {
 
 const createRules: FormRules = {
   name: [
-    { required: true, message: '请输入站点名称', trigger: 'blur' },
-    { min: 1, max: 120, message: '站点名称需为 1–120 个字符', trigger: 'blur' },
+    { required: true, message: t('independentSite.list.validation.nameRequired'), trigger: 'blur' },
+    { min: 1, max: 120, message: t('independentSite.list.validation.nameLength'), trigger: 'blur' },
   ],
   slug: [{ required: true, validator: slugValidator, trigger: ['blur', 'change'] }],
-  styleDescription: [{ max: 500, message: '风格描述不能超过 500 个字符', trigger: 'blur' }],
+  styleDescription: [
+    { max: 500, message: t('independentSite.list.validation.styleLength'), trigger: 'blur' },
+  ],
 }
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -103,7 +107,7 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 }
 
 const themeLabel = (themeKey: string) =>
-  INDEPENDENT_SITE_THEME_LABELS[normalizeIndependentSiteThemeKey(themeKey)]
+  getIndependentSiteThemeLabel(t, normalizeIndependentSiteThemeKey(themeKey))
 
 const sitePublicUrl = (slug: string) => {
   const origin = typeof window === 'undefined' ? '' : window.location.origin
@@ -120,7 +124,7 @@ const loadSites = async () => {
       return
     }
     if (!response.success) {
-      throw new Error(response.message || '加载独立站列表失败')
+      throw new Error(response.message || t('independentSite.list.messages.loadFailed'))
     }
     sites.value = Array.isArray(response.data) ? response.data : []
   } catch (error) {
@@ -128,7 +132,7 @@ const loadSites = async () => {
       return
     }
     sites.value = []
-    loadError.value = getErrorMessage(error, '加载独立站列表失败')
+    loadError.value = getErrorMessage(error, t('independentSite.list.messages.loadFailed'))
   } finally {
     if (sequence === loadSequence) {
       loading.value = false
@@ -152,13 +156,13 @@ const toggleStylePreset = (presetId: string) => {
 // AI 失败不阻断：保留默认骨架，toast 提示可在编辑器中重试
 const generateHomePageDraft = async (site: IndependentSiteDetail) => {
   const description = createForm.styleDescription.trim()
-  const preset = CANVAS_STYLE_PRESETS.find((item) => item.id === createForm.stylePresetId)
+  const preset = stylePresets.value.find((item) => item.id === createForm.stylePresetId)
   const prompt = description || preset?.prompt || ''
   const homePage = Array.isArray(site.pages)
     ? site.pages.find((page) => page.type === 'HOME')
     : undefined
   if (!prompt || !homePage) {
-    ElMessage.success('独立站已创建，可在画布编辑器中用 AI 生成首页')
+    ElMessage.success(t('independentSite.list.messages.created'))
     return
   }
   creatingPhase.value = 'generating'
@@ -168,26 +172,26 @@ const generateHomePageDraft = async (site: IndependentSiteDetail) => {
       language: locale.value,
     })
     if (!response.success || !response.data) {
-      throw new Error(response.message || 'AI 初稿生成失败')
+      throw new Error(response.message || t('independentSite.list.messages.aiDraftFailed'))
     }
     if (!response.data.publishable) {
-      throw new Error('AI 返回的初稿不可发布')
+      throw new Error(t('independentSite.list.messages.aiDraftUnpublishable'))
     }
     const rawSchema = (response.data as { pageSchema?: unknown }).pageSchema ?? response.data
     const canvasSchema = normalizeCanvasSchema(rawSchema)
     if (!canvasSchema) {
-      throw new Error('AI 返回的初稿不符合画布契约')
+      throw new Error(t('independentSite.list.messages.aiDraftInvalid'))
     }
     const saveResponse = await updateIndependentSitePage(site.id, homePage.id, {
       draftSchema: canvasSchema,
     })
     if (!saveResponse.success) {
-      throw new Error(saveResponse.message || 'AI 初稿保存失败')
+      throw new Error(saveResponse.message || t('independentSite.list.messages.aiDraftSaveFailed'))
     }
-    ElMessage.success('独立站已创建，AI 首页初稿已生成并保存为草稿')
+    ElMessage.success(t('independentSite.list.messages.draftGenerated'))
   } catch (error) {
     console.warn('[independent-site] 首页 AI 初稿生成失败', error)
-    ElMessage.warning('已创建站点，AI 初稿生成失败可在编辑器中重试')
+    ElMessage.warning(t('independentSite.list.messages.draftGenerationFailed'))
   }
 }
 
@@ -204,7 +208,7 @@ const handleCreateSite = async () => {
       slug: createForm.slug.trim(),
     })
     if (!response.success || !response.data) {
-      throw new Error(response.message || '创建独立站失败')
+      throw new Error(response.message || t('independentSite.list.messages.createFailed'))
     }
     const newSite = response.data
     await generateHomePageDraft(newSite)
@@ -216,7 +220,7 @@ const handleCreateSite = async () => {
       await loadSites()
     }
   } catch (error) {
-    ElMessage.error(getErrorMessage(error, '创建独立站失败'))
+    ElMessage.error(getErrorMessage(error, t('independentSite.list.messages.createFailed')))
   } finally {
     creatingPhase.value = 'idle'
   }
@@ -229,11 +233,11 @@ const handleManageSite = (site: IndependentSiteSummary) => {
 const handleDeleteSite = async (site: IndependentSiteSummary) => {
   try {
     await ElMessageBox.confirm(
-      `确定删除站点「${site.name || site.slug}」吗？该站点的页面与发布范围会一并删除，此操作不可恢复；存在支付记录时服务端会拒绝删除。`,
-      '删除独立站',
+      t('independentSite.list.messages.deleteConfirm', { name: site.name || site.slug }),
+      t('independentSite.list.messages.deleteTitle'),
       {
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
+        confirmButtonText: t('independentSite.common.delete'),
+        cancelButtonText: t('independentSite.common.cancel'),
         type: 'warning',
         confirmButtonClass: 'el-button--danger',
       },
@@ -246,13 +250,13 @@ const handleDeleteSite = async (site: IndependentSiteSummary) => {
   try {
     const response = await deleteIndependentSite(site.id)
     if (!response.success) {
-      throw new Error(response.message || '删除独立站失败')
+      throw new Error(response.message || t('independentSite.list.messages.deleteFailed'))
     }
-    ElMessage.success('独立站已删除')
+    ElMessage.success(t('independentSite.list.messages.deleted'))
     sites.value = sites.value.filter((item) => item.id !== site.id)
   } catch (error) {
     // 409（存在支付记录等）与其他错误都直接展示后端 message
-    ElMessage.error(getErrorMessage(error, '删除独立站失败'))
+    ElMessage.error(getErrorMessage(error, t('independentSite.list.messages.deleteFailed')))
   } finally {
     deletingSiteId.value = null
   }
@@ -261,9 +265,9 @@ const handleDeleteSite = async (site: IndependentSiteSummary) => {
 const copyPublicUrl = async (site: IndependentSiteSummary) => {
   try {
     await navigator.clipboard.writeText(sitePublicUrl(site.slug))
-    ElMessage.success('公开链接已复制')
+    ElMessage.success(t('independentSite.list.messages.copied'))
   } catch {
-    ElMessage.error('复制失败，请手动复制链接')
+    ElMessage.error(t('independentSite.list.messages.copyFailed'))
   }
 }
 
@@ -293,20 +297,22 @@ watch(
       <div>
         <div class="header-eyebrow">
           <el-icon><Promotion /></el-icon>
-          DIRECT BOOKING
+          {{ t('independentSite.list.directBooking') }}
         </div>
-        <h1>独立站</h1>
-        <p>一个门店可以拥有多个公开订房站点，各自使用 PMS 的实时库存、价格和订单流程。</p>
+        <h1>{{ t('independentSite.list.title') }}</h1>
+        <p>{{ t('independentSite.list.description') }}</p>
       </div>
       <div class="header-actions">
-        <el-button :icon="CreditCard" @click="stripeDialogVisible = true">Stripe 设置</el-button>
+        <el-button :icon="CreditCard" @click="stripeDialogVisible = true">
+          {{ t('independentSite.list.stripeSettings') }}
+        </el-button>
         <el-button
           type="primary"
           :icon="Plus"
           :disabled="Boolean(loadError)"
           @click="openCreateDialog"
         >
-          新建站点
+          {{ t('independentSite.list.newSite') }}
         </el-button>
       </div>
     </header>
@@ -316,13 +322,13 @@ watch(
       class="page-alert"
       type="error"
       :title="loadError"
-      description="站点列表未加载，页面不会显示虚假的删除或创建结果。请重试。"
+      :description="t('independentSite.list.loadErrorDescription')"
       show-icon
       :closable="false"
     >
       <template #default>
         <el-button class="alert-action" size="small" :icon="Refresh" @click="loadSites">
-          重新加载
+          {{ t('independentSite.common.reload') }}
         </el-button>
       </template>
     </el-alert>
@@ -330,22 +336,26 @@ watch(
     <el-empty
       v-if="!loading && !loadError && sites.length === 0"
       class="empty-sites"
-      description="当前门店还没有独立站，先创建一个站点再配置页面与发布范围。"
+      :description="t('independentSite.list.emptyDescription')"
     >
-      <el-button type="primary" :icon="Plus" @click="openCreateDialog">新建站点</el-button>
+      <el-button type="primary" :icon="Plus" @click="openCreateDialog">
+        {{ t('independentSite.list.newSite') }}
+      </el-button>
     </el-empty>
 
     <div v-if="sites.length > 0" class="table-card">
       <el-table :data="sites" class="site-table" row-key="id">
-        <el-table-column label="站点名称" min-width="180">
+        <el-table-column :label="t('independentSite.list.name')" min-width="180">
           <template #default="{ row }">
             <div class="site-name-cell">
               <span class="site-name">{{ row.name }}</span>
-              <el-tag v-if="row.isDefault" size="small" effect="plain">默认</el-tag>
+              <el-tag v-if="row.isDefault" size="small" effect="plain">
+                {{ t('independentSite.common.default') }}
+              </el-tag>
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="公开链接" min-width="240">
+        <el-table-column :label="t('independentSite.list.publicLink')" min-width="240">
           <template #default="{ row }">
             <div class="slug-cell">
               <span class="slug-text">/stay/{{ row.slug }}</span>
@@ -353,39 +363,41 @@ watch(
                 link
                 size="small"
                 :icon="CopyDocument"
-                aria-label="复制公开链接"
+                :aria-label="t('independentSite.list.copyPublicLink')"
                 @click="copyPublicUrl(row)"
               />
               <el-button
                 link
                 size="small"
                 :icon="TopRight"
-                aria-label="打开公开链接"
+                :aria-label="t('independentSite.list.openPublicLink')"
                 @click="openPublicSite(row)"
               />
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="启用状态" width="100" align="center">
+        <el-table-column :label="t('independentSite.list.status')" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="row.enabled ? 'success' : 'info'" effect="plain">
-              {{ row.enabled ? '已启用' : '未启用' }}
+              {{ row.enabled ? t('independentSite.common.enabled') : t('independentSite.common.disabled') }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="页面数" width="90" align="center">
+        <el-table-column :label="t('independentSite.list.pageCount')" width="90" align="center">
           <template #default="{ row }">{{ row.pageCount }}</template>
         </el-table-column>
-        <el-table-column label="发布范围" width="90" align="center">
-          <template #default="{ row }">{{ row.publicationCount }} 个房型</template>
+        <el-table-column :label="t('independentSite.list.publicationScope')" width="90" align="center">
+          <template #default="{ row }">
+            {{ t('independentSite.list.roomTypeCount', { count: row.publicationCount }) }}
+          </template>
         </el-table-column>
-        <el-table-column label="主题" width="110">
+        <el-table-column :label="t('independentSite.list.theme')" width="110">
           <template #default="{ row }">{{ themeLabel(row.themeKey) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="170" fixed="right">
+        <el-table-column :label="t('independentSite.list.actions')" width="170" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" :icon="Setting" @click="handleManageSite(row)">
-              管理
+              {{ t('independentSite.list.manage') }}
             </el-button>
             <el-button
               link
@@ -394,7 +406,7 @@ watch(
               :loading="deletingSiteId === row.id"
               @click="handleDeleteSite(row)"
             >
-              删除
+              {{ t('independentSite.common.delete') }}
             </el-button>
           </template>
         </el-table-column>
@@ -403,34 +415,34 @@ watch(
 
     <el-dialog
       v-model="createDialogVisible"
-      title="新建独立站"
+      :title="t('independentSite.list.createTitle')"
       width="560px"
       :close-on-click-modal="!creating"
     >
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-position="top">
-        <el-form-item label="站点名称" prop="name">
+        <el-form-item :label="t('independentSite.list.name')" prop="name">
           <el-input
             v-model.trim="createForm.name"
             maxlength="120"
             show-word-limit
             autocomplete="off"
-            placeholder="例如：海边民宿二店"
+            :placeholder="t('independentSite.list.namePlaceholder')"
             :disabled="creating"
           />
         </el-form-item>
-        <el-form-item label="公开链接后缀" prop="slug">
+        <el-form-item :label="t('independentSite.list.slug')" prop="slug">
           <el-input
             v-model.trim="createForm.slug"
             maxlength="63"
             show-word-limit
             autocomplete="off"
-            placeholder="例如：seaside-annex"
+            :placeholder="t('independentSite.list.slugPlaceholder')"
             :disabled="creating"
           >
             <template #prepend>/stay/</template>
           </el-input>
         </el-form-item>
-        <el-form-item label="风格描述（可选）" prop="styleDescription">
+        <el-form-item :label="t('independentSite.list.styleDescription')" prop="styleDescription">
           <el-input
             v-model="createForm.styleDescription"
             type="textarea"
@@ -438,14 +450,18 @@ watch(
             maxlength="500"
             show-word-limit
             resize="vertical"
-            placeholder="例如：我们是一家位于莫干山的日式温泉民宿，8 间房，主打亲子和私汤"
+            :placeholder="t('independentSite.list.styleDescriptionPlaceholder')"
             :disabled="creating"
           />
         </el-form-item>
-        <el-form-item label="风格预设（可选）">
-          <div class="style-preset-grid" role="radiogroup" aria-label="选择风格预设">
+        <el-form-item :label="t('independentSite.list.stylePreset')">
+          <div
+            class="style-preset-grid"
+            role="radiogroup"
+            :aria-label="t('independentSite.list.chooseStylePreset')"
+          >
             <button
-              v-for="preset in CANVAS_STYLE_PRESETS"
+              v-for="preset in stylePresets"
               :key="preset.id"
               type="button"
               class="style-preset-card"
@@ -458,14 +474,22 @@ watch(
             </button>
           </div>
           <p class="style-preset-help">
-            填写风格描述或选择预设卡后，创建站点时会自动生成首页 AI 初稿；都不填则使用默认骨架。
+            {{ t('independentSite.list.stylePresetHelp') }}
           </p>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button :disabled="creating" @click="createDialogVisible = false">取消</el-button>
+        <el-button :disabled="creating" @click="createDialogVisible = false">
+          {{ t('independentSite.common.cancel') }}
+        </el-button>
         <el-button type="primary" :loading="creating" @click="handleCreateSite">
-          {{ creating ? (creatingPhase === 'generating' ? '生成初稿中…' : '创建中…') : '创建站点' }}
+          {{
+            creating
+              ? creatingPhase === 'generating'
+                ? t('independentSite.list.generatingDraft')
+                : t('independentSite.list.creating')
+              : t('independentSite.list.createAction')
+          }}
         </el-button>
       </template>
     </el-dialog>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { PublicIndependentSiteRoomType } from '@/types/independentSite'
 import { safeIndependentSiteImageUrl } from '../../pageSchema'
 
@@ -18,6 +19,8 @@ const emit = defineEmits<{
   bookingRequest: []
   selectRoomType: [roomTypeId: number]
 }>()
+
+const { t } = useI18n()
 
 interface RoomTypeCard {
   id: number
@@ -40,14 +43,14 @@ const cards = computed<RoomTypeCard[]>(() =>
       : ''
     const guestParts: string[] = []
     if (roomType.maxGuests) {
-      guestParts.push(`可住 ${roomType.maxGuests} 人`)
+      guestParts.push(t('independentSite.roomList.maxGuests', { count: roomType.maxGuests }))
     }
     if (roomType.maxChildren) {
-      guestParts.push(`儿童 ${roomType.maxChildren} 名`)
+      guestParts.push(t('independentSite.roomList.maxChildren', { count: roomType.maxChildren }))
     }
     return {
       id: roomType.id,
-      name: roomType.name || '房型',
+      name: roomType.name || t('independentSite.roomList.defaultName'),
       imageUrl,
       sizeText,
       guestsText: guestParts.join(' · '),
@@ -63,9 +66,13 @@ const handleSelect = (roomTypeId: number) => {
 </script>
 
 <template>
-  <section class="slot-room-list" :class="`is-${layout}`" aria-label="房型列表">
+  <section
+    class="slot-room-list"
+    :class="`is-${layout}`"
+    :aria-label="t('independentSite.roomList.title')"
+  >
     <div v-if="cards.length === 0" class="room-list-empty">
-      <p>房型信息即将上线，请稍后再来查看。</p>
+      <p>{{ t('independentSite.roomList.empty') }}</p>
     </div>
     <ul v-else class="room-list">
       <li v-for="card in cards" :key="card.id" class="room-card">
@@ -88,7 +95,7 @@ const handleSelect = (roomTypeId: number) => {
               <span v-if="card.sizeText && card.guestsText" aria-hidden="true"> · </span>
               <span v-if="card.guestsText">{{ card.guestsText }}</span>
             </span>
-            <span class="room-card-cta">查看价格 / 预订</span>
+            <span class="room-card-cta">{{ t('independentSite.roomList.cta') }}</span>
           </span>
         </button>
       </li>

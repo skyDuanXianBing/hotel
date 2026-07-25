@@ -5,6 +5,7 @@
 // 避免单个文本违规导致整棵编辑树消失。
 import { h, ref, type FunctionalComponent, type VNodeChild } from 'vue'
 import { Calendar } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import type { PublicIndependentSiteRoomType } from '@/types/independentSite'
 import {
   isCanvasElementNode,
@@ -39,6 +40,8 @@ const emit = defineEmits<{
   removeSection: [nodeId: string]
   aiRedoSection: [nodeId: string]
 }>()
+
+const { t } = useI18n()
 
 // 同一时刻只允许一个文本节点处于编辑态
 const editingTextId = ref<string | null>(null)
@@ -117,7 +120,7 @@ const renderTextNode = (node: CanvasTextNode): VNodeChild => {
     {
       'data-node-id': node.id,
       class: 'canvas-edit-text',
-      title: '点击编辑文本（Enter 提交，Shift+Enter 换行，Esc 取消）',
+      title: t('independentSite.canvas.editTextTitle'),
       onClick: (event: MouseEvent) => {
         event.stopPropagation()
         event.preventDefault()
@@ -133,7 +136,11 @@ const renderSlotNode = (node: CanvasSlotNode): VNodeChild => {
   if (node.slot === 'booking-flow') {
     return h('div', { 'data-node-id': node.id, class: 'canvas-edit-slot-booking' }, [
       h(Calendar, { class: 'canvas-edit-slot-booking-icon' }),
-      h('span', { class: 'canvas-edit-slot-booking-text' }, '预订流程将在公开页此处显示'),
+      h(
+        'span',
+        { class: 'canvas-edit-slot-booking-text' },
+        t('independentSite.canvas.bookingSlotPlaceholder'),
+      ),
     ])
   }
   return h('div', { 'data-node-id': node.id, class: 'canvas-edit-slot' }, [
@@ -143,16 +150,22 @@ const renderSlotNode = (node: CanvasSlotNode): VNodeChild => {
         roomTypes: props.roomTypes,
       }),
     ]),
-    h('span', { class: 'canvas-edit-slot-badge' }, '房型列表插槽 · 公开页自动渲染真实在售房型'),
+    h(
+      'span',
+      { class: 'canvas-edit-slot-badge' },
+      t('independentSite.canvas.roomListSlotBadge'),
+    ),
   ])
 }
 
 const blockLabel = (node: CanvasNode): string => {
   if (isCanvasSlotNode(node)) {
-    return node.slot === 'booking-flow' ? '预订流程插槽' : '房型列表插槽'
+    return node.slot === 'booking-flow'
+      ? t('independentSite.canvas.bookingSlot')
+      : t('independentSite.canvas.roomListSlot')
   }
   if (isCanvasTextNode(node)) {
-    return '文本'
+    return t('independentSite.canvas.textBlock')
   }
   return node.tag
 }
@@ -167,51 +180,51 @@ const renderSectionFrame = (node: CanvasNode, index: number, count: number): VNo
       {
         type: 'button',
         disabled: index === 0,
-        title: '上移该区块',
+        title: t('independentSite.canvas.moveBlockUp'),
         onClick: (event: MouseEvent) => {
           event.stopPropagation()
           emit('moveSection', node.id, -1)
         },
       },
-      '上移',
+      t('independentSite.editor.moveUp'),
     ),
     h(
       'button',
       {
         type: 'button',
         disabled: index === count - 1,
-        title: '下移该区块',
+        title: t('independentSite.canvas.moveBlockDown'),
         onClick: (event: MouseEvent) => {
           event.stopPropagation()
           emit('moveSection', node.id, 1)
         },
       },
-      '下移',
+      t('independentSite.editor.moveDown'),
     ),
     h(
       'button',
       {
         type: 'button',
-        title: '用 AI 指令只重做该区块',
+        title: t('independentSite.canvas.redoBlockTitle'),
         onClick: (event: MouseEvent) => {
           event.stopPropagation()
           emit('aiRedoSection', node.id)
         },
       },
-      'AI 重做',
+      t('independentSite.canvas.redoBlock'),
     ),
     h(
       'button',
       {
         type: 'button',
         class: 'is-danger',
-        title: '删除该区块',
+        title: t('independentSite.canvas.deleteBlockTitle'),
         onClick: (event: MouseEvent) => {
           event.stopPropagation()
           emit('removeSection', node.id)
         },
       },
-      '删除',
+      t('independentSite.common.delete'),
     ),
   ])
   return h(
@@ -232,7 +245,7 @@ const buildElementProps = (node: CanvasElementNode): Record<string, unknown> => 
     elementProps.alt = node.attrs?.alt ?? ''
     elementProps.loading = 'lazy'
     elementProps.decoding = 'async'
-    elementProps.title = '点击更换图片'
+    elementProps.title = t('independentSite.canvas.replaceImageTitle')
     elementProps.onClick = (event: MouseEvent) => {
       event.stopPropagation()
       event.preventDefault()

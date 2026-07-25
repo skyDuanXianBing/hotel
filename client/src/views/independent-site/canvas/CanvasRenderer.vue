@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, h, onMounted, type FunctionalComponent, type VNodeChild } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type {
   IndependentSiteThemeKey,
   PublicIndependentSiteRoomType,
@@ -52,6 +53,8 @@ const emit = defineEmits<{
   selectRoomType: [roomTypeId: number]
 }>()
 
+const { t } = useI18n()
+
 // 与 BLOCKS 渲染器一致的 fail-closed 策略：契约校验不通过则整树不渲染
 const safeSchema = computed(() => normalizeCanvasSchema(props.schema))
 
@@ -103,7 +106,7 @@ const renderBookingFlowSlot = (node: CanvasSlotNode): VNodeChild => {
     return h(
       'div',
       { key: node.id, class: 'canvas-slot-booking-placeholder' },
-      '预订流程将在公开页此处显示',
+      t('independentSite.renderer.bookingPlaceholder'),
     )
   }
   return h('div', { key: node.id, class: 'canvas-slot-booking' }, [

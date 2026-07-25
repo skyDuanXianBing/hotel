@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ArrowRight, RefreshRight } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   getPublicIndependentSite,
   getPublicIndependentSitePage,
@@ -50,6 +51,7 @@ const hasStoredManagementSession = () => {
 }
 
 const route = useRoute()
+const { t } = useI18n()
 const siteLoading = ref(true)
 const siteError = ref('')
 const site = ref<PublicIndependentSite | null>(null)
@@ -156,7 +158,7 @@ const verifyManagementPreview = async () => {
     return
   }
   if (!managementSessionPresent.value) {
-    previewAuthorizationError.value = '未检测到有效的 PMS 登录与门店上下文'
+    previewAuthorizationError.value = t('independentSite.public.previewSessionMissing')
     return
   }
 
@@ -172,11 +174,11 @@ const verifyManagementPreview = async () => {
       return
     }
     if (!response.success || !Array.isArray(response.data)) {
-      throw new Error(response.message || '无法验证当前门店的独立站配置')
+      throw new Error(response.message || t('independentSite.public.siteVerificationFailed'))
     }
     // 多站点后预览鉴权：slug 属于当前门店任一站点即可
     if (!response.data.some((item) => item.slug === requestedSlug)) {
-      throw new Error('当前登录门店与此独立站不匹配')
+      throw new Error(t('independentSite.public.previewStoreMismatch'))
     }
     managementPreviewAuthorized.value = true
   } catch (error) {
@@ -187,7 +189,10 @@ const verifyManagementPreview = async () => {
     ) {
       return
     }
-    previewAuthorizationError.value = getErrorMessage(error, '管理测试预览验证失败')
+    previewAuthorizationError.value = getErrorMessage(
+      error,
+      t('independentSite.public.previewVerificationFailed'),
+    )
   } finally {
     if (sequence === previewAuthorizationSequence) {
       previewAuthorizationLoading.value = false
@@ -234,7 +239,7 @@ const loadSite = async () => {
   currentRoomTypeId.value = null
 
   if (!requestedSlug || requestedSlug.length > 80) {
-    siteError.value = '此订房页面不可用，请检查链接后重试。'
+    siteError.value = t('independentSite.public.invalidBookingLink')
     siteLoading.value = false
     return
   }
@@ -245,7 +250,7 @@ const loadSite = async () => {
       return
     }
     if (!response.success || !response.data) {
-      throw new Error(response.message || '订房页面不可用')
+      throw new Error(response.message || t('independentSite.public.bookingUnavailable'))
     }
     // HOME 页 schema 结构随 format 变化，按对应契约归一化（缺省 BLOCKS，旧站点零变化）
     const homeFormat = normalizeIndependentSitePageFormat(response.data.format)
@@ -254,7 +259,7 @@ const loadSite = async () => {
         ? Boolean(normalizeCanvasSchema(response.data.pageSchema))
         : Boolean(normalizeIndependentSiteSchema(response.data.pageSchema))
     if (!homeSchemaValid) {
-      throw new Error('页面配置暂不可用')
+      throw new Error(t('independentSite.public.pageConfigUnavailable'))
     }
     site.value = {
       ...response.data,
@@ -266,7 +271,7 @@ const loadSite = async () => {
     if (requestSequence !== siteRequestSequence || requestedSlug !== slug.value) {
       return
     }
-    siteError.value = '此订房页面不存在、尚未启用或暂时无法访问。请稍后重试。'
+    siteError.value = t('independentSite.public.siteUnavailable')
   } finally {
     if (requestSequence === siteRequestSequence && requestedSlug === slug.value) {
       siteLoading.value = false
@@ -321,19 +326,19 @@ const loadPageContent = async () => {
       return
     }
     if (!response.success || !response.data) {
-      throw new Error(response.message || '页面不可用')
+      throw new Error(response.message || t('independentSite.public.pageUnavailable'))
     }
     activePageFormat.value = normalizeIndependentSitePageFormat(response.data.format)
     if (activePageFormat.value === 'CANVAS') {
       const canvasSchema = normalizeCanvasSchema(response.data.schema)
       if (!canvasSchema) {
-        throw new Error('页面配置暂不可用')
+        throw new Error(t('independentSite.public.pageConfigUnavailable'))
       }
       activeCanvasSchema.value = ensureCanvasBookingFlowSlot(canvasSchema)
     } else {
       const schema = normalizeIndependentSiteSchema(response.data.schema)
       if (!schema) {
-        throw new Error('页面配置暂不可用')
+        throw new Error(t('independentSite.public.pageConfigUnavailable'))
       }
       activePageSchema.value = schema
     }
@@ -345,7 +350,7 @@ const loadPageContent = async () => {
     }
     activePageSchema.value = null
     activeCanvasSchema.value = null
-    pageError.value = '此页面不存在、尚未发布或暂时无法访问。'
+    pageError.value = t('independentSite.public.pageNotFound')
   } finally {
     if (isCurrentPage()) {
       pageLoading.value = false
@@ -410,15 +415,15 @@ onBeforeUnmount(() => window.removeEventListener('storage', handleManagementSess
   <main class="public-site" :style="siteCssVars">
     <div v-if="siteLoading" class="site-state" aria-live="polite">
       <div class="loading-mark" aria-hidden="true"></div>
-      <h1>正在加载订房页面</h1>
-      <p>正在读取站点配置与发布内容…</p>
+      <h1>{{ t('independentSite.public.loadingTitle') }}</h1>
+      <p>{{ t('independentSite.public.loadingDescription') }}</p>
     </div>
 
     <div v-else-if="siteError || !site" class="site-state site-state--error">
       <span class="state-code">STAY</span>
-      <h1>此页面暂不可用</h1>
+      <h1>{{ t('independentSite.public.pageUnavailable') }}</h1>
       <p>{{ siteError }}</p>
-      <el-button :icon="RefreshRight" @click="loadSite">重新加载</el-button>
+      <el-button :icon="RefreshRight" @click="loadSite">{{ t('independentSite.public.reload') }}</el-button>
     </div>
 
     <template v-else>
@@ -432,40 +437,44 @@ onBeforeUnmount(() => window.removeEventListener('storage', handleManagementSess
         <strong>
           {{
             managementPreviewAvailable
-              ? '管理测试预览'
+              ? t('independentSite.public.preview')
               : previewAuthorizationLoading
-                ? '正在验证管理测试预览'
-                : '管理测试预览不可用'
+                ? t('independentSite.public.previewVerifying')
+                : t('independentSite.public.previewUnavailable')
           }}
         </strong>
         <span v-if="managementPreviewAvailable">
-          当前页面来自已登录管理端；只有此模式可调用受保护的模拟支付接口。
+          {{ t('independentSite.public.previewAuthorizedNotice') }}
         </span>
         <span v-else-if="previewAuthorizationLoading">
-          正在核对登录门店与独立站，完成前不会创建房量保留或支付尝试。
+          {{ t('independentSite.public.previewVerifyingNotice') }}
         </span>
         <span v-else>
           {{
             previewAuthorizationError ||
-            '请从已登录的独立站设置页重新打开。报价仍可查看，但下单和模拟支付保持禁用。'
+            t('independentSite.public.previewNotice')
           }}
         </span>
       </div>
 
       <header v-if="!isCanvasPage" class="public-header">
-        <a class="brand-name" href="#" aria-label="返回页面顶部">{{ site.name }}</a>
-        <nav aria-label="页面导航">
-          <button type="button" @click="scrollToBooking">查询房间</button>
-          <a :href="termsUrl">条款</a>
-          <a :href="privacyUrl">隐私</a>
+        <a class="brand-name" href="#" :aria-label="t('independentSite.public.backToTop')">{{ site.name }}</a>
+        <nav :aria-label="t('independentSite.public.pageNavigation')">
+          <button type="button" @click="scrollToBooking">{{ t('independentSite.public.searchRooms') }}</button>
+          <a :href="termsUrl">{{ t('independentSite.public.terms') }}</a>
+          <a :href="privacyUrl">{{ t('independentSite.public.privacy') }}</a>
         </nav>
         <button type="button" class="header-booking-action" @click="scrollToBooking">
-          立即预订
+          {{ t('independentSite.public.bookNow') }}
           <el-icon><ArrowRight /></el-icon>
         </button>
       </header>
 
-      <nav v-if="!isCanvasPage && pageNavItems.length > 1" class="page-nav" aria-label="站点页面导航">
+      <nav
+        v-if="!isCanvasPage && pageNavItems.length > 1"
+        class="page-nav"
+        :aria-label="t('independentSite.public.siteNavigation')"
+      >
         <router-link
           v-for="item in pageNavItems"
           :key="item.path"
@@ -479,12 +488,12 @@ onBeforeUnmount(() => window.removeEventListener('storage', handleManagementSess
 
       <div v-if="pageLoading" class="page-state" aria-live="polite">
         <div class="loading-mark" aria-hidden="true"></div>
-        <p>正在加载页面…</p>
+        <p>{{ t('independentSite.public.loadingPage') }}</p>
       </div>
 
       <div v-else-if="pageError" class="page-state" role="alert">
         <p>{{ pageError }}</p>
-        <router-link class="page-state-link" :to="homeNavLink">返回首页</router-link>
+        <router-link class="page-state-link" :to="homeNavLink">{{ t('independentSite.public.returnHome') }}</router-link>
       </div>
 
       <IndependentSitePageRenderer
@@ -519,10 +528,10 @@ onBeforeUnmount(() => window.removeEventListener('storage', handleManagementSess
 
       <footer v-if="!isCanvasPage" class="public-footer">
         <strong>{{ site.name }}</strong>
-        <p>实时库存与安全预订由 THE HOST HUB 提供</p>
-        <nav aria-label="页脚链接">
-          <a :href="termsUrl">预订条款</a>
-          <a :href="privacyUrl">隐私政策</a>
+        <p>{{ t('independentSite.public.footerProvider') }}</p>
+        <nav :aria-label="t('independentSite.public.footerLinks')">
+          <a :href="termsUrl">{{ t('independentSite.public.bookingTerms') }}</a>
+          <a :href="privacyUrl">{{ t('independentSite.public.privacyPolicy') }}</a>
         </nav>
       </footer>
     </template>

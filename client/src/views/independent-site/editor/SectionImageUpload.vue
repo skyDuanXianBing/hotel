@@ -1,35 +1,33 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { ElMessage, type UploadRequestOptions } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import { uploadMedia } from '@/api/media'
 import { safeIndependentSiteImageUrl } from '../pageSchema'
 import { INDEPENDENT_SITE_IMAGE_MAX_BYTES } from './constants'
 
-const props = withDefaults(
-  defineProps<{
-    disabled?: boolean
-    buttonText?: string
-  }>(),
-  {
-    disabled: false,
-    buttonText: '上传图片',
-  },
-)
+const props = defineProps<{
+  disabled?: boolean
+  buttonText?: string
+}>()
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   uploaded: [url: string]
 }>()
 
 const uploading = ref(false)
+const resolvedButtonText = computed(() => props.buttonText || t('independentSite.common.uploadImage'))
 
 const beforeUpload = (file: File) => {
   if (!file.type.startsWith('image/')) {
-    ElMessage.warning('仅支持图片文件')
+    ElMessage.warning(t('independentSite.editor.imageOnly'))
     return false
   }
   if (file.size > INDEPENDENT_SITE_IMAGE_MAX_BYTES) {
-    ElMessage.warning('图片大小不能超过 5MB')
+    ElMessage.warning(t('independentSite.editor.imageTooLarge'))
     return false
   }
   return true
@@ -41,17 +39,17 @@ const handleUpload = async (options: UploadRequestOptions) => {
     const response = await uploadMedia('independent-site', options.file as File)
     const url = safeIndependentSiteImageUrl(response?.data?.url)
     if (!response?.success || !url) {
-      throw new Error(response?.message || '图片上传失败')
+      throw new Error(response?.message || t('independentSite.editor.imageUploadFailed'))
     }
     emit('uploaded', url)
-    ElMessage.success('图片已上传')
+    ElMessage.success(t('independentSite.editor.imageUploaded'))
   } catch (error) {
     const message =
       error && typeof error === 'object'
         ? ((error as { response?: { data?: { message?: unknown } } }).response?.data
             ?.message as string) || (error instanceof Error ? error.message : '')
         : ''
-    ElMessage.error(message || '图片上传失败，请重试')
+    ElMessage.error(message || t('independentSite.editor.imageUploadRetry'))
   } finally {
     uploading.value = false
   }
@@ -67,7 +65,7 @@ const handleUpload = async (options: UploadRequestOptions) => {
     :disabled="uploading || props.disabled"
   >
     <el-button :icon="Upload" :loading="uploading" :disabled="props.disabled">
-      {{ props.buttonText }}
+      {{ resolvedButtonText }}
     </el-button>
   </el-upload>
 </template>

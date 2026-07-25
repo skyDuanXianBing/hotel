@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { ArrowDown, ArrowUp, Delete, Plus } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import type {
   IndependentSitePageSection,
   IndependentSiteSectionType,
 } from '@/types/independentSite'
 import { INDEPENDENT_SITE_MAX_SECTIONS } from '../pageSchema'
-import {
-  INDEPENDENT_SITE_ADDABLE_SECTION_TYPES,
-  INDEPENDENT_SITE_SECTION_TYPE_LABELS,
-} from './constants'
+import { INDEPENDENT_SITE_ADDABLE_SECTION_TYPES, getIndependentSiteSectionTypeLabel } from './constants'
 
 const props = defineProps<{
   sections: IndependentSitePageSection[]
   selectedId: string
 }>()
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   select: [id: string]
@@ -30,12 +30,13 @@ const sectionKey = (section: IndependentSitePageSection, index: number) =>
   section.id || `${section.type}-${index}`
 
 const isTypeDisabled = (type: IndependentSiteSectionType) => existingTypes.value.has(type)
+const typeLabel = (type: IndependentSiteSectionType) => getIndependentSiteSectionTypeLabel(t, type)
 </script>
 
 <template>
   <aside class="section-list-panel">
     <div class="panel-heading">
-      <h3>页面区块</h3>
+      <h3>{{ t('independentSite.editor.pageBlocks') }}</h3>
       <span>{{ sections.length }}/{{ INDEPENDENT_SITE_MAX_SECTIONS }}</span>
     </div>
 
@@ -48,15 +49,15 @@ const isTypeDisabled = (type: IndependentSiteSectionType) => existingTypes.value
         @click="section.id && emit('select', section.id)"
       >
         <div class="section-item-main">
-          <span class="section-type">{{ INDEPENDENT_SITE_SECTION_TYPE_LABELS[section.type] }}</span>
-          <span class="section-title">{{ section.title || '（未填写标题）' }}</span>
+          <span class="section-type">{{ typeLabel(section.type) }}</span>
+          <span class="section-title">{{ section.title || t('independentSite.editor.untitled') }}</span>
         </div>
         <div class="section-item-actions" @click.stop>
           <el-button
             :icon="ArrowUp"
             circle
             size="small"
-            aria-label="上移区块"
+            :aria-label="t('independentSite.editor.moveUp')"
             :disabled="index === 0"
             @click="section.id && emit('move', section.id, -1)"
           />
@@ -64,7 +65,7 @@ const isTypeDisabled = (type: IndependentSiteSectionType) => existingTypes.value
             :icon="ArrowDown"
             circle
             size="small"
-            aria-label="下移区块"
+            :aria-label="t('independentSite.editor.moveDown')"
             :disabled="index === sections.length - 1"
             @click="section.id && emit('move', section.id, 1)"
           />
@@ -74,9 +75,13 @@ const isTypeDisabled = (type: IndependentSiteSectionType) => existingTypes.value
             size="small"
             type="danger"
             plain
-            aria-label="删除区块"
+            :aria-label="t('independentSite.editor.deleteBlock')"
             :disabled="section.type === 'HERO'"
-            :title="section.type === 'HERO' ? '首屏横幅为必需区块，不能删除' : '删除区块'"
+            :title="
+              section.type === 'HERO'
+                ? t('independentSite.editor.heroRequired')
+                : t('independentSite.editor.deleteBlock')
+            "
             @click="section.id && emit('remove', section.id)"
           />
         </div>
@@ -90,7 +95,11 @@ const isTypeDisabled = (type: IndependentSiteSectionType) => existingTypes.value
       @command="(type: IndependentSiteSectionType) => emit('add', type)"
     >
       <el-button type="primary" plain :icon="Plus" :disabled="reachedMax" style="width: 100%">
-        {{ reachedMax ? '已达区块数量上限' : '添加区块' }}
+        {{
+          reachedMax
+            ? t('independentSite.editor.blockLimitReached')
+            : t('independentSite.editor.addBlock')
+        }}
       </el-button>
       <template #dropdown>
         <el-dropdown-menu>
@@ -100,13 +109,15 @@ const isTypeDisabled = (type: IndependentSiteSectionType) => existingTypes.value
             :command="type"
             :disabled="isTypeDisabled(type)"
           >
-            {{ INDEPENDENT_SITE_SECTION_TYPE_LABELS[type] }}
-            <span v-if="isTypeDisabled(type)" class="add-disabled-hint">已存在</span>
+            {{ typeLabel(type) }}
+            <span v-if="isTypeDisabled(type)" class="add-disabled-hint">
+              {{ t('independentSite.editor.alreadyExists') }}
+            </span>
           </el-dropdown-item>
         </el-dropdown-menu>
       </template>
     </el-dropdown>
-    <p class="panel-hint">同类型区块每页至多一个；首屏横幅为必需区块。</p>
+    <p class="panel-hint">{{ t('independentSite.editor.sectionHint') }}</p>
   </aside>
 </template>
 

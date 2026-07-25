@@ -9,6 +9,8 @@ import {
   type IndependentSiteTypography,
 } from '@/types/independentSite'
 
+type Translator = (key: string, values?: Record<string, unknown>) => string
+
 const MAX_SECTIONS = 8
 const MAX_LIST_ITEMS = 12
 const MAX_GALLERY_IMAGES = 12
@@ -46,15 +48,15 @@ export const DEFAULT_INDEPENDENT_SITE_THEME: IndependentSiteTheme = {
   cornerStyle: 'SOFT',
 }
 
-export const createEmptyIndependentSiteSchema = (): IndependentSitePageSchema => ({
+export const createEmptyIndependentSiteSchema = (t: Translator): IndependentSitePageSchema => ({
   schemaVersion: INDEPENDENT_SITE_SCHEMA_VERSION,
   theme: { ...DEFAULT_INDEPENDENT_SITE_THEME },
   sections: [
     {
       id: 's-hero',
       type: 'HERO',
-      title: '欢迎入住',
-      body: '发现舒适空间与真诚款待。',
+      title: t('independentSite.defaults.heroTitle'),
+      body: t('independentSite.defaults.heroBody'),
       alignment: 'CENTER',
     },
   ],
@@ -63,6 +65,7 @@ export const createEmptyIndependentSiteSchema = (): IndependentSitePageSchema =>
 // 编辑器“添加区块”时的默认内容；id 必须稳定且符合白名单格式
 export const createIndependentSiteSection = (
   type: IndependentSiteSectionType,
+  t: Translator,
 ): IndependentSitePageSection => {
   const base = {
     id: generateSectionId(),
@@ -71,23 +74,47 @@ export const createIndependentSiteSection = (
   }
   switch (type) {
     case 'HERO':
-      return { ...base, title: '欢迎入住', body: '发现舒适空间与真诚款待。', alignment: 'CENTER' }
+      return {
+        ...base,
+        title: t('independentSite.defaults.heroTitle'),
+        body: t('independentSite.defaults.heroBody'),
+        alignment: 'CENTER',
+      }
     case 'ABOUT':
-      return { ...base, title: '关于我们', body: '' }
+      return { ...base, title: t('independentSite.sectionTypes.ABOUT'), body: '' }
     case 'HIGHLIGHTS':
-      return { ...base, title: '住宿亮点', items: ['位置便利', '干净舒适'] }
+      return {
+        ...base,
+        title: t('independentSite.defaults.highlights'),
+        items: [
+          t('independentSite.defaults.convenientLocation'),
+          t('independentSite.defaults.cleanComfortable'),
+        ],
+      }
     case 'AMENITIES':
-      return { ...base, title: '设施与服务', items: ['免费 Wi-Fi'] }
+      return {
+        ...base,
+        title: t('independentSite.sectionTypes.AMENITIES'),
+        items: [t('independentSite.defaults.freeWifi')],
+      }
     case 'LOCATION':
-      return { ...base, title: '位置与交通', body: '' }
+      return { ...base, title: t('independentSite.sectionTypes.LOCATION'), body: '' }
     case 'HOUSE_RULES':
-      return { ...base, title: '入住须知', items: ['入住时间 15:00 后，退房时间 11:00 前'] }
+      return {
+        ...base,
+        title: t('independentSite.sectionTypes.HOUSE_RULES'),
+        items: [t('independentSite.defaults.checkInRule')],
+      }
     case 'GALLERY':
-      return { ...base, title: '图片墙', images: [] }
+      return { ...base, title: t('independentSite.sectionTypes.GALLERY'), images: [] }
     case 'BOOKING':
-      return { ...base, title: '立即预订', body: '直接预订，享受最优价格与即时确认。' }
+      return {
+        ...base,
+        title: t('independentSite.defaults.bookNow'),
+        body: t('independentSite.defaults.bookBody'),
+      }
     default:
-      return { ...base, title: '新区块' }
+      return { ...base, title: t('independentSite.defaults.newSection') }
   }
 }
 

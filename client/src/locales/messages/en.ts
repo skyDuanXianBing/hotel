@@ -8,6 +8,7 @@ import { settingsStage4Messages } from './settingsStage4'
 import { stage5Messages } from './stage5'
 import { stage6Messages } from './stage6'
 import { managedOperationSettlementMessages } from './managedOperationSettlement'
+import { independentSiteMessages } from './independentSite'
 import { suReviewMessages } from './suReviews'
 
 const en = mergeLocaleMessages(
@@ -189,6 +190,7 @@ const en = mergeLocaleMessages(
   stage5Messages.en,
   stage6Messages.en,
   managedOperationSettlementMessages.en,
+  independentSiteMessages.en,
   suReviewMessages.en,
   {
     routeTitles: {
