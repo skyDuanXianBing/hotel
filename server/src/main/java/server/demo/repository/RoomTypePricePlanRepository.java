@@ -25,6 +25,12 @@ public interface RoomTypePricePlanRepository extends JpaRepository<RoomTypePrice
     // 根据房型ID和价格计划ID查找
     Optional<RoomTypePricePlan> findByRoomTypeIdAndPricePlanId(Long roomTypeId, Long pricePlanId);
 
+    Optional<RoomTypePricePlan> findByStoreIdAndRoomTypeIdAndPricePlanId(
+            Long storeId,
+            Long roomTypeId,
+            Long pricePlanId
+    );
+
     // 检查房型和价格计划是否已关联
     boolean existsByRoomTypeIdAndPricePlanId(Long roomTypeId, Long pricePlanId);
 

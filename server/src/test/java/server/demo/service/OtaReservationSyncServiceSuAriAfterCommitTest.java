@@ -125,6 +125,7 @@ class OtaReservationSyncServiceSuAriAfterCommitTest {
                 reservationRepository,
                 null,
                 null,
+                null,
                 transactionManager,
                 null,
                 null,

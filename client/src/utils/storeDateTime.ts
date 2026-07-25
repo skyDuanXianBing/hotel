@@ -3,7 +3,7 @@ export const DEFAULT_RESERVATION_TIMESTAMP_SOURCE_ZONE = 'Asia/Shanghai'
 
 const LOCAL_DATE_TIME_PATTERN =
   /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?$/
-const HAS_TIMEZONE_PATTERN = /([zZ]|[+\-]\d{2}:?\d{2})$/
+const HAS_TIMEZONE_PATTERN = /([zZ]|[+-]\d{2}:?\d{2})$/
 const YMD_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
 const YMD_PREFIX_PATTERN = /^(\d{4})-(\d{2})-(\d{2})/
 const DAYS_PER_WEEK = 7

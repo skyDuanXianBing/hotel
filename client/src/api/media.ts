@@ -14,7 +14,13 @@ export interface MediaUploadResponseDTO {
 }
 
 export const uploadMedia = async (
-  scope: 'store-logo' | 'store-desktop' | 'store-mobile' | 'room-type-desktop' | 'room-type-mobile',
+  scope:
+    | 'store-logo'
+    | 'store-desktop'
+    | 'store-mobile'
+    | 'room-type-desktop'
+    | 'room-type-mobile'
+    | 'independent-site',
   file: File
 ): Promise<ApiResponse<MediaUploadResponseDTO>> => {
   const formData = new FormData()

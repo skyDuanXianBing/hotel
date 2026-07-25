@@ -63,6 +63,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -106,6 +107,9 @@ public class ReservationService {
 
     @Autowired
     private RoomTypeRepository roomTypeRepository;
+
+    @Autowired
+    private RoomTypeInventoryLockService inventoryLockService;
 
     @Autowired
     private UserRepository userRepository;
@@ -246,11 +250,30 @@ public class ReservationService {
     public ReservationDTO createReservation(CreateReservationRequest request) {
         Long storeId = currentStoreId();
         Long userId = currentUserId();
+        Set<Long> lockedRoomTypeIds = lockInventoryRoomTypes(
+                storeId,
+                Set.of(),
+                List.of(request.getRoomId())
+        );
+        return createReservationUnderInventoryLocks(
+                request,
+                storeId,
+                userId,
+                lockedRoomTypeIds
+        );
+    }
 
+    private ReservationDTO createReservationUnderInventoryLocks(
+            CreateReservationRequest request,
+            Long storeId,
+            Long userId,
+            Set<Long> lockedRoomTypeIds
+    ) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
 
         Room room = loadRoomForAssignmentWithLock(storeId, request.getRoomId());
+        assertRoomTypeLockHeld(room, lockedRoomTypeIds);
 
         // 验证渠道是否存在
         Channel channel = channelRepository.findById(request.getChannelId())
@@ -332,18 +355,34 @@ public class ReservationService {
             throw new RuntimeException("批量预订数据不能为空");
         }
 
+        List<CreateReservationRequest> items = request.getReservations();
+        for (CreateReservationRequest item : items) {
+            if (item == null) {
+                throw new RuntimeException("批量预订明细不能为空");
+            }
+        }
+        Long storeId = currentStoreId();
+        Long userId = currentUserId();
+        Set<Long> lockedRoomTypeIds = lockInventoryRoomTypes(
+                storeId,
+                Set.of(),
+                items.stream().map(CreateReservationRequest::getRoomId).toList()
+        );
+
         String groupOrderNo = normalizeGroupOrderNo(request.getGroupOrderNo());
         if (groupOrderNo == null) {
             groupOrderNo = generateGroupOrderNo();
         }
 
         List<ReservationDTO> created = new ArrayList<>();
-        for (CreateReservationRequest item : request.getReservations()) {
-            if (item == null) {
-                throw new RuntimeException("批量预订明细不能为空");
-            }
+        for (CreateReservationRequest item : items) {
             item.setGroupOrderNo(groupOrderNo);
-            created.add(createReservation(item));
+            created.add(createReservationUnderInventoryLocks(
+                    item,
+                    storeId,
+                    userId,
+                    lockedRoomTypeIds
+            ));
         }
 
         return new BatchCreateReservationResponse(groupOrderNo, created.size(), created);
@@ -846,7 +885,20 @@ public class ReservationService {
         Long userId = currentUserId();
 
         Reservation existingReservation = loadReservationInStore(reservationId);
+        Room oldRoom = existingReservation.getRoom();
+        List<Long> roomIdsToLock = new ArrayList<>();
+        if (oldRoom != null && oldRoom.getId() != null) {
+            roomIdsToLock.add(oldRoom.getId());
+        }
+        roomIdsToLock.add(request.getRoomId());
+        Long oldRoomTypeId = resolveRoomTypeId(oldRoom, existingReservation.getOtaRoomTypeId());
+        Set<Long> lockedRoomTypeIds = lockInventoryRoomTypes(
+                storeId,
+                oldRoomTypeId == null ? Set.of() : Set.of(oldRoomTypeId),
+                roomIdsToLock
+        );
         Room room = loadRoomForAssignmentWithLock(storeId, request.getRoomId());
+        assertRoomTypeLockHeld(room, lockedRoomTypeIds);
         Channel channel = channelRepository.findById(request.getChannelId())
                 .orElseThrow(() -> new RuntimeException("渠道不存在"));
 
@@ -864,7 +916,6 @@ public class ReservationService {
             );
         }
 
-        Room oldRoom = existingReservation.getRoom();
         Channel oldChannel = existingReservation.getChannel();
         LocalDate oldCheckIn = existingReservation.getCheckInDate();
         LocalDate oldCheckOut = existingReservation.getCheckOutDate();
@@ -1043,8 +1094,22 @@ public class ReservationService {
             throw new RuntimeException("当前订单状态不支持排房（仅已确认/待确认/已入住可排房）");
         }
 
-        Room room = roomRepository.findByStoreIdAndIdWithRoomType(storeId, roomId)
+        Room oldRoom = reservation.getRoom();
+        List<Long> roomIdsToLock = new ArrayList<>();
+        if (oldRoom != null && oldRoom.getId() != null) {
+            roomIdsToLock.add(oldRoom.getId());
+        }
+        roomIdsToLock.add(roomId);
+        Long oldRoomTypeId = resolveRoomTypeId(oldRoom, reservation.getOtaRoomTypeId());
+        Set<Long> lockedRoomTypeIds = lockInventoryRoomTypes(
+                storeId,
+                oldRoomTypeId == null ? Set.of() : Set.of(oldRoomTypeId),
+                roomIdsToLock
+        );
+
+        Room room = roomRepository.findByStoreIdAndIdForUpdate(storeId, roomId)
                 .orElseThrow(() -> new RuntimeException("房间不存在或无权限"));
+        assertRoomTypeLockHeld(room, lockedRoomTypeIds);
         if (room.getStatus() == RoomStatus.OUT_OF_ORDER || room.getStatus() == RoomStatus.MAINTENANCE) {
             throw new RuntimeException("该房间当前不可用");
         }
@@ -1057,7 +1122,6 @@ public class ReservationService {
             throw new RuntimeException("该房间在订单日期范围内已被占用，请选择其他房间");
         }
 
-        Room oldRoom = reservation.getRoom();
         Channel oldChannel = reservation.getChannel();
         LocalDate oldCheckIn = reservation.getCheckInDate();
         LocalDate oldCheckOut = reservation.getCheckOutDate();
@@ -1444,6 +1508,53 @@ public class ReservationService {
     private Room loadRoomForAssignmentWithLock(Long storeId, Long roomId) {
         return roomRepository.findByStoreIdAndIdForUpdate(storeId, roomId)
                 .orElseThrow(() -> new RuntimeException("房间不存在或无权限"));
+    }
+
+    private Set<Long> lockInventoryRoomTypes(
+            Long storeId,
+            Collection<Long> directRoomTypeIds,
+            Collection<Long> roomIds
+    ) {
+        Set<Long> resolvedRoomTypeIds = new LinkedHashSet<>();
+        if (directRoomTypeIds != null) {
+            resolvedRoomTypeIds.addAll(directRoomTypeIds);
+        }
+
+        Set<Long> requestedRoomIds = new LinkedHashSet<>();
+        if (roomIds != null) {
+            for (Long roomId : roomIds) {
+                if (roomId == null || roomId <= 0) {
+                    throw new RuntimeException("房间 ID 无效");
+                }
+                requestedRoomIds.add(roomId);
+            }
+        }
+        if (!requestedRoomIds.isEmpty()) {
+            List<Room> rooms = roomRepository.findByStoreIdAndIdIn(storeId, requestedRoomIds);
+            Set<Long> foundRoomIds = new LinkedHashSet<>();
+            for (Room room : rooms) {
+                if (room == null || room.getId() == null
+                        || room.getRoomType() == null || room.getRoomType().getId() == null) {
+                    throw new RuntimeException("房间缺少有效房型");
+                }
+                foundRoomIds.add(room.getId());
+                resolvedRoomTypeIds.add(room.getRoomType().getId());
+            }
+            if (!foundRoomIds.equals(requestedRoomIds)) {
+                throw new RuntimeException("房间不存在或无权限");
+            }
+        }
+        return inventoryLockService.lockRoomTypes(storeId, resolvedRoomTypeIds);
+    }
+
+    private static void assertRoomTypeLockHeld(Room room, Set<Long> lockedRoomTypeIds) {
+        Long roomTypeId = room != null && room.getRoomType() != null
+                ? room.getRoomType().getId()
+                : null;
+        if (roomTypeId == null || lockedRoomTypeIds == null
+                || !lockedRoomTypeIds.contains(roomTypeId)) {
+            throw new IllegalStateException("房间所属房型已变化，请重试");
+        }
     }
 
     private void assertRoomAvailableForDateRange(

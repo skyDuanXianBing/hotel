@@ -86,7 +86,8 @@ public class MediaStorageService {
         }
         String normalized = scope.trim().toLowerCase(Locale.ROOT);
         return switch (normalized) {
-            case "store-logo", "store-desktop", "store-mobile", "room-type-desktop", "room-type-mobile" -> normalized;
+            case "store-logo", "store-desktop", "store-mobile", "room-type-desktop", "room-type-mobile",
+                    "independent-site" -> normalized;
             default -> throw new RuntimeException("不支持的上传类型: " + scope);
         };
     }

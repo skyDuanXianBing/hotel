@@ -51,6 +51,20 @@ const router = createRouter({
       component: () => import('@/views/public/RegistrationBookingPublic.vue'),
       meta: { title: 'Check-in Registration', requiresAuth: false },
     },
+    // Public independent booking site (no login or back-office layout)
+    {
+      path: '/stay/:slug',
+      name: 'IndependentSitePublic',
+      component: () => import('@/views/public/IndependentSitePublic.vue'),
+      meta: { title: 'Book your stay', requiresAuth: false },
+    },
+    // Public independent booking site sub-pages (same component, multi-page support)
+    {
+      path: '/stay/:slug/p/:pagePath+',
+      name: 'IndependentSitePublicPage',
+      component: () => import('@/views/public/IndependentSitePublic.vue'),
+      meta: { title: 'Book your stay', requiresAuth: false },
+    },
     // Main layout routes with navigation
     {
       path: '/',
@@ -333,6 +347,20 @@ const router = createRouter({
               name: 'ChannelPriceRatioSettings',
               component: () => import('@/views/channel/ChannelManagement.vue'),
               meta: { title: 'Price Ratio', requiresAuth: true },
+            },
+            {
+              path: 'independent-site',
+              name: 'IndependentSiteSettings',
+              component: () =>
+                import('@/views/settings/independent-site/IndependentSiteList.vue'),
+              meta: { title: '独立站', requiresAuth: true },
+            },
+            {
+              path: 'independent-site/:id',
+              name: 'IndependentSiteDetail',
+              component: () =>
+                import('@/views/settings/independent-site/IndependentSiteDetail.vue'),
+              meta: { title: '独立站', requiresAuth: true },
             },
             {
               path: 'package-settings',
@@ -648,6 +676,24 @@ const routePermissionConfig = new Map<
         { module: PermissionModule.CHANNEL, action: PermissionAction.MANAGE_CHANNELS },
       ],
       matchMode: 'any',
+    },
+  ],
+  [
+    'IndependentSiteSettings',
+    {
+      requirements: [
+        { module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS },
+        { module: PermissionModule.CHANNEL, action: PermissionAction.MANAGE_CHANNELS },
+      ],
+    },
+  ],
+  [
+    'IndependentSiteDetail',
+    {
+      requirements: [
+        { module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS },
+        { module: PermissionModule.CHANNEL, action: PermissionAction.MANAGE_CHANNELS },
+      ],
     },
   ],
   ['Order', { requirements: [{ module: PermissionModule.ORDER, action: PermissionAction.VIEW_ORDERS }] }],

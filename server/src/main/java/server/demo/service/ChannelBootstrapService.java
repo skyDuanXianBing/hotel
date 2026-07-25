@@ -62,8 +62,15 @@ public class ChannelBootstrapService {
     private static List<ChannelSeed> defaultSeeds() {
         List<ChannelSeed> seeds = new ArrayList<>();
 
-        // 固定默认渠道：自来客、Airbnb、Booking.com
+        // 固定默认渠道：自来客、独立站、Airbnb、Booking.com
         seeds.add(new ChannelSeed("自来客", "DIRECT", ChannelType.DIRECT, "#409EFF", "直接预订客户"));
+        seeds.add(new ChannelSeed(
+                "独立站",
+                "BOOKING_ENGINE",
+                ChannelType.DIRECT,
+                "#7C3AED",
+                "门店独立站公开订房渠道"
+        ));
         seeds.add(new ChannelSeed("Airbnb", "AIRBNB", ChannelType.OTA, "#FF5A5F", "Airbnb"));
         seeds.add(new ChannelSeed("Booking.com", "BOOKING", ChannelType.OTA, "#003580", "Booking.com"));
 
@@ -78,4 +85,3 @@ public class ChannelBootstrapService {
             String description
     ) {}
 }
-

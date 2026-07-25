@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Pageable;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.stereotype.Repository;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
@@ -141,6 +143,24 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     );
 
     Optional<Reservation> findByStoreIdAndOrderNumber(Long storeId, String orderNumber);
+
+    List<Reservation> findByStoreIdAndGroupOrderNoOrderByIdAsc(Long storeId, String groupOrderNo);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT reservation
+            FROM Reservation reservation
+            LEFT JOIN FETCH reservation.room room
+            LEFT JOIN FETCH room.roomType
+            JOIN FETCH reservation.channel
+            WHERE reservation.storeId = :storeId
+              AND reservation.groupOrderNo = :groupOrderNo
+            ORDER BY reservation.id
+            """)
+    List<Reservation> findByStoreIdAndGroupOrderNoForUpdate(
+            @Param("storeId") Long storeId,
+            @Param("groupOrderNo") String groupOrderNo
+    );
 
     @Query("""
             SELECT r

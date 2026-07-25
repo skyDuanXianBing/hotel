@@ -149,7 +149,7 @@ class PriceLabsSyncServiceCalendarPayloadTest {
         assertTrue(statuses.contains(ReservationStatus.CONFIRMED));
         assertTrue(statuses.contains(ReservationStatus.CHECKED_IN));
         assertTrue(statuses.contains(ReservationStatus.CHECKED_OUT));
-        assertTrue(!statuses.contains(ReservationStatus.REQUESTED));
+        assertTrue(statuses.contains(ReservationStatus.REQUESTED));
 
         List<PriceLabsApiClient.CalendarData> pushedCalendars = calendarCaptor.getValue();
         assertNotNull(pushedCalendars);

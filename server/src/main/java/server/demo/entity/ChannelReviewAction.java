@@ -56,7 +56,7 @@ public class ChannelReviewAction implements StoreScopedEntity {
     @Column(name = "idempotency_key", nullable = false, length = 120)
     private String idempotencyKey;
 
-    @Column(name = "request_hash", nullable = false, length = 64)
+    @Column(name = "request_hash", nullable = false, length = 64, columnDefinition = "CHAR(64)")
     private String requestHash;
 
     @Column(name = "operator_user_id", nullable = false)

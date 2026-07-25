@@ -65,6 +65,7 @@ public class OtaReservationSyncService {
     private final ReservationRepository reservationRepository;
     private final SuMessageThreadRepository threadRepository;
     private final OtaReservationRoomAssignmentService roomAssignmentService;
+    private final RoomTypeInventoryLockService inventoryLockService;
     private final TransactionTemplate transactionTemplate;
     private final SuAccessTokenService suAccessTokenService;
     private final AutoMessageTriggerService autoMessageTriggerService;
@@ -84,6 +85,7 @@ public class OtaReservationSyncService {
             ReservationRepository reservationRepository,
             SuMessageThreadRepository threadRepository,
             OtaReservationRoomAssignmentService roomAssignmentService,
+            RoomTypeInventoryLockService inventoryLockService,
             PlatformTransactionManager transactionManager,
             SuAccessTokenService suAccessTokenService,
             AutoMessageTriggerService autoMessageTriggerService,
@@ -102,6 +104,7 @@ public class OtaReservationSyncService {
         this.reservationRepository = reservationRepository;
         this.threadRepository = threadRepository;
         this.roomAssignmentService = roomAssignmentService;
+        this.inventoryLockService = inventoryLockService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.suAccessTokenService = suAccessTokenService;
         this.autoMessageTriggerService = autoMessageTriggerService;
@@ -572,6 +575,152 @@ public class OtaReservationSyncService {
         );
     }
 
+    Set<Long> lockInventoryForUpsert(Long storeId, List<JsonNode> reservationNodes) {
+        Set<Long> roomTypeIds = new LinkedHashSet<>();
+        if (reservationNodes == null || reservationNodes.isEmpty()) {
+            return inventoryLockService.lockRoomTypes(storeId, roomTypeIds);
+        }
+
+        for (JsonNode reservationNode : reservationNodes) {
+            if (reservationNode == null || reservationNode.isNull()) {
+                continue;
+            }
+            String suReservationId = SuReservationParser.extractReservationId(reservationNode);
+            String rawChannelBookingId =
+                    SuReservationParser.extractChannelBookingId(reservationNode);
+            String channelCode = SuReservationParser.mapOtaChannelCode(
+                    SuReservationParser.extractOtaCode(reservationNode)
+            );
+            if (channelCode == null) {
+                continue;
+            }
+            String channelBookingId = resolveCanonicalChannelBookingId(
+                    channelCode,
+                    reservationNode,
+                    rawChannelBookingId,
+                    null
+            );
+            List<JsonNode> roomStays = SuReservationParser.extractRoomStays(reservationNode);
+            if (roomStays.isEmpty()) {
+                roomStays = java.util.Collections.singletonList(null);
+            }
+
+            for (int roomStayIndex = 0; roomStayIndex < roomStays.size(); roomStayIndex++) {
+                JsonNode roomStay = roomStays.get(roomStayIndex);
+                SuRoomIdParser.ParsedRoomId parsedRoomId = SuRoomIdParser.parse(
+                        roomStay != null ? SuReservationParser.extractRoomTypeId(roomStay) : null
+                );
+                if (parsedRoomId != null && parsedRoomId.roomTypeId() != null) {
+                    roomTypeIds.add(parsedRoomId.roomTypeId());
+                }
+
+                String roomReservationIdentity = resolveRoomReservationIdentity(
+                        roomStay != null
+                                ? SuReservationParser.extractRoomReservationId(roomStay)
+                                : null,
+                        roomStayIndex
+                );
+                String generatedOrderNumber = SuReservationParser.buildOrderNumber(
+                        storeId,
+                        suReservationId,
+                        roomReservationIdentity
+                );
+                addInventoryRoomTypeIds(
+                        roomTypeIds,
+                        reservationRepository.findByStoreIdAndOrderNumberWithRoomType(
+                                storeId,
+                                generatedOrderNumber
+                        )
+                );
+                if (suReservationId != null && roomReservationIdentity != null) {
+                    reservationRepository
+                            .findByStoreIdAndSuReservationIdAndRoomReservationId(
+                                    storeId,
+                                    suReservationId,
+                                    roomReservationIdentity
+                            )
+                            .ifPresent(reservation ->
+                                    addInventoryRoomTypeId(roomTypeIds, reservation));
+                }
+
+                String externalBookingKey = resolveExternalBookingKey(
+                        channelCode,
+                        channelBookingId,
+                        suReservationId,
+                        generatedOrderNumber
+                );
+                if (externalBookingKey != null) {
+                    addInventoryRoomTypeIds(
+                            roomTypeIds,
+                            reservationRepository.findByStoreIdAndExternalBookingKeyWithRoomType(
+                                    storeId,
+                                    externalBookingKey
+                            )
+                    );
+                }
+            }
+
+            if (channelBookingId != null) {
+                addInventoryRoomTypeIds(
+                        roomTypeIds,
+                        reservationRepository.findByStoreIdAndChannelOrderNumberWithRoomType(
+                                storeId,
+                                channelBookingId
+                        )
+                );
+            }
+        }
+        return inventoryLockService.lockRoomTypes(storeId, roomTypeIds);
+    }
+
+    private static void addInventoryRoomTypeIds(
+            Set<Long> roomTypeIds,
+            List<Reservation> reservations
+    ) {
+        if (reservations == null) {
+            return;
+        }
+        for (Reservation reservation : reservations) {
+            addInventoryRoomTypeId(roomTypeIds, reservation);
+        }
+    }
+
+    private static void addInventoryRoomTypeId(
+            Set<Long> roomTypeIds,
+            Reservation reservation
+    ) {
+        Long roomTypeId = resolveInventoryRoomTypeId(reservation);
+        if (roomTypeId != null) {
+            roomTypeIds.add(roomTypeId);
+        }
+    }
+
+    private static Long resolveInventoryRoomTypeId(Reservation reservation) {
+        if (reservation == null) {
+            return null;
+        }
+        if (reservation.getRoom() != null
+                && reservation.getRoom().getRoomType() != null
+                && reservation.getRoom().getRoomType().getId() != null) {
+            return reservation.getRoom().getRoomType().getId();
+        }
+        return reservation.getOtaRoomTypeId();
+    }
+
+    private static void assertInventoryRoomTypesLocked(
+            Set<Long> lockedRoomTypeIds,
+            Long... requiredRoomTypeIds
+    ) {
+        for (Long roomTypeId : requiredRoomTypeIds) {
+            if (roomTypeId != null && (lockedRoomTypeIds == null
+                    || !lockedRoomTypeIds.contains(roomTypeId))) {
+                throw new IllegalStateException(
+                        "预订房型在库存加锁后发生变化，请重试，roomTypeId=" + roomTypeId
+                );
+            }
+        }
+    }
+
     private static int countRoomStays(JsonNode reservationNode) {
         if (reservationNode == null || reservationNode.isNull()) {
             return 0;
@@ -595,6 +744,8 @@ public class OtaReservationSyncService {
         User user = userRepository.findById(store.getUserId())
                 .orElseThrow(() -> new IllegalStateException("门店关联的用户不存在: " + store.getUserId()));
         java.util.Map<String, String> pricePlanDisplayCache = new java.util.HashMap<>();
+        Set<Long> lockedInventoryRoomTypeIds =
+                lockInventoryForUpsert(store.getId(), reservations);
 
         for (JsonNode reservationNode : reservations) {
             if (reservationNode == null || reservationNode.isNull()) {
@@ -625,7 +776,7 @@ public class OtaReservationSyncService {
 
             List<JsonNode> roomStays = SuReservationParser.extractRoomStays(reservationNode);
             if (roomStays.isEmpty()) {
-                roomStays = List.of((JsonNode) null);
+                roomStays = java.util.Collections.singletonList(null);
             }
             int roomStayCount = roomStays.size();
 
@@ -638,6 +789,14 @@ public class OtaReservationSyncService {
                     if (checkIn == null || checkOut == null) {
                         throw new IllegalArgumentException("缺少入住/退房日期");
                     }
+                    String itProviderRoomId = roomStay != null
+                            ? SuReservationParser.extractRoomTypeId(roomStay)
+                            : null;
+                    SuRoomIdParser.ParsedRoomId parsedRoomId =
+                            SuRoomIdParser.parse(itProviderRoomId);
+                    Long newRoomTypeId = parsedRoomId != null
+                            ? parsedRoomId.roomTypeId()
+                            : null;
 
                     String roomReservationId = roomStay != null ? SuReservationParser.extractRoomReservationId(roomStay) : null;
                     String roomReservationIdentity = resolveRoomReservationIdentity(roomReservationId, roomStayIndex);
@@ -682,6 +841,12 @@ public class OtaReservationSyncService {
                     Reservation reservation = lookupResult.reservation();
 
                     boolean isNew = reservation.getId() == null;
+                    Long oldInventoryRoomTypeId = resolveInventoryRoomTypeId(reservation);
+                    assertInventoryRoomTypesLocked(
+                            lockedInventoryRoomTypeIds,
+                            oldInventoryRoomTypeId,
+                            newRoomTypeId
+                    );
                     String orderNumber = lookupResult.resolvedOrderNumber();
                     LocalDate oldCheckIn = isNew ? null : reservation.getCheckInDate();
                     LocalDate oldCheckOut = isNew ? null : reservation.getCheckOutDate();
@@ -762,10 +927,7 @@ public class OtaReservationSyncService {
                     reservation.setOrderNumber(orderNumber);
 
                     // 记录 Su rooms[].id（我们推送的 roomid={roomTypeId}-{roomNumber}），用于未排房也能按房型统计占用/回传 PriceLabs booked_units
-                    String itProviderRoomId = roomStay != null ? SuReservationParser.extractRoomTypeId(roomStay) : null;
                     reservation.setOtaRoomId(itProviderRoomId);
-                    SuRoomIdParser.ParsedRoomId parsedRoomId = SuRoomIdParser.parse(itProviderRoomId);
-                    Long newRoomTypeId = parsedRoomId != null ? parsedRoomId.roomTypeId() : null;
                     reservation.setOtaRoomTypeId(newRoomTypeId);
                     reservation.setOtaRoomNumber(parsedRoomId != null ? parsedRoomId.roomNumber() : null);
 
@@ -791,6 +953,10 @@ public class OtaReservationSyncService {
                         }
                     }
 
+                    assertInventoryRoomTypesLocked(
+                            lockedInventoryRoomTypeIds,
+                            resolveInventoryRoomTypeId(reservation)
+                    );
                     reservationRepository.save(reservation);
                     if (reservationDailyPriceSyncService != null) {
                         reservationDailyPriceSyncService.syncDailyPrices(

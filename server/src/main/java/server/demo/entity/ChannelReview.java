@@ -140,7 +140,7 @@ public class ChannelReview implements StoreScopedEntity {
     @Column(name = "last_synced_at", nullable = false)
     private LocalDateTime lastSyncedAt;
 
-    @Column(name = "source_event_hash", length = 64)
+    @Column(name = "source_event_hash", length = 64, columnDefinition = "CHAR(64)")
     private String sourceEventHash;
 
     @Column(name = "su_ruid", length = 100)

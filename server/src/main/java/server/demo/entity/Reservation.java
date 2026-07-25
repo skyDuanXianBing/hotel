@@ -41,6 +41,9 @@ public class Reservation implements StoreScopedEntity {
     @Column(name = "guest_phone", length = 255)
     private String guestPhone;
 
+    @Column(name = "guest_email", length = 254)
+    private String guestEmail;
+
     @Column(name = "guest_id_card", length = 50)
     private String guestIdCard;
 
@@ -79,6 +82,9 @@ public class Reservation implements StoreScopedEntity {
 
     @Column(name = "group_order_no", length = 50)
     private String groupOrderNo;
+
+    @Column(name = "independent_site_id")
+    private Long independentSiteId;
 
     @Column(name = "channel_order_number", length = 100)
     private String channelOrderNumber;
@@ -243,6 +249,14 @@ public class Reservation implements StoreScopedEntity {
         this.guestPhone = guestPhone;
     }
 
+    public String getGuestEmail() {
+        return guestEmail;
+    }
+
+    public void setGuestEmail(String guestEmail) {
+        this.guestEmail = guestEmail;
+    }
+
     public String getGuestIdCard() {
         return guestIdCard;
     }
@@ -385,6 +399,14 @@ public class Reservation implements StoreScopedEntity {
 
     public void setGroupOrderNo(String groupOrderNo) {
         this.groupOrderNo = groupOrderNo;
+    }
+
+    public Long getIndependentSiteId() {
+        return independentSiteId;
+    }
+
+    public void setIndependentSiteId(Long independentSiteId) {
+        this.independentSiteId = independentSiteId;
     }
 
     public String getChannelOrderNumber() {
