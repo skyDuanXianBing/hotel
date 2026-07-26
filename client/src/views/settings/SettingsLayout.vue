@@ -10,6 +10,7 @@ import {
   BrushFilled,
   Connection,
   Coin,
+  Monitor,
 } from '@element-plus/icons-vue'
 import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue'
 import WorkspaceSidebar from '@/components/layout/WorkspaceSidebar.vue'
@@ -55,6 +56,11 @@ const channelSettingsPermission: PermissionRequirement[] = [
 ]
 
 const channelPriceRatioPermission: PermissionRequirement[] = [
+  { module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS },
+  { module: PermissionModule.CHANNEL, action: PermissionAction.MANAGE_CHANNELS },
+]
+
+const independentSitePermission: PermissionRequirement[] = [
   { module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS },
   { module: PermissionModule.CHANNEL, action: PermissionAction.MANAGE_CHANNELS },
 ]
@@ -181,6 +187,19 @@ const menuItems: MenuItem[] = [
         path: '/settings/channel/price-ratio',
         requiredPermissions: channelPriceRatioPermission,
         permissionMatchMode: 'any',
+      },
+    ],
+  },
+  {
+    key: 'independent-site',
+    label: 'settings.layout.items.independentSite',
+    icon: Monitor,
+    children: [
+      {
+        key: 'independent-site',
+        label: 'settings.layout.items.independentSite',
+        path: '/settings/independent-site',
+        requiredPermissions: independentSitePermission,
       },
     ],
   },

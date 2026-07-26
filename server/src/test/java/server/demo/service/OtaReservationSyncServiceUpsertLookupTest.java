@@ -27,12 +27,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -277,6 +279,8 @@ class OtaReservationSyncServiceUpsertLookupTest {
         ReservationRepository reservationRepository = mock(ReservationRepository.class);
         SuMessageThreadRepository threadRepository = mock(SuMessageThreadRepository.class);
         OtaReservationRoomAssignmentService roomAssignmentService = mock(OtaReservationRoomAssignmentService.class);
+        RoomTypeInventoryLockService inventoryLockService =
+                mock(RoomTypeInventoryLockService.class);
         AutoMessageTriggerService autoMessageTriggerService = mock(AutoMessageTriggerService.class);
         CleaningTaskAutoService cleaningTaskAutoService = mock(CleaningTaskAutoService.class);
         ReservationDailyPriceSyncService dailyPriceSyncService = mock(ReservationDailyPriceSyncService.class);
@@ -313,6 +317,8 @@ class OtaReservationSyncServiceUpsertLookupTest {
                 .thenReturn(List.of());
         when(reservationRepository.findByStoreIdAndChannelOrderNumber(26L, "5003249282"))
                 .thenReturn(List.of());
+        when(inventoryLockService.lockRoomTypes(26L, Set.of(65L)))
+                .thenReturn(Set.of(65L));
         when(reservationRepository.save(org.mockito.ArgumentMatchers.any(Reservation.class)))
                 .thenAnswer(invocation -> {
                     Reservation saved = invocation.getArgument(0);
@@ -333,6 +339,7 @@ class OtaReservationSyncServiceUpsertLookupTest {
                 reservationRepository,
                 threadRepository,
                 roomAssignmentService,
+                inventoryLockService,
                 new NoopTransactionManager(),
                 null,
                 autoMessageTriggerService,
@@ -355,6 +362,7 @@ class OtaReservationSyncServiceUpsertLookupTest {
                   "customer": { "first_name": "Daily", "last_name": "Guest" },
                   "rooms": [
                     {
+                      "id": "65",
                       "roomreservation_id": "1775048736013",
                       "arrival_date": "2026-02-01",
                       "departure_date": "2026-02-03",
@@ -417,6 +425,15 @@ class OtaReservationSyncServiceUpsertLookupTest {
         assertEquals(new BigDecimal("110.00"), parsedPrices.get(0).priceAfterTax());
         assertEquals(LocalDate.of(2026, 2, 2), parsedPrices.get(1).priceDate());
         assertEquals(new BigDecimal("120.00"), parsedPrices.get(1).priceAfterTax());
+
+        org.mockito.InOrder lockBeforeSave = inOrder(
+                inventoryLockService,
+                reservationRepository
+        );
+        lockBeforeSave.verify(inventoryLockService).lockRoomTypes(26L, Set.of(65L));
+        lockBeforeSave.verify(reservationRepository).save(
+                org.mockito.ArgumentMatchers.any(Reservation.class)
+        );
     }
 
     private static OtaReservationSyncService createService(ReservationRepository reservationRepository) {
@@ -435,6 +452,7 @@ class OtaReservationSyncServiceUpsertLookupTest {
                 null,
                 null,
                 reservationRepository,
+                null,
                 null,
                 null,
                 transactionManager,

@@ -1190,6 +1190,24 @@ public class SuApiClient {
     }
 
     /**
+     * Current Su Review Pull API.
+     * Endpoint: POST /SUAPI/jservice/review/list
+     */
+    public JsonNode pullReviews(String accessToken, Object payload) {
+        String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/review/list";
+        return postSuJsonWithAuthRetry(url, accessToken, payload, "review/list");
+    }
+
+    /**
+     * Current Su Review Reply API for review_reply and Airbnb host-to-guest review.
+     * Endpoint: POST /SUAPI/jservice/review/reply
+     */
+    public JsonNode submitReviewReply(String accessToken, Object payload) {
+        String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/review/reply";
+        return postSuJsonWithAuthRetry(url, accessToken, payload, "review/reply");
+    }
+
+    /**
      * Su Messaging Reply API
      * 文档：docs/消息传递.txt
      * Endpoint: POST /SUAPI/jservice/messagingAB

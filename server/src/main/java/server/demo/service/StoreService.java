@@ -132,10 +132,12 @@ public class StoreService {
             return permissions;
         }
 
-        return mergeEffectivePermissions(
+        List<PermissionDTO> permissions = mergeEffectivePermissions(
                 storeUser.getRoles(),
                 loadStoreUserExtraPermissions(storeUser.getId())
         );
+        appendDefaultReviewViewPermission(permissions);
+        return permissions;
     }
 
     @Transactional
@@ -826,6 +828,10 @@ public class StoreService {
                 default -> false;
             };
             case CHANNEL -> action == PermissionAction.VIEW_CHANNELS || action == PermissionAction.MANAGE_CHANNELS;
+            case REVIEW -> switch (action) {
+                case VIEW, REPLY, REVIEW_GUEST, SYNC -> true;
+                default -> false;
+            };
             case CUSTOMER -> action == PermissionAction.VIEW_CUSTOMERS || action == PermissionAction.MANAGE_CUSTOMERS;
             case STATISTICS -> action == PermissionAction.VIEW_STATS || action == PermissionAction.EXPORT_STATS;
             case SETTINGS -> switch (action) {
@@ -1069,6 +1075,22 @@ public class StoreService {
             dto.setAllRoomTypes(false);
             permissions.add(dto);
         }
+    }
+
+    private static void appendDefaultReviewViewPermission(List<PermissionDTO> permissions) {
+        if (permissions == null) {
+            return;
+        }
+        boolean exists = permissions.stream().anyMatch(permission -> permission != null
+                && permission.getModule() == PermissionModule.REVIEW
+                && permission.getAction() == PermissionAction.VIEW);
+        if (exists) {
+            return;
+        }
+        PermissionDTO dto = new PermissionDTO(PermissionModule.REVIEW, PermissionAction.VIEW);
+        dto.setRoomTypeId(0L);
+        dto.setAllRoomTypes(false);
+        permissions.add(dto);
     }
 
     private static boolean containsCreateInternalTask(List<PermissionDTO> permissions) {

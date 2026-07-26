@@ -18,7 +18,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class ChannelService {
-    private static final Set<String> PROTECTED_CHANNEL_CODES = Set.of("DIRECT", "AIRBNB", "BOOKING");
+    private static final Set<String> PROTECTED_CHANNEL_CODES =
+            Set.of("DIRECT", "BOOKING_ENGINE", "AIRBNB", "BOOKING");
 
     @Autowired
     private ChannelRepository channelRepository;

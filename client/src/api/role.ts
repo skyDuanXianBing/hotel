@@ -14,6 +14,7 @@ export enum PermissionModule {
   CHANNEL = 'CHANNEL',
   CUSTOMER = 'CUSTOMER',
   STATISTICS = 'STATISTICS',
+  REVIEW = 'REVIEW',
   SETTINGS = 'SETTINGS',
   DATA_CENTER = 'DATA_CENTER',
   SENSITIVE = 'SENSITIVE',
@@ -54,6 +55,12 @@ export enum PermissionAction {
   // 统计分析相关
   VIEW_STATS = 'VIEW_STATS',
   EXPORT_STATS = 'EXPORT_STATS',
+
+  // 渠道评价相关
+  VIEW = 'VIEW',
+  REPLY = 'REPLY',
+  REVIEW_GUEST = 'REVIEW_GUEST',
+  SYNC = 'SYNC',
 
   // 设置相关
   VIEW_SETTINGS = 'VIEW_SETTINGS',

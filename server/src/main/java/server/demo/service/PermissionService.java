@@ -97,6 +97,10 @@ public class PermissionService {
         if (!Boolean.TRUE.equals(storeUser.getIsActive())) {
             return false;
         }
+        // 评价中心对所有有效门店成员默认可见；写操作仍需 owner/admin 或显式授权。
+        if (module == PermissionModule.REVIEW && action == PermissionAction.VIEW) {
+            return true;
+        }
         if (module == PermissionModule.ACCOMMODATION
                 && action == PermissionAction.CREATE_INTERNAL_TASK) {
             if ("owner".equals(storeUser.getRole())) {

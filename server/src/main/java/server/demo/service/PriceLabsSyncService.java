@@ -1143,9 +1143,10 @@ public class PriceLabsSyncService {
         }
 
         LocalDate endExclusive = end.plusDays(1);
-        // PriceLabs /calendar.booked_units should represent booked reservations only.
-        // REQUESTED is mapped to "unconfirmed" in /reservations and should not inflate booked_units.
+        // REQUESTED is a real inventory hold in PMS/Su and must also reduce PriceLabs availability.
+        // It remains "unconfirmed" in /reservations, while /calendar counts it as occupied inventory.
         Set<ReservationStatus> statuses = EnumSet.of(
+                ReservationStatus.REQUESTED,
                 ReservationStatus.CONFIRMED,
                 ReservationStatus.CHECKED_IN,
                 ReservationStatus.CHECKED_OUT

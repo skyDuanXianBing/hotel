@@ -51,6 +51,20 @@ const router = createRouter({
       component: () => import('@/views/public/RegistrationBookingPublic.vue'),
       meta: { title: 'Check-in Registration', requiresAuth: false },
     },
+    // Public independent booking site (no login or back-office layout)
+    {
+      path: '/stay/:slug',
+      name: 'IndependentSitePublic',
+      component: () => import('@/views/public/IndependentSitePublic.vue'),
+      meta: { title: 'Book your stay', requiresAuth: false },
+    },
+    // Public independent booking site sub-pages (same component, multi-page support)
+    {
+      path: '/stay/:slug/p/:pagePath+',
+      name: 'IndependentSitePublicPage',
+      component: () => import('@/views/public/IndependentSitePublic.vue'),
+      meta: { title: 'Book your stay', requiresAuth: false },
+    },
     // Main layout routes with navigation
     {
       path: '/',
@@ -335,6 +349,20 @@ const router = createRouter({
               meta: { title: 'Price Ratio', requiresAuth: true },
             },
             {
+              path: 'independent-site',
+              name: 'IndependentSiteSettings',
+              component: () =>
+                import('@/views/settings/independent-site/IndependentSiteList.vue'),
+              meta: { title: '独立站', requiresAuth: true },
+            },
+            {
+              path: 'independent-site/:id',
+              name: 'IndependentSiteDetail',
+              component: () =>
+                import('@/views/settings/independent-site/IndependentSiteDetail.vue'),
+              meta: { title: '独立站', requiresAuth: true },
+            },
+            {
               path: 'package-settings',
               name: 'PackageSettings',
               component: () => import('@/views/settings/PackageSettings.vue'),
@@ -401,6 +429,12 @@ const router = createRouter({
           name: 'Order',
           component: () => import('@/views/order/OrderManagement.vue'),
           meta: { title: 'Order Management', requiresAuth: true },
+        },
+        {
+          path: 'reviews',
+          name: 'OtaReviews',
+          component: () => import('@/views/review/ReviewManagement.vue'),
+          meta: { title: 'Review Center', requiresAuth: true },
         },
         // Data center
         {
@@ -644,8 +678,27 @@ const routePermissionConfig = new Map<
       matchMode: 'any',
     },
   ],
+  [
+    'IndependentSiteSettings',
+    {
+      requirements: [
+        { module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS },
+        { module: PermissionModule.CHANNEL, action: PermissionAction.MANAGE_CHANNELS },
+      ],
+    },
+  ],
+  [
+    'IndependentSiteDetail',
+    {
+      requirements: [
+        { module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS },
+        { module: PermissionModule.CHANNEL, action: PermissionAction.MANAGE_CHANNELS },
+      ],
+    },
+  ],
   ['Order', { requirements: [{ module: PermissionModule.ORDER, action: PermissionAction.VIEW_ORDERS }] }],
   ['OrderNotifications', { requirements: [{ module: PermissionModule.ORDER, action: PermissionAction.VIEW_ORDERS }] }],
+  ['OtaReviews', { requirements: [{ module: PermissionModule.REVIEW, action: PermissionAction.VIEW }] }],
   ['DataCenterOverview', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
   ['DataCenterAccommodation', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
   ['DataCenterNotes', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
@@ -748,6 +801,7 @@ const routeTitleKeyByName = new Map<string, string>([
   ['ChannelListSettings', 'routeTitles.channelManagement'],
   ['ChannelPriceRatioSettings', 'routeTitles.channelManagement'],
   ['Order', 'routeTitles.orderManagement'],
+  ['OtaReviews', 'routeTitles.otaReviews'],
   ['DataCenterOverview', 'routeTitles.overview'],
   ['DataCenterAccommodation', 'routeTitles.accommodation'],
   ['DataCenterNotes', 'routeTitles.recordTransaction'],

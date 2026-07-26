@@ -1,6 +1,10 @@
 package server.demo.repository;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import server.demo.entity.RoomType;
 
@@ -33,6 +37,18 @@ public interface RoomTypeRepository extends JpaRepository<RoomType, Long> {
     Optional<RoomType> findByStoreIdAndId(Long storeId, Long id);
 
     List<RoomType> findByStoreIdAndIdIn(Long storeId, List<Long> ids);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT roomType
+            FROM RoomType roomType
+            WHERE roomType.storeId = :storeId
+              AND roomType.id = :roomTypeId
+            """)
+    Optional<RoomType> findByStoreIdAndIdForUpdate(
+            @Param("storeId") Long storeId,
+            @Param("roomTypeId") Long roomTypeId
+    );
 
     // ===== 兼容旧逻辑的方法，后续将被移除 =====
     @Deprecated

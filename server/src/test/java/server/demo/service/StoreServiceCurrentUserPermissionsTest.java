@@ -71,6 +71,10 @@ class StoreServiceCurrentUserPermissionsTest {
                 permission.getModule() == PermissionModule.ORDER
                         && permission.getAction() == PermissionAction.MODIFY_ORDER
         ));
+        assertTrue(result.stream().anyMatch(permission ->
+                permission.getModule() == PermissionModule.REVIEW
+                        && permission.getAction() == PermissionAction.VIEW
+        ));
 
         List<PermissionDTO> roomStatusPermissions = result.stream()
                 .filter(permission -> permission.getModule() == PermissionModule.ACCOMMODATION
@@ -115,6 +119,22 @@ class StoreServiceCurrentUserPermissionsTest {
                 permission.getModule() == PermissionModule.ACCOMMODATION
                         && permission.getAction() == PermissionAction.VIEW_ROOM_STATUS
                         && Boolean.TRUE.equals(permission.getAllRoomTypes())
+        ));
+        assertTrue(result.stream().anyMatch(permission ->
+                permission.getModule() == PermissionModule.REVIEW
+                        && permission.getAction() == PermissionAction.VIEW
+        ));
+        assertTrue(result.stream().anyMatch(permission ->
+                permission.getModule() == PermissionModule.REVIEW
+                        && permission.getAction() == PermissionAction.REPLY
+        ));
+        assertTrue(result.stream().anyMatch(permission ->
+                permission.getModule() == PermissionModule.REVIEW
+                        && permission.getAction() == PermissionAction.REVIEW_GUEST
+        ));
+        assertTrue(result.stream().anyMatch(permission ->
+                permission.getModule() == PermissionModule.REVIEW
+                        && permission.getAction() == PermissionAction.SYNC
         ));
     }
 

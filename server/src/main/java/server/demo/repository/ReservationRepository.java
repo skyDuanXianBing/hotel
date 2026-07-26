@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Pageable;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.stereotype.Repository;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
@@ -13,6 +15,7 @@ import server.demo.enums.ReservationStatus;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.Optional;
@@ -141,6 +144,24 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 
     Optional<Reservation> findByStoreIdAndOrderNumber(Long storeId, String orderNumber);
 
+    List<Reservation> findByStoreIdAndGroupOrderNoOrderByIdAsc(Long storeId, String groupOrderNo);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT reservation
+            FROM Reservation reservation
+            LEFT JOIN FETCH reservation.room room
+            LEFT JOIN FETCH room.roomType
+            JOIN FETCH reservation.channel
+            WHERE reservation.storeId = :storeId
+              AND reservation.groupOrderNo = :groupOrderNo
+            ORDER BY reservation.id
+            """)
+    List<Reservation> findByStoreIdAndGroupOrderNoForUpdate(
+            @Param("storeId") Long storeId,
+            @Param("groupOrderNo") String groupOrderNo
+    );
+
     @Query("""
             SELECT r
             FROM Reservation r
@@ -230,6 +251,25 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     );
 
     List<Reservation> findByStoreIdAndExternalBookingKey(Long storeId, String externalBookingKey);
+
+    @Query("""
+           SELECT DISTINCT r
+           FROM Reservation r
+           JOIN FETCH r.channel c
+           WHERE r.storeId = :storeId
+             AND UPPER(TRIM(c.code)) IN :channelCodes
+             AND (
+                 r.channelOrderNumber = :bookingKey
+                 OR r.externalBookingKey = :bookingKey
+                 OR r.suReservationId = :bookingKey
+             )
+           ORDER BY r.createdAt DESC
+           """)
+    List<Reservation> findReviewAssociationCandidates(
+           @Param("storeId") Long storeId,
+           @Param("channelCodes") Collection<String> channelCodes,
+           @Param("bookingKey") String bookingKey
+    );
 
     @Query("""
            SELECT DISTINCT r

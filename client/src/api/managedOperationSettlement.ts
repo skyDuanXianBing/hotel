@@ -192,7 +192,7 @@ export const normalizeManagedOperationSettingsResponse = (
   value: ManagedOperationSettingsResponsePayload,
 ): ManagedOperationSettingsResponse => {
   const responseSettings = value.settings ?? null
-  const normalized = { ...fallbackSettings(), ...(responseSettings ?? {}) }
+  const normalized = { ...fallbackSettings(), ...responseSettings }
   return {
     settings: {
       ...normalized,

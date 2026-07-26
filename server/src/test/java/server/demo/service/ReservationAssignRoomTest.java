@@ -55,6 +55,9 @@ class ReservationAssignRoomTest {
     private RoomTypeRepository roomTypeRepository;
 
     @Mock
+    private RoomTypeInventoryLockService inventoryLockService;
+
+    @Mock
     private UserRepository userRepository;
 
     @Mock
@@ -187,7 +190,9 @@ class ReservationAssignRoomTest {
         room.setRoomNumber("102");
         room.setRoomType(rt);
         room.setStatus(RoomStatus.AVAILABLE);
-        when(roomRepository.findByStoreIdAndIdWithRoomType(7L, 12L)).thenReturn(Optional.of(room));
+        when(roomRepository.findByStoreIdAndIdIn(7L, Set.of(12L))).thenReturn(List.of(room));
+        when(inventoryLockService.lockRoomTypes(7L, Set.of(1L))).thenReturn(Set.of(1L));
+        when(roomRepository.findByStoreIdAndIdForUpdate(7L, 12L)).thenReturn(Optional.of(room));
 
         Reservation other = new Reservation();
         other.setId(200L);
@@ -233,7 +238,9 @@ class ReservationAssignRoomTest {
         room.setRoomNumber("102");
         room.setRoomType(rt);
         room.setStatus(RoomStatus.AVAILABLE);
-        when(roomRepository.findByStoreIdAndIdWithRoomType(7L, 12L)).thenReturn(Optional.of(room));
+        when(roomRepository.findByStoreIdAndIdIn(7L, Set.of(12L))).thenReturn(List.of(room));
+        when(inventoryLockService.lockRoomTypes(7L, Set.of(1L))).thenReturn(Set.of(1L));
+        when(roomRepository.findByStoreIdAndIdForUpdate(7L, 12L)).thenReturn(Optional.of(room));
         when(roomTypeRepository.findById(1L)).thenReturn(Optional.of(rt));
 
         when(reservationRepository.findByStoreIdAndRoomIdAndDateRange(7L, 12L, checkIn, checkOut))

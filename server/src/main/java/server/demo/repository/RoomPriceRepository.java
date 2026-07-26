@@ -1,6 +1,8 @@
 package server.demo.repository;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -105,6 +107,43 @@ public interface RoomPriceRepository extends JpaRepository<RoomPrice, Long> {
             @Param("roomTypeId") Long roomTypeId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
+
+    @Query("""
+            SELECT rp
+            FROM RoomPrice rp
+            WHERE rp.storeId = :storeId
+              AND rp.roomType.id = :roomTypeId
+              AND rp.pricePlan.id = :pricePlanId
+              AND rp.priceDate >= :startDate
+              AND rp.priceDate <= :endDate
+            ORDER BY rp.priceDate
+            """)
+    List<RoomPrice> findByStoreIdAndRoomTypeIdAndPricePlanIdAndPriceDateBetween(
+            @Param("storeId") Long storeId,
+            @Param("roomTypeId") Long roomTypeId,
+            @Param("pricePlanId") Long pricePlanId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT rp
+            FROM RoomPrice rp
+            WHERE rp.storeId = :storeId
+              AND rp.roomType.id = :roomTypeId
+              AND rp.pricePlan.id = :pricePlanId
+              AND rp.priceDate >= :startDate
+              AND rp.priceDate <= :endDate
+            ORDER BY rp.priceDate
+            """)
+    List<RoomPrice> findByStoreIdAndRoomTypeIdAndPricePlanIdAndPriceDateBetweenForUpdate(
+            @Param("storeId") Long storeId,
+            @Param("roomTypeId") Long roomTypeId,
+            @Param("pricePlanId") Long pricePlanId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
 
     @Query("SELECT rp FROM RoomPrice rp " +
             "JOIN FETCH rp.roomType " +

@@ -20,6 +20,9 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
+    "@stripe/stripe-js": "^9.12.0",
+    "@unocss/preset-wind3": "^66.7.5",
+    "@unocss/runtime": "^66.7.5",
     "axios": "^1.11.0",
     "echarts": "^6.0.0",
     "element-plus": "^2.10.4",

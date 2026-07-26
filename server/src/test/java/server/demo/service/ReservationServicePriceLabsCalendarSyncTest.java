@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -38,6 +39,7 @@ class ReservationServicePriceLabsCalendarSyncTest {
     @Mock private RoomRepository roomRepository;
     @Mock private ChannelRepository channelRepository;
     @Mock private RoomTypeRepository roomTypeRepository;
+    @Mock private RoomTypeInventoryLockService inventoryLockService;
     @Mock private UserRepository userRepository;
     @Mock private AutoMessageTriggerService autoMessageTriggerService;
     @Mock private PriceLabsReservationSyncService priceLabsReservationSyncService;
@@ -90,6 +92,10 @@ class ReservationServicePriceLabsCalendarSyncTest {
         req.setTotalAmount(new BigDecimal("100.00"));
 
         when(userRepository.findById(7L)).thenReturn(Optional.of(user));
+        when(roomRepository.findByStoreIdAndIdIn(25L, Set.of(100L)))
+                .thenReturn(List.of(room));
+        when(inventoryLockService.lockRoomTypes(25L, Set.of(45L)))
+                .thenReturn(Set.of(45L));
         when(roomRepository.findByStoreIdAndIdForUpdate(25L, 100L)).thenReturn(Optional.of(room));
         when(channelRepository.findById(1L)).thenReturn(Optional.of(channel));
         when(roomTypeRepository.findById(45L)).thenReturn(Optional.of(roomType));
