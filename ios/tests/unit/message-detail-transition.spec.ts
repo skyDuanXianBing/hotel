@@ -7,6 +7,7 @@ const apiMocks = vi.hoisted(() => ({
   getMessageThreads: vi.fn(),
   getThreadMessages: vi.fn(),
   pollThreadMessages: vi.fn(),
+  getMessageTranslationSetting: vi.fn(),
 }))
 
 const ionicLifecycle = vi.hoisted(() => ({
@@ -86,6 +87,8 @@ vi.mock('@/api/message', () => ({
   getMessageThreads: apiMocks.getMessageThreads,
   getThreadMessages: apiMocks.getThreadMessages,
   pollThreadMessages: apiMocks.pollThreadMessages,
+  getMessageTranslationSetting: apiMocks.getMessageTranslationSetting,
+  generateThreadAiReplyDraft: vi.fn(),
   sendAiChatMessage: vi.fn(),
   sendThreadMessage: vi.fn(),
   translateThreadMessage: vi.fn(),
@@ -150,6 +153,14 @@ describe('MessageDetailPage transition state', () => {
       success: true,
       message: 'ok',
       data: [],
+    })
+    apiMocks.getMessageTranslationSetting.mockResolvedValue({
+      success: true,
+      message: 'ok',
+      data: {
+        enabled: false,
+        targetLanguage: 'zh-CN',
+      },
     })
   })
 

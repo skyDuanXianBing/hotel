@@ -97,23 +97,15 @@
         </section>
       </div>
 
-      <ion-modal :is-open="editorOpen" :backdrop-dismiss="!submitting" @didDismiss="handleDismissEditor">
-        <ion-header>
-          <ion-toolbar>
-            <ion-title>
-              {{ editingGroupId ? $t('stage5DynamicUi.65') : $t('stage5DynamicUi.37') }}
-            </ion-title>
-            <ion-buttons slot="end">
-              <ion-button :disabled="submitting" @click="handleDismissEditor">
-                {{ $t('home.section.close') }}
-              </ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-
-        <ion-content class="mobile-page settings-modal-page">
-          <section class="mobile-card settings-editor-card">
-            <div class="settings-form-section">
+      <SettingsEditorModal
+        :is-open="editorOpen"
+        :title="editingGroupId ? $t('stage5DynamicUi.65') : $t('stage5DynamicUi.37')"
+        :backdrop-dismiss="!submitting"
+        :close-disabled="submitting"
+        @close="handleDismissEditor"
+        @didDismiss="handleDismissEditor"
+      >
+        <div class="settings-form-section">
               <div>
                 <h2 class="mobile-section-title">{{ $t('accommodation.cleaning.basicInfo') }}</h2>
               </div>
@@ -155,19 +147,17 @@
                   </ion-select>
                 </label>
               </div>
-            </div>
+        </div>
 
-            <div class="settings-form-actions">
-              <ion-button fill="outline" :disabled="submitting" @click="handleDismissEditor">
-                {{ $t('accommodation.common.cancel') }}
-              </ion-button>
-              <ion-button :disabled="submitting" @click="handleSaveGroup">
-                {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.8') }}
-              </ion-button>
-            </div>
-          </section>
-        </ion-content>
-      </ion-modal>
+        <template #actions>
+          <ion-button fill="outline" :disabled="submitting" @click="handleDismissEditor">
+            {{ $t('accommodation.common.cancel') }}
+          </ion-button>
+          <ion-button :disabled="submitting" @click="handleSaveGroup">
+            {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.8') }}
+          </ion-button>
+        </template>
+      </SettingsEditorModal>
     </ion-content>
   </ion-page>
 </template>
@@ -182,7 +172,6 @@ import {
   IonContent,
   IonHeader,
   IonInput,
-  IonModal,
   IonPage,
   IonRefresher,
   IonRefresherContent,
@@ -205,6 +194,7 @@ import {
   updateRoomGroup,
 } from '@/api/roomGroup'
 import { getRooms } from '@/api/rooms'
+import SettingsEditorModal from '@/components/settings/base/SettingsEditorModal.vue'
 import { ROUTE_PATHS } from '@/router/guards'
 import type { RoomDTO, RoomGroupDTO } from '@/types/settings'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
@@ -504,7 +494,7 @@ ion-page > ion-header .settings-room-groups-header-add::part(native) {
   margin: 0;
   color: var(--ios-pms-text-primary);
   font-size: 22px;
-  font-weight: 500;
+  font-weight: var(--ios-pms-weight-medium);
   line-height: 1.2;
   letter-spacing: 0;
 }
@@ -550,7 +540,7 @@ ion-page > ion-header .settings-room-groups-header-add::part(native) {
   margin: 0;
   color: var(--ios-pms-text-primary);
   font-size: 22px;
-  font-weight: 500;
+  font-weight: var(--ios-pms-weight-medium);
   line-height: 1.25;
   letter-spacing: 0;
 }

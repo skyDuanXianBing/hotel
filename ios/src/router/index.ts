@@ -163,6 +163,16 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        path: 'tasks/internal',
+        name: 'InternalTasks',
+        component: () => import('@/views/tasks/InternalTasksPage.vue'),
+        meta: {
+          titleKey: 'routes.InternalTasks',
+          requiresAuth: true,
+          requiresStore: true,
+        },
+      },
+      {
         path: 'rooms',
         name: 'Rooms',
         component: () => import('@/views/rooms/RoomsPage.vue'),

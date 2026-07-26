@@ -50,6 +50,41 @@ export interface MessageTranslationResponse {
   translatedAt: string
 }
 
+export interface MessageTranslationSetting {
+  enabled: boolean
+  targetLanguage: 'zh-CN' | 'en' | 'ja' | 'ko'
+  configured?: boolean
+}
+
+export interface MessageAiReplyDraftRecentMessage {
+  direction: 'GUEST' | 'STAFF'
+  content: string
+  sentAt?: string
+}
+
+export interface MessageAiReplyDraftRequest {
+  reservationId?: number
+  bookingId?: string
+  externalThreadId?: string
+  channel?: string
+  guestName?: string
+  roomId?: number
+  roomNumber?: string
+  roomTypeId?: number
+  roomTypeName?: string
+  latestGuestMessageId?: number
+  recentMessages?: MessageAiReplyDraftRecentMessage[]
+  language?: string
+}
+
+export interface MessageAiReplyDraftResponse {
+  draftReply?: string
+  retrievalStatus?: 'MATCHED' | 'NO_MATCH' | 'PARTIAL' | 'FAILED'
+  warnings?: string[]
+  matchedKnowledgeCount?: number
+  processingTimeMs?: number
+}
+
 export interface ChatMessageRequest {
   message: string
   sessionId?: string

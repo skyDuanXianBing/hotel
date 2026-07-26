@@ -4,10 +4,9 @@ export type StatisticsReportCategory = 'operation' | 'finance'
 
 export interface StatisticsMetric {
   labelKey: string
-  valueKey?: string
-  currencyValue?: number
-  compactCurrency?: boolean
   dynamicValue?: 'pendingReviews'
+  valueFormat?: 'currency' | 'percent' | 'number' | 'text'
+  compactCurrency?: boolean
   noteKey: string
   tone: 'primary' | 'success' | 'warning' | 'secondary'
 }
@@ -34,19 +33,20 @@ export interface StatisticsReportDefinition {
   showHero?: boolean
   showSections?: boolean
   showBoundaryNotes?: boolean
+  downloadType?: 'room-fees' | 'transaction-summary' | 'daily'
 }
 
 export const STATISTICS_HOME_METRICS: StatisticsMetric[] = [
   {
     labelKey: 'statistics.home.metrics.business.label',
-    currencyValue: 128000,
+    valueFormat: 'currency',
     compactCurrency: true,
     noteKey: 'statistics.home.metrics.business.note',
     tone: 'primary',
   },
   {
     labelKey: 'statistics.home.metrics.channel.label',
-    valueKey: 'statistics.values.percent68',
+    valueFormat: 'percent',
     noteKey: 'statistics.home.metrics.channel.note',
     tone: 'success',
   },
@@ -58,7 +58,7 @@ export const STATISTICS_HOME_METRICS: StatisticsMetric[] = [
   },
   {
     labelKey: 'statistics.home.metrics.finance.label',
-    valueKey: 'statistics.values.twoItems',
+    valueFormat: 'currency',
     noteKey: 'statistics.home.metrics.finance.note',
     tone: 'secondary',
   },
@@ -71,7 +71,7 @@ const reportMetric = (
   report: string,
   index: number,
   tone: StatisticsMetric['tone'],
-  options: Pick<StatisticsMetric, 'valueKey' | 'currencyValue' | 'compactCurrency'>,
+  options: Pick<StatisticsMetric, 'valueFormat' | 'compactCurrency'>,
 ): StatisticsMetric => ({
   labelKey: reportListKey(report, 'metrics.label', index),
   noteKey: reportListKey(report, 'metrics.note', index),
@@ -97,13 +97,15 @@ export const STATISTICS_REPORTS: Record<string, StatisticsReportDefinition> = {
     subtitleKey: reportKey('businessSummary', 'subtitle'),
     chipKeys: [0, 1, 2].map((index) => reportListKey('businessSummary', 'chips', index)),
     metrics: [
-      reportMetric('businessSummary', 0, 'primary', { currencyValue: 56820 }),
-      reportMetric('businessSummary', 1, 'success', { valueKey: 'statistics.values.percent84' }),
-      reportMetric('businessSummary', 2, 'secondary', { currencyValue: 468 }),
-      reportMetric('businessSummary', 3, 'warning', { valueKey: 'statistics.values.threeItems' }),
+      reportMetric('businessSummary', 0, 'primary', { valueFormat: 'currency' }),
+      reportMetric('businessSummary', 1, 'success', { valueFormat: 'percent' }),
+      reportMetric('businessSummary', 2, 'secondary', { valueFormat: 'currency' }),
+      reportMetric('businessSummary', 3, 'warning', { valueFormat: 'number' }),
     ],
     sections: [reportSection('businessSummary', 0, 3), reportSection('businessSummary', 1, 3)],
     boundaryNoteKeys: [0, 1].map((index) => reportListKey('businessSummary', 'boundaryNotes', index)),
+    showSections: false,
+    showBoundaryNotes: false,
   },
   channelSummary: {
     key: 'channel-summary',
@@ -115,13 +117,15 @@ export const STATISTICS_REPORTS: Record<string, StatisticsReportDefinition> = {
     subtitleKey: reportKey('channelSummary', 'subtitle'),
     chipKeys: [0, 1, 2].map((index) => reportListKey('channelSummary', 'chips', index)),
     metrics: [
-      reportMetric('channelSummary', 0, 'primary', { valueKey: 'statistics.values.booking' }),
-      reportMetric('channelSummary', 1, 'success', { valueKey: 'statistics.values.percent22' }),
-      reportMetric('channelSummary', 2, 'warning', { valueKey: 'statistics.values.twoItems' }),
-      reportMetric('channelSummary', 3, 'secondary', { currencyValue: 42600 }),
+      reportMetric('channelSummary', 0, 'primary', { valueFormat: 'text' }),
+      reportMetric('channelSummary', 1, 'success', { valueFormat: 'percent' }),
+      reportMetric('channelSummary', 2, 'warning', { valueFormat: 'number' }),
+      reportMetric('channelSummary', 3, 'secondary', { valueFormat: 'currency' }),
     ],
     sections: [reportSection('channelSummary', 0, 3), reportSection('channelSummary', 1, 3)],
     boundaryNoteKeys: [0, 1].map((index) => reportListKey('channelSummary', 'boundaryNotes', index)),
+    showSections: false,
+    showBoundaryNotes: false,
   },
   notesSummary: {
     key: 'notes-summary',
@@ -133,13 +137,15 @@ export const STATISTICS_REPORTS: Record<string, StatisticsReportDefinition> = {
     subtitleKey: reportKey('notesSummary', 'subtitle'),
     chipKeys: [0, 1, 2].map((index) => reportListKey('notesSummary', 'chips', index)),
     metrics: [
-      reportMetric('notesSummary', 0, 'primary', { valueKey: 'statistics.values.fourteenItems' }),
-      reportMetric('notesSummary', 1, 'warning', { valueKey: 'statistics.values.threeItems' }),
-      reportMetric('notesSummary', 2, 'success', { currencyValue: 2360 }),
-      reportMetric('notesSummary', 3, 'secondary', { valueKey: 'statistics.values.oneItem' }),
+      reportMetric('notesSummary', 0, 'primary', { valueFormat: 'number' }),
+      reportMetric('notesSummary', 1, 'warning', { valueFormat: 'number' }),
+      reportMetric('notesSummary', 2, 'success', { valueFormat: 'currency' }),
+      reportMetric('notesSummary', 3, 'secondary', { valueFormat: 'currency' }),
     ],
     sections: [reportSection('notesSummary', 0, 3), reportSection('notesSummary', 1, 3)],
     boundaryNoteKeys: [0, 1].map((index) => reportListKey('notesSummary', 'boundaryNotes', index)),
+    showSections: false,
+    showBoundaryNotes: false,
   },
   revenueSummary: {
     key: 'revenue-summary',
@@ -151,13 +157,15 @@ export const STATISTICS_REPORTS: Record<string, StatisticsReportDefinition> = {
     subtitleKey: reportKey('revenueSummary', 'subtitle'),
     chipKeys: [0, 1, 2].map((index) => reportListKey('revenueSummary', 'chips', index)),
     metrics: [
-      reportMetric('revenueSummary', 0, 'primary', { currencyValue: 61280 }),
-      reportMetric('revenueSummary', 1, 'warning', { currencyValue: 1280 }),
-      reportMetric('revenueSummary', 2, 'secondary', { currencyValue: 6400 }),
-      reportMetric('revenueSummary', 3, 'success', { valueKey: 'statistics.values.percent96' }),
+      reportMetric('revenueSummary', 0, 'primary', { valueFormat: 'currency' }),
+      reportMetric('revenueSummary', 1, 'warning', { valueFormat: 'currency' }),
+      reportMetric('revenueSummary', 2, 'secondary', { valueFormat: 'currency' }),
+      reportMetric('revenueSummary', 3, 'success', { valueFormat: 'currency' }),
     ],
     sections: [reportSection('revenueSummary', 0, 3), reportSection('revenueSummary', 1, 3)],
     boundaryNoteKeys: [0, 1].map((index) => reportListKey('revenueSummary', 'boundaryNotes', index)),
+    showSections: false,
+    showBoundaryNotes: false,
   },
   operationReport: {
     key: 'operation-report',
@@ -173,13 +181,14 @@ export const STATISTICS_REPORTS: Record<string, StatisticsReportDefinition> = {
     subtitleKey: reportKey('operationReport', 'subtitle'),
     chipKeys: [0, 1, 2].map((index) => reportListKey('operationReport', 'chips', index)),
     metrics: [
-      reportMetric('operationReport', 0, 'success', { valueKey: 'statistics.values.percent81' }),
-      reportMetric('operationReport', 1, 'secondary', { valueKey: 'statistics.values.nights18' }),
-      reportMetric('operationReport', 2, 'primary', { valueKey: 'statistics.values.percent27' }),
-      reportMetric('operationReport', 3, 'warning', { valueKey: 'statistics.values.fourItems' }),
+      reportMetric('operationReport', 0, 'success', { valueFormat: 'percent' }),
+      reportMetric('operationReport', 1, 'secondary', { valueFormat: 'currency' }),
+      reportMetric('operationReport', 2, 'primary', { valueFormat: 'currency' }),
+      reportMetric('operationReport', 3, 'warning', { valueFormat: 'number' }),
     ],
     sections: [reportSection('operationReport', 0, 3), reportSection('operationReport', 1, 3)],
     boundaryNoteKeys: [0, 1].map((index) => reportListKey('operationReport', 'boundaryNotes', index)),
+    downloadType: 'daily',
   },
   accommodationReport: {
     key: 'accommodation-report',
@@ -191,13 +200,16 @@ export const STATISTICS_REPORTS: Record<string, StatisticsReportDefinition> = {
     subtitleKey: reportKey('accommodationReport', 'subtitle'),
     chipKeys: [0, 1, 2].map((index) => reportListKey('accommodationReport', 'chips', index)),
     metrics: [
-      reportMetric('accommodationReport', 0, 'primary', { valueKey: 'statistics.values.oneEightSix' }),
-      reportMetric('accommodationReport', 1, 'success', { valueKey: 'statistics.values.percent24' }),
-      reportMetric('accommodationReport', 2, 'secondary', { valueKey: 'statistics.values.nineOrders' }),
-      reportMetric('accommodationReport', 3, 'warning', { valueKey: 'statistics.values.twoOrders' }),
+      reportMetric('accommodationReport', 0, 'primary', { valueFormat: 'number' }),
+      reportMetric('accommodationReport', 1, 'success', { valueFormat: 'percent' }),
+      reportMetric('accommodationReport', 2, 'secondary', { valueFormat: 'number' }),
+      reportMetric('accommodationReport', 3, 'warning', { valueFormat: 'number' }),
     ],
     sections: [reportSection('accommodationReport', 0, 3), reportSection('accommodationReport', 1, 3)],
     boundaryNoteKeys: [0, 1].map((index) => reportListKey('accommodationReport', 'boundaryNotes', index)),
+    downloadType: 'room-fees',
+    showSections: false,
+    showBoundaryNotes: false,
   },
   financeReport: {
     key: 'finance-report',
@@ -209,12 +221,15 @@ export const STATISTICS_REPORTS: Record<string, StatisticsReportDefinition> = {
     subtitleKey: reportKey('financeReport', 'subtitle'),
     chipKeys: [0, 1, 2].map((index) => reportListKey('financeReport', 'chips', index)),
     metrics: [
-      reportMetric('financeReport', 0, 'primary', { currencyValue: 48960 }),
-      reportMetric('financeReport', 1, 'secondary', { currencyValue: 9880 }),
-      reportMetric('financeReport', 2, 'warning', { currencyValue: 3200 }),
-      reportMetric('financeReport', 3, 'success', { valueKey: 'statistics.values.healthy' }),
+      reportMetric('financeReport', 0, 'primary', { valueFormat: 'currency' }),
+      reportMetric('financeReport', 1, 'secondary', { valueFormat: 'currency' }),
+      reportMetric('financeReport', 2, 'warning', { valueFormat: 'currency' }),
+      reportMetric('financeReport', 3, 'success', { valueFormat: 'currency' }),
     ],
     sections: [reportSection('financeReport', 0, 3), reportSection('financeReport', 1, 3)],
     boundaryNoteKeys: [0, 1].map((index) => reportListKey('financeReport', 'boundaryNotes', index)),
+    downloadType: 'transaction-summary',
+    showSections: false,
+    showBoundaryNotes: false,
   },
 }

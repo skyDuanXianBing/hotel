@@ -1,5 +1,6 @@
 <template>
   <SettingsDetailFormShell
+    class="settings-store-detail-page settings-store-profile-page"
     :back-href="ROUTE_PATHS.settings"
     :title="$t('settings.entries.storeProfile.0')"
     :hero-eyebrow="$t('common.currentStore')"
@@ -36,9 +37,12 @@
     <SettingsSectionCard
       :title="$t('stage5UiAttributes.38')"
       :loading="loading"
+      card-class="settings-store-detail-page__form-card settings-store-profile-page__form-card"
       header-class="settings-detail-page__section-header"
     >
-      <div class="settings-form-grid settings-form-grid--top">
+      <div
+        class="settings-form-grid settings-form-grid--top settings-store-detail-page__form-grid settings-store-profile-page__form-grid"
+      >
         <label class="settings-form-field">
           <span>{{ $t('settingsStage4.storeBasic.fields.name') }}</span>
           <ion-input v-model="form.name" fill="outline" :placeholder="$t('settingsStage4.storeBasic.placeholders.name')" />
@@ -98,7 +102,7 @@
     </SettingsSectionCard>
 
     <template #bottomActions>
-      <div class="settings-page-actions">
+      <div class="settings-page-actions settings-store-detail-page__actions settings-store-profile-page__actions">
         <ion-button fill="outline" :disabled="loading || saving" @click="loadStoreDetail">{{ $t('accommodation.common.reset') }}</ion-button>
         <ion-button :disabled="loading || saving" @click="handleSave">
           {{ saving ? $t('channel.mobile.common.saving') : $t('profile.save') }}
@@ -298,3 +302,9 @@ onIonViewWillEnter(async () => {
   await loadStoreDetail()
 })
 </script>
+
+<style scoped>
+.settings-store-profile-page__form-grid .settings-form-field ion-textarea {
+  min-height: 124px;
+}
+</style>

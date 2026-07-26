@@ -184,36 +184,30 @@
         </section>
       </div>
 
-      <ion-modal
-        class="settings-member-editor-modal"
+      <SettingsEditorModal
         :is-open="memberModalOpen"
+        :title="editingMemberId ? $t('stage5DynamicUi.63') : $t('stage5DynamicUi.56')"
+        :backdrop-dismiss="!submitting"
+        :close-disabled="submitting"
+        modal-class="settings-member-editor-modal"
+        content-class="mobile-page--dashboard settings-member-editor-page"
+        @close="handleDismissMemberModal"
         @didDismiss="handleDismissMemberModal"
       >
-        <ion-header>
-          <ion-toolbar>
-            <ion-title>{{ editingMemberId ? $t('stage5DynamicUi.63') : $t('stage5DynamicUi.56') }}</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="handleDismissMemberModal">{{ $t('home.section.close') }}</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
+        <ion-segment
+          class="settings-members-segment settings-members-segment--editor"
+          :value="memberEditorSegment"
+          @ionChange="handleMemberEditorSegmentChange"
+        >
+          <ion-segment-button value="basic">
+            <ion-label>{{ $t('settingsStage4.roomTypeManagement.actions.basicInfo') }}</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="permissions">
+            <ion-label>{{ $t('settingsStage4.accountList.columns.extraPermissions') }}</ion-label>
+          </ion-segment-button>
+        </ion-segment>
 
-        <ion-content class="mobile-page mobile-page--dashboard settings-modal-page settings-member-editor-page">
-          <section class="mobile-card mobile-dashboard-surface settings-member-editor-card">
-            <ion-segment
-              class="settings-members-segment settings-members-segment--editor"
-              :value="memberEditorSegment"
-              @ionChange="handleMemberEditorSegmentChange"
-            >
-              <ion-segment-button value="basic">
-                <ion-label>{{ $t('settingsStage4.roomTypeManagement.actions.basicInfo') }}</ion-label>
-              </ion-segment-button>
-              <ion-segment-button value="permissions">
-                <ion-label>{{ $t('settingsStage4.accountList.columns.extraPermissions') }}</ion-label>
-              </ion-segment-button>
-            </ion-segment>
-
-            <div v-if="memberEditorSegment === 'basic'" class="settings-form-grid settings-form-grid--with-segment">
+        <div v-if="memberEditorSegment === 'basic'" class="settings-form-grid settings-form-grid--with-segment">
               <label class="settings-form-field">
                 <span>{{ $t('auth.field.email') }}</span>
                 <ion-input
@@ -241,9 +235,9 @@
                   </ion-select-option>
                 </ion-select>
               </label>
-            </div>
+        </div>
 
-            <div v-else class="settings-form-grid settings-form-grid--with-segment">
+        <div v-else class="settings-form-grid settings-form-grid--with-segment">
               <div class="settings-member-permissions-note">
                 <strong>{{ $t('stage5SourceText.145') }}</strong>
                 <p>{{ permissionSummary }}</p>
@@ -301,35 +295,27 @@
                   </div>
                 </article>
               </div>
-            </div>
+        </div>
 
-            <div class="settings-form-actions">
-              <ion-button fill="outline" @click="handleDismissMemberModal">{{ $t('accommodation.common.cancel') }}</ion-button>
-              <ion-button :disabled="submitting" @click="handleSaveMember">
-                {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.10') }}
-              </ion-button>
-            </div>
-          </section>
-        </ion-content>
-      </ion-modal>
+        <template #actions>
+          <ion-button fill="outline" @click="handleDismissMemberModal">{{ $t('accommodation.common.cancel') }}</ion-button>
+          <ion-button :disabled="submitting" @click="handleSaveMember">
+            {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.10') }}
+          </ion-button>
+        </template>
+      </SettingsEditorModal>
 
-      <ion-modal
-        class="settings-member-editor-modal settings-role-editor-modal"
+      <SettingsEditorModal
         :is-open="roleModalOpen"
+        :title="editingRoleId ? $t('settingsStage4.roleManagement.dialog.editRole') : $t('settingsStage4.roleManagement.dialog.addRole')"
+        :backdrop-dismiss="!submitting"
+        :close-disabled="submitting"
+        modal-class="settings-member-editor-modal settings-role-editor-modal"
+        content-class="mobile-page--dashboard settings-member-editor-page"
+        @close="handleDismissRoleModal"
         @didDismiss="handleDismissRoleModal"
       >
-        <ion-header>
-          <ion-toolbar>
-            <ion-title>{{ editingRoleId ? $t('settingsStage4.roleManagement.dialog.editRole') : $t('settingsStage4.roleManagement.dialog.addRole') }}</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="handleDismissRoleModal">{{ $t('home.section.close') }}</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-
-        <ion-content class="mobile-page mobile-page--dashboard settings-modal-page settings-member-editor-page">
-          <section class="mobile-card mobile-dashboard-surface settings-member-editor-card settings-role-editor-card">
-            <div class="settings-form-grid">
+        <div class="settings-form-grid">
               <label class="settings-form-field">
                 <span>{{ $t('stage5SourceText.193') }}</span>
                 <ion-input v-model="roleForm.name" fill="outline" :placeholder="$t('settingsStage4.roleManagement.prompts.roleName')" />
@@ -339,48 +325,40 @@
                 <span>{{ $t('stage5SourceText.195') }}</span>
                 <ion-textarea v-model="roleForm.description" :rows="5" fill="outline" :placeholder="$t('stage5UiAttributes.93')" />
               </label>
-            </div>
+        </div>
 
-            <div class="settings-form-actions">
-              <ion-button fill="outline" @click="handleDismissRoleModal">{{ $t('accommodation.common.cancel') }}</ion-button>
-              <ion-button :disabled="submitting" @click="handleSaveRole">
-                {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.19') }}
-              </ion-button>
-            </div>
-          </section>
-        </ion-content>
-      </ion-modal>
+        <template #actions>
+          <ion-button fill="outline" @click="handleDismissRoleModal">{{ $t('accommodation.common.cancel') }}</ion-button>
+          <ion-button :disabled="submitting" @click="handleSaveRole">
+            {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.19') }}
+          </ion-button>
+        </template>
+      </SettingsEditorModal>
 
-      <ion-modal :is-open="transferOwnerModalOpen" @didDismiss="handleDismissTransferOwnerModal">
-        <ion-header>
-          <ion-toolbar>
-            <ion-title>{{ $t('stage5SourceText.212') }}</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="handleDismissTransferOwnerModal">{{ $t('home.section.close') }}</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
+      <SettingsEditorModal
+        :is-open="transferOwnerModalOpen"
+        :title="$t('stage5SourceText.212')"
+        :backdrop-dismiss="!submitting"
+        :close-disabled="submitting"
+        @close="handleDismissTransferOwnerModal"
+        @didDismiss="handleDismissTransferOwnerModal"
+      >
+        <label class="settings-form-field settings-form-field--full">
+          <span>{{ $t('stage5SourceText.132') }}</span>
+          <ion-select v-model="transferOwnerUserIdText" fill="outline" interface="modal">
+            <ion-select-option v-for="member in ownerTransferCandidates" :key="member.user.id" :value="String(member.user.id)">
+              {{ resolveMemberName(member) }} · {{ member.user.email }}
+            </ion-select-option>
+          </ion-select>
+        </label>
 
-        <ion-content class="mobile-page settings-modal-page">
-          <section class="mobile-card">
-            <label class="settings-form-field settings-form-field--full">
-              <span>{{ $t('stage5SourceText.132') }}</span>
-              <ion-select v-model="transferOwnerUserIdText" fill="outline" interface="modal">
-                <ion-select-option v-for="member in ownerTransferCandidates" :key="member.user.id" :value="String(member.user.id)">
-                  {{ resolveMemberName(member) }} · {{ member.user.email }}
-                </ion-select-option>
-              </ion-select>
-            </label>
-
-            <div class="settings-form-actions">
-              <ion-button fill="outline" @click="handleDismissTransferOwnerModal">{{ $t('accommodation.common.cancel') }}</ion-button>
-              <ion-button :disabled="submitting" @click="handleConfirmTransferOwner">
-                {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.58') }}
-              </ion-button>
-            </div>
-          </section>
-        </ion-content>
-      </ion-modal>
+        <template #actions>
+          <ion-button fill="outline" @click="handleDismissTransferOwnerModal">{{ $t('accommodation.common.cancel') }}</ion-button>
+          <ion-button :disabled="submitting" @click="handleConfirmTransferOwner">
+            {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.58') }}
+          </ion-button>
+        </template>
+      </SettingsEditorModal>
     </ion-content>
   </ion-page>
 </template>
@@ -396,7 +374,6 @@ import {
   IonHeader,
   IonInput,
   IonLabel,
-  IonModal,
   IonPage,
   IonRefresher,
   IonRefresherContent,
@@ -433,6 +410,7 @@ import {
   type RoleDTO,
 } from '@/api/role'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
+import SettingsEditorModal from '@/components/settings/base/SettingsEditorModal.vue'
 import {
   SETTINGS_PERMISSION_TABS,
   type PermissionItemConfig,
@@ -2195,6 +2173,7 @@ ion-page > ion-header .settings-members-header-add::part(native) {
   grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
   gap: 12px;
   margin-top: 2px;
+  border-top: none;
 }
 
 .settings-member-editor-card .settings-form-actions ion-button {

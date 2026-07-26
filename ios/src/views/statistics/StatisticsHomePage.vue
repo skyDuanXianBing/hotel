@@ -32,13 +32,13 @@
           <h2 class="mobile-section-title">{{ $t('statistics.home.overviewMetrics') }}</h2>
           <div class="statistics-home-page__metric-grid">
             <article
-              v-for="metric in STATISTICS_HOME_METRICS"
+              v-for="(metric, metricIndex) in STATISTICS_HOME_METRICS"
               :key="metric.labelKey"
               class="statistics-home-page__metric-card"
             >
               <span class="statistics-home-page__metric-label">{{ t(metric.labelKey) }}</span>
               <strong class="statistics-home-page__metric-value" :class="`is-${metric.tone}`">
-                {{ resolveMetricValue(metric) }}
+                {{ resolveMetricValue(metric, metricIndex) }}
               </strong>
               <p class="mobile-note">{{ t(metric.noteKey) }}</p>
             </article>
@@ -136,6 +136,11 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import {
+  getBusinessSummary,
+  getChannelSummary,
+  getRevenueSummary,
+} from '@/api/statistics'
+import {
   STATISTICS_HOME_METRICS,
   STATISTICS_REPORTS,
   type StatisticsMetric,
@@ -144,7 +149,8 @@ import {
 import { ROUTE_PATHS } from '@/router/guards'
 import { useReviewStore } from '@/stores/reviews'
 import { useStoreStore } from '@/stores/store'
-import { formatMoney } from '@/utils/formatters'
+import { formatMoney, formatPercent } from '@/utils/formatters'
+import { getStoreDatePresetRange } from '@/utils/storeBusinessDate'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -152,6 +158,7 @@ const storeStore = useStoreStore()
 const reviewStore = useReviewStore()
 
 const activeSegment = ref<StatisticsReportCategory>('operation')
+const homeMetricValues = ref<Array<number | string>>([])
 
 const storeName = computed(() => {
   return storeStore.currentStore?.name || t('statistics.home.titleFallback')
@@ -164,17 +171,52 @@ const visibleReports = computed(() => {
 })
 
 onIonViewWillEnter(async () => {
-  await reviewStore.refreshRecords()
+  const dateRange = getStoreDatePresetRange('week')
+  const [businessResult, channelResult, revenueResult] = await Promise.allSettled([
+    getBusinessSummary(dateRange),
+    getChannelSummary(dateRange),
+    getRevenueSummary(dateRange),
+    reviewStore.refreshRecords(),
+  ])
+
+  const business =
+    businessResult.status === 'fulfilled' && businessResult.value.success
+      ? businessResult.value.data
+      : null
+  const channel =
+    channelResult.status === 'fulfilled' && channelResult.value.success
+      ? channelResult.value.data
+      : null
+  const revenue =
+    revenueResult.status === 'fulfilled' && revenueResult.value.success
+      ? revenueResult.value.data
+      : null
+  const topChannel = channel
+    ? [...channel.revenueDistribution].sort((first, second) => second.value - first.value)[0]
+    : null
+
+  homeMetricValues.value = [
+    business?.totalRevenue ?? 0,
+    topChannel?.percentage ?? 0,
+    reviewStore.pendingCount,
+    revenue?.netIncome ??
+      (revenue ? (revenue.totalIncome ?? revenue.totalRevenue) - (revenue.totalExpense ?? 0) : 0),
+  ]
 })
 
-function resolveMetricValue(metric: StatisticsMetric) {
+function resolveMetricValue(metric: StatisticsMetric, metricIndex: number) {
   if (metric.dynamicValue === 'pendingReviews') {
     return t('statistics.values.pendingReviews', { count: reviewStore.pendingCount })
   }
 
-  if (typeof metric.currencyValue === 'number') {
+  const value = homeMetricValues.value[metricIndex]
+  if (value === undefined || value === null || value === '') {
+    return '-'
+  }
+
+  if (metric.valueFormat === 'currency') {
     return formatMoney(
-      metric.currencyValue,
+      Number(value || 0),
       currentCurrency.value,
       {
         notation: metric.compactCurrency ? 'compact' : 'standard',
@@ -184,7 +226,11 @@ function resolveMetricValue(metric: StatisticsMetric) {
     )
   }
 
-  return metric.valueKey ? t(metric.valueKey) : ''
+  if (metric.valueFormat === 'percent') {
+    return formatPercent(Number(value || 0), { maximumFractionDigits: 1 })
+  }
+
+  return String(value)
 }
 
 function handleSegmentChange(event: CustomEvent) {

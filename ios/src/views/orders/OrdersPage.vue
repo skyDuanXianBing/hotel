@@ -247,6 +247,7 @@ import {
   canCancelOrder,
   canCheckInOrder,
   canCheckOutOrder,
+  canMarkManualSettlement,
   createDefaultOrderFilters,
   getOrderTabLabel,
   mapHomeTypeToOrderTab,
@@ -275,6 +276,7 @@ import {
   getReservationsByType,
   getReservationsWithFilters,
   getReservationStatistics,
+  updateReservationSettlementStatus,
   type AssignableRoomDTO,
   type AssignableRoomTypeDTO,
   type ReservationDTO,
@@ -337,6 +339,7 @@ const selectedRoomTypeId = ref<number | null>(null)
 const selectedRoomId = ref<number | null>(null)
 const assignLoading = ref(false)
 const assignSubmitting = ref(false)
+const settlementUpdatingReservationId = ref<number | null>(null)
 
 let searchTimer = 0
 
@@ -1144,6 +1147,15 @@ async function presentReservationActions(reservation: ReservationDTO, orderBoxIt
     })
   }
 
+  if (canMarkManualSettlement(activeTab.value)) {
+    buttons.push({
+      text: t('order.mobile.actions.markSettled'),
+      handler: () => {
+        void handleMarkSettlement(reservation)
+      },
+    })
+  }
+
   if (orderBoxItem) {
     buttons.push({
       text: t('order.mobile.actions.moveOut'),
@@ -1166,6 +1178,39 @@ async function presentReservationActions(reservation: ReservationDTO, orderBoxIt
   })
 
   await actionSheet.present()
+}
+
+async function handleMarkSettlement(reservation: ReservationDTO) {
+  if (settlementUpdatingReservationId.value) {
+    return
+  }
+
+  const actionLabel = t('order.mobile.actions.markSettled')
+  const confirmed = await confirmAction(
+    actionLabel,
+    t('order.mobile.confirmMarkSettled', { guest: reservation.guestName }),
+    actionLabel,
+  )
+  if (!confirmed) {
+    return
+  }
+
+  settlementUpdatingReservationId.value = reservation.id
+  try {
+    const response = await updateReservationSettlementStatus(reservation.id, true)
+    if (!response.success || !response.data) {
+      throw new Error(response.message || t('order.messages.updateSettlementFailed'))
+    }
+    Object.assign(reservation, response.data)
+    showSuccessToast(t('order.settlement.updatedPaid'))
+    await refreshAfterMutation()
+  } catch (error) {
+    if (!isHandledRequestError(error)) {
+      showWarningToast(resolveWarningMessage(error, t('order.messages.updateSettlementFailed')))
+    }
+  } finally {
+    settlementUpdatingReservationId.value = null
+  }
 }
 
 async function openReservationDetail(reservationId: number) {

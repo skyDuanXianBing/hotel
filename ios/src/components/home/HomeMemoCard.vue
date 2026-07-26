@@ -1,10 +1,21 @@
 <template>
   <section class="memo-section mobile-dashboard-surface">
     <div class="memo-section__header">
-      <h2 class="memo-section__title">{{ t('home.section.memo') }}</h2>
-      <span class="memo-status" :class="{ 'memo-status--saving': autoSaving }">
-        {{ statusText }}
-      </span>
+      <div class="memo-section__heading">
+        <h2 class="memo-section__title">{{ t('home.section.memo') }}</h2>
+        <span
+          class="memo-status"
+          :class="{
+            'memo-status--saving': autoSaving,
+            'memo-status--compact': useCompactStatusText,
+          }"
+        >
+          {{ statusText }}
+        </span>
+      </div>
+      <button type="button" class="memo-section__detail" @click="emit('detail')">
+        {{ t('home.section.memoDetail') }}
+      </button>
     </div>
 
     <div v-if="loading && !modelValue" class="memo-skeleton">
@@ -32,7 +43,7 @@ import { IonSkeletonText, IonTextarea } from '@ionic/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const { t } = useI18n()
+const { locale, t } = useI18n()
 
 interface Props {
   modelValue: string
@@ -45,7 +56,10 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
+  detail: []
 }>()
+
+const useCompactStatusText = computed(() => locale.value === 'en' || locale.value === 'ja')
 
 const textareaValue = computed({
   get: () => props.modelValue,
@@ -64,9 +78,16 @@ const textareaValue = computed({
 .memo-section__header {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 14px;
+}
+
+.memo-section__heading {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
 }
 
 .memo-section__title {
@@ -90,9 +111,35 @@ const textareaValue = computed({
   font-weight: 400;
 }
 
+.memo-section__detail {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: 28px;
+  padding: 0 11px;
+  border: none;
+  border-radius: var(--ios-pms-radius-pill);
+  background: #eef5ff;
+  color: var(--ios-pms-primary-strong);
+  box-shadow: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.memo-section__detail:active,
+.memo-section__detail:focus-visible {
+  background: #e3eeff;
+}
+
 .memo-status--saving {
   background: transparent;
   color: #3f7cff;
+}
+
+.memo-status--compact {
+  font-size: 11px;
+  line-height: 1.2;
 }
 
 .memo-status::before {

@@ -120,6 +120,7 @@
       "contactSupport": "聯絡客服",
       "close": "關閉",
       "memo": "備忘錄",
+      "memoDetail": "詳情查看",
       "memoPlaceholder": "記錄今日重點事項或待辦"
     },
     "stat": {
@@ -1673,6 +1674,7 @@
       "confirmCancel": "確認取消 {guest} 的訂單嗎？",
       "confirmMoveOut": "確認將該訂單移出盒子嗎？",
       "confirmMoveIn": "移入後訂單不會實際排房、不占庫存，且營業資料不計入統計。確認繼續嗎？",
+      "confirmMarkSettled": "確認將 {guest} 的訂單標記為手動結帳嗎？",
       "empty": "暫無資料",
       "actions": {
         "cancel": "取消",
@@ -1688,7 +1690,8 @@
         "moveIn": "移入訂單盒子",
         "confirmMoveIn": "確認移入",
         "viewDetails": "查看詳情",
-        "viewGuestNotes": "查看住客備註"
+        "viewGuestNotes": "查看住客備註",
+        "markSettled": "標記為已結帳"
       },
       "messages": {
         "syncFailed": "訂單資料同步失敗",
@@ -2721,6 +2724,10 @@
         "room": "房間",
         "group": "分組"
       },
+      "actions": {
+        "moveUpShort": "上移",
+        "moveDownShort": "下移"
+      },
       "messages": {
         "loadRoomTypesFailed": "載入房型失敗",
         "loadRoomsFailed": "載入房間失敗",
@@ -2806,6 +2813,8 @@
       "back": "返回",
       "photos": {
         "title": "照片",
+        "desktopTitle": "桌面端圖片",
+        "mobileTitle": "行動端圖片",
         "maxCount": "最多上傳 40 張圖片。",
         "typeAndSize": "僅支援圖片格式，單張大小不超過 5MB。",
         "recommendedSize": "建議圖片寬度至少 1200px，以保證渠道展示效果。",
@@ -4746,6 +4755,60 @@
     "collapse": "收起",
     "close": "關閉",
     "recordSuccess": "已完成記一筆輸入",
+    "workbench": {
+      "back": "返回",
+      "title": "今日任務",
+      "refresh": "重新整理今日任務",
+      "taskDate": "任務日期",
+      "viewAll": "查看全部",
+      "typeFilter": "任務類型篩選",
+      "statusFilter": "任務狀態篩選",
+      "notConnectedShort": "待接入",
+      "notConnected": "{source}暫未接入，請前往對應功能頁面處理。",
+      "loading": "正在載入今日任務",
+      "retry": "重新載入",
+      "emptyToday": "目前篩選條件下暫無今日任務",
+      "loadMore": "載入更多",
+      "loadFailed": "今日任務載入失敗",
+      "loadMoreFailed": "更多任務載入失敗",
+      "loadCleanersFailed": "保潔人員載入失敗",
+      "selectEmployeeFirst": "請先選擇指派員工",
+      "assignFailed": "任務指派失敗",
+      "assignSuccess": "任務指派成功",
+      "assignEmployee": "指派員工",
+      "selectEmployee": "請選擇員工",
+      "assign": "指派",
+      "complete": "完成",
+      "confirmComplete": "確認完成「{task}」嗎？",
+      "completeFailed": "完成任務失敗",
+      "completeSuccess": "任務已完成",
+      "assignedTo": "已指派：{name}",
+      "unassignedEmployee": "尚未指派員工",
+      "unreadMessages": "{count} 則未讀訊息",
+      "types": {
+        "all": "全部",
+        "cleaning": "保潔",
+        "review": "審查",
+        "order": "訂單",
+        "message": "訊息",
+        "other": "其他"
+      },
+      "statuses": {
+        "all": "全部",
+        "awaitingReview": "待審查",
+        "awaitingReply": "待回覆",
+        "pending": "待指派",
+        "cleaningPending": "待指派",
+        "orderPending": "待入住 / 未排房",
+        "awaitingCheckIn": "待入住",
+        "orderUnassigned": "未排房",
+        "unassigned": "待分配",
+        "assigned": "已指派",
+        "inProgress": "進行中",
+        "expired": "已過期",
+        "completed": "已完成"
+      }
+    },
     "transaction": {
       "title": "記一筆",
       "newEntry": "新增帳目",
@@ -4773,6 +4836,30 @@
       "datetimeInvalid": "請選擇有效時間",
       "submitFailed": "記一筆提交失敗",
       "saved": "記一筆已儲存"
+    }
+  },
+  "internalTasks": {
+    "title": "內部任務",
+    "eyebrow": "門店營運",
+    "total": "共 {count} 個可見任務",
+    "refresh": "重新整理內部任務",
+    "pullToRefresh": "下拉重新整理內部任務",
+    "filterLabel": "內部任務狀態",
+    "loading": "正在載入內部任務",
+    "loadFailed": "載入內部任務失敗",
+    "retry": "重新載入",
+    "empty": "目前狀態下暫無任務",
+    "untitled": "未命名任務",
+    "loadMore": "載入更多",
+    "complete": "完成",
+    "confirmComplete": "確認完成「{task}」嗎？",
+    "completeFailed": "完成任務失敗",
+    "completeSuccess": "任務已完成",
+    "statuses": {
+      "all": "全部",
+      "unassigned": "未分配",
+      "assigned": "已分配",
+      "completed": "已完成"
     }
   },
   "storeSelection": {
@@ -4979,6 +5066,7 @@
     "noLatestMessage": "暫無最新訊息",
     "settingsUpdated": "全域翻譯設定已更新",
     "settingsSaveFailed": "翻譯設定儲存失敗",
+    "settingsLoadFailed": "翻譯設定載入失敗，已使用本機設定",
     "routeTargetNotFound": "暫時找不到此訂單對應的會話，可在目前結果中繼續查找。",
     "noRoomType": "未關聯房型",
     "noStayDate": "未關聯入住日期",
@@ -5931,7 +6019,20 @@
       "submitting": "提交中...",
       "noRooms": "目前分組未分配房間",
       "roomsLinked": "已關聯 {count} 間房",
-      "roomPreview": "房間 {value}"
+      "roomPreview": "房間 {value}",
+      "saveSettings": "儲存設定",
+      "preview": "試聽",
+      "listSeparator": "、"
+    },
+    "messageVariables": {
+      "propertyName": "門店名稱",
+      "guestName": "客人姓名",
+      "checkInDate": "入住日期",
+      "checkOutDate": "離店日期",
+      "roomNumber": "房間號",
+      "checkInCode": "入住碼",
+      "roomTypeName": "房型名稱",
+      "ratePlanName": "價格計畫名稱"
     },
     "autoMessages": {
       "sendImmediately": "立即發送",
@@ -6368,6 +6469,9 @@
     "settings": "設定"
   },
   "settings": {
+    "common": {
+      "delete": "刪除"
+    },
     "constants": {
       "sortType": {
         "roomType": "房型排序",
@@ -6634,16 +6738,16 @@
           "note": "近 7 天核心營收摘要"
         },
         "channel": {
-          "label": "渠道占比",
-          "note": "OTA 貢獻保持穩定"
+          "label": "主要渠道占比",
+          "note": "近 7 天主要渠道營收占比"
         },
         "pending": {
           "label": "待審查",
           "note": "優先處理今日入住資料"
         },
         "finance": {
-          "label": "財務提醒",
-          "note": "待核對流水與掛帳"
+          "label": "淨收入",
+          "note": "近 7 天收入減支出"
         }
       }
     },
@@ -6652,7 +6756,10 @@
       "keyMetrics": "關鍵指標",
       "viewTips": "查看提示",
       "backToStatistics": "返回統計",
-      "openReviews": "開啟審查"
+      "openReviews": "開啟審查",
+      "loading": "載入中...",
+      "exportDetails": "導出明細",
+      "exportSuccess": "報表導出成功"
     },
     "reports": {
       "businessSummary": {
@@ -6670,7 +6777,7 @@
             "营业额",
             "入住率",
             "平均房价",
-            "异常提醒"
+            "訂單數"
           ],
           "note": [
             "较昨日 +8.4%",
@@ -6717,9 +6824,9 @@
         "metrics": {
           "label": [
             "主力渠道",
-            "直营占比",
-            "待核对映射",
-            "净收益"
+            "主要渠道占比",
+            "渠道數",
+            "渠道營收"
           ],
           "note": [
             "订单占比 31%",
@@ -6765,10 +6872,10 @@
         ],
         "metrics": {
           "label": [
-            "今日记账",
-            "待补票据",
-            "手工收入",
-            "异常备注"
+            "記錄數",
+            "支出筆數",
+            "手動收入",
+            "手動支出"
           ],
           "note": [
             "前台与值班经理均有录入",
@@ -6814,10 +6921,10 @@
         ],
         "metrics": {
           "label": [
-            "总收款",
+            "總收入",
             "退款",
-            "挂账",
-            "到账率"
+            "總支出",
+            "淨收入"
           ],
           "note": [
             "含线上与线下支付",
@@ -6864,9 +6971,9 @@
         "metrics": {
           "label": [
             "出租率",
-            "平均入住天数",
-            "会员占比",
-            "经营提醒"
+            "平均房價",
+            "RevPAR",
+            "房間數"
           ],
           "note": [
             "周末档期较强",
@@ -6912,10 +7019,10 @@
         ],
         "metrics": {
           "label": [
-            "客房晚数",
-            "家庭出行",
-            "长住订单",
-            "补证提醒"
+            "已售房晚",
+            "出租率",
+            "房間數",
+            "可售房晚"
           ],
           "note": [
             "较上周 +11%",
@@ -6962,9 +7069,9 @@
         "metrics": {
           "label": [
             "净收入",
-            "成本支出",
-            "待核销",
-            "现金健康"
+            "總支出",
+            "退款",
+            "總收入"
           ],
           "note": [
             "已扣退款与手续费",
@@ -7012,6 +7119,7 @@
     "StoreSelection": "選擇門店",
     "Home": "首頁",
     "HomeCustomize": "管理",
+    "InternalTasks": "內部任務",
     "Rooms": "房態",
     "RoomsRoomTable": "房情表",
     "RoomsPricing": "房價管理",

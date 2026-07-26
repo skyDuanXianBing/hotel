@@ -38,8 +38,13 @@
       v-if="modalTitle"
       :is-open="modalOpen"
       :title="modalTitle"
+      :close-text="modalCloseText"
+      :close-slot="modalCloseSlot"
       :backdrop-dismiss="modalBackdropDismiss"
       :close-disabled="modalCloseDisabled"
+      :modal-class="modalClass"
+      :content-class="modalContentClass"
+      :card-class="modalCardClass"
       @close="emit('dismissEditor')"
       @didDismiss="emit('dismissEditor')"
     >
@@ -81,6 +86,11 @@ withDefaults(
     modalTitle?: string
     modalBackdropDismiss?: boolean
     modalCloseDisabled?: boolean
+    modalCloseText?: string
+    modalCloseSlot?: 'start' | 'end'
+    modalClass?: string
+    modalContentClass?: string
+    modalCardClass?: string
   }>(),
   {
     heroEyebrow: '',
@@ -95,6 +105,11 @@ withDefaults(
     modalTitle: '',
     modalBackdropDismiss: true,
     modalCloseDisabled: false,
+    modalCloseText: '',
+    modalCloseSlot: 'start',
+    modalClass: '',
+    modalContentClass: '',
+    modalCardClass: '',
   },
 )
 

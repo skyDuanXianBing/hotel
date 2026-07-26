@@ -44,10 +44,10 @@
 
             <div class="room-sort-item__actions">
               <ion-button size="small" fill="outline" :disabled="index === 0" @click="handleMove(index, -1)">
-                {{ $t('stage5SourceText.3') }}
+                {{ $t('settingsStage4.roomSort.actions.moveUpShort') }}
               </ion-button>
               <ion-button size="small" fill="outline" :disabled="index === currentItems.length - 1" @click="handleMove(index, 1)">
-                {{ $t('stage5SourceText.4') }}
+                {{ $t('settingsStage4.roomSort.actions.moveDownShort') }}
               </ion-button>
             </div>
           </article>

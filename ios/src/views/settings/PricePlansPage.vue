@@ -1,5 +1,6 @@
 <template>
   <SettingsCrudPage
+    class="settings-price-plans-page"
     :back-href="ROUTE_PATHS.settings"
     :title="$t('accommodation.roomPriceBulk.table.pricePlan')"
     :hero-eyebrow="$t('stage5UiAttributes.23')"
@@ -16,29 +17,51 @@
     @refresh="handleRefresh"
     @dismiss-editor="handleDismissEditor"
   >
-    <div v-if="plans.length > 0" class="mobile-list settings-minimal-list settings-price-plans-list">
-      <article v-for="plan in plans" :key="plan.id" class="settings-minimal-card settings-price-plan-card">
-        <div class="settings-minimal-card__header">
-          <div class="settings-minimal-card__title-group">
+    <div v-if="plans.length > 0" class="mobile-list settings-price-plans-list">
+      <article v-for="plan in plans" :key="plan.id" class="settings-price-plan-card">
+        <div class="settings-price-plan-card__header">
+          <div class="settings-price-plan-card__title-group">
             <strong>{{ plan.name }}</strong>
-            <p class="settings-minimal-card__summary">
+            <p class="settings-price-plan-card__summary">
               {{ $t('stage5DynamicUi.122') }} {{ plan.minNights }} {{ $t('stage5DynamicUi.121') }} {{ plan.maxNights || $t('channel.dialogs.bookingSettings.unlimited') }} {{ $t('channel.dialogs.bookingSettings.nightUnit') }}
             </p>
           </div>
-          <span class="settings-minimal-card__badge">{{ plan.includeMeal ? $t('settingsStage4.pricePlan.columns.includeMeal') : $t('stage5DynamicUi.2') }}</span>
+          <span class="settings-price-plan-card__badge">{{ plan.includeMeal ? $t('settingsStage4.pricePlan.columns.includeMeal') : $t('stage5DynamicUi.2') }}</span>
         </div>
 
-        <div class="settings-minimal-card__meta">
-          <span class="settings-minimal-card__meta-pill">{{ $t('stage5SourceText.52') }} {{ plan.roomTypeCount }}</span>
-          <span class="settings-minimal-card__meta-pill">
+        <div class="settings-price-plan-card__meta">
+          <span class="settings-price-plan-card__meta-pill">{{ $t('stage5SourceText.52') }} {{ plan.roomTypeCount }}</span>
+          <span class="settings-price-plan-card__meta-pill">
             {{ plan.derivationType === 'derived' ? $t('stage5DynamicUi.55') : $t('stage5DynamicUi.57') }}
           </span>
         </div>
 
-        <div class="settings-minimal-card__actions">
-          <ion-button size="small" fill="solid" @click="handleOpenRates(plan)">{{ $t('routes.SettingsPricePlanRates') }}</ion-button>
-          <ion-button size="small" fill="outline" @click="handleEditPlan(plan)">{{ $t('accommodation.roomPrice.editTitle') }}</ion-button>
-          <ion-button size="small" color="danger" fill="clear" @click="handleDeletePlan(plan)">{{ $t('roomStatus.roomLock.actions.delete') }}</ion-button>
+        <div class="settings-price-plan-card__actions">
+          <ion-button
+            size="small"
+            fill="solid"
+            class="settings-price-plan-card__action settings-price-plan-card__action--primary"
+            @click="handleOpenRates(plan)"
+          >
+            {{ $t('routes.SettingsPricePlanRates') }}
+          </ion-button>
+          <ion-button
+            size="small"
+            fill="outline"
+            class="settings-price-plan-card__action"
+            @click="handleEditPlan(plan)"
+          >
+            {{ $t('accommodation.roomPrice.editTitle') }}
+          </ion-button>
+          <ion-button
+            size="small"
+            color="danger"
+            fill="clear"
+            class="settings-price-plan-card__action settings-price-plan-card__action--danger"
+            @click="handleDeletePlan(plan)"
+          >
+            {{ $t('roomStatus.roomLock.actions.delete') }}
+          </ion-button>
         </div>
       </article>
     </div>
@@ -73,8 +96,8 @@
         <label class="settings-form-field">
           <span>{{ $t('stage5SourceText.190') }}</span>
           <ion-select v-model="planForm.derivationType" fill="outline" interface="action-sheet">
-            <ion-select-option value="independent">independent</ion-select-option>
-            <ion-select-option value="derived">derived</ion-select-option>
+            <ion-select-option value="independent">{{ $t('stage5DynamicUi.57') }}</ion-select-option>
+            <ion-select-option value="derived">{{ $t('stage5DynamicUi.55') }}</ion-select-option>
           </ion-select>
         </label>
 
@@ -487,10 +510,271 @@ onIonViewWillEnter(async () => {
 </script>
 
 <style scoped>
+.settings-price-plans-page :deep(.settings-crud-page) {
+  display: block;
+  --background: var(--app-background);
+  --padding-top: 12px;
+  --padding-bottom: calc(30px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+  background: var(--app-background);
+}
+
+.settings-price-plans-page :deep(ion-header) {
+  backdrop-filter: blur(14px);
+}
+
+.settings-price-plans-page :deep(ion-header::after) {
+  display: none;
+}
+
+.settings-price-plans-page :deep(.app-page-header__text-btn) {
+  font-size: 17px !important;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.settings-price-plans-page :deep(.app-page-header__text-btn::part(native)) {
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.settings-price-plans-page :deep(.settings-page-block__hero) {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding: 17px 16px 21px;
+  border-radius: var(--ios-pms-radius-card);
+}
+
+.settings-price-plans-page :deep(.settings-page-block__hero::before) {
+  display: none;
+}
+
+.settings-price-plans-page :deep(.settings-page-block__eyebrow) {
+  display: none;
+}
+
+.settings-price-plans-page :deep(.settings-page-block__hero .mobile-title) {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 22px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.settings-price-plans-page :deep(.settings-page-block__hero .mobile-chip-row) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.settings-price-plans-page :deep(.settings-page-block__hero .mobile-chip) {
+  min-width: 0;
+  min-height: 24px;
+  padding: 2px 10px;
+  border-color: rgba(var(--ion-color-primary-rgb), 0.1);
+  background: rgba(var(--ion-color-primary-rgb), 0.07);
+  color: rgba(var(--ion-color-primary-rgb), 0.88);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.settings-price-plans-page :deep(.settings-page-shell__stack) {
+  gap: 18px;
+  margin-top: 10px;
+  padding-bottom: 4px;
+}
+
+.settings-price-plans-page :deep(.settings-page-shell__stack > .mobile-card) {
+  padding: 22px 16px 48px;
+  border-radius: var(--ios-pms-radius-card);
+}
+
+.settings-price-plans-page :deep(.settings-page-block__section-header) {
+  align-items: flex-start;
+}
+
+.settings-price-plans-page :deep(.settings-page-block__section-header .mobile-section-title) {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 22px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.settings-price-plans-page :deep(.settings-page-block__section-header ion-spinner) {
+  flex-shrink: 0;
+  color: var(--ios-pms-primary);
+}
+
+.settings-price-plans-list {
+  margin-top: 21px;
+  gap: 17px;
+}
+
+.settings-price-plan-card {
+  position: relative;
+  overflow: visible;
+  padding: 14px 15px;
+  border: 1px solid rgba(130, 143, 165, 0.2);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.88) inset,
+    0 8px 18px rgba(77, 98, 145, 0.035);
+}
+
+.settings-price-plan-card__header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-price-plan-card__title-group {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.settings-price-plan-card__header strong,
+.settings-price-plan-card__summary {
+  margin: 0;
+}
+
+.settings-price-plan-card__header strong {
+  color: var(--ios-pms-text-primary);
+  font-size: 20px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.15;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-price-plan-card__summary {
+  color: var(--ios-pms-text-muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+
+.settings-price-plan-card__badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  margin-top: -2px;
+  margin-right: -1px;
+  padding: 0 10px;
+  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.1);
+  border-radius: var(--ios-pms-radius-pill);
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
+  color: var(--ios-pms-primary);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.settings-price-plan-card__meta {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.settings-price-plan-card__meta-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 27px;
+  padding: 2px 10px;
+  border: 1px solid rgba(130, 143, 165, 0.26);
+  border-radius: var(--ios-pms-radius-pill);
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--ios-pms-text-primary);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.settings-price-plan-card__actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 15px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(130, 143, 165, 0.32);
+}
+
+.settings-price-plan-card__action {
+  min-height: 29px;
+  margin: 0;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --border-radius: 9px;
+  --box-shadow: none;
+  font-size: 14px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
+}
+
+.settings-price-plan-card__action::part(native) {
+  min-height: 29px;
+  border: 1px solid rgba(130, 143, 165, 0.24);
+  border-radius: 9px;
+  box-shadow: none;
+  line-height: 1.2;
+}
+
+.settings-price-plan-card__action--primary {
+  --background: var(--ios-pms-primary);
+  --background-hover: var(--ios-pms-primary);
+  --background-activated: var(--ion-color-primary-shade);
+  --color: var(--ion-color-primary-contrast);
+}
+
+.settings-price-plan-card__action--primary::part(native) {
+  border-color: transparent;
+}
+
+.settings-price-plan-card__action[fill='outline'] {
+  --background: rgba(255, 255, 255, 0.88);
+  --color: var(--ios-pms-primary);
+  --border-color: rgba(130, 143, 165, 0.24);
+}
+
+.settings-price-plan-card__action--danger {
+  --background: rgba(255, 255, 255, 0.88);
+  --color: #ff1f1f;
+}
+
 .settings-price-plans-empty-state {
   display: grid;
   gap: 10px;
-  padding-top: 16px;
+  justify-items: flex-start;
+  padding-top: 28px;
 }
 
 .settings-price-plans-empty-state strong,
@@ -502,5 +786,30 @@ onIonViewWillEnter(async () => {
   color: var(--app-muted);
   font-size: 13px;
   line-height: 1.6;
+}
+
+@media (max-width: 374px) {
+  .settings-price-plans-page :deep(.settings-crud-page) {
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
+
+  .settings-price-plans-page :deep(.settings-page-block__hero),
+  .settings-price-plans-page :deep(.settings-page-shell__stack > .mobile-card) {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .settings-price-plan-card {
+    padding: 13px 13px 14px;
+  }
+
+  .settings-price-plan-card__header strong {
+    font-size: 19px;
+  }
+
+  .settings-price-plan-card__action {
+    font-size: 13px;
+  }
 }
 </style>

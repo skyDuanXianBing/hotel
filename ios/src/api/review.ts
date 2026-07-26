@@ -94,6 +94,19 @@ interface RegistrationLinkInboxItemDTO {
 
 interface ReviewDecisionRequest {
   note: string
+  guestMessage?: string
+  senderName?: string
+}
+
+export interface RegistrationReviewMessageLog {
+  sendStatus?: string | null
+  errorMessage?: string | null
+}
+
+export interface RegistrationReviewDecisionResponse {
+  messageAttempted?: boolean
+  messageLog?: RegistrationReviewMessageLog | null
+  messageError?: string | null
 }
 
 const PUBLIC_REGISTRATION_BOOKING_PATHS = ['/rb', '/public/registration-booking'] as const
@@ -483,20 +496,28 @@ export const getRegistrationReviewDetail = async (formId: number) => {
   return mapRegistrationDetail(detail)
 }
 
-export const approveRegistrationReview = async (formId: number, note: string) => {
-  const response = await request.post<ApiResponse<null>>(`/registrations/${formId}/approve`, {
-    note,
-  } satisfies ReviewDecisionRequest)
+export const approveRegistrationReview = async (
+  formId: number,
+  data: ReviewDecisionRequest,
+) => {
+  const response = await request.post<ApiResponse<RegistrationReviewDecisionResponse>>(
+    `/registrations/${formId}/approve`,
+    data,
+  )
 
-  unwrapApiResponse(response, reviewText('approveFailed'))
+  return unwrapApiResponse(response, reviewText('approveFailed'))
 }
 
-export const rejectRegistrationReview = async (formId: number, note: string) => {
-  const response = await request.post<ApiResponse<null>>(`/registrations/${formId}/reject`, {
-    note,
-  } satisfies ReviewDecisionRequest)
+export const rejectRegistrationReview = async (
+  formId: number,
+  data: ReviewDecisionRequest,
+) => {
+  const response = await request.post<ApiResponse<RegistrationReviewDecisionResponse>>(
+    `/registrations/${formId}/reject`,
+    data,
+  )
 
-  unwrapApiResponse(response, reviewText('rejectFailed'))
+  return unwrapApiResponse(response, reviewText('rejectFailed'))
 }
 
 export const downloadRegistrationPdf = async (formId: number) => {

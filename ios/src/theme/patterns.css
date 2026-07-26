@@ -40,7 +40,7 @@ ion-page {
 }
 
 ion-content {
-  --background: var(--app-background);
+  --background: transparent;
   flex: 1;
 }
 
@@ -50,12 +50,10 @@ button {
 
 .mobile-page {
   display: block;
-  --background: var(--app-background);
   --padding-top: 8px;
   --padding-bottom: calc(36px + var(--app-safe-bottom));
   --padding-start: 16px;
   --padding-end: 16px;
-  background: var(--app-background);
 }
 
 .mobile-page--dashboard {

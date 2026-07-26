@@ -106,19 +106,15 @@
         </section>
       </div>
 
-      <ion-modal :is-open="editorOpen" :backdrop-dismiss="!submitting" @didDismiss="handleEditorDidDismiss">
-        <ion-header>
-          <ion-toolbar>
-            <ion-title>{{ editingRoomType ? $t('settingsStage4.roomSettings.dialog.editTitle') : $t('settingsStage4.roomSettings.dialog.addTitle') }}</ion-title>
-            <ion-buttons slot="end">
-              <ion-button :disabled="submitting" @click="handleCloseEditor">{{ $t('home.section.close') }}</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-
-        <ion-content class="mobile-page settings-modal-page">
-          <section class="mobile-card settings-editor-card">
-            <div class="settings-form-section">
+      <SettingsEditorModal
+        :is-open="editorOpen"
+        :title="editingRoomType ? $t('settingsStage4.roomSettings.dialog.editTitle') : $t('settingsStage4.roomSettings.dialog.addTitle')"
+        :backdrop-dismiss="!submitting"
+        :close-disabled="submitting"
+        @close="handleCloseEditor"
+        @didDismiss="handleEditorDidDismiss"
+      >
+        <div class="settings-form-section">
               <div>
                 <h2 class="mobile-section-title">{{ $t('accommodation.cleaning.basicInfo') }}</h2>
               </div>
@@ -307,27 +303,23 @@
                   />
                 </label>
 
-                <label class="settings-form-field settings-form-field--full">
-                  <span>{{ $t('stage5SourceText.149') }}</span>
-                  <ion-textarea
+                <div class="settings-form-field settings-form-field--full">
+                  <span>{{ $t('settingsStage4.roomTypeDetails.photos.desktopTitle') }}</span>
+                  <MediaUrlUploader
                     v-model="roomTypeForm.desktopPhotoUrlsText"
                     :disabled="submitting"
-                    :rows="4"
-                    fill="outline"
-                    :placeholder="$t('stage5UiAttributes.53')"
+                    scope="room-type-desktop"
                   />
-                </label>
+                </div>
 
-                <label class="settings-form-field settings-form-field--full">
-                  <span>{{ $t('stage5SourceText.170') }}</span>
-                  <ion-textarea
+                <div class="settings-form-field settings-form-field--full">
+                  <span>{{ $t('settingsStage4.roomTypeDetails.photos.mobileTitle') }}</span>
+                  <MediaUrlUploader
                     v-model="roomTypeForm.mobilePhotoUrlsText"
                     :disabled="submitting"
-                    :rows="4"
-                    fill="outline"
-                    :placeholder="$t('stage5UiAttributes.53')"
+                    scope="room-type-mobile"
                   />
-                </label>
+                </div>
               </div>
             </div>
 
@@ -384,25 +376,24 @@
                 </div>
               </div>
 
-            </div>
+        </div>
 
-            <div class="settings-form-actions">
-              <ion-button
-                v-if="editingRoomType"
-                fill="outline"
-                :disabled="submitting"
-                @click="handleRestoreEditor"
-              >
-                {{ $t('stage5VisibleText.171') }}
-              </ion-button>
-              <ion-button fill="outline" :disabled="submitting" @click="handleCloseEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
-              <ion-button :disabled="submitting" @click="handleSaveRoomType">
-                {{ submitting ? $t('channel.mobile.common.saving') : $t('stage5DynamicUi.11') }}
-              </ion-button>
-            </div>
-          </section>
-        </ion-content>
-      </ion-modal>
+        <template #actions>
+          <ion-button
+            v-if="editingRoomType"
+            class="settings-form-modal__wide-action"
+            fill="outline"
+            :disabled="submitting"
+            @click="handleRestoreEditor"
+          >
+            {{ $t('stage5VisibleText.171') }}
+          </ion-button>
+          <ion-button fill="outline" :disabled="submitting" @click="handleCloseEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
+          <ion-button :disabled="submitting" @click="handleSaveRoomType">
+            {{ submitting ? $t('channel.mobile.common.saving') : $t('stage5DynamicUi.11') }}
+          </ion-button>
+        </template>
+      </SettingsEditorModal>
     </ion-content>
   </ion-page>
 </template>
@@ -417,7 +408,6 @@ import {
   IonContent,
   IonHeader,
   IonInput,
-  IonModal,
   IonPage,
   IonRefresher,
   IonRefresherContent,
@@ -440,9 +430,16 @@ import {
   type RoomTypeDeleteBlockInfo,
   type RoomTypeWithRoomsDTO,
 } from '@/api/roomType'
+import SettingsEditorModal from '@/components/settings/base/SettingsEditorModal.vue'
+import MediaUrlUploader from '@/components/settings/MediaUrlUploader.vue'
 import { buildSettingsRoomTypeDetailPath, ROUTE_PATHS } from '@/router/guards'
 import { useRoomStatusStore } from '@/stores/roomStatus'
 import { useStoreStore } from '@/stores/store'
+import {
+  createDevicePhotoTextState,
+  mapDevicePhotoTextState,
+  type DevicePhotoTextState,
+} from '@/utils/devicePhotos'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import {
   buildExistingRoomTypePayload,
@@ -453,7 +450,6 @@ import {
   extractRoomEntries,
   extractRoomNumbers,
   formatFacilitiesText,
-  formatUrlTextList,
   getBasePriceText,
   mergeRoomTypePhotoUrls,
   normalizeHttpUrl,
@@ -491,7 +487,7 @@ interface RoomTypeView {
   source: RoomTypeWithRoomsDTO
 }
 
-interface RoomTypeFormState {
+interface RoomTypeFormState extends DevicePhotoTextState {
   name: string
   shortName: string
   roomDescription: string
@@ -512,8 +508,6 @@ interface RoomTypeFormState {
   saturdayPrice: string
   sundayPrice: string
   facilitiesText: string
-  desktopPhotoUrlsText: string
-  mobilePhotoUrlsText: string
   rooms: RoomFormItem[]
 }
 
@@ -563,8 +557,7 @@ function createEmptyRoomTypeForm(): RoomTypeFormState {
     saturdayPrice: '',
     sundayPrice: '',
     facilitiesText: '',
-    desktopPhotoUrlsText: '',
-    mobilePhotoUrlsText: '',
+    ...createDevicePhotoTextState(),
     rooms: [createEmptyRoomFormItem()],
   }
 }
@@ -643,8 +636,7 @@ function createFormFromRoomType(roomType: RoomTypeWithRoomsDTO): RoomTypeFormSta
     saturdayPrice: formatNumberText(roomType.saturdayPrice),
     sundayPrice: formatNumberText(roomType.sundayPrice),
     facilitiesText: formatFacilitiesText(roomType.facilities),
-    desktopPhotoUrlsText: formatUrlTextList(roomType.desktopPhotoUrls),
-    mobilePhotoUrlsText: formatUrlTextList(roomType.mobilePhotoUrls),
+    ...createDevicePhotoTextState(roomType.desktopPhotoUrls, roomType.mobilePhotoUrls),
     rooms: rooms.length > 0 ? rooms : [createEmptyRoomFormItem()],
   }
 }
@@ -1134,23 +1126,17 @@ function buildValidatedPayload() {
     return null
   }
 
-  const desktopPhotoResult = normalizeUrlTextList(roomTypeForm.value.desktopPhotoUrlsText)
-  if (desktopPhotoResult.invalidValue) {
+  const photoResults = mapDevicePhotoTextState(roomTypeForm.value, normalizeUrlTextList)
+  const invalidPhoto = photoResults.desktop.invalidValue
+    ? { device: t('settingsStage4.roomTypeDetails.photos.desktopTitle'), value: photoResults.desktop.invalidValue }
+    : photoResults.mobile.invalidValue
+      ? { device: t('settingsStage4.roomTypeDetails.photos.mobileTitle'), value: photoResults.mobile.invalidValue }
+      : null
+  if (invalidPhoto) {
     showWarningToast(
       t('settingsResidual.roomType.imageUrlInvalid', {
-        device: t('settingsResidual.roomType.desktop'),
-        value: desktopPhotoResult.invalidValue,
-      }),
-    )
-    return null
-  }
-
-  const mobilePhotoResult = normalizeUrlTextList(roomTypeForm.value.mobilePhotoUrlsText)
-  if (mobilePhotoResult.invalidValue) {
-    showWarningToast(
-      t('settingsResidual.roomType.imageUrlInvalid', {
-        device: t('settingsResidual.roomType.mobile'),
-        value: mobilePhotoResult.invalidValue,
+        device: invalidPhoto.device,
+        value: invalidPhoto.value,
       }),
     )
     return null
@@ -1196,8 +1182,8 @@ function buildValidatedPayload() {
     rooms,
     roomNumbers,
     facilities: parseFacilitiesText(roomTypeForm.value.facilitiesText),
-    desktopPhotoUrls: desktopPhotoResult.urls,
-    mobilePhotoUrls: mobilePhotoResult.urls,
+    desktopPhotoUrls: photoResults.desktop.urls,
+    mobilePhotoUrls: photoResults.mobile.urls,
     localizedContent: buildLocalizedContent(existingPayload?.localizedContent, name, roomDescription),
   }
 
@@ -1340,7 +1326,7 @@ ion-page > ion-header .settings-room-types-header-add::part(native) {
   margin: 0;
   color: var(--ios-pms-text-primary);
   font-size: 22px;
-  font-weight: 500;
+  font-weight: var(--ios-pms-weight-medium);
   line-height: 1.2;
   letter-spacing: 0;
 }
@@ -1386,7 +1372,7 @@ ion-page > ion-header .settings-room-types-header-add::part(native) {
   margin: 0;
   color: var(--ios-pms-text-primary);
   font-size: 22px;
-  font-weight: 500;
+  font-weight: var(--ios-pms-weight-medium);
   line-height: 1.25;
   letter-spacing: 0;
 }
