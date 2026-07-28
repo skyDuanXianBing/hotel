@@ -19,6 +19,7 @@ Scope: entire repo unless a deeper `AGENTS.md` overrides it.
 - `client/`: `bun install`, `bun run dev`, `bun run type-check`, `bun run build`, `bun run lint`.
 - `client/`: `bun run build` already runs `type-check` before `build-only`; do not duplicate unless you need both logs separately.
 - `server/`: `./mvnw compile`, `./mvnw test`, `./mvnw package`, `./mvnw -Dtest=RoomTypeServiceUniqueCodeTest test`, `./mvnw -Dtest=RoomTypeServiceUniqueCodeTest#createRoomType_codeConflicts_appendsNumericSuffix test`.
+- `server/` production builds MUST use `./mvnw -DskipTests package`: `AutoMessageSendLogClaimConcurrencyTest` connects to the real database from local `.env` (`DB_URL`), so running tests on the production server would touch the production DB.
 - `ios/`: use `npm`, not `bun`: `npm run build`, `npm run test:unit`, `npm run test:e2e`.
 - `channel-simulator/`: use `npm`, not `bun`: `npm install`, `npm run dev`, `npm run type-check`, `npm run build`, `npm run start`, `npm run verify:local-e2e`.
 
