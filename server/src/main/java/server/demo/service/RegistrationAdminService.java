@@ -9,6 +9,7 @@ import server.demo.enums.RegistrationFormStatus;
 import server.demo.enums.RegistrationMessageType;
 import server.demo.enums.RegistrationReviewAction;
 import server.demo.enums.ReservationStatus;
+import server.demo.exception.RegistrationReviewConflictException;
 import server.demo.repository.*;
 import server.demo.util.StoreContextUtils;
 
@@ -23,6 +24,7 @@ public class RegistrationAdminService {
     private static final String ROOM_NUMBER_FILTER_SENTINEL = "__REGISTRATION_ADMIN_EMPTY_ROOM_NUMBER_FILTER__";
     private static final String REVIEW_CANCELLED_RESERVATION_MESSAGE = "已取消订单不能审核登记表";
     private static final String REVIEW_SUBMITTED_ONLY_MESSAGE = "只有已提交的登记表可以审核";
+    private static final String REVIEW_ALREADY_REVIEWED_MESSAGE = "该登记表已审核";
     private static final String REVIEW_STATE_CHANGED_MESSAGE = "登记表状态已变更，请刷新后重试";
 
     @Autowired
@@ -356,7 +358,7 @@ public class RegistrationAdminService {
         String note = req != null ? req.getNote() : null;
         int updated = registrationFormRepository.approveSubmitted(storeId, formId, note, LocalDateTime.now());
         if (updated != 1) {
-            throw new RuntimeException(REVIEW_STATE_CHANGED_MESSAGE);
+            throw new RegistrationReviewConflictException(REVIEW_STATE_CHANGED_MESSAGE);
         }
 
         RegistrationReviewLog log = new RegistrationReviewLog();
@@ -394,7 +396,7 @@ public class RegistrationAdminService {
         String note = req != null ? req.getNote() : null;
         int updated = registrationFormRepository.rejectSubmitted(storeId, formId, note, LocalDateTime.now());
         if (updated != 1) {
-            throw new RuntimeException(REVIEW_STATE_CHANGED_MESSAGE);
+            throw new RegistrationReviewConflictException(REVIEW_STATE_CHANGED_MESSAGE);
         }
 
         RegistrationReviewLog log = new RegistrationReviewLog();
@@ -468,10 +470,14 @@ public class RegistrationAdminService {
 
     private static void validateReviewAllowed(RegistrationForm form, Reservation reservation) {
         if (reservation.getStatus() == ReservationStatus.CANCELLED) {
-            throw new RuntimeException(REVIEW_CANCELLED_RESERVATION_MESSAGE);
+            throw new RegistrationReviewConflictException(REVIEW_CANCELLED_RESERVATION_MESSAGE);
         }
         if (form.getStatus() != RegistrationFormStatus.SUBMITTED) {
-            throw new RuntimeException(REVIEW_SUBMITTED_ONLY_MESSAGE);
+            String message = form.getStatus() == RegistrationFormStatus.APPROVED
+                    || form.getStatus() == RegistrationFormStatus.REJECTED
+                    ? REVIEW_ALREADY_REVIEWED_MESSAGE
+                    : REVIEW_SUBMITTED_ONLY_MESSAGE;
+            throw new RegistrationReviewConflictException(message);
         }
     }
 

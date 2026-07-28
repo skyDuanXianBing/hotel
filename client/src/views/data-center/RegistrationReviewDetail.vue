@@ -5,7 +5,7 @@
         <div class="title">{{ t('stage5.dataCenter.detail.title') }}</div>
         <div class="actions">
           <el-button @click="back">{{ t('stage5.common.actions.back') }}</el-button>
-          <el-button :loading="loading" @click="load">{{ t('stage5.common.actions.refresh') }}</el-button>
+          <el-button :loading="loading" @click="load()">{{ t('stage5.common.actions.refresh') }}</el-button>
           <el-tooltip :content="messageButtonTooltip" :disabled="canOpenMessages" placement="bottom">
             <span class="action-tooltip-wrap">
               <el-button
@@ -141,8 +141,12 @@
             />
           </div>
           <div class="btns">
-            <el-button type="danger" :loading="acting" @click="reject">{{ t('stage5.common.actions.reject') }}</el-button>
-            <el-button type="success" :loading="acting" @click="approve">{{ t('stage5.common.actions.approve') }}</el-button>
+            <el-button type="danger" :loading="acting" :disabled="!canReview || acting" @click="reject">
+              {{ t('stage5.common.actions.reject') }}
+            </el-button>
+            <el-button type="success" :loading="acting" :disabled="!canReview || acting" @click="approve">
+              {{ t('stage5.common.actions.approve') }}
+            </el-button>
           </div>
         </div>
 
@@ -343,6 +347,7 @@ const note = ref('')
 const approveMessage = ref('')
 const reviewQuickReplyId = ref<number | null>(null)
 const isCancelledReservation = computed(() => detail.value?.reservationStatus === 'CANCELLED')
+const canReview = computed(() => detail.value?.status === 'SUBMITTED' && !isCancelledReservation.value)
 const canOpenMessages = computed(() => Object.keys(buildMessagesQuery()).length > 0)
 const messageButtonTooltip = computed(() => {
   if (detail.value) {
@@ -363,14 +368,23 @@ const quickReplyLoading = ref(false)
 const quickReplyId = ref<number | null>(null)
 let previewRequestId = 0
 
-function formId(): string {
-  return route.params.formId as string
+function formId(): string | undefined {
+  const value = route.params.formId
+  return typeof value === 'string' && value.trim() ? value : undefined
 }
 
-async function load() {
+async function load(targetFormId?: string | number) {
+  const resolvedFormId = targetFormId ?? formId()
+  if (resolvedFormId === undefined || resolvedFormId === null || !String(resolvedFormId).trim()) {
+    detail.value = null
+    note.value = ''
+    lastSendStatus.value = ''
+    return
+  }
+
   loading.value = true
   try {
-    const resp = await request.get(`/registrations/${formId()}`)
+    const resp = await request.get(`/registrations/${resolvedFormId}`)
     detail.value = resp.data as Detail
     note.value = detail.value?.reviewNote || ''
     // keep last status hint from newest message log
@@ -599,16 +613,14 @@ function showReviewFeedback(
 }
 
 async function approve() {
-  if (!detail.value) return
-  if (isCancelledReservation.value) {
-    ElMessage.warning(t('stage5.dataCenter.registrations.cancelled'))
-    return
-  }
+  const reviewedFormId = resolveReviewFormId()
+  if (!reviewedFormId) return
+
   acting.value = true
   const messageContent = approveMessage.value.trim()
   try {
     const resp = await request.post(
-      `/registrations/${detail.value.formId}/approve`,
+      `/registrations/${reviewedFormId}/approve`,
       buildReviewRequestPayload(messageContent),
     )
     const reviewResponse = resp.data as RegistrationReviewResponse | undefined
@@ -621,25 +633,50 @@ async function approve() {
       messageFailedKey: 'stage5.dataCenter.detail.approveMessageFailed',
       messageStatusKey: 'stage5.dataCenter.detail.approveMessageStatus',
     })
-    await load()
+    await refreshReviewedForm(reviewedFormId)
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.dataCenter.detail.approveFailed'))
+    await refreshAfterReviewConflict(e)
   } finally {
     acting.value = false
   }
 }
 
-async function reject() {
-  if (!detail.value) return
+function resolveReviewFormId(): number | null {
+  if (!detail.value || acting.value) {
+    return null
+  }
   if (isCancelledReservation.value) {
     ElMessage.warning(t('stage5.dataCenter.registrations.cancelled'))
-    return
+    return null
   }
+  if (detail.value.status !== 'SUBMITTED') {
+    return null
+  }
+  return detail.value.formId
+}
+
+async function refreshReviewedForm(reviewedFormId: number) {
+  if (formId() === String(reviewedFormId)) {
+    await load(reviewedFormId)
+  }
+}
+
+async function refreshAfterReviewConflict(error: any) {
+  if (error?.response?.status === 409) {
+    await load()
+  }
+}
+
+async function reject() {
+  const reviewedFormId = resolveReviewFormId()
+  if (!reviewedFormId) return
+
   acting.value = true
   const messageContent = approveMessage.value.trim()
   try {
     const resp = await request.post(
-      `/registrations/${detail.value.formId}/reject`,
+      `/registrations/${reviewedFormId}/reject`,
       buildReviewRequestPayload(messageContent),
     )
     const reviewResponse = resp.data as RegistrationReviewResponse | undefined
@@ -652,9 +689,10 @@ async function reject() {
       messageFailedKey: 'stage5.dataCenter.detail.rejectMessageFailed',
       messageStatusKey: 'stage5.dataCenter.detail.rejectMessageStatus',
     })
-    await load()
+    await refreshReviewedForm(reviewedFormId)
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.operationFailed'))
+    await refreshAfterReviewConflict(e)
   } finally {
     acting.value = false
   }
@@ -726,7 +764,7 @@ function authHeaders(): Record<string, string> {
 
 function attachmentUrl(attId: number): string {
   const base = (import.meta.env.VITE_API_BASE_URL as string) || '/api/v1'
-  return `${base}/registrations/${formId()}/attachments/${attId}`
+  return `${base}/registrations/${detail.value?.formId ?? formId()}/attachments/${attId}`
 }
 
 function passportAttachmentId(guestId?: number) {
@@ -888,7 +926,7 @@ function downloadAttachment(att: { id: number; originalName?: string }) {
     })
 }
 
-onMounted(load)
+onMounted(() => load())
 onMounted(loadQuickReplies)
 onBeforeUnmount(handlePreviewDialogClosed)
 </script>

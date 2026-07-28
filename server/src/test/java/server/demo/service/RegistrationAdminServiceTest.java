@@ -21,6 +21,7 @@ import server.demo.enums.RegistrationFormStatus;
 import server.demo.enums.RegistrationMessageType;
 import server.demo.enums.RegistrationReviewAction;
 import server.demo.enums.ReservationStatus;
+import server.demo.exception.RegistrationReviewConflictException;
 import server.demo.repository.RegistrationAttachmentRepository;
 import server.demo.repository.RegistrationFormRepository;
 import server.demo.repository.RegistrationGuestRepository;
@@ -400,7 +401,10 @@ class RegistrationAdminServiceTest {
             storeContextUtils.when(StoreContextUtils::requireStoreId).thenReturn(26L);
             storeContextUtils.when(StoreContextUtils::requireUserId).thenReturn(7L);
 
-            RuntimeException ex = assertThrows(RuntimeException.class, () -> service.approve(8L, null));
+            RegistrationReviewConflictException ex = assertThrows(
+                    RegistrationReviewConflictException.class,
+                    () -> service.approve(8L, null)
+            );
 
             assertEquals("已取消订单不能审核登记表", ex.getMessage());
         }
@@ -412,6 +416,9 @@ class RegistrationAdminServiceTest {
                 any(LocalDateTime.class)
         );
         verify(registrationReviewLogRepository, never()).save(any(RegistrationReviewLog.class));
+        verify(registrationMessageService, never()).sendMessage(
+                anyLong(), anyLong(), anyLong(), any(RegistrationSendMessageRequest.class)
+        );
     }
 
     @Test
@@ -425,9 +432,12 @@ class RegistrationAdminServiceTest {
             storeContextUtils.when(StoreContextUtils::requireStoreId).thenReturn(26L);
             storeContextUtils.when(StoreContextUtils::requireUserId).thenReturn(7L);
 
-            RuntimeException ex = assertThrows(RuntimeException.class, () -> service.reject(8L, null));
+            RegistrationReviewConflictException ex = assertThrows(
+                    RegistrationReviewConflictException.class,
+                    () -> service.reject(8L, null)
+            );
 
-            assertEquals("只有已提交的登记表可以审核", ex.getMessage());
+            assertEquals("该登记表已审核", ex.getMessage());
         }
 
         verify(registrationFormRepository, never()).rejectSubmitted(
@@ -437,6 +447,9 @@ class RegistrationAdminServiceTest {
                 any(LocalDateTime.class)
         );
         verify(registrationReviewLogRepository, never()).save(any(RegistrationReviewLog.class));
+        verify(registrationMessageService, never()).sendMessage(
+                anyLong(), anyLong(), anyLong(), any(RegistrationSendMessageRequest.class)
+        );
     }
 
     @Test
@@ -458,12 +471,52 @@ class RegistrationAdminServiceTest {
             storeContextUtils.when(StoreContextUtils::requireStoreId).thenReturn(26L);
             storeContextUtils.when(StoreContextUtils::requireUserId).thenReturn(7L);
 
-            RuntimeException ex = assertThrows(RuntimeException.class, () -> service.approve(8L, req));
+            RegistrationReviewConflictException ex = assertThrows(
+                    RegistrationReviewConflictException.class,
+                    () -> service.approve(8L, req)
+            );
 
             assertEquals("登记表状态已变更，请刷新后重试", ex.getMessage());
         }
 
         verify(registrationReviewLogRepository, never()).save(any(RegistrationReviewLog.class));
+        verify(registrationMessageService, never()).sendMessage(
+                anyLong(), anyLong(), anyLong(), any(RegistrationSendMessageRequest.class)
+        );
+    }
+
+    @Test
+    void reject_shouldNotWriteLogOrSendMessageWhenSubmittedStateChangedConcurrently() {
+        RegistrationAdminService service = createService();
+        RegistrationForm form = createForm(8L, RegistrationFormStatus.SUBMITTED, ReservationStatus.CONFIRMED);
+        AdminRegistrationReviewRequest req = new AdminRegistrationReviewRequest();
+        req.setNote("missing passport");
+        req.setGuestMessage("Please upload passport again");
+        when(registrationFormRepository.findById(8L)).thenReturn(Optional.of(form));
+        when(reservationRepository.findById(88L)).thenReturn(Optional.of(form.getReservation()));
+        when(registrationFormRepository.rejectSubmitted(
+                eq(26L),
+                eq(8L),
+                eq("missing passport"),
+                any(LocalDateTime.class)
+        )).thenReturn(0);
+
+        try (MockedStatic<StoreContextUtils> storeContextUtils = mockStatic(StoreContextUtils.class)) {
+            storeContextUtils.when(StoreContextUtils::requireStoreId).thenReturn(26L);
+            storeContextUtils.when(StoreContextUtils::requireUserId).thenReturn(7L);
+
+            RegistrationReviewConflictException ex = assertThrows(
+                    RegistrationReviewConflictException.class,
+                    () -> service.reject(8L, req)
+            );
+
+            assertEquals("登记表状态已变更，请刷新后重试", ex.getMessage());
+        }
+
+        verify(registrationReviewLogRepository, never()).save(any(RegistrationReviewLog.class));
+        verify(registrationMessageService, never()).sendMessage(
+                anyLong(), anyLong(), anyLong(), any(RegistrationSendMessageRequest.class)
+        );
     }
 
     @Test

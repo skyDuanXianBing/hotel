@@ -3,10 +3,14 @@ package server.demo.controller;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.http.MediaType;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import server.demo.annotation.RequirePermission;
 import server.demo.context.StoreContext;
 import server.demo.context.StoreContextHolder;
+import server.demo.controller.advice.RegistrationAdminExceptionHandler;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.registration.AdminRegistrationListItemDTO;
 import server.demo.dto.registration.AdminRegistrationReviewRequest;
@@ -17,6 +21,7 @@ import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
 import server.demo.enums.RegistrationFormStatus;
 import server.demo.enums.ReservationStatus;
+import server.demo.exception.RegistrationReviewConflictException;
 import server.demo.repository.ReservationRepository;
 import server.demo.service.RegistrationAdminService;
 import server.demo.service.RegistrationLinkService;
@@ -30,11 +35,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class RegistrationAdminControllerTest {
 
@@ -189,6 +198,27 @@ class RegistrationAdminControllerTest {
         assertTrue(response.isSuccess());
         assertTrue(response.getData().startsWith("http://localhost:8091/r/ORDER-LOCAL?t="));
         assertFalse(response.getData().startsWith("http://localhost:8092/"));
+    }
+
+    @Test
+    void registrationReviewConflict_shouldMapToConflictApiResponse() throws Exception {
+        RegistrationAdminService registrationAdminService = mock(RegistrationAdminService.class);
+        RegistrationAdminController controller = new RegistrationAdminController();
+        ReflectionTestUtils.setField(controller, "registrationAdminService", registrationAdminService);
+        when(registrationAdminService.approve(eq(8L), any(AdminRegistrationReviewRequest.class)))
+                .thenThrow(new RegistrationReviewConflictException("该登记表已审核"));
+
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new RegistrationAdminExceptionHandler())
+                .build();
+
+        mockMvc.perform(post("/api/v1/registrations/8/approve")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("该登记表已审核"))
+                .andExpect(jsonPath("$.data").isEmpty());
     }
 
     private static void assertStatsViewPermission(Method method) {
