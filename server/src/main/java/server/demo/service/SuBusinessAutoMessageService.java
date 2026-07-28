@@ -70,6 +70,7 @@ public class SuBusinessAutoMessageService {
     private static final String WAITING_PROPERTY_ACCESS = "WAITING_PROPERTY_ACCESS";
 
     private final AutoMessageSendLogRepository sendLogRepository;
+    private final AutoMessageSendLogClaimService sendLogClaimService;
     private final StoreRepository storeRepository;
     private final ReservationRepository reservationRepository;
     private final RoomTypeRepository roomTypeRepository;
@@ -89,6 +90,7 @@ public class SuBusinessAutoMessageService {
 
     public SuBusinessAutoMessageService(
             AutoMessageSendLogRepository sendLogRepository,
+            AutoMessageSendLogClaimService sendLogClaimService,
             StoreRepository storeRepository,
             ReservationRepository reservationRepository,
             RoomTypeRepository roomTypeRepository,
@@ -106,6 +108,7 @@ public class SuBusinessAutoMessageService {
             @Value("${su.messaging.auto-template.sender-name:Auto Message}") String templateSenderName
     ) {
         this.sendLogRepository = sendLogRepository;
+        this.sendLogClaimService = sendLogClaimService;
         this.storeRepository = storeRepository;
         this.reservationRepository = reservationRepository;
         this.roomTypeRepository = roomTypeRepository;
@@ -193,20 +196,34 @@ public class SuBusinessAutoMessageService {
             return;
         }
 
-        AutoMessageSendLog log = existing.orElseGet(AutoMessageSendLog::new);
-        log.setStoreId(storeId);
-        log.setAction(sendLogAction);
-        log.setTargetType(TARGET_TYPE_RESERVATION);
-        log.setTargetId(reservation.getId());
-        log.setAutoMessageId(template.getId());
-        log.setSuccess(null);
-        log.setErrorMessage(null);
-
-        if (existing.isEmpty()) {
+        AutoMessageSendLog log;
+        if (existing.isPresent()) {
+            log = existing.get();
+            log.setStoreId(storeId);
+            log.setAction(sendLogAction);
+            log.setTargetType(TARGET_TYPE_RESERVATION);
+            log.setTargetId(reservation.getId());
+            log.setAutoMessageId(template.getId());
+            log.setSuccess(null);
+            log.setErrorMessage(null);
+        } else {
             try {
-                sendLogRepository.save(log);
+                // 独立事务抢占唯一键 (store_id, action, target_type, target_id)，
+                // 冲突异常在 REQUIRES_NEW 边界外被捕获，不会毒化外层事务。
+                log = sendLogClaimService.insertClaim(storeId, sendLogAction, TARGET_TYPE_RESERVATION,
+                        reservation.getId(), template.getId());
             } catch (DataIntegrityViolationException e) {
-                return;
+                // 并发抢占失败：对方已插入。外层 session 干净，重读已有记录。
+                AutoMessageSendLog existingNow = sendLogRepository
+                        .findByStoreIdAndActionAndTargetTypeAndTargetId(
+                                storeId, sendLogAction, TARGET_TYPE_RESERVATION, reservation.getId())
+                        .orElse(null);
+                if (existingNow == null || Boolean.TRUE.equals(existingNow.getSuccess())) {
+                    // REPEATABLE_READ 快照可能读不到对方刚提交的行；此时直接跳过，交给下一分钟 tick 处理，
+                    // 不要重试插入，否则会再次撞唯一键。
+                    return;
+                }
+                log = existingNow;
             }
         }
 

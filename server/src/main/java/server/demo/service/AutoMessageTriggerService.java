@@ -24,6 +24,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 自动化消息触发服务（基于前端 AutoMessage 页面模型）：
@@ -79,6 +80,17 @@ public class AutoMessageTriggerService {
      */
     @Transactional
     public void dispatchStoreOnce(Long storeId) {
+        dispatchStoreOnce(storeId, null);
+    }
+
+    /**
+     * 手动触发（限定预订范围）。
+     *
+     * @param onlyReservationIds 非 null 时仅对集合内的预订做时序判定与发送（避免每次都全门店扫描）；
+     *                           null 表示不过滤，保持原全量语义。
+     */
+    @Transactional
+    public void dispatchStoreOnce(Long storeId, Set<Long> onlyReservationIds) {
         if (storeId == null) {
             return;
         }
@@ -87,7 +99,7 @@ public class AutoMessageTriggerService {
             if (store == null) {
                 return;
             }
-            dispatchStore(store, clock.instant());
+            dispatchStore(store, clock.instant(), onlyReservationIds);
         } catch (Exception e) {
             logger.warn("[AutoMessage] dispatchStoreOnce failed. storeId={}, err={}", storeId, e.getMessage(), e);
             autoMessageLogger.error("[AutoMessage] dispatchStoreOnce failed. storeId={}, err={}", storeId, e.getMessage());
@@ -101,7 +113,7 @@ public class AutoMessageTriggerService {
                 continue;
             }
             try {
-                dispatchStore(store, now);
+                dispatchStore(store, now, null);
             } catch (Exception e) {
                 logger.warn("[AutoMessage] dispatch store failed. storeId={}, err={}", store.getId(), e.getMessage(), e);
                 autoMessageLogger.error("[AutoMessage] dispatch store failed. storeId={}, err={}", store.getId(), e.getMessage());
@@ -110,6 +122,10 @@ public class AutoMessageTriggerService {
     }
 
     private void dispatchStore(Store store, Instant nowInstant) {
+        dispatchStore(store, nowInstant, null);
+    }
+
+    private void dispatchStore(Store store, Instant nowInstant, Set<Long> onlyReservationIds) {
         Long storeId = store.getId();
         ZoneId storeZoneId = StoreTimeZoneUtil.resolveZoneId(store);
         LocalDateTime nowUtc = StoreTimeZoneUtil.nowUtc(clock);
@@ -137,7 +153,7 @@ public class AutoMessageTriggerService {
 
             // DAY_{offset}_{HH:mm}锛?CHECK_IN/CHECK_OUT 鎸夐璁㈡棩鏈熻Е鍙?
             if (AutoMessageTimingUtil.isDayTimeTiming(sendTiming)) {
-                int matched = dispatchDayTimeTemplate(storeId, template, action, sendTiming, nowUtc, nowStore, storeZoneId);
+                int matched = dispatchDayTimeTemplate(storeId, template, action, sendTiming, nowUtc, nowStore, storeZoneId, onlyReservationIds);
                 if (matched > 0) {
                     totalTemplates++;
                     totalCandidates += matched;
@@ -172,6 +188,9 @@ public class AutoMessageTriggerService {
                 if (reservation == null) {
                     continue;
                 }
+                if (!matchesReservationScope(reservation, onlyReservationIds)) {
+                    continue;
+                }
                 if (!shouldConsiderForAction(reservation, action)) {
                     continue;
                 }
@@ -191,7 +210,8 @@ public class AutoMessageTriggerService {
             String sendTiming,
             LocalDateTime nowUtc,
             LocalDateTime nowStore,
-            ZoneId storeZoneId
+            ZoneId storeZoneId,
+            Set<Long> onlyReservationIds
     ) {
         if (storeId == null || template == null || action == null || sendTiming == null || nowUtc == null || nowStore == null || storeZoneId == null) {
             return 0;
@@ -236,6 +256,9 @@ public class AutoMessageTriggerService {
         int matched = 0;
         for (Reservation reservation : candidates) {
             if (reservation == null) {
+                continue;
+            }
+            if (!matchesReservationScope(reservation, onlyReservationIds)) {
                 continue;
             }
             if (reservation.getStatus() == ReservationStatus.CANCELLED || reservation.getStatus() == ReservationStatus.NO_SHOW) {
@@ -283,6 +306,13 @@ public class AutoMessageTriggerService {
                 utcTime.toLocalTime(),
                 ZoneOffset.UTC
         );
+    }
+
+    private static boolean matchesReservationScope(Reservation reservation, Set<Long> onlyReservationIds) {
+        if (onlyReservationIds == null) {
+            return true;
+        }
+        return reservation.getId() != null && onlyReservationIds.contains(reservation.getId());
     }
 
     private boolean shouldConsiderForAction(Reservation reservation, String action) {

@@ -36,6 +36,8 @@ public class SuWebhookController {
 
     private static final Logger logger = LoggerFactory.getLogger(SuWebhookController.class);
     private static final Logger reservationLogger = LoggerFactory.getLogger("SU_RESERVATION");
+    /** webhook 响应耗时超过该阈值打 WARN，便于用日志自证响应时长（Su 侧确认依赖快速应答）。 */
+    private static final long SLOW_WEBHOOK_WARN_MS = 3000L;
 
     private final ObjectMapper objectMapper;
     private final StoreRepository storeRepository;
@@ -184,6 +186,20 @@ public class SuWebhookController {
             JsonNode root,
             String rawBody
     ) {
+        long startAt = System.currentTimeMillis();
+        try {
+            return doHandleReservationNotifInternal(request, hotelId, root, rawBody);
+        } finally {
+            logWebhookCost("reservation-notif", hotelId, startAt);
+        }
+    }
+
+    private ResponseEntity<Map<String, Object>> doHandleReservationNotifInternal(
+            HttpServletRequest request,
+            String hotelId,
+            JsonNode root,
+            String rawBody
+    ) {
         List<String> notifIds = SuReservationNotifPayloadParser.extractNotifIds(root);
         if (notifIds.isEmpty()) {
             return ResponseEntity.ok(failBody("Missing reservation_notif_id"));
@@ -268,6 +284,20 @@ public class SuWebhookController {
             JsonNode root,
             String rawBody
     ) {
+        long startAt = System.currentTimeMillis();
+        try {
+            return doHandleReservationPushInternal(request, hotelId, root, rawBody);
+        } finally {
+            logWebhookCost("reservation-push", hotelId, startAt);
+        }
+    }
+
+    private ResponseEntity<Map<String, Object>> doHandleReservationPushInternal(
+            HttpServletRequest request,
+            String hotelId,
+            JsonNode root,
+            String rawBody
+    ) {
         String normalizedHotelId = SuHotelIdUtil.normalize(hotelId);
         if (normalizedHotelId == null) {
             reservationLogger.error("[ReservationWebhook] invalid hotelid (reservation-push). remoteIp={}, hotelId={}, raw={}",
@@ -335,6 +365,15 @@ public class SuWebhookController {
             reservationLogger.error("[ReservationWebhook] reservation-push queue exception. remoteIp={}, storeId={}, hotelId={}, err={}",
                     request != null ? request.getRemoteAddr() : null, store.getId(), normalizedHotelId, e.getMessage(), e);
             return ResponseEntity.ok(failBody(e.getMessage() != null ? e.getMessage() : "Exception"));
+        }
+    }
+
+    private static void logWebhookCost(String mode, String hotelId, long startAt) {
+        long costMs = System.currentTimeMillis() - startAt;
+        if (costMs >= SLOW_WEBHOOK_WARN_MS) {
+            reservationLogger.warn("[ReservationWebhook] slow response. mode={}, hotelId={}, costMs={}", mode, hotelId, costMs);
+        } else {
+            reservationLogger.info("[ReservationWebhook] response done. mode={}, hotelId={}, costMs={}", mode, hotelId, costMs);
         }
     }
 

@@ -348,7 +348,8 @@ class OtaReservationSyncServiceUpsertLookupTest {
                 null,
                 null,
                 dailyPriceSyncService,
-                orderNotificationDispatchService
+                orderNotificationDispatchService,
+                null
         );
 
         JsonNode reservationNode = OBJECT_MAPPER.readTree("""
@@ -461,6 +462,7 @@ class OtaReservationSyncServiceUpsertLookupTest {
                 null,
                 null,
                 registrationLinkInboxService,
+                null,
                 null,
                 null,
                 null

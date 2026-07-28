@@ -46,6 +46,7 @@ class SuBusinessAutoMessageServiceRegistrationLinkTest {
         RegistrationLinkService registrationLinkService = new RegistrationLinkService("test-secret", 90);
         SuBusinessAutoMessageService service = new SuBusinessAutoMessageService(
                 mock(AutoMessageSendLogRepository.class),
+                mock(AutoMessageSendLogClaimService.class),
                 mock(StoreRepository.class),
                 mock(ReservationRepository.class),
                 mock(RoomTypeRepository.class),
@@ -107,8 +108,21 @@ class SuBusinessAutoMessageServiceRegistrationLinkTest {
         MessageKnowledgeThreadDirtyMarker dirtyMarker = mock(MessageKnowledgeThreadDirtyMarker.class);
         ObjectMapper objectMapper = new ObjectMapper();
 
+        AutoMessageSendLogClaimService sendLogClaimService = mock(AutoMessageSendLogClaimService.class);
+        when(sendLogClaimService.insertClaim(any(), anyString(), anyString(), any(), any()))
+                .thenAnswer(inv -> {
+                    AutoMessageSendLog claimed = new AutoMessageSendLog();
+                    claimed.setStoreId(inv.getArgument(0));
+                    claimed.setAction(inv.getArgument(1));
+                    claimed.setTargetType(inv.getArgument(2));
+                    claimed.setTargetId(inv.getArgument(3));
+                    claimed.setAutoMessageId(inv.getArgument(4));
+                    return claimed;
+                });
+
         SuBusinessAutoMessageService service = new SuBusinessAutoMessageService(
                 sendLogRepository,
+                sendLogClaimService,
                 storeRepository,
                 reservationRepository,
                 roomTypeRepository,

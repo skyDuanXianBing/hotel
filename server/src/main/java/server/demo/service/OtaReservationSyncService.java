@@ -75,6 +75,7 @@ public class OtaReservationSyncService {
     private final SuAriAutoSyncService suAriAutoSyncService;
     private final ReservationDailyPriceSyncService reservationDailyPriceSyncService;
     private final OrderNotificationDispatchService orderNotificationDispatchService;
+    private final SuWebhookAsyncProcessor suWebhookAsyncProcessor;
 
     public OtaReservationSyncService(
             SuApiClient suApiClient,
@@ -94,7 +95,8 @@ public class OtaReservationSyncService {
             RegistrationLinkInboxService registrationLinkInboxService,
             SuAriAutoSyncService suAriAutoSyncService,
             ReservationDailyPriceSyncService reservationDailyPriceSyncService,
-            OrderNotificationDispatchService orderNotificationDispatchService
+            OrderNotificationDispatchService orderNotificationDispatchService,
+            SuWebhookAsyncProcessor suWebhookAsyncProcessor
     ) {
         this.suApiClient = suApiClient;
         this.storeRepository = storeRepository;
@@ -114,6 +116,7 @@ public class OtaReservationSyncService {
         this.suAriAutoSyncService = suAriAutoSyncService;
         this.reservationDailyPriceSyncService = reservationDailyPriceSyncService;
         this.orderNotificationDispatchService = orderNotificationDispatchService;
+        this.suWebhookAsyncProcessor = suWebhookAsyncProcessor;
     }
 
     public List<String> getSupportedChannelCodes() {
@@ -156,6 +159,7 @@ public class OtaReservationSyncService {
             int updatedCount,
             int failedCount,
             Set<String> processedNotifIds,
+            Set<Long> touchedReservationIds,
             List<String> errors
     ) {}
 
@@ -230,22 +234,18 @@ public class OtaReservationSyncService {
 
         List<JsonNode> reservationNodes = reservations != null ? reservations : List.of();
         if (reservationNodes.isEmpty()) {
-            return new UpsertOnlyResult(0, 0, 0, 0, 0, Set.of(), List.of());
+            return new UpsertOnlyResult(0, 0, 0, 0, 0, Set.of(), Set.of(), List.of());
         }
 
         UpsertResult result = upsertReservationsWithIsolatedTransactions(store, reservationNodes);
         if (result == null) {
-            return new UpsertOnlyResult(0, 0, 0, 0, 0, Set.of(), List.of("upsert tx failed"));
+            return new UpsertOnlyResult(0, 0, 0, 0, 0, Set.of(), Set.of(), List.of("upsert tx failed"));
         }
 
         // Best-effort dispatch auto messages after new/updated reservations.
+        // Deferred to afterCommit + async worker so it never delays or poisons the webhook transaction.
         if (result.createdCount() > 0 || result.updatedCount() > 0) {
-            try {
-                autoMessageTriggerService.dispatchStoreOnce(storeId);
-            } catch (Exception e) {
-                logger.warn("Dispatch auto messages after reservation webhook upsert failed. storeId={}, err={}", storeId, e.getMessage(), e);
-                reservationLogger.error("[ReservationWebhook] dispatch auto messages failed. storeId={}, err={}", storeId, e.getMessage());
-            }
+            scheduleAutoMessageDispatchAfterCommit(storeId, result.touchedReservationIds());
         }
 
         return new UpsertOnlyResult(
@@ -255,6 +255,7 @@ public class OtaReservationSyncService {
                 result.updatedCount(),
                 result.failedCount(),
                 result.notifIds(),
+                result.touchedReservationIds(),
                 result.errors()
         );
     }
@@ -281,7 +282,7 @@ public class OtaReservationSyncService {
 
         UpsertResult upsert = upsertReservationsWithIsolatedTransactions(store, reservations);
         if (upsert == null) {
-            upsert = new UpsertResult(0, 0, 0, 0, 0, Set.of(), List.of("事务执行失败：upsert结果为空"));
+            upsert = new UpsertResult(0, 0, 0, 0, 0, Set.of(), Set.of(), List.of("事务执行失败：upsert结果为空"));
         }
 
         reservationLogger.info("[ReservationSync] upsert done. storeId={}, hotelId={}, processed={}, created={}, updated={}, failed={}, notifIds={}",
@@ -317,14 +318,9 @@ public class OtaReservationSyncService {
             reservationLogger.info("[ReservationSync] ack skipped. storeId={}, hotelId={}, reason=no notif ids", storeId, hotelId);
         }
 
-        // 尽快处理 IMMEDIATELY 的业务自动消息（例如 BOOKING_CONFIRM）
+        // 尽快处理 IMMEDIATELY 的业务自动消息（例如 BOOKING_CONFIRM）：提交后异步派发，不阻塞当前请求。
         if (upsert.createdCount() > 0 || upsert.updatedCount() > 0) {
-            try {
-                autoMessageTriggerService.dispatchStoreOnce(storeId);
-            } catch (Exception e) {
-                logger.warn("Dispatch auto messages after reservation sync failed. storeId={}, err={}", storeId, e.getMessage(), e);
-                reservationLogger.error("[ReservationSync] dispatch auto messages failed. storeId={}, err={}", storeId, e.getMessage());
-            }
+            scheduleAutoMessageDispatchAfterCommit(storeId, upsert.touchedReservationIds());
         }
 
         return new ReservationSyncResult(
@@ -372,19 +368,14 @@ public class OtaReservationSyncService {
 
         UpsertResult upsert = upsertReservationsWithIsolatedTransactions(store, filtered);
         if (upsert == null) {
-            upsert = new UpsertResult(0, 0, 0, 0, 0, Set.of(), List.of("浜嬪姟鎵ц澶辫触锛歶psert缁撴灉涓虹┖"));
+            upsert = new UpsertResult(0, 0, 0, 0, 0, Set.of(), Set.of(), List.of("浜嬪姟鎵ц澶辫触锛歶psert缁撴灉涓虹┖"));
         }
 
         reservationLogger.info("[ReservationSyncPush] upsert done. storeId={}, hotelId={}, processed={}, created={}, updated={}, failed={}, notifIds={}",
                 storeId, hotelId, upsert.processedRoomStays(), upsert.createdCount(), upsert.updatedCount(), upsert.failedCount(), upsert.notifIds().size());
 
         if (upsert.createdCount() > 0 || upsert.updatedCount() > 0) {
-            try {
-                autoMessageTriggerService.dispatchStoreOnce(storeId);
-            } catch (Exception e) {
-                logger.warn("Dispatch auto messages after reservation push sync failed. storeId={}, err={}", storeId, e.getMessage(), e);
-                reservationLogger.error("[ReservationSyncPush] dispatch auto messages failed. storeId={}, err={}", storeId, e.getMessage());
-            }
+            scheduleAutoMessageDispatchAfterCommit(storeId, upsert.touchedReservationIds());
         }
 
         return new PullUpsertResult(
@@ -461,17 +452,19 @@ public class OtaReservationSyncService {
             int updatedCount,
             int failedCount,
             Set<String> notifIds,
+            Set<Long> touchedReservationIds,
             List<String> errors
     ) {}
 
     private UpsertResult upsertReservationsWithIsolatedTransactions(Store store, List<JsonNode> reservations) {
         if (store == null || reservations == null || reservations.isEmpty()) {
-            return new UpsertResult(0, 0, 0, 0, 0, Set.of(), List.of());
+            return new UpsertResult(0, 0, 0, 0, 0, Set.of(), Set.of(), List.of());
         }
 
         String suHotelId = resolveHotelId(store);
         List<String> errors = new ArrayList<>();
         Set<String> notifIds = new LinkedHashSet<>();
+        Set<Long> touchedReservationIds = new LinkedHashSet<>();
 
         int processedRoomStays = 0;
         int skippedUnsupported = 0;
@@ -521,6 +514,7 @@ public class OtaReservationSyncService {
                 updated += singleResult.updatedCount();
                 failed += singleResult.failedCount();
                 notifIds.addAll(singleResult.notifIds());
+                touchedReservationIds.addAll(singleResult.touchedReservationIds());
                 errors.addAll(singleResult.errors());
             } catch (UnexpectedRollbackException e) {
                 processedRoomStays += roomStayCount;
@@ -571,6 +565,7 @@ public class OtaReservationSyncService {
                 updated,
                 failed,
                 notifIds,
+                touchedReservationIds,
                 errors
         );
     }
@@ -732,6 +727,7 @@ public class OtaReservationSyncService {
     private UpsertResult upsertReservationsInTx(Store store, List<JsonNode> reservations) {
         List<String> errors = new ArrayList<>();
         Set<String> notifIds = new LinkedHashSet<>();
+        Set<Long> touchedReservationIds = new LinkedHashSet<>();
 
         String suHotelId = resolveHotelId(store);
 
@@ -1099,6 +1095,9 @@ public class OtaReservationSyncService {
                     } else {
                         updated++;
                     }
+                    if (reservation.getId() != null) {
+                        touchedReservationIds.add(reservation.getId());
+                    }
 
                     if (notifId != null && !notifId.isBlank()) {
                         notifIds.add(notifId.trim());
@@ -1133,6 +1132,7 @@ public class OtaReservationSyncService {
                 updated,
                 failed,
                 notifIds,
+                touchedReservationIds,
                 errors
         );
     }
@@ -1739,6 +1739,44 @@ public class OtaReservationSyncService {
         String rid = reservationId != null ? String.valueOf(reservationId) : "na";
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         return "ari-" + (notifPart != null ? notifPart : (orderPart != null ? orderPart : "na")) + "-" + rid + "-" + suffix;
+    }
+
+    /**
+     * 预订入库后触发自动消息派发：
+     * - 若当前有活跃事务，注册 afterCommit 回调，提交成功后才提交异步任务；
+     * - 派发本身在 su-webhook-worker 线程上执行，不占用 webhook 请求线程，
+     *   也不会与预订入库共享事务（dispatchStoreOnce 自带 @Transactional 会自行开启新事务）。
+     */
+    void scheduleAutoMessageDispatchAfterCommit(Long storeId, Set<Long> touchedReservationIds) {
+        if (storeId == null || autoMessageTriggerService == null) {
+            return;
+        }
+
+        Set<Long> scopedReservationIds = touchedReservationIds != null
+                ? new LinkedHashSet<>(touchedReservationIds)
+                : null;
+        Runnable submitDispatch = () -> {
+            Runnable dispatchJob = () -> autoMessageTriggerService.dispatchStoreOnce(storeId, scopedReservationIds);
+            if (suWebhookAsyncProcessor != null) {
+                String jobName = "auto-message-dispatch:" + storeId
+                        + ":" + (scopedReservationIds != null ? scopedReservationIds.size() : "all");
+                suWebhookAsyncProcessor.submit(jobName, dispatchJob);
+            } else {
+                dispatchJob.run();
+            }
+        };
+
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            submitDispatch.run();
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                submitDispatch.run();
+            }
+        });
     }
 
     void scheduleSuAvailabilitySyncAfterCommit(

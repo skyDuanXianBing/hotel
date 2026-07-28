@@ -56,6 +56,7 @@ class OtaReservationInventoryLockTest {
                 null,
                 null,
                 null,
+                null,
                 null
         );
         JsonNode reservation = new ObjectMapper().readTree("""

@@ -134,6 +134,7 @@ class OtaReservationSyncServiceSuAriAfterCommitTest {
                 null,
                 suAriAutoSyncService,
                 null,
+                null,
                 null
         );
     }
