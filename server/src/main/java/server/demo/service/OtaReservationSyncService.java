@@ -782,7 +782,11 @@ public class OtaReservationSyncService {
                 try {
                     LocalDate checkIn = SuReservationParser.extractArrivalDate(reservationNode, roomStay);
                     LocalDate checkOut = SuReservationParser.extractDepartureDate(reservationNode, roomStay);
-                    if (checkIn == null || checkOut == null) {
+                    String roomStayStatusEarly = roomStay != null ? SuReservationParser.extractRoomStayStatus(roomStay) : null;
+                    ReservationStatus mappedStatusEarly = mapReservationStatus(suStatus, roomStayStatusEarly);
+                    boolean datesMissing = checkIn == null || checkOut == null;
+                    // Cancelled notifications from Su may omit rooms/dates. Keep non-cancel payloads strict.
+                    if (datesMissing && mappedStatusEarly != ReservationStatus.CANCELLED) {
                         throw new IllegalArgumentException("缺少入住/退房日期");
                     }
                     String itProviderRoomId = roomStay != null
@@ -837,6 +841,51 @@ public class OtaReservationSyncService {
                     Reservation reservation = lookupResult.reservation();
 
                     boolean isNew = reservation.getId() == null;
+                    if (datesMissing) {
+                        if (isNew) {
+                            // Orphan cancel: nothing local to update, but ACK so Su can leave the pending queue.
+                            reservationLogger.info(
+                                    "[ReservationUpsert] ack orphan cancelled without dates. storeId={}, hotelId={}, reservationId={}, notifId={}, channel={}, channelBookingId={}",
+                                    store.getId(),
+                                    suHotelId,
+                                    reservationId,
+                                    notifId,
+                                    channelCode,
+                                    channelBookingId
+                            );
+                            if (notifId != null && !notifId.isBlank()) {
+                                notifIds.add(notifId.trim());
+                            }
+                            continue;
+                        }
+                        checkIn = reservation.getCheckInDate();
+                        checkOut = reservation.getCheckOutDate();
+                        if (checkIn == null || checkOut == null) {
+                            throw new IllegalArgumentException("缺少入住/退房日期");
+                        }
+                        reservationLogger.info(
+                                "[ReservationUpsert] reuse existing dates for cancelled payload without dates. storeId={}, hotelId={}, reservationId={}, notifId={}, checkIn={}, checkOut={}, existingDbId={}",
+                                store.getId(),
+                                suHotelId,
+                                reservationId,
+                                notifId,
+                                checkIn,
+                                checkOut,
+                                reservation.getId()
+                        );
+                    }
+                    if (roomStay == null && !isNew) {
+                        // Cancel/modify payloads may omit rooms[]; keep existing inventory identity.
+                        if (itProviderRoomId == null || itProviderRoomId.isBlank()) {
+                            itProviderRoomId = reservation.getOtaRoomId();
+                        }
+                        if (newRoomTypeId == null) {
+                            newRoomTypeId = reservation.getOtaRoomTypeId();
+                        }
+                        if (parsedRoomId == null && itProviderRoomId != null && !itProviderRoomId.isBlank()) {
+                            parsedRoomId = SuRoomIdParser.parse(itProviderRoomId);
+                        }
+                    }
                     Long oldInventoryRoomTypeId = resolveInventoryRoomTypeId(reservation);
                     assertInventoryRoomTypesLocked(
                             lockedInventoryRoomTypeIds,
@@ -923,12 +972,14 @@ public class OtaReservationSyncService {
                     reservation.setOrderNumber(orderNumber);
 
                     // 记录 Su rooms[].id（我们推送的 roomid={roomTypeId}-{roomNumber}），用于未排房也能按房型统计占用/回传 PriceLabs booked_units
-                    reservation.setOtaRoomId(itProviderRoomId);
-                    reservation.setOtaRoomTypeId(newRoomTypeId);
-                    reservation.setOtaRoomNumber(parsedRoomId != null ? parsedRoomId.roomNumber() : null);
+                    if (roomStay != null || isNew) {
+                        reservation.setOtaRoomId(itProviderRoomId);
+                        reservation.setOtaRoomTypeId(newRoomTypeId);
+                        reservation.setOtaRoomNumber(parsedRoomId != null ? parsedRoomId.roomNumber() : null);
+                    }
 
-                    // 自动排房（仅当当前预订未手动排房时尝试）
-                    if (reservation.getRoom() == null) {
+                    // 自动排房（仅当当前预订未手动排房时尝试）；取消单不排房
+                    if (reservation.getRoom() == null && mappedStatusEarly != ReservationStatus.CANCELLED) {
                         try {
                             roomAssignmentService.tryAutoAssignRoom(store.getId(), reservation, itProviderRoomId, checkIn, checkOut);
                         } catch (Exception ex) {

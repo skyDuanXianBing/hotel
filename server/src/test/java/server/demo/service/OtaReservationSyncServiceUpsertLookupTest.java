@@ -437,6 +437,286 @@ class OtaReservationSyncServiceUpsertLookupTest {
         );
     }
 
+    @Test
+    void upsertReservationsFromWebhook_orphanCancelledWithoutDates_acksWithoutSaving() throws Exception {
+        StoreRepository storeRepository = mock(StoreRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        ChannelRepository channelRepository = mock(ChannelRepository.class);
+        ReservationRepository reservationRepository = mock(ReservationRepository.class);
+        RoomTypeInventoryLockService inventoryLockService = mock(RoomTypeInventoryLockService.class);
+        CleaningTaskAutoService cleaningTaskAutoService = mock(CleaningTaskAutoService.class);
+        OrderNotificationDispatchService orderNotificationDispatchService =
+                mock(OrderNotificationDispatchService.class);
+
+        Store store = new Store();
+        store.setId(26L);
+        store.setUserId(100L);
+        store.setName("Store 26");
+        store.setSuHotelId("W39FVCQYSN");
+        when(storeRepository.findById(26L)).thenReturn(Optional.of(store));
+
+        User user = new User();
+        user.setId(100L);
+        user.setUsername("owner");
+        user.setEmail("owner@example.test");
+        user.setPassword("secret");
+        when(userRepository.findById(100L)).thenReturn(Optional.of(user));
+
+        Channel channel = new Channel("Booking", "BOOKING", ChannelType.OTA);
+        channel.setId(19L);
+        channel.setStoreId(26L);
+        when(channelRepository.findByStoreIdAndCode(26L, "BOOKING")).thenReturn(Optional.of(channel));
+
+        when(reservationRepository.findByStoreIdAndOrderNumber(eq(26L), anyString()))
+                .thenReturn(Optional.empty());
+        when(reservationRepository.findByStoreIdAndSuReservationIdAndRoomReservationId(
+                eq(26L), eq("5791437598_W39FVCQYSN"), anyString()
+        )).thenReturn(Optional.empty());
+        when(reservationRepository.findByStoreIdAndChannelIdAndExternalBookingKey(26L, 19L, "5791437598"))
+                .thenReturn(List.of());
+        when(reservationRepository.findByStoreIdAndChannelOrderNumber(26L, "5791437598"))
+                .thenReturn(List.of());
+        when(inventoryLockService.lockRoomTypes(eq(26L), org.mockito.ArgumentMatchers.anySet()))
+                .thenReturn(Set.of());
+
+        OtaReservationSyncService service = new OtaReservationSyncService(
+                null,
+                storeRepository,
+                userRepository,
+                mock(PricePlanRepository.class),
+                channelRepository,
+                reservationRepository,
+                mock(SuMessageThreadRepository.class),
+                mock(OtaReservationRoomAssignmentService.class),
+                inventoryLockService,
+                new NoopTransactionManager(),
+                null,
+                mock(AutoMessageTriggerService.class),
+                cleaningTaskAutoService,
+                null,
+                null,
+                null,
+                null,
+                orderNotificationDispatchService,
+                null
+        );
+
+        JsonNode reservationNode = OBJECT_MAPPER.readTree("""
+                {
+                  "reservation_notif_id": "178523014658097751807",
+                  "id": "5791437598_W39FVCQYSN",
+                  "channel_booking_id": "5791437598",
+                  "status": "cancelled",
+                  "currencycode": "JPY",
+                  "affiliation": { "OTA_Code": "19", "pos": "Booking.com" },
+                  "customer": { "first_name": "Alison", "last_name": "Lu" },
+                  "rooms": []
+                }
+                """);
+
+        OtaReservationSyncService.UpsertOnlyResult result =
+                service.upsertReservationsFromWebhook(26L, List.of(reservationNode));
+
+        assertEquals(1, result.processedRoomStays());
+        assertEquals(0, result.createdCount());
+        assertEquals(0, result.updatedCount());
+        assertEquals(0, result.failedCount());
+        assertEquals(Set.of("178523014658097751807"), result.processedNotifIds());
+        verify(reservationRepository, never()).save(org.mockito.ArgumentMatchers.any(Reservation.class));
+    }
+
+    @Test
+    void upsertReservationsFromWebhook_existingCancelledWithoutDates_reusesDatesAndCancels() throws Exception {
+        StoreRepository storeRepository = mock(StoreRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        ChannelRepository channelRepository = mock(ChannelRepository.class);
+        ReservationRepository reservationRepository = mock(ReservationRepository.class);
+        RoomTypeInventoryLockService inventoryLockService = mock(RoomTypeInventoryLockService.class);
+        CleaningTaskAutoService cleaningTaskAutoService = mock(CleaningTaskAutoService.class);
+        OrderNotificationDispatchService orderNotificationDispatchService =
+                mock(OrderNotificationDispatchService.class);
+        OtaReservationRoomAssignmentService roomAssignmentService =
+                mock(OtaReservationRoomAssignmentService.class);
+
+        Store store = new Store();
+        store.setId(26L);
+        store.setUserId(100L);
+        store.setName("Store 26");
+        store.setSuHotelId("W39FVCQYSN");
+        when(storeRepository.findById(26L)).thenReturn(Optional.of(store));
+
+        User user = new User();
+        user.setId(100L);
+        user.setUsername("owner");
+        user.setEmail("owner@example.test");
+        user.setPassword("secret");
+        when(userRepository.findById(100L)).thenReturn(Optional.of(user));
+
+        Channel channel = new Channel("Booking", "BOOKING", ChannelType.OTA);
+        channel.setId(19L);
+        channel.setStoreId(26L);
+        when(channelRepository.findByStoreIdAndCode(26L, "BOOKING")).thenReturn(Optional.of(channel));
+
+        Reservation existing = new Reservation();
+        existing.setId(88L);
+        existing.setOrderNumber("SU26-5791437598_W39FVCQYSN-OLD");
+        existing.setCheckInDate(LocalDate.of(2026, 8, 1));
+        existing.setCheckOutDate(LocalDate.of(2026, 8, 3));
+        existing.setOtaRoomTypeId(65L);
+        existing.setOtaRoomId("65");
+        existing.setStatus(server.demo.enums.ReservationStatus.CONFIRMED);
+        existing.setGuestName("Old Name");
+        existing.setAdults(2);
+        existing.setTotalAmount(new BigDecimal("100.00"));
+        existing.setChannel(channel);
+        existing.setUser(user);
+        existing.setStoreId(26L);
+
+        when(reservationRepository.findByStoreIdAndOrderNumber(eq(26L), anyString()))
+                .thenReturn(Optional.empty());
+        when(reservationRepository.findByStoreIdAndSuReservationIdAndRoomReservationId(
+                eq(26L), eq("5791437598_W39FVCQYSN"), anyString()
+        )).thenReturn(Optional.empty());
+        when(reservationRepository.findByStoreIdAndChannelIdAndExternalBookingKey(26L, 19L, "5791437598"))
+                .thenReturn(List.of());
+        when(reservationRepository.findByStoreIdAndChannelOrderNumber(26L, "5791437598"))
+                .thenReturn(List.of(existing));
+        when(reservationRepository.findByStoreIdAndChannelOrderNumberWithRoomType(26L, "5791437598"))
+                .thenReturn(List.of(existing));
+        when(inventoryLockService.lockRoomTypes(26L, Set.of(65L))).thenReturn(Set.of(65L));
+        when(reservationRepository.save(org.mockito.ArgumentMatchers.any(Reservation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        OtaReservationSyncService service = new OtaReservationSyncService(
+                null,
+                storeRepository,
+                userRepository,
+                mock(PricePlanRepository.class),
+                channelRepository,
+                reservationRepository,
+                mock(SuMessageThreadRepository.class),
+                roomAssignmentService,
+                inventoryLockService,
+                new NoopTransactionManager(),
+                null,
+                mock(AutoMessageTriggerService.class),
+                cleaningTaskAutoService,
+                null,
+                null,
+                null,
+                null,
+                orderNotificationDispatchService,
+                null
+        );
+
+        JsonNode reservationNode = OBJECT_MAPPER.readTree("""
+                {
+                  "reservation_notif_id": "178523014658097751807",
+                  "id": "5791437598_W39FVCQYSN",
+                  "channel_booking_id": "5791437598",
+                  "status": "cancelled",
+                  "currencycode": "JPY",
+                  "affiliation": { "OTA_Code": "19", "pos": "Booking.com" },
+                  "customer": { "first_name": "Alison", "last_name": "Lu" },
+                  "rooms": []
+                }
+                """);
+
+        OtaReservationSyncService.UpsertOnlyResult result =
+                service.upsertReservationsFromWebhook(26L, List.of(reservationNode));
+
+        assertEquals(0, result.failedCount());
+        assertEquals(1, result.updatedCount());
+        assertEquals(Set.of("178523014658097751807"), result.processedNotifIds());
+
+        ArgumentCaptor<Reservation> savedCaptor = ArgumentCaptor.forClass(Reservation.class);
+        verify(reservationRepository).save(savedCaptor.capture());
+        Reservation saved = savedCaptor.getValue();
+        assertEquals(server.demo.enums.ReservationStatus.CANCELLED, saved.getStatus());
+        assertEquals(LocalDate.of(2026, 8, 1), saved.getCheckInDate());
+        assertEquals(LocalDate.of(2026, 8, 3), saved.getCheckOutDate());
+        assertEquals(65L, saved.getOtaRoomTypeId());
+        assertEquals("Alison Lu", saved.getGuestName());
+        verify(roomAssignmentService, never()).tryAutoAssignRoom(
+                org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
+    void upsertReservationsFromWebhook_newBookingWithoutDates_stillFails() throws Exception {
+        StoreRepository storeRepository = mock(StoreRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        ChannelRepository channelRepository = mock(ChannelRepository.class);
+        ReservationRepository reservationRepository = mock(ReservationRepository.class);
+        RoomTypeInventoryLockService inventoryLockService = mock(RoomTypeInventoryLockService.class);
+
+        Store store = new Store();
+        store.setId(26L);
+        store.setUserId(100L);
+        store.setName("Store 26");
+        store.setSuHotelId("W39FVCQYSN");
+        when(storeRepository.findById(26L)).thenReturn(Optional.of(store));
+
+        User user = new User();
+        user.setId(100L);
+        user.setUsername("owner");
+        user.setEmail("owner@example.test");
+        user.setPassword("secret");
+        when(userRepository.findById(100L)).thenReturn(Optional.of(user));
+
+        Channel channel = new Channel("Booking", "BOOKING", ChannelType.OTA);
+        channel.setId(19L);
+        channel.setStoreId(26L);
+        when(channelRepository.findByStoreIdAndCode(26L, "BOOKING")).thenReturn(Optional.of(channel));
+        when(inventoryLockService.lockRoomTypes(eq(26L), org.mockito.ArgumentMatchers.anySet()))
+                .thenReturn(Set.of());
+
+        OtaReservationSyncService service = new OtaReservationSyncService(
+                null,
+                storeRepository,
+                userRepository,
+                mock(PricePlanRepository.class),
+                channelRepository,
+                reservationRepository,
+                mock(SuMessageThreadRepository.class),
+                mock(OtaReservationRoomAssignmentService.class),
+                inventoryLockService,
+                new NoopTransactionManager(),
+                null,
+                mock(AutoMessageTriggerService.class),
+                mock(CleaningTaskAutoService.class),
+                null,
+                null,
+                null,
+                null,
+                mock(OrderNotificationDispatchService.class),
+                null
+        );
+
+        JsonNode reservationNode = OBJECT_MAPPER.readTree("""
+                {
+                  "reservation_notif_id": "notif-new-missing-dates",
+                  "id": "5791437598_W39FVCQYSN",
+                  "channel_booking_id": "5791437598",
+                  "status": "new",
+                  "affiliation": { "OTA_Code": "19" },
+                  "customer": { "first_name": "Alison", "last_name": "Lu" },
+                  "rooms": []
+                }
+                """);
+
+        OtaReservationSyncService.UpsertOnlyResult result =
+                service.upsertReservationsFromWebhook(26L, List.of(reservationNode));
+
+        assertEquals(1, result.failedCount());
+        assertEquals(0, result.processedNotifIds().size());
+        verify(reservationRepository, never()).save(org.mockito.ArgumentMatchers.any(Reservation.class));
+    }
+
     private static OtaReservationSyncService createService(ReservationRepository reservationRepository) {
         return createService(reservationRepository, null);
     }
