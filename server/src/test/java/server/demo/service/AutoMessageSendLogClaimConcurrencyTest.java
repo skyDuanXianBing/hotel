@@ -1,6 +1,5 @@
 package server.demo.service;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -38,9 +37,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * - 输掉的一方仅收到 DataIntegrityViolationException（在 REQUIRES_NEW 边界外），
  *   其外层事务不会被标记 rollback-only，仍可正常提交。
  *
- * 依赖真实数据源（MySQL 唯一键 + 锁等待语义，mock 无法复现），CI 无数据库时保持禁用；
- * 本地运行：临时注释掉 @Disabled 后执行
- *   ./mvnw -Dtest=AutoMessageSendLogClaimConcurrencyTest test
+ * 依赖真实数据源（MySQL 唯一键 + 锁等待语义，mock 无法复现），
+ * 数据库连接取自本地 .env（DB_URL / DB_USERNAME / DB_PASSWORD）。
+ * 单独运行：./mvnw -Dtest=AutoMessageSendLogClaimConcurrencyTest test
  */
 @DataJpaTest(properties = {
         // 测试环境的 application.properties 全局排除了 DataSource/JPA 自动配置，这里恢复
@@ -52,7 +51,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(AutoMessageSendLogClaimService.class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
-@Disabled("需要本地 MySQL 数据源，CI 无数据库时跳过；本地手动执行验证（已于 2026-07-28 在本地 MySQL 跑通）")
 class AutoMessageSendLogClaimConcurrencyTest {
 
     /**
