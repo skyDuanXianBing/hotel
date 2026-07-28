@@ -5033,6 +5033,7 @@
   "messages": {
     "translate": "Translate",
     "pullToRefresh": "Pull to refresh messages",
+    "loadMore": "Load more conversations",
     "searchPlaceholder": "Reservation/room/guest/message/room type",
     "cancel": "Cancel",
     "allChannels": "All channels",
@@ -5085,6 +5086,7 @@
   "messageDetail": {
     "reservation": "Reservation",
     "pullToRefresh": "Pull to refresh conversation",
+    "loadEarlier": "Load earlier messages",
     "syncing": "Syncing...",
     "translation": "Translation",
     "translating": "Translating...",

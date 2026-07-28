@@ -34,6 +34,10 @@ export const getOrderBoxList = async () => {
   return request.get<ApiResponse<OrderBoxItem[]>>('/order-box')
 }
 
+export const getOrderBoxItemByReservation = async (reservationId: number) => {
+  return request.get<ApiResponse<OrderBoxItem | null>>(`/order-box/by-reservation/${reservationId}`)
+}
+
 export const moveToOrderBox = async (data: MoveToOrderBoxRequest) => {
   return request.post<ApiResponse<OrderBoxItem>>('/order-box/move-in', data)
 }

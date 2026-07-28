@@ -251,7 +251,6 @@ import {
   createDefaultOrderFilters,
   getOrderTabLabel,
   mapHomeTypeToOrderTab,
-  mapOrderTabToApiType,
   matchesReservationSearch,
   ORDER_PRIMARY_TABS,
   ORDER_SECONDARY_TABS,
@@ -273,7 +272,6 @@ import {
   checkOutReservation,
   getAllChannels,
   getAssignableRooms,
-  getReservationsByType,
   getReservationsWithFilters,
   getReservationStatistics,
   updateReservationSettlementStatus,
@@ -400,33 +398,8 @@ const todayOperationDateLabel = computed(() => {
   return t('order.filters.operationDate')
 })
 
-const usePagedEndpoint = computed(() => {
-  if (activeTab.value === 'order-box') {
-    return false
-  }
-
-  if (activeTab.value === 'all') {
-    return true
-  }
-
-  if (activeTab.value === 'deleted-rooms') {
-    return true
-  }
-
-  if (isTodayOperationTab.value) {
-    return true
-  }
-
-  if (committedKeyword.value.trim()) {
-    return true
-  }
-
-  if (filterCount.value > 0) {
-    return true
-  }
-
-  return false
-})
+// 除订单盒子外全部走服务端分页；未排房/已排房/待处理原来的 by-type 接口会拉全店历史订单
+const usePagedEndpoint = computed(() => activeTab.value !== 'order-box')
 
 const hasMore = computed(() => page.value < totalPages.value - 1)
 
@@ -847,20 +820,6 @@ async function loadOrders(reset = true) {
       return
     }
 
-    const apiType = mapOrderTabToApiType(activeTab.value)
-    if (!usePagedEndpoint.value && apiType) {
-      const response = await getReservationsByType(apiType)
-      if (!response.success || !response.data) {
-        throw new Error(response.message || t('stage5Pattern.loadFailed'))
-      }
-
-      reservations.value = response.data
-      orderBoxItems.value = []
-      resetPagination()
-      totalElements.value = response.data.length
-      return
-    }
-
     const nextPage = reset ? 0 : page.value + 1
     const response = await getReservationsWithFilters(buildPagedFilters(nextPage))
     if (!response.success || !response.data) {
@@ -938,11 +897,9 @@ async function confirmAction(header: string, message: string, confirmText: strin
 }
 
 async function refreshAfterMutation() {
-  const results = await Promise.allSettled([
-    loadStatistics(),
-    loadOrders(true),
-    roomStatusStore.refreshAll(),
-  ])
+  // 只标记房态数据过期，回到房态页时再按需刷新，避免在订单页触发整套日历请求
+  roomStatusStore.markStale()
+  const results = await Promise.allSettled([loadStatistics(), loadOrders(true)])
   for (const result of results) {
     if (result.status === 'rejected') {
       throw result.reason

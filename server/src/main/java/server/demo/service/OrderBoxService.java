@@ -99,6 +99,15 @@ public class OrderBoxService {
     }
 
     /**
+     * 查询某订单对应的订单盒子记录；不存在时返回 null。
+     */
+    public OrderBoxDTO getOrderBoxItemByReservationId(Long reservationId) {
+        return orderBoxRepository.findByReservationId(reservationId)
+                .map(this::convertToDTO)
+                .orElse(null);
+    }
+
+    /**
      * 检查订单是否可以移入订单盒子
      */
     public Map<String, Object> checkCanMoveToOrderBox(Long reservationId) {

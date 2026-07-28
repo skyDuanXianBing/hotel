@@ -33,6 +33,7 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.data.domain.Page;
 
 @RestController
 @RequestMapping("/api/v1/registrations")
@@ -99,6 +100,44 @@ public class RegistrationAdminController {
                         checkInEndDate,
                         checkOutStartDate,
                         checkOutEndDate
+                )
+        );
+    }
+
+    @GetMapping("/page")
+    @RequirePermission(module = PermissionModule.STATISTICS, action = PermissionAction.VIEW_STATS)
+    public ApiResponse<Page<AdminRegistrationListItemDTO>> listPage(
+            @RequestParam(name = "status", required = false) RegistrationFormStatus status,
+            @RequestParam(name = "channelId", required = false) Long channelId,
+            @RequestParam(name = "reservationStatus", required = false) ReservationStatus reservationStatus,
+            @RequestParam(name = "roomNumber", required = false) List<String> roomNumbers,
+            @RequestParam(name = "roomNumber[]", required = false) List<String> roomNumberAliases,
+            @RequestParam(name = "roomGroupId", required = false) Long roomGroupId,
+            @RequestParam(name = "checkInDate", required = false) LocalDate checkInDate,
+            @RequestParam(name = "checkOutDate", required = false) LocalDate checkOutDate,
+            @RequestParam(name = "checkInStartDate", required = false) LocalDate checkInStartDate,
+            @RequestParam(name = "checkInEndDate", required = false) LocalDate checkInEndDate,
+            @RequestParam(name = "checkOutStartDate", required = false) LocalDate checkOutStartDate,
+            @RequestParam(name = "checkOutEndDate", required = false) LocalDate checkOutEndDate,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size
+    ) {
+        return ApiResponse.success(
+                "ok",
+                registrationAdminService.listPage(
+                        status,
+                        channelId,
+                        reservationStatus,
+                        mergeRoomNumberFilters(roomNumbers, roomNumberAliases),
+                        roomGroupId,
+                        checkInDate,
+                        checkOutDate,
+                        checkInStartDate,
+                        checkInEndDate,
+                        checkOutStartDate,
+                        checkOutEndDate,
+                        page,
+                        size
                 )
         );
     }

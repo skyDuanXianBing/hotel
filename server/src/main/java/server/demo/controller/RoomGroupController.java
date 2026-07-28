@@ -8,6 +8,7 @@ import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.RoomGroupDTO;
 import server.demo.dto.RoomGroupMemberDTO;
+import server.demo.dto.RoomGroupWithMembersDTO;
 import server.demo.entity.RoomGroup;
 import server.demo.entity.RoomGroupMember;
 import server.demo.service.RoomGroupService;
@@ -28,6 +29,18 @@ public class RoomGroupController extends BaseStoreController {
             return ResponseEntity.ok(ApiResponse.success("获取分组列表成功", roomGroupService.getAllForCurrentStore()));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error("获取分组列表失败: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/with-members")
+    public ResponseEntity<ApiResponse<List<RoomGroupWithMembersDTO>>> getAllWithMembers() {
+        try {
+            return ResponseEntity.ok(ApiResponse.success(
+                    "获取分组及成员成功",
+                    roomGroupService.getAllWithMembersForCurrentStore()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error("获取分组及成员失败: " + e.getMessage()));
         }
     }
 

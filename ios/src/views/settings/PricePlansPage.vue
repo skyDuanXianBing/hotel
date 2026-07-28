@@ -169,7 +169,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import SettingsCrudPage from '@/components/settings/families/SettingsCrudPage.vue'
 import {
-  countRoomTypesByPricePlan,
+  countRoomTypesByPricePlans,
   createPricePlan,
   deletePricePlan,
   forceDeletePricePlan,
@@ -285,17 +285,15 @@ async function loadPlans() {
       throw new Error(response.message || t('settingsStage4.pricePlan.messages.loadPricePlansFailed'))
     }
 
+    const countResponse = await countRoomTypesByPricePlans()
+    const countMap =
+      countResponse.success && countResponse.data ? countResponse.data : ({} as Record<string, number>)
+
     const nextPlans: PricePlanView[] = []
 
     for (const plan of response.data) {
-      let roomTypeCount = 0
-
-      if (plan.id) {
-        const countResponse = await countRoomTypesByPricePlan(plan.id)
-        if (countResponse.success && typeof countResponse.data === 'number') {
-          roomTypeCount = countResponse.data
-        }
-      }
+      const roomTypeCount =
+        plan.id != null ? Number(countMap[String(plan.id)] ?? 0) : 0
 
       nextPlans.push({
         ...plan,

@@ -188,8 +188,7 @@ import {
   addRoomsToGroup,
   createRoomGroup,
   deleteRoomGroup,
-  getAllRoomGroups,
-  getGroupMembers,
+  getAllRoomGroupsWithMembers,
   removeRoomsFromGroup,
   updateRoomGroup,
 } from '@/api/roomGroup'
@@ -279,7 +278,10 @@ async function confirmDelete(name: string) {
 async function loadPageData() {
   loading.value = true
   try {
-    const [groupResponse, roomResponse] = await Promise.all([getAllRoomGroups(), getRooms()])
+    const [groupResponse, roomResponse] = await Promise.all([
+      getAllRoomGroupsWithMembers(),
+      getRooms(),
+    ])
     if (!groupResponse.success || !groupResponse.data) {
       throw new Error(groupResponse.message || t('settingsStage4.roomSort.messages.loadGroupsFailed'))
     }
@@ -288,19 +290,13 @@ async function loadPageData() {
     }
 
     rooms.value = roomResponse.data
-    const nextGroups: RoomGroupView[] = []
-    for (const group of groupResponse.data) {
-      const memberResponse = group.id ? await getGroupMembers(group.id) : null
-      nextGroups.push({
+    groups.value = groupResponse.data
+      .filter((group): group is typeof group & { id: number } => typeof group.id === 'number')
+      .map((group) => ({
         ...group,
-        id: Number(group.id),
-        memberRoomIds:
-          memberResponse?.success && memberResponse.data
-            ? memberResponse.data.map((item) => item.roomId)
-            : [],
-      })
-    }
-    groups.value = nextGroups
+        id: group.id,
+        memberRoomIds: (group.members || []).map((item) => item.roomId),
+      }))
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, t('settingsStage4.roomGroup.messages.loadGroupsFailed')))

@@ -305,4 +305,60 @@ class SuMessagingControllerTest {
         assertEquals(PermissionModule.ORDER, permission.module());
         assertEquals(PermissionAction.MODIFY_ORDER, permission.action());
     }
+
+    @Test
+    void getThread_shouldExposeEndpointUseStoreContextAndReturnThread() throws Exception {
+        SuMessagingService suMessagingService = mock(SuMessagingService.class);
+        SuMessagingController controller = new SuMessagingController(
+                suMessagingService,
+                mock(SuMessagingAiSettingService.class),
+                mock(RegistrationLinkInboxService.class)
+        );
+        SuMessagingThreadDTO thread = new SuMessagingThreadDTO();
+        thread.setId(77L);
+        thread.setGuestName("Alice");
+        when(suMessagingService.getThread(26L, 77L)).thenReturn(thread);
+
+        StoreContextHolder.setContext(new StoreContext(1L, 26L, "OWNER"));
+        try {
+            ResponseEntity<ApiResponse<SuMessagingThreadDTO>> response = controller.getThread(77L);
+
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertTrue(response.getBody().isSuccess());
+            assertEquals(77L, response.getBody().getData().getId());
+            assertEquals("Alice", response.getBody().getData().getGuestName());
+            verify(suMessagingService).getThread(26L, 77L);
+        } finally {
+            StoreContextHolder.clear();
+        }
+
+        Method method = SuMessagingController.class.getMethod("getThread", Long.class);
+        GetMapping mapping = method.getAnnotation(GetMapping.class);
+        assertNotNull(mapping);
+        assertEquals("/threads/{threadId}", mapping.value()[0]);
+    }
+
+    @Test
+    void getThread_shouldReturnBadRequestWhenThreadMissing() {
+        SuMessagingService suMessagingService = mock(SuMessagingService.class);
+        SuMessagingController controller = new SuMessagingController(
+                suMessagingService,
+                mock(SuMessagingAiSettingService.class),
+                mock(RegistrationLinkInboxService.class)
+        );
+        when(suMessagingService.getThread(26L, 77L))
+                .thenThrow(new IllegalArgumentException("Thread not found or no permission"));
+
+        StoreContextHolder.setContext(new StoreContext(1L, 26L, "OWNER"));
+        try {
+            ResponseEntity<ApiResponse<SuMessagingThreadDTO>> response = controller.getThread(77L);
+
+            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertFalse(response.getBody().isSuccess());
+        } finally {
+            StoreContextHolder.clear();
+        }
+    }
 }

@@ -377,7 +377,7 @@ watch(
 )
 
 onIonViewWillEnter(async () => {
-  await Promise.all([loadRecordDetail(), reviewStore.refreshRecords(), loadQuickReplies()])
+  await Promise.all([loadRecordDetail(), loadQuickReplies()])
 })
 
 function buildDecisionNote(fallbackText: string) {
@@ -598,6 +598,8 @@ async function loadRecordDetail() {
     const detail = await getRegistrationReviewDetail(formId.value)
     record.value = detail
     reviewNote.value = detail.reviewNote || ''
+    // 就地同步列表缓存，代替回列表页前的全量刷新
+    reviewStore.syncRecord(detail)
     return true
   } catch (error) {
     record.value = null
@@ -625,7 +627,7 @@ async function handleApprove() {
       'stage5Final.review.approved',
       'stage5.dataCenter.detail.approveWithMessageSuccess',
     )
-    await Promise.all([loadRecordDetail(), reviewStore.refreshRecords()])
+    await loadRecordDetail()
   } catch (error) {
     showUnhandledRequestWarning(error, t('stage5Final.review.approveFailed'))
   } finally {
@@ -650,7 +652,7 @@ async function handleReject() {
       'stage5Final.review.rejected',
       'stage5.dataCenter.detail.rejectWithMessageSuccess',
     )
-    await Promise.all([loadRecordDetail(), reviewStore.refreshRecords()])
+    await loadRecordDetail()
   } catch (error) {
     showUnhandledRequestWarning(error, t('stage5Final.review.rejectFailed'))
   } finally {
@@ -659,7 +661,7 @@ async function handleReject() {
 }
 
 async function handleReload() {
-  await Promise.all([loadRecordDetail(), reviewStore.refreshRecords()])
+  await loadRecordDetail()
 }
 
 async function handleBackToList() {

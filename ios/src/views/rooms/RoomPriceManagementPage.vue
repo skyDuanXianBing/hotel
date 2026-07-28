@@ -457,7 +457,7 @@ import {
   type RoomPriceManagementDTO,
   type UpdatePriceByPlanRequest,
 } from '@/api/roomPrice'
-import { getAllRoomGroups, getGroupMembers } from '@/api/roomGroup'
+import { getAllRoomGroupsWithMembers } from '@/api/roomGroup'
 import { getAllRoomTypes, getAllRoomTypesWithRooms, type RoomTypeDTO } from '@/api/roomType'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useStoreStore } from '@/stores/store'
@@ -553,7 +553,7 @@ interface BulkFormState {
   notes: string
 }
 
-const DEFAULT_WINDOW_DAYS = 30
+const DEFAULT_WINDOW_DAYS = 14
 const WINDOW_DAY_PRESETS = [7, 14, 30]
 const FULL_WEEKDAY_VALUES = [1, 2, 3, 4, 5, 6, 7]
 const ALL_WEEKDAY_VALUES = [0, ...FULL_WEEKDAY_VALUES]
@@ -1132,7 +1132,7 @@ async function loadReferenceData() {
   const [roomTypeResponse, roomTypeWithRoomsResponse, roomGroupResponse] = await Promise.all([
     getAllRoomTypes(),
     getAllRoomTypesWithRooms(),
-    getAllRoomGroups(),
+    getAllRoomGroupsWithMembers(),
   ])
 
   if (!roomTypeResponse.success || !roomTypeResponse.data) {
@@ -1148,8 +1148,20 @@ async function loadReferenceData() {
     return
   }
 
-  roomGroups.value = roomGroupResponse.data.filter(
-    (group): group is RoomGroupOption => typeof group.id === 'number',
+  roomGroups.value = roomGroupResponse.data
+    .filter((group): group is typeof group & { id: number } => typeof group.id === 'number')
+    .map((group) => ({
+      id: group.id,
+      name: group.name,
+      description: group.description,
+      createdAt: group.createdAt,
+      updatedAt: group.updatedAt,
+    }))
+
+  const membersByGroupId = new Map(
+    roomGroupResponse.data
+      .filter((group): group is typeof group & { id: number } => typeof group.id === 'number')
+      .map((group) => [group.id, group.members || []] as const),
   )
 
   if (!roomTypeWithRoomsResponse.success || !roomTypeWithRoomsResponse.data) {
@@ -1165,32 +1177,16 @@ async function loadReferenceData() {
     }
   }
 
-  const groupMemberResults = await Promise.all(
-    roomGroups.value.map(async (group) => {
-      try {
-        const memberResponse = await getGroupMembers(group.id)
-        if (!memberResponse.success || !memberResponse.data) {
-          return { groupId: group.id, roomTypeIds: [] as number[] }
-        }
-
-        const roomTypeIds = Array.from(
-          new Set(
-            memberResponse.data
-              .map((member) => roomIdToRoomTypeId.get(member.roomId))
-              .filter((roomTypeId): roomTypeId is number => typeof roomTypeId === 'number'),
-          ),
-        )
-
-        return { groupId: group.id, roomTypeIds }
-      } catch {
-        return { groupId: group.id, roomTypeIds: [] as number[] }
-      }
-    }),
-  )
-
   const nextMap: Record<number, number[]> = {}
-  for (const result of groupMemberResults) {
-    nextMap[result.groupId] = result.roomTypeIds
+  for (const group of roomGroups.value) {
+    const members = membersByGroupId.get(group.id) || []
+    nextMap[group.id] = Array.from(
+      new Set(
+        members
+          .map((member) => roomIdToRoomTypeId.get(member.roomId))
+          .filter((roomTypeId): roomTypeId is number => typeof roomTypeId === 'number'),
+      ),
+    )
   }
 
   roomGroupRoomTypeIdsMap.value = nextMap

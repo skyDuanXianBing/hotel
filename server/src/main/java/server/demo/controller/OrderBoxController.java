@@ -72,6 +72,20 @@ public class OrderBoxController {
     }
 
     /**
+     * 查询某订单对应的订单盒子记录；不存在时 data 为 null。
+     * 订单详情页用它替代全量列表查询。
+     */
+    @GetMapping("/by-reservation/{reservationId}")
+    public ApiResponse<OrderBoxDTO> getOrderBoxItemByReservation(@PathVariable Long reservationId) {
+        try {
+            OrderBoxDTO orderBox = orderBoxService.getOrderBoxItemByReservationId(reservationId);
+            return ApiResponse.success(orderBox);
+        } catch (Exception e) {
+            return ApiResponse.error("查询订单盒子记录失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 检查订单是否可以移入订单盒子
      */
     @GetMapping("/check/{reservationId}")

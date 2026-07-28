@@ -781,14 +781,9 @@ function buildDeleteFailureMessage(message: string, blockInfo: RoomTypeDeleteBlo
   return result
 }
 
-async function syncRoomStatus() {
-  try {
-    await roomStatusStore.refreshAll()
-  } catch (error) {
-    if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, t('stage5Pattern.refreshFailed')))
-    }
-  }
+function syncRoomStatus() {
+  // 房型变化只标记房态数据过期，等用户回到房态页再刷新
+  roomStatusStore.markStale()
 }
 
 async function loadRoomTypes() {
@@ -1215,7 +1210,7 @@ async function handleSaveRoomType() {
     editorOpen.value = false
     resetEditorState()
     await loadRoomTypes()
-    await syncRoomStatus()
+    syncRoomStatus()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       const fallbackMessage = editingRoomType.value
@@ -1245,7 +1240,7 @@ async function handleDeleteRoomType(roomType: RoomTypeView) {
 
     showSuccessToast(t('stage5Pattern.deleteCompleted'))
     await loadRoomTypes()
-    await syncRoomStatus()
+    syncRoomStatus()
   } catch (error) {
     const message = resolveWarningMessage(error, t('stage5Pattern.deleteFailed'))
     await presentAlert(t('stage5Pattern.deleteFailed'), message)

@@ -51,6 +51,30 @@ export const getNotificationMessagesByType = (
   })
 }
 
+export const getSystemGroupNotifications = (
+  userId: number,
+  page = 0,
+  size = 25,
+  isRead?: boolean,
+  keyword?: string,
+) => {
+  const params: Record<string, string | number | boolean> = { userId, page, size }
+
+  if (typeof isRead === 'boolean') {
+    params.isRead = isRead
+  }
+
+  if (keyword && keyword.trim()) {
+    params.keyword = keyword.trim()
+  }
+
+  return request<ApiResponse<NotificationPageResponse<NotificationMessageDTO>>>({
+    url: '/notifications/groups/system',
+    method: 'GET',
+    params,
+  })
+}
+
 export const getUnreadNotificationCount = (userId: number) => {
   return request<ApiResponse<number>>({
     url: '/notifications/unread-count',

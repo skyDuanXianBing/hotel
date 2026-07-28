@@ -25,7 +25,9 @@ import server.demo.util.StoreContextUtils;
 import server.demo.util.SuHotelIdUtil;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -371,6 +373,20 @@ public class PricePlanService {
 
     public long countRoomTypesByPricePlan(Long pricePlanId) {
         return roomTypePricePlanRepository.countByPricePlanId(pricePlanId);
+    }
+
+    /**
+     * 一次返回门店下各价格计划关联的房型数量，避免列表页逐条 count N+1。
+     */
+    public Map<Long, Long> countRoomTypesByPricePlanForCurrentStore() {
+        Map<Long, Long> counts = new HashMap<>();
+        for (Object[] row : roomTypePricePlanRepository.countRoomTypesGroupedByPricePlanId(currentStoreId())) {
+            if (row == null || row.length < 2 || row[0] == null || row[1] == null) {
+                continue;
+            }
+            counts.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue());
+        }
+        return counts;
     }
 
     private void applyAssignRequest(RoomTypePricePlan entity, AssignRoomTypePricePlanRequest request) {

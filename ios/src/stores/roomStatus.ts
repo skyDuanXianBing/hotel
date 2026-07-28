@@ -9,7 +9,7 @@ import {
   type DailyRoomStatusDTO,
   type RoomStatusStatisticsDTO,
 } from '@/api/roomStatus'
-import { getAllRoomGroups, getGroupMembers } from '@/api/roomGroup'
+import { getAllRoomGroupsWithMembers } from '@/api/roomGroup'
 import { getRoomPriceManagementData } from '@/api/roomPrice'
 import { getPricePlansByRoomType } from '@/api/pricePlan'
 import { getAllRoomTypesWithRooms } from '@/api/roomType'
@@ -23,7 +23,7 @@ import {
 import { getSortOrderMap } from '@/api/sortConfig'
 import { useUserStore } from '@/stores/user'
 import { i18n } from '@/locales'
-import type { RoomGroupDTO, RoomGroupMemberDTO } from '@/types/settings'
+import type { RoomGroupWithMembersDTO } from '@/types/settings'
 import { compareLocalizedText } from '@/utils/formatters'
 import { showSuccessToast } from '@/utils/notify'
 import {
@@ -867,13 +867,8 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     await task
   }
 
-  async function hydrateMissingReservationAmounts(targetDate = selectedDate.value, roomId?: number) {
-    const reservationIds = collectMissingReservationIds(targetDate, roomId)
-    if (reservationIds.length === 0) {
-      return
-    }
-
-    await Promise.all(reservationIds.map((reservationId) => hydrateReservationAmount(reservationId)))
+  async function hydrateMissingReservationAmounts(_targetDate = selectedDate.value, _roomId?: number) {
+    // 日历接口已下发 reservation.totalAmount，不再对缺失金额逐条调 getReservationById（N+1）
   }
 
   function resetSortContext() {
@@ -904,7 +899,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
           getSortOrderMap(userId, 'ROOM'),
           getSortOrderMap(userId, 'GROUP'),
           getAllRoomTypesWithRooms(),
-          getAllRoomGroups(),
+          getAllRoomGroupsWithMembers(),
         ])
 
       if (roomTypeSortResult.status === 'rejected') {
@@ -973,31 +968,14 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
         roomGroupsResult.value.success &&
         Array.isArray(roomGroupsResult.value.data)
       ) {
+        // with-members 一次返回分组与成员，避免按分组逐个请求 N+1
         const roomGroups = roomGroupsResult.value.data.filter(
-          (group: RoomGroupDTO) => typeof group.id === 'number',
-        ) as Array<RoomGroupDTO & { id: number }>
+          (group: RoomGroupWithMembersDTO) => typeof group.id === 'number',
+        ) as Array<RoomGroupWithMembersDTO & { id: number }>
 
-        const memberResponses = await Promise.all(
-          roomGroups.map(async (group) => {
-            try {
-              const response = await getGroupMembers(group.id)
-              if (!response.success || !Array.isArray(response.data)) {
-                return [] as RoomGroupMemberDTO[]
-              }
-              return response.data
-            } catch (error) {
-              console.error(`加载房间分组成员失败，groupId=${group.id}`, error)
-              return [] as RoomGroupMemberDTO[]
-            }
-          }),
-        )
-
-        for (let index = 0; index < roomGroups.length; index += 1) {
-          const group = roomGroups[index]
-          const members = memberResponses[index]
+        for (const group of roomGroups) {
           const groupSortOrder = roomGroupSortOrderMap[group.id] ?? DEFAULT_SORT_ORDER
-
-          for (const member of members) {
+          for (const member of group.members || []) {
             const previousSortOrder = nextRoomToGroupSortOrderMap.get(member.roomId)
             if (previousSortOrder === undefined || groupSortOrder < previousSortOrder) {
               nextRoomToGroupSortOrderMap.set(member.roomId, groupSortOrder)
@@ -1284,6 +1262,24 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     channels.value = response.data.filter((item) => item.enabled)
   }
 
+  // 回到房态页时的刷新节流：只有数据被标记过期或超过 TTL 才全量重拉
+  const ENTER_REFRESH_TTL_MS = 60000
+  let lastFullRefreshAt = 0
+  let calendarStale = false
+
+  function markStale() {
+    calendarStale = true
+  }
+
+  function shouldRefreshOnEnter() {
+    return calendarStale || Date.now() - lastFullRefreshAt > ENTER_REFRESH_TTL_MS
+  }
+
+  function markFreshlyRefreshed() {
+    lastFullRefreshAt = Date.now()
+    calendarStale = false
+  }
+
   async function initialize(force = false) {
     if (!force && calendarRooms.value.length > 0 && channels.value.length > 0) {
       await loadSortContext(false)
@@ -1296,6 +1292,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     try {
       await Promise.all([loadCalendar(), loadStatistics(), loadChannels(force), loadSortContext(force)])
       await hydrateMissingReservationAmounts()
+      markFreshlyRefreshed()
     } finally {
       loading.value = false
     }
@@ -1314,6 +1311,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
       await Promise.all(loadTasks)
       await hydrateMissingReservationAmounts()
+      markFreshlyRefreshed()
     } finally {
       loading.value = false
     }
@@ -1616,6 +1614,8 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     summaryCards,
     initialize,
     refreshAll,
+    markStale,
+    shouldRefreshOnEnter,
     setSelectedDate,
     shiftWindow,
     goToday,

@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { getMessageThreads } from '@/api/message'
+import { getMessageUnreadSummary } from '@/api/message'
 import { getNotificationSettings } from '@/api/notification'
 import { i18n } from '@/locales'
 import { buildMessageDetailPath } from '@/router/guards'
@@ -136,8 +136,9 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
   }
 
   const syncMessageThreads = (threads: MessageThreadDTO[]) => {
+    // 只缓存会话摘要供其它页面复用；未读角标由 unread-summary 轮询维护，
+    // 分页后的部分列表不能用来重算总未读数
     messageThreads.value = [...threads]
-    syncUnreadMessageCount(messageThreads.value)
   }
 
   const stop = () => {
@@ -197,12 +198,13 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     }
 
     try {
-      const nextResponse = await getMessageThreads()
+      // 轮询只需要未读角标数量，改用轻量汇总接口，避免每 15 秒拉一次全量会话列表
+      const nextResponse = await getMessageUnreadSummary()
       if (!nextResponse.success || !nextResponse.data) {
         return
       }
 
-      syncMessageThreads(nextResponse.data)
+      unreadMessageCount.value = Number(nextResponse.data.totalUnread) || 0
       return
     } catch {
       return

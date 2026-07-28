@@ -49,6 +49,14 @@ public interface RoomTypePricePlanRepository extends JpaRepository<RoomTypePrice
     @Query("SELECT COUNT(rtp) FROM RoomTypePricePlan rtp WHERE rtp.pricePlan.id = :pricePlanId")
     long countByPricePlanId(@Param("pricePlanId") Long pricePlanId);
 
+    @Query("""
+            SELECT rtp.pricePlan.id, COUNT(rtp)
+            FROM RoomTypePricePlan rtp
+            WHERE rtp.storeId = :storeId
+            GROUP BY rtp.pricePlan.id
+            """)
+    List<Object[]> countRoomTypesGroupedByPricePlanId(@Param("storeId") Long storeId);
+
     @Query("SELECT rtp FROM RoomTypePricePlan rtp " +
             "JOIN FETCH rtp.roomType " +
             "JOIN FETCH rtp.pricePlan " +

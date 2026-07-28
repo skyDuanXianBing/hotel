@@ -49,6 +49,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -1175,6 +1176,46 @@ class SuMessagingServiceTest {
         assertTrue(json.has("byChannel"));
         assertFalse(json.has("unreadMessageCount"));
         assertFalse(json.has("channels"));
+    }
+
+    @Test
+    void getThread_shouldReturnSingleThreadSummary() {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        SuMessagingService service = newService(threadRepository, messageRepository, reservationRepository);
+        SuMessageThread thread = newThread(10L, SuMessagingService.CHANNEL_AIRBNB, "T1", "B1", "B");
+
+        when(threadRepository.findByStoreIdAndId(26L, 10L)).thenReturn(Optional.of(thread));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(
+                10L,
+                SuMessagingSenderType.GUEST
+        )).thenReturn(2L);
+
+        SuMessagingThreadDTO result = service.getThread(26L, 10L);
+
+        assertEquals(10L, result.getId());
+        assertEquals("Guest 10", result.getGuestName());
+        assertEquals("T1", result.getThreadId());
+        assertEquals("B1", result.getBookingId());
+        assertEquals(2L, result.getUnreadCount());
+        assertEquals("Airbnb", result.getChannelName());
+    }
+
+    @Test
+    void getThread_shouldRejectMissingThread() {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        SuMessagingService service = newService(threadRepository, messageRepository, reservationRepository);
+
+        when(threadRepository.findByStoreIdAndId(26L, 99L)).thenReturn(Optional.empty());
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.getThread(26L, 99L)
+        );
+        assertEquals("Thread not found or no permission", error.getMessage());
     }
 
     @Test

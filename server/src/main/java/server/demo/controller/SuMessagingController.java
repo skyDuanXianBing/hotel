@@ -94,6 +94,19 @@ public class SuMessagingController {
         }
     }
 
+    @GetMapping("/threads/{threadId}")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<SuMessagingThreadDTO>> getThread(@PathVariable Long threadId) {
+        try {
+            Long storeId = StoreContextHolder.getContext().getStoreId();
+            return ResponseEntity.ok(ApiResponse.success(suMessagingService.getThread(storeId, threadId)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.error("获取会话失败: " + e.getMessage()));
+        }
+    }
+
     @GetMapping("/threads/{threadId}/messages")
     @StoreScoped
     public ResponseEntity<ApiResponse<List<SuMessagingMessageDTO>>> getMessages(@PathVariable Long threadId) {

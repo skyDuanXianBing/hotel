@@ -3,7 +3,8 @@ import { PUBLIC_API_BASE_URL } from '@/constants/api'
 import { i18n } from '@/locales'
 import { sanitizeUserFacingMessage, showErrorToast } from '@/utils/notify'
 
-const REQUEST_TIMEOUT = 10000
+// 与 client 端 request.ts 的 DEFAULT_API_TIMEOUT_MS 对齐
+const REQUEST_TIMEOUT = 60000
 const REQUEST_ERROR_HANDLED_KEY = 'toastHandled'
 const REQUEST_ERROR_STATUS_KEY = 'status'
 

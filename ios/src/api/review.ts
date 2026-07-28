@@ -116,6 +116,17 @@ export interface RegistrationReviewListParams {
   channelId?: number
   checkInDate?: string
   checkOutDate?: string
+  page?: number
+  size?: number
+}
+
+export interface RegistrationReviewListPage {
+  items: ReviewRecord[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  hasNext: boolean
 }
 
 const unwrapApiResponse = <T>(response: ApiResponse<T>, fallbackMessage: string) => {
@@ -480,6 +491,44 @@ export const getRegistrationReviewList = async (params?: RegistrationReviewListP
   const items = unwrapApiResponse(response, reviewText('loadListFailed'))
 
   return items.map((item) => mapRegistrationListItem(item))
+}
+
+export const getRegistrationReviewListPage = async (
+  params?: RegistrationReviewListParams,
+): Promise<RegistrationReviewListPage> => {
+  const page = params?.page ?? 0
+  const size = params?.size ?? 20
+  const response = await request.get<
+    ApiResponse<{
+      content: RegistrationListItemDTO[]
+      totalElements: number
+      totalPages: number
+      size: number
+      number: number
+    }>
+  >('/registrations/page', {
+    params: {
+      status: mapFilterStatusToBackend(params?.status),
+      channelId: params?.channelId,
+      checkInDate: params?.checkInDate,
+      checkOutDate: params?.checkOutDate,
+      page,
+      size,
+    },
+  })
+  const pageData = unwrapApiResponse(response, reviewText('loadListFailed'))
+  const items = (pageData.content || []).map((item) => mapRegistrationListItem(item))
+  const totalPages = Number(pageData.totalPages ?? 0)
+  const currentPage = Number(pageData.number ?? page)
+
+  return {
+    items,
+    page: currentPage,
+    size: Number(pageData.size ?? size),
+    totalElements: Number(pageData.totalElements ?? items.length),
+    totalPages,
+    hasNext: currentPage + 1 < totalPages,
+  }
 }
 
 export const getRegistrationLinkInbox = async () => {

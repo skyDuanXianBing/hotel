@@ -1,10 +1,22 @@
 import request from '@/utils/request'
 import type { ApiResponse } from '@/types/api'
-import type { RoomGroupDTO, RoomGroupMemberBatchDTO, RoomGroupMemberDTO } from '@/types/settings'
+import type {
+  RoomGroupDTO,
+  RoomGroupMemberBatchDTO,
+  RoomGroupMemberDTO,
+  RoomGroupWithMembersDTO,
+} from '@/types/settings'
 
 export const getAllRoomGroups = () => {
   return request<ApiResponse<RoomGroupDTO[]>>({
     url: '/room-groups',
+    method: 'GET',
+  })
+}
+
+export const getAllRoomGroupsWithMembers = () => {
+  return request<ApiResponse<RoomGroupWithMembersDTO[]>>({
+    url: '/room-groups/with-members',
     method: 'GET',
   })
 }

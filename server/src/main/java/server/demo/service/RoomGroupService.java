@@ -3,6 +3,7 @@ package server.demo.service;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import server.demo.dto.RoomGroupWithMembersDTO;
 import server.demo.entity.Room;
 import server.demo.entity.RoomGroup;
 import server.demo.entity.RoomGroupMember;
@@ -12,6 +13,8 @@ import server.demo.repository.RoomRepository;
 import server.demo.util.StoreContextUtils;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class RoomGroupService {
@@ -35,6 +38,24 @@ public class RoomGroupService {
 
     public List<RoomGroup> getAllForCurrentStore() {
         return roomGroupRepository.findByStoreId(currentStoreId());
+    }
+
+    /**
+     * 分组连同成员两条查询取完，避免客户端逐分组请求成员的 N+1。
+     */
+    public List<RoomGroupWithMembersDTO> getAllWithMembersForCurrentStore() {
+        Long storeId = currentStoreId();
+        List<RoomGroup> groups = roomGroupRepository.findByStoreId(storeId);
+        Map<Long, List<RoomGroupMember>> membersByGroupId = roomGroupMemberRepository.findByStoreId(storeId)
+                .stream()
+                .collect(Collectors.groupingBy(RoomGroupMember::getGroupId));
+
+        return groups.stream()
+                .map(group -> new RoomGroupWithMembersDTO(
+                        group,
+                        membersByGroupId.getOrDefault(group.getId(), List.of())
+                ))
+                .collect(Collectors.toList());
     }
 
     public RoomGroup getById(Long id) {

@@ -17,6 +17,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
 @Service
@@ -107,6 +108,70 @@ public class RegistrationAdminService {
         );
 
         return forms.stream().map(this::toListItem).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<AdminRegistrationListItemDTO> listPage(
+            RegistrationFormStatus status,
+            Long channelId,
+            ReservationStatus reservationStatus,
+            List<String> roomNumbers,
+            Long roomGroupId,
+            LocalDate checkInDate,
+            LocalDate checkOutDate,
+            LocalDate checkInStartDate,
+            LocalDate checkInEndDate,
+            LocalDate checkOutStartDate,
+            LocalDate checkOutEndDate,
+            int page,
+            int size
+    ) {
+        Long storeId = StoreContextUtils.requireStoreId();
+        List<String> normalizedRoomNumbers = normalizeRoomNumbers(roomNumbers);
+        boolean roomNumberFilterEnabled = normalizedRoomNumbers != null;
+        List<String> queryRoomNumbers = roomNumberFilterEnabled
+                ? normalizedRoomNumbers
+                : List.of(ROOM_NUMBER_FILTER_SENTINEL);
+        LocalDate effectiveCheckInStartDate = resolveRangeStart(
+                checkInDate,
+                checkInStartDate,
+                checkInEndDate
+        );
+        LocalDate effectiveCheckInEndDate = resolveRangeEnd(
+                checkInDate,
+                checkInStartDate,
+                checkInEndDate
+        );
+        LocalDate effectiveCheckOutStartDate = resolveRangeStart(
+                checkOutDate,
+                checkOutStartDate,
+                checkOutEndDate
+        );
+        LocalDate effectiveCheckOutEndDate = resolveRangeEnd(
+                checkOutDate,
+                checkOutStartDate,
+                checkOutEndDate
+        );
+
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        Page<RegistrationForm> formPage = registrationFormRepository.searchForAdminListPage(
+                storeId,
+                status,
+                channelId,
+                reservationStatus,
+                reservationStatus == ReservationStatus.CANCELLED,
+                roomNumberFilterEnabled,
+                queryRoomNumbers,
+                roomGroupId,
+                effectiveCheckInStartDate,
+                effectiveCheckInEndDate,
+                effectiveCheckOutStartDate,
+                effectiveCheckOutEndDate,
+                PageRequest.of(safePage, safeSize)
+        );
+
+        return formPage.map(this::toListItem);
     }
 
     @Transactional(readOnly = true)

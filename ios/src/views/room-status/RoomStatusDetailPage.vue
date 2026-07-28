@@ -222,7 +222,8 @@ async function handleBookingSubmit(payload: BookingFormSubmitPayload) {
         : t('stage5Final.roomStatus.reservationCreated'),
     )
     showBookingModal.value = false
-    await roomStatusStore.refreshAll()
+    // 回房态页时按需刷新即可，不在这里同步等待整套日历请求
+    roomStatusStore.markStale()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, t('stage5Pattern.submitFailed')))

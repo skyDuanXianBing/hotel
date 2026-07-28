@@ -3,12 +3,12 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 
 const apiMocks = vi.hoisted(() => ({
-  getMessageThreads: vi.fn(),
+  getMessageUnreadSummary: vi.fn(),
   getNotificationSettings: vi.fn(),
 }))
 
 vi.mock('@/api/message', () => ({
-  getMessageThreads: apiMocks.getMessageThreads,
+  getMessageUnreadSummary: apiMocks.getMessageUnreadSummary,
 }))
 
 vi.mock('@/api/notification', () => ({
@@ -19,12 +19,12 @@ describe('notificationCenter store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     window.localStorage.clear()
-    apiMocks.getMessageThreads.mockReset()
+    apiMocks.getMessageUnreadSummary.mockReset()
     apiMocks.getNotificationSettings.mockReset()
     apiMocks.getNotificationSettings.mockResolvedValue({ success: true, data: null })
   })
 
-  it('does not request message threads without an authenticated session', async () => {
+  it('does not request message unread summary without an authenticated session', async () => {
     window.localStorage.setItem('user', JSON.stringify({ id: 1 }))
     window.localStorage.setItem('currentStore', JSON.stringify({ id: 10 }))
 
@@ -33,6 +33,6 @@ describe('notificationCenter store', () => {
     await notificationCenterStore.start(1)
 
     expect(notificationCenterStore.started).toBe(false)
-    expect(apiMocks.getMessageThreads).not.toHaveBeenCalled()
+    expect(apiMocks.getMessageUnreadSummary).not.toHaveBeenCalled()
   })
 })

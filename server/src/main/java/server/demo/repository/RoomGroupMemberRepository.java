@@ -10,6 +10,8 @@ import java.util.Optional;
 @Repository
 public interface RoomGroupMemberRepository extends JpaRepository<RoomGroupMember, Long> {
 
+    List<RoomGroupMember> findByStoreId(Long storeId);
+
     List<RoomGroupMember> findByStoreIdAndGroupId(Long storeId, Long groupId);
 
     Optional<RoomGroupMember> findByStoreIdAndRoomId(Long storeId, Long roomId);

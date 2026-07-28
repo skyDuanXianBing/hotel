@@ -1,5 +1,7 @@
 package server.demo.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -13,7 +15,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.domain.Pageable;
 
 @Repository
 public interface RegistrationFormRepository extends JpaRepository<RegistrationForm, Long> {
@@ -141,6 +142,77 @@ public interface RegistrationFormRepository extends JpaRepository<RegistrationFo
             @Param("checkInEndDate") LocalDate checkInEndDate,
             @Param("checkOutStartDate") LocalDate checkOutStartDate,
             @Param("checkOutEndDate") LocalDate checkOutEndDate
+    );
+
+    /**
+     * 管理端审查列表分页版。不用 JOIN FETCH，避免分页 + fetch 冲突；
+     * 关联在事务内由 toListItem 懒加载即可。
+     */
+    @Query(
+            value = """
+            SELECT f FROM RegistrationForm f
+            JOIN f.reservation r
+            JOIN r.channel c
+            LEFT JOIN r.room room
+            WHERE f.storeId = :storeId
+              AND (:status IS NULL OR f.status = :status)
+              AND (:channelId IS NULL OR c.id = :channelId)
+              AND (:reservationStatus IS NULL OR r.status = :reservationStatus)
+              AND (:includeCancelledArchive = true
+                    OR r.status IS NULL
+                    OR r.status <> server.demo.enums.ReservationStatus.CANCELLED)
+              AND (:roomNumberFilterEnabled = false OR room.roomNumber IN :roomNumbers OR r.otaRoomNumber IN :roomNumbers)
+              AND (:roomGroupId IS NULL OR EXISTS (
+                    SELECT rgm.id FROM RoomGroupMember rgm
+                    WHERE rgm.storeId = :storeId
+                      AND rgm.groupId = :roomGroupId
+                      AND rgm.roomId = room.id
+              ))
+              AND (:checkInStartDate IS NULL OR r.checkInDate >= :checkInStartDate)
+              AND (:checkInEndDate IS NULL OR r.checkInDate <= :checkInEndDate)
+              AND (:checkOutStartDate IS NULL OR r.checkOutDate >= :checkOutStartDate)
+              AND (:checkOutEndDate IS NULL OR r.checkOutDate <= :checkOutEndDate)
+            ORDER BY f.updatedAt DESC
+            """,
+            countQuery = """
+            SELECT COUNT(f) FROM RegistrationForm f
+            JOIN f.reservation r
+            JOIN r.channel c
+            LEFT JOIN r.room room
+            WHERE f.storeId = :storeId
+              AND (:status IS NULL OR f.status = :status)
+              AND (:channelId IS NULL OR c.id = :channelId)
+              AND (:reservationStatus IS NULL OR r.status = :reservationStatus)
+              AND (:includeCancelledArchive = true
+                    OR r.status IS NULL
+                    OR r.status <> server.demo.enums.ReservationStatus.CANCELLED)
+              AND (:roomNumberFilterEnabled = false OR room.roomNumber IN :roomNumbers OR r.otaRoomNumber IN :roomNumbers)
+              AND (:roomGroupId IS NULL OR EXISTS (
+                    SELECT rgm.id FROM RoomGroupMember rgm
+                    WHERE rgm.storeId = :storeId
+                      AND rgm.groupId = :roomGroupId
+                      AND rgm.roomId = room.id
+              ))
+              AND (:checkInStartDate IS NULL OR r.checkInDate >= :checkInStartDate)
+              AND (:checkInEndDate IS NULL OR r.checkInDate <= :checkInEndDate)
+              AND (:checkOutStartDate IS NULL OR r.checkOutDate >= :checkOutStartDate)
+              AND (:checkOutEndDate IS NULL OR r.checkOutDate <= :checkOutEndDate)
+            """
+    )
+    Page<RegistrationForm> searchForAdminListPage(
+            @Param("storeId") Long storeId,
+            @Param("status") RegistrationFormStatus status,
+            @Param("channelId") Long channelId,
+            @Param("reservationStatus") ReservationStatus reservationStatus,
+            @Param("includeCancelledArchive") boolean includeCancelledArchive,
+            @Param("roomNumberFilterEnabled") boolean roomNumberFilterEnabled,
+            @Param("roomNumbers") List<String> roomNumbers,
+            @Param("roomGroupId") Long roomGroupId,
+            @Param("checkInStartDate") LocalDate checkInStartDate,
+            @Param("checkInEndDate") LocalDate checkInEndDate,
+            @Param("checkOutStartDate") LocalDate checkOutStartDate,
+            @Param("checkOutEndDate") LocalDate checkOutEndDate,
+            Pageable pageable
     );
 
     @Modifying(flushAutomatically = true)

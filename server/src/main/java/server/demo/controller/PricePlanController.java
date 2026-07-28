@@ -13,6 +13,7 @@ import server.demo.entity.RoomTypePricePlan;
 import server.demo.service.PricePlanService;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/price-plans")
@@ -128,6 +129,14 @@ public class PricePlanController extends BaseStoreController {
         } catch (RuntimeException e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }
+    }
+
+    @GetMapping("/room-type-counts")
+    public ResponseEntity<ApiResponse<Map<Long, Long>>> countRoomTypesByPricePlans() {
+        return ResponseEntity.ok(ApiResponse.success(
+                "获取房型数量成功",
+                pricePlanService.countRoomTypesByPricePlanForCurrentStore()
+        ));
     }
 
     @GetMapping("/{id}/room-types/count")

@@ -163,6 +163,13 @@
                 <p>{{ $t('stage5DynamicUi.132') }}{{ record.channelOrderNumber || '—' }}</p>
               </div>
             </button>
+
+            <ion-infinite-scroll
+              v-if="reviewStore.hasMore"
+              @ionInfinite="handleInfiniteLoad"
+            >
+              <ion-infinite-scroll-content loading-spinner="crescent" />
+            </ion-infinite-scroll>
           </div>
 
           <p v-else class="mobile-note registration-review-list-page__empty">{{ $t('stage5SourceText.89') }}</p>
@@ -180,6 +187,8 @@ import {
   IonContent,
   IonHeader,
   IonIcon,
+  IonInfiniteScroll,
+  IonInfiniteScrollContent,
   IonInput,
   IonPage,
   IonSelect,
@@ -292,6 +301,14 @@ async function handleApplyFilters() {
 
 async function handleReload() {
   await Promise.all([reviewStore.refreshChannels(), reviewStore.refreshRecords(activeFilters.value)])
+}
+
+async function handleInfiniteLoad(event: CustomEvent) {
+  try {
+    await reviewStore.loadMoreRecords()
+  } finally {
+    ;(event.detail as { complete: () => void }).complete()
+  }
 }
 
 async function handleOpenDetail(formId: string) {

@@ -701,11 +701,16 @@ async function loadRoomTypeCatalogCount() {
   }
 }
 
-async function refreshPageDataOnEnter() {
+async function refreshPageDataOnEnter(reloadReferences = true) {
   loadNotice.value = ''
 
   try {
-    await Promise.all([roomStatusStore.refreshAll(true), loadRoomTypeCatalogCount()])
+    if (reloadReferences) {
+      await Promise.all([roomStatusStore.refreshAll(true), loadRoomTypeCatalogCount()])
+    } else {
+      // 回页自动刷新只重拉日历和统计，排序上下文/房型目录变化频率低
+      await roomStatusStore.refreshAll(false)
+    }
   } catch (error) {
     const message = resolveWarningMessage(error, t('stage5Pattern.refreshFailed'))
     loadNotice.value = message
@@ -1235,7 +1240,12 @@ onIonViewWillEnter(async () => {
     return
   }
 
-  await refreshPageDataOnEnter()
+  // 数据未过期且在 TTL 内直接复用，避免每次切回都全量刷新
+  if (!roomStatusStore.shouldRefreshOnEnter()) {
+    return
+  }
+
+  await refreshPageDataOnEnter(false)
 })
 </script>
 

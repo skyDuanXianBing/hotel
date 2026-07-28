@@ -95,7 +95,11 @@
             />
           </div>
 
-          <div v-else-if="!loading" class="orders-empty-state">
+          <ion-infinite-scroll v-if="hasMore" @ionInfinite="handleInfiniteLoad">
+            <ion-infinite-scroll-content loading-spinner="crescent" />
+          </ion-infinite-scroll>
+
+          <div v-else-if="!loading && notifications.length === 0" class="orders-empty-state">
             <div class="orders-empty-state__illustration" aria-hidden="true">
               <span class="orders-empty-state__box"></span>
             </div>
@@ -117,6 +121,8 @@ import {
   IonContent,
   IonHeader,
   IonIcon,
+  IonInfiniteScroll,
+  IonInfiniteScrollContent,
   IonPage,
   IonRefresher,
   IonRefresherContent,
@@ -132,7 +138,7 @@ import { useI18n } from 'vue-i18n'
 import SystemNotificationCard from '@/components/notification/SystemNotificationCard.vue'
 import {
   deleteNotificationMessage,
-  getNotificationMessages,
+  getSystemGroupNotifications,
   markNotificationAsRead,
 } from '@/api/notification'
 import { ROUTE_PATHS } from '@/router/guards'
@@ -143,6 +149,7 @@ import { isHandledRequestError } from '@/utils/request'
 
 const SYSTEM_TYPES = ['SYSTEM', 'CLEANING', 'TASK'] as const
 const SEARCH_DEBOUNCE = 280
+const NOTIFICATION_PAGE_SIZE = 25
 
 type SystemNotificationType = (typeof SYSTEM_TYPES)[number]
 
@@ -150,16 +157,31 @@ const userStore = useUserStore()
 const { t } = useI18n()
 
 const loading = ref(false)
+const loadingMore = ref(false)
 const loadNotice = ref('')
 const searchKeyword = ref('')
 const committedKeyword = ref('')
 const selectedType = ref<SystemNotificationType | ''>('')
 const activeTab = ref<NotificationReadFilter>('all')
 const isSearchVisible = ref(false)
-const allNotifications = ref<NotificationMessageDTO[]>([])
-const notifications = ref<NotificationMessageDTO[]>([])
+const loadedNotifications = ref<NotificationMessageDTO[]>([])
+const currentPage = ref(0)
+const hasMore = ref(false)
+const serverTotalElements = ref(0)
+
+// 类型筛选是系统消息组内的二级过滤，服务端不支持，在已加载分页数据上本地过滤
+const notifications = computed(() => {
+  if (!selectedType.value) {
+    return loadedNotifications.value
+  }
+
+  return loadedNotifications.value.filter(
+    (item) => item.notificationType === selectedType.value,
+  )
+})
 
 let searchTimer = 0
+let loadRequestId = 0
 
 const displayTabs = computed<Array<{ label: string; value: NotificationReadFilter }>>(() => [
   { label: t('notifications.tabs.all'), value: 'all' },
@@ -174,7 +196,9 @@ const typeOptions = computed<Array<{ label: string; value: SystemNotificationTyp
   { label: t('notifications.system.type.task'), value: 'TASK' },
 ])
 
-const totalElements = computed(() => notifications.value.length)
+const totalElements = computed(() =>
+  selectedType.value ? notifications.value.length : serverTotalElements.value,
+)
 const activeTabLabel = computed(() => {
   if (activeTab.value === 'unread') {
     return t('notifications.tabLabel.unread')
@@ -236,36 +260,6 @@ function formatTypeLabel(type: string) {
   return type || t('notifications.system.type.system')
 }
 
-function isSystemNotificationType(type: string): type is SystemNotificationType {
-  return SYSTEM_TYPES.includes(type as SystemNotificationType)
-}
-
-function applyLocalFilter() {
-  const keyword = committedKeyword.value.trim().toLowerCase()
-
-  notifications.value = allNotifications.value.filter((item) => {
-    if (selectedType.value && item.notificationType !== selectedType.value) {
-      return false
-    }
-
-    if (activeTab.value === 'unread' && item.isRead) {
-      return false
-    }
-
-    if (activeTab.value === 'read' && !item.isRead) {
-      return false
-    }
-
-    if (!keyword) {
-      return true
-    }
-
-    const title = item.title?.toLowerCase() || ''
-    const content = item.content?.toLowerCase() || ''
-    return title.includes(keyword) || content.includes(keyword)
-  })
-}
-
 async function ensureUserId() {
   if (userStore.currentUser?.id) {
     return userStore.currentUser.id
@@ -279,28 +273,74 @@ async function ensureUserId() {
   return user.id
 }
 
-async function loadPage() {
-  loading.value = true
-  loadNotice.value = ''
+function resolveReadFilterParam() {
+  if (activeTab.value === 'unread') {
+    return false
+  }
+  if (activeTab.value === 'read') {
+    return true
+  }
+  return undefined
+}
+
+async function fetchNotificationsPage(page: number, append: boolean) {
+  const requestId = ++loadRequestId
+  if (append) {
+    loadingMore.value = true
+  } else {
+    loading.value = true
+    loadNotice.value = ''
+  }
 
   try {
     const userId = await ensureUserId()
-    const response = await getNotificationMessages(userId, 0, 100)
+    const response = await getSystemGroupNotifications(
+      userId,
+      page,
+      NOTIFICATION_PAGE_SIZE,
+      resolveReadFilterParam(),
+      committedKeyword.value || undefined,
+    )
+    if (requestId !== loadRequestId) {
+      return
+    }
     if (!response.success || !response.data) {
       throw new Error(response.message || t('notifications.system.loadFailed'))
     }
 
-    allNotifications.value = (response.data.content || []).filter((item) =>
-      isSystemNotificationType(item.notificationType),
-    )
-    applyLocalFilter()
+    const pageData = response.data
+    const items = pageData.content || []
+    loadedNotifications.value = append ? [...loadedNotifications.value, ...items] : items
+    currentPage.value = Number(pageData.number ?? page)
+    serverTotalElements.value = Number(pageData.totalElements ?? items.length)
+    hasMore.value = currentPage.value + 1 < Number(pageData.totalPages ?? 0)
   } catch (error) {
+    if (requestId !== loadRequestId) {
+      return
+    }
     loadNotice.value = resolveWarningMessage(error, t('notifications.system.loadFailed'))
     if (!isHandledRequestError(error)) {
       showWarningToast(loadNotice.value)
     }
   } finally {
-    loading.value = false
+    if (requestId === loadRequestId) {
+      loading.value = false
+      loadingMore.value = false
+    }
+  }
+}
+
+async function loadPage() {
+  await fetchNotificationsPage(0, false)
+}
+
+async function handleInfiniteLoad(event: CustomEvent) {
+  try {
+    if (hasMore.value && !loading.value && !loadingMore.value) {
+      await fetchNotificationsPage(currentPage.value + 1, true)
+    }
+  } finally {
+    ;(event.detail as { complete: () => void }).complete()
   }
 }
 
@@ -312,7 +352,15 @@ async function handleMarkAsRead(id: number) {
     }
 
     showSuccessToast(t('notifications.markReadSuccess'))
-    await loadPage()
+    // 本地更新已读状态即可；「未读」页签下该条不再符合条件，直接移除
+    if (activeTab.value === 'unread') {
+      loadedNotifications.value = loadedNotifications.value.filter((item) => item.id !== id)
+      serverTotalElements.value = Math.max(serverTotalElements.value - 1, 0)
+    } else {
+      loadedNotifications.value = loadedNotifications.value.map((item) =>
+        item.id === id ? { ...item, isRead: true } : item,
+      )
+    }
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, t('notifications.markReadFailed')))
@@ -343,7 +391,8 @@ async function handleDelete(id: number) {
     }
 
     showSuccessToast(t('notifications.deleted'))
-    await loadPage()
+    loadedNotifications.value = loadedNotifications.value.filter((item) => item.id !== id)
+    serverTotalElements.value = Math.max(serverTotalElements.value - 1, 0)
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, t('notifications.deleteFailed')))
@@ -399,7 +448,7 @@ function handleSelectTab(tab: NotificationReadFilter) {
   }
 
   activeTab.value = tab
-  applyLocalFilter()
+  void loadPage()
 }
 
 function handleSelectType(type: SystemNotificationType | '') {
@@ -408,7 +457,6 @@ function handleSelectType(type: SystemNotificationType | '') {
   }
 
   selectedType.value = type
-  applyLocalFilter()
 }
 
 function handleToggleSearch() {
@@ -437,7 +485,7 @@ watch(
 
     searchTimer = window.setTimeout(() => {
       committedKeyword.value = nextKeyword
-      applyLocalFilter()
+      void loadPage()
     }, SEARCH_DEBOUNCE)
   },
 )

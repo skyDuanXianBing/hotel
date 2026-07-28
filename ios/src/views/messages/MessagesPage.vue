@@ -175,6 +175,10 @@
           </div>
         </section>
       </div>
+
+      <ion-infinite-scroll v-if="threadHasNext" @ionInfinite="handleInfiniteLoad">
+        <ion-infinite-scroll-content :loading-text="t('messages.loadMore')" />
+      </ion-infinite-scroll>
     </ion-content>
 
     <ion-modal
@@ -249,6 +253,8 @@ import {
   IonContent,
   IonHeader,
   IonIcon,
+  IonInfiniteScroll,
+  IonInfiniteScrollContent,
   IonModal,
   IonPage,
   IonRefresher,
@@ -275,13 +281,13 @@ import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  getMessageThreads,
+  getMessageThreadsPage,
   getMessageTranslationSetting,
   updateMessageTranslationSetting,
 } from '@/api/message'
 import { buildMessageDetailPath, ROUTE_PATHS } from '@/router/guards'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
-import type { MessageThreadDTO } from '@/types/message'
+import type { MessageThreadDTO, MessageThreadPageRequest } from '@/types/message'
 import { createAsyncTaskQueue } from '@/utils/asyncTaskQueue'
 import {
   getCachedMessageTranslation,
@@ -330,6 +336,8 @@ interface ThreadStatusView {
 const ALL_CHANNEL_VALUE = '__all__'
 const VISIBLE_PREVIEW_TRANSLATION_LIMIT = 6
 const PREVIEW_TRANSLATION_SETTLE_MS = 250
+// 与 client 端 MessagesPage 的 THREAD_PAGE_SIZE 对齐
+const THREAD_PAGE_SIZE = 30
 
 const route = useRoute()
 const router = useRouter()
@@ -343,12 +351,18 @@ const MESSAGE_TABS = computed<MessageTabOption[]>(() => [
 ])
 
 const loading = ref(false)
+const loadingMore = ref(false)
 const isSearchVisible = ref(false)
 const searchKeyword = ref('')
 const loadNotice = ref('')
 const activeTab = ref<MessageTabValue>('all')
 const activeChannel = ref(ALL_CHANNEL_VALUE)
 const threads = ref<MessageThreadDTO[]>([])
+const threadPage = ref(0)
+const threadHasNext = ref(false)
+const totalThreadCount = ref(0)
+const channelOptions = ref<ChannelFilterOption[]>([])
+let threadRequestId = 0
 const routeTargetHandled = ref(false)
 const translationSettingsOpen = ref(false)
 const isApplyingTranslationSettings = ref(false)
@@ -377,74 +391,27 @@ const unreadThreadCount = computed(() => {
   return count
 })
 
-const channelOptions = computed<ChannelFilterOption[]>(() => {
-  const nextItems: ChannelFilterOption[] = []
-  const seenValues = new Set<string>()
+// 渠道选项在加载过程中累积，避免服务端按渠道筛选后其它渠道的筛选项消失
+function collectChannelOptions(items: MessageThreadDTO[]) {
+  const seenValues = new Set(channelOptions.value.map((item) => item.value))
 
-  for (const thread of threads.value) {
-    const value = (thread.channelName || '').trim()
-    if (!value || seenValues.has(value)) {
+  for (const thread of items) {
+    const value = String(thread.channelId)
+    const label = (thread.channelName || '').trim()
+    if (!label || seenValues.has(value)) {
       continue
     }
 
     seenValues.add(value)
-    nextItems.push({
-      label: value,
+    channelOptions.value.push({
+      label,
       value,
     })
   }
+}
 
-  return nextItems
-})
-
-const displayedThreads = computed(() => {
-  const keyword = trimmedKeyword.value.toLowerCase()
-  const nextItems: MessageThreadDTO[] = []
-
-  for (const thread of threads.value) {
-    if (activeTab.value === 'unread' && thread.unreadCount <= 0) {
-      continue
-    }
-
-    if (activeTab.value === 'closed' && !thread.closed) {
-      continue
-    }
-
-    if (activeChannel.value !== ALL_CHANNEL_VALUE && thread.channelName !== activeChannel.value) {
-      continue
-    }
-
-    if (!keyword) {
-      nextItems.push(thread)
-      continue
-    }
-
-    const searchableValues = [
-      resolveMessageThreadTitle(thread),
-      thread.channelName || '',
-      thread.bookingId || '',
-      thread.threadId || '',
-      thread.roomTypeName || '',
-      thread.listingName || '',
-      thread.lastMessage || '',
-      formatStayDateRange(thread),
-    ]
-
-    let matched = false
-    for (const value of searchableValues) {
-      if (value.toLowerCase().includes(keyword)) {
-        matched = true
-        break
-      }
-    }
-
-    if (matched) {
-      nextItems.push(thread)
-    }
-  }
-
-  return nextItems
-})
+// 标签页/渠道/关键词筛选已交给服务端分页接口处理
+const displayedThreads = computed(() => threads.value)
 
 const activeTabLabel = computed(() => {
   return MESSAGE_TABS.value.find((item) => item.value === activeTab.value)?.label || t('messages.tabs.all')
@@ -510,7 +477,7 @@ const resultsSummaryText = computed(() => {
       : ''
   return `${t('messages.summary', {
     tab: activeTabLabel.value,
-    count: displayedThreads.value.length,
+    count: totalThreadCount.value,
   })}${unreadLabel}`
 })
 
@@ -947,7 +914,7 @@ function getMessageDetailDefaultHref() {
 }
 
 async function applyRouteMessageTarget() {
-  if (!hasRouteTarget.value || routeTargetHandled.value || threads.value.length === 0) {
+  if (!hasRouteTarget.value || routeTargetHandled.value) {
     return
   }
 
@@ -959,7 +926,9 @@ async function applyRouteMessageTarget() {
     target.orderNumber ||
     target.guestName
   if (preferredKeyword && !searchKeyword.value.trim()) {
+    // 先写入搜索关键词，由筛选监听触发服务端搜索，加载完成后会再次回到这里做匹配
     searchKeyword.value = preferredKeyword
+    return
   }
 
   const matchedThread = resolveThreadByRouteTarget()
@@ -978,20 +947,6 @@ async function applyRouteMessageTarget() {
       defaultHref: getMessageDetailDefaultHref(),
     },
   })
-}
-
-function ensureActiveChannelStillExists(nextThreads: MessageThreadDTO[]) {
-  if (activeChannel.value === ALL_CHANNEL_VALUE) {
-    return
-  }
-
-  for (const thread of nextThreads) {
-    if (thread.channelName === activeChannel.value) {
-      return
-    }
-  }
-
-  activeChannel.value = ALL_CHANNEL_VALUE
 }
 
 function formatMonthDay(value?: string) {
@@ -1100,27 +1055,97 @@ function formatUnreadCount(value: number) {
   return String(value)
 }
 
-async function loadThreads() {
-  loading.value = true
-  loadNotice.value = ''
+function buildThreadPageParams(page: number): MessageThreadPageRequest {
+  return {
+    page,
+    size: THREAD_PAGE_SIZE,
+    channel: activeChannel.value !== ALL_CHANNEL_VALUE ? activeChannel.value : undefined,
+    unread: activeTab.value === 'unread' ? true : undefined,
+    closed: activeTab.value === 'closed' ? true : undefined,
+    search: trimmedKeyword.value || undefined,
+  }
+}
+
+function mergeThreadSummaries(items: MessageThreadDTO[]) {
+  const threadById = new Map<number, MessageThreadDTO>()
+  for (const item of items) {
+    const existing = threadById.get(item.id)
+    threadById.set(item.id, existing ? { ...existing, ...item } : item)
+  }
+
+  return [...threadById.values()].sort((a, b) => {
+    const left = new Date(a.lastActivity).getTime()
+    const right = new Date(b.lastActivity).getTime()
+    if (Number.isNaN(left) || Number.isNaN(right) || left === right) {
+      return b.id - a.id
+    }
+    return right - left
+  })
+}
+
+async function fetchThreadPage(page: number, append: boolean) {
+  const currentRequestId = ++threadRequestId
+  if (append) {
+    loadingMore.value = true
+  } else {
+    loading.value = true
+    loadNotice.value = ''
+  }
 
   try {
-    const response = await getMessageThreads()
+    const response = await getMessageThreadsPage(buildThreadPageParams(page))
+    if (currentRequestId !== threadRequestId) {
+      return
+    }
+
     if (!response.success || !response.data) {
       throw new Error(response.message || t('messages.loadFailed'))
     }
 
-    ensureActiveChannelStillExists(response.data)
-    threads.value = response.data
+    const pageData = response.data
+    threads.value = append
+      ? mergeThreadSummaries([...threads.value, ...pageData.items])
+      : pageData.items
+    threadPage.value = pageData.page
+    threadHasNext.value = Boolean(pageData.hasNext)
+    totalThreadCount.value = pageData.totalElements
+    collectChannelOptions(pageData.items)
     notificationCenterStore.syncMessageThreads(threads.value)
     await applyRouteMessageTarget()
   } catch (error) {
+    if (currentRequestId !== threadRequestId) {
+      return
+    }
+
     loadNotice.value = resolveWarningMessage(error, t('messages.loadFailed'))
     if (!isHandledRequestError(error)) {
       showWarningToast(loadNotice.value)
     }
   } finally {
-    loading.value = false
+    if (currentRequestId === threadRequestId) {
+      loading.value = false
+      loadingMore.value = false
+    }
+  }
+}
+
+async function loadThreads() {
+  await fetchThreadPage(0, false)
+}
+
+async function loadNextThreadPage() {
+  if (!threadHasNext.value || loading.value || loadingMore.value) {
+    return
+  }
+
+  await fetchThreadPage(threadPage.value + 1, true)
+}
+
+async function handleInfiniteLoad(event: CustomEvent) {
+  try {
+    await loadNextThreadPage()
+  } finally {
+    event.detail.complete()
   }
 }
 
@@ -1164,6 +1189,12 @@ watch(
     void applyRouteMessageTarget()
   },
 )
+
+watch([activeTab, activeChannel, trimmedKeyword], () => {
+  if (messagesPageActive) {
+    void fetchThreadPage(0, false)
+  }
+})
 
 watch(
   () => displayedThreads.value.map((thread) => getThreadPreviewKey(thread)).join('|'),

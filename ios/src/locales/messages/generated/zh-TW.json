@@ -5033,6 +5033,7 @@
   "messages": {
     "translate": "翻譯",
     "pullToRefresh": "下拉重新整理訊息",
+    "loadMore": "載入更多會話",
     "searchPlaceholder": "單號/房間/房客姓名/訊息/房型",
     "cancel": "取消",
     "allChannels": "全部渠道",
@@ -5085,6 +5086,7 @@
   "messageDetail": {
     "reservation": "訂單",
     "pullToRefresh": "下拉重新整理會話",
+    "loadEarlier": "載入更早的訊息",
     "syncing": "同步中...",
     "translation": "譯文",
     "translating": "正在翻譯...",

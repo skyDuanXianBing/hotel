@@ -25,7 +25,8 @@ import { i18n } from '@/locales'
 import type { LoginByPasswordRequest, LoginResponse } from '@/types/auth'
 import { showErrorToast, sanitizeUserFacingMessage } from '@/utils/notify'
 
-const REQUEST_TIMEOUT = 10000
+// 与 client 端 request.ts 的 DEFAULT_API_TIMEOUT_MS 对齐，真机弱网下 10s 会大面积误报超时
+const REQUEST_TIMEOUT = 60000
 const REQUEST_ERROR_HANDLED_KEY = 'toastHandled'
 const REQUEST_ERROR_STATUS_KEY = 'status'
 const AUTHENTICATION_FREE_PATHS = [

@@ -21,6 +21,29 @@ export interface MessageThreadDTO {
   closed: boolean
 }
 
+export interface MessageThreadPageRequest {
+  page?: number
+  size?: number
+  channel?: string
+  unread?: boolean
+  closed?: boolean
+  search?: string
+}
+
+export interface MessageThreadPageDTO {
+  items: MessageThreadDTO[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  hasNext: boolean
+}
+
+export interface MessageUnreadSummaryDTO {
+  totalUnread: number
+  unreadThreadCount: number
+}
+
 export interface MessageDTO {
   id: number
   threadId: number
@@ -29,6 +52,21 @@ export interface MessageDTO {
   content: string
   deliveryStatus?: 'SENDING' | 'SENT' | 'FAILED'
   timestamp: string
+}
+
+export interface MessagePageRequest {
+  limit?: number
+  beforeMessageId?: number
+  afterMessageId?: number
+  markRead?: boolean
+}
+
+export interface MessagePageDTO {
+  items: MessageDTO[]
+  limit: number
+  hasMoreBefore: boolean
+  nextBeforeMessageId?: number
+  hasMoreAfter?: boolean
 }
 
 export interface MessageSendRequest {

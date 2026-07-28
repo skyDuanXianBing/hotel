@@ -31,6 +31,10 @@ export interface RoomGroupMemberDTO {
   createdAt?: string
 }
 
+export interface RoomGroupWithMembersDTO extends RoomGroupDTO {
+  members: RoomGroupMemberDTO[]
+}
+
 export interface RoomGroupMemberBatchDTO {
   roomIds: number[]
 }

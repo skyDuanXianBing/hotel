@@ -13,11 +13,16 @@ import type {
   MessageDTO,
   MessageAiReplyDraftRequest,
   MessageAiReplyDraftResponse,
+  MessagePageDTO,
+  MessagePageRequest,
   MessageSendRequest,
   MessageThreadDTO,
+  MessageThreadPageDTO,
+  MessageThreadPageRequest,
   MessageTranslationSetting,
   MessageTranslationRequest,
   MessageTranslationResponse,
+  MessageUnreadSummaryDTO,
 } from '@/types/message'
 import { i18n } from '@/locales'
 
@@ -28,6 +33,9 @@ export interface ChatMessageRequestOptions {
   signal?: AbortSignal
   suppressErrorToast?: boolean
 }
+
+// su-messaging 接口需要聚合渠道数据，响应较慢；与 client 端 SU_MESSAGING_TIMEOUT_MS 对齐
+const SU_MESSAGING_TIMEOUT_MS = 60000
 
 const TRANSLATION_MARKER_START = '<<<TEXT>>>'
 const TRANSLATION_MARKER_END = '<<<END>>>'
@@ -126,6 +134,99 @@ export const getMessageThreads = () => {
   return request<ApiResponse<MessageThreadDTO[]>>({
     url: '/su-messaging/threads',
     method: 'GET',
+    timeoutMs: SU_MESSAGING_TIMEOUT_MS,
+  })
+}
+
+const buildThreadPageQuery = (params: MessageThreadPageRequest) => {
+  const query: Record<string, string | number | boolean> = {}
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') {
+      continue
+    }
+    query[key] = value as string | number | boolean
+  }
+  return query
+}
+
+const getMockMessageThreadsPage = async (
+  params: MessageThreadPageRequest,
+): Promise<ApiResponse<MessageThreadPageDTO>> => {
+  const response = await getMockMessageThreads()
+  const allThreads = (response.data || []).filter((thread) => {
+    if (params.unread && thread.unreadCount <= 0) {
+      return false
+    }
+    if (params.closed && !thread.closed) {
+      return false
+    }
+    return true
+  })
+
+  const page = params.page ?? 0
+  const size = params.size ?? 30
+  const items = allThreads.slice(page * size, page * size + size)
+  const totalPages = size > 0 ? Math.ceil(allThreads.length / size) : 0
+
+  return {
+    success: true,
+    message: response.message,
+    data: {
+      items,
+      page,
+      size,
+      totalElements: allThreads.length,
+      totalPages,
+      hasNext: page + 1 < totalPages,
+    },
+  }
+}
+
+export const getMessageThreadsPage = (params: MessageThreadPageRequest) => {
+  if (MESSAGE_API_MOCK_ENABLED) {
+    return getMockMessageThreadsPage(params)
+  }
+
+  return request<ApiResponse<MessageThreadPageDTO>>({
+    url: '/su-messaging/threads/page',
+    method: 'GET',
+    params: buildThreadPageQuery(params),
+    timeoutMs: SU_MESSAGING_TIMEOUT_MS,
+  })
+}
+
+export const getMessageUnreadSummary = () => {
+  return request<ApiResponse<MessageUnreadSummaryDTO>>({
+    url: '/su-messaging/unread-summary',
+    method: 'GET',
+    suppressErrorToast: true,
+  })
+}
+
+const getMockMessageThread = async (threadId: number): Promise<ApiResponse<MessageThreadDTO>> => {
+  const response = await getMockMessageThreads()
+  const thread = (response.data || []).find((item) => item.id === threadId)
+  if (!thread) {
+    throw new Error('Thread not found')
+  }
+
+  return {
+    success: true,
+    message: response.message,
+    data: thread,
+  }
+}
+
+export const getMessageThread = (threadId: number) => {
+  if (MESSAGE_API_MOCK_ENABLED) {
+    return getMockMessageThread(threadId)
+  }
+
+  return request<ApiResponse<MessageThreadDTO>>({
+    url: `/su-messaging/threads/${threadId}`,
+    method: 'GET',
+    suppressErrorStatuses: [400, 403, 404],
+    timeoutMs: SU_MESSAGING_TIMEOUT_MS,
   })
 }
 
@@ -138,6 +239,54 @@ export const getThreadMessages = (threadId: number) => {
     url: `/su-messaging/threads/${threadId}/messages`,
     method: 'GET',
     suppressErrorStatuses: [400, 403, 404],
+    timeoutMs: SU_MESSAGING_TIMEOUT_MS,
+  })
+}
+
+const getMockThreadMessagesPage = async (
+  threadId: number,
+  params: MessagePageRequest,
+): Promise<ApiResponse<MessagePageDTO>> => {
+  const response = await getMockThreadMessages(threadId)
+  const allMessages = response.data || []
+  const limit = params.limit ?? 50
+
+  let candidates = allMessages
+  if (params.beforeMessageId) {
+    candidates = allMessages.filter((item) => item.id < (params.beforeMessageId as number))
+  }
+  const items = candidates.slice(-limit)
+  const oldestId = items[0]?.id
+  const hasMoreBefore = Boolean(oldestId && candidates.length > items.length)
+
+  return {
+    success: true,
+    message: response.message,
+    data: {
+      items,
+      limit,
+      hasMoreBefore,
+      nextBeforeMessageId: hasMoreBefore ? oldestId : undefined,
+    },
+  }
+}
+
+export const getThreadMessagesPage = (threadId: number, params: MessagePageRequest) => {
+  if (MESSAGE_API_MOCK_ENABLED) {
+    return getMockThreadMessagesPage(threadId, params)
+  }
+
+  return request<ApiResponse<MessagePageDTO>>({
+    url: `/su-messaging/threads/${threadId}/messages/page`,
+    method: 'GET',
+    params: {
+      limit: params.limit,
+      beforeMessageId: params.beforeMessageId,
+      afterMessageId: params.afterMessageId,
+      markRead: params.markRead,
+    },
+    suppressErrorStatuses: [400, 403, 404],
+    timeoutMs: SU_MESSAGING_TIMEOUT_MS,
   })
 }
 
@@ -151,6 +300,7 @@ export const pollThreadMessages = (threadId: number, since: string) => {
     method: 'GET',
     params: { since },
     suppressErrorStatuses: [400, 403, 404],
+    timeoutMs: SU_MESSAGING_TIMEOUT_MS,
   })
 }
 
@@ -163,6 +313,7 @@ export const sendThreadMessage = (threadId: number, data: MessageSendRequest) =>
     url: `/su-messaging/threads/${threadId}/send`,
     method: 'POST',
     data,
+    timeoutMs: SU_MESSAGING_TIMEOUT_MS,
   })
 }
 

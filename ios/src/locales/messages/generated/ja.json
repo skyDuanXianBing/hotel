@@ -5033,6 +5033,7 @@
   "messages": {
     "translate": "翻訳",
     "pullToRefresh": "下に引いてメッセージを更新",
+    "loadMore": "会話をさらに読み込む",
     "searchPlaceholder": "予約番号/客室/宿泊者/メッセージ/客室タイプ",
     "cancel": "キャンセル",
     "allChannels": "すべてのチャネル",
@@ -5085,6 +5086,7 @@
   "messageDetail": {
     "reservation": "予約",
     "pullToRefresh": "下に引いて会話を更新",
+    "loadEarlier": "以前のメッセージを読み込む",
     "syncing": "同期中...",
     "translation": "翻訳",
     "translating": "翻訳中...",

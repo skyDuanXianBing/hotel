@@ -6,6 +6,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 import server.demo.dto.registration.AdminRegistrationReviewResponse;
 import server.demo.dto.registration.AdminRegistrationDetailDTO;
@@ -150,6 +153,67 @@ class RegistrationAdminServiceTest {
                 null,
                 null
         );
+    }
+
+    @Test
+    void listPage_shouldReturnPagedItemsAndClampSize() {
+        RegistrationAdminService service = createService();
+        RegistrationForm form = new RegistrationForm();
+        form.setId(8L);
+        form.setOrderNumber("ORD-8");
+        form.setStatus(RegistrationFormStatus.SUBMITTED);
+
+        Reservation reservation = new Reservation();
+        reservation.setGuestName("Test Guest");
+        reservation.setCheckInDate(LocalDate.of(2026, 5, 1));
+        reservation.setCheckOutDate(LocalDate.of(2026, 5, 3));
+        reservation.setChannelOrderNumber("OTA-8");
+        reservation.setStatus(ReservationStatus.CONFIRMED);
+        Channel channel = new Channel();
+        channel.setName("Booking.com");
+        reservation.setChannel(channel);
+        form.setReservation(reservation);
+
+        when(registrationFormRepository.searchForAdminListPage(
+                eq(26L),
+                eq(RegistrationFormStatus.SUBMITTED),
+                isNull(),
+                isNull(),
+                eq(false),
+                eq(false),
+                anyList(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(PageRequest.of(0, 100))
+        )).thenReturn(new PageImpl<>(List.of(form), PageRequest.of(0, 100), 1));
+
+        try (MockedStatic<StoreContextUtils> storeContextUtils = mockStatic(StoreContextUtils.class)) {
+            storeContextUtils.when(StoreContextUtils::requireStoreId).thenReturn(26L);
+
+            Page<AdminRegistrationListItemDTO> result = service.listPage(
+                    RegistrationFormStatus.SUBMITTED,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    0,
+                    500
+            );
+
+            assertEquals(1, result.getTotalElements());
+            assertEquals(1, result.getContent().size());
+            assertEquals(8L, result.getContent().get(0).getFormId());
+            assertEquals("Booking.com", result.getContent().get(0).getChannelName());
+        }
     }
 
     @Test

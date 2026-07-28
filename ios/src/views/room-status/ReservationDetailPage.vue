@@ -339,7 +339,7 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import BookingFormModal, { type BookingFormSubmitPayload } from '@/components/room-status/BookingFormModal.vue'
@@ -353,7 +353,7 @@ import {
 } from '@/components/order/orderUtils'
 import {
   checkCanMoveToOrderBox,
-  getOrderBoxList,
+  getOrderBoxItemByReservation,
   moveOutOrderBox,
   moveToOrderBox,
   type OrderBoxItem,
@@ -369,18 +369,16 @@ import {
   type ReservationChannelInfoDTO,
   type ReservationDTO,
 } from '@/api/reservation'
-import { getMessageThreads } from '@/api/message'
+import { getMessageThreadsPage } from '@/api/message'
 import type { MessageThreadDTO } from '@/types/message'
 import {
   deleteConsumption,
   getConsumptionsByReservationId,
-  getTotalConsumption,
   type ConsumptionDTO,
 } from '@/api/consumption'
 import {
   deletePayment,
   getPaymentsByReservationId,
-  getTotalPayment,
   type PaymentDTO,
 } from '@/api/payment'
 import { getUnreadNotificationCountByType } from '@/api/notification'
@@ -410,8 +408,13 @@ const channelInfo = ref<ReservationChannelInfoDTO | null>(null)
 const logs = ref<any[]>([])
 const consumptions = ref<ConsumptionDTO[]>([])
 const payments = ref<PaymentDTO[]>([])
-const totalConsumption = ref(0)
-const totalPayment = ref(0)
+// 服务端 /total 接口就是对同一列表求和，这里直接本地计算，省两个请求
+const totalConsumption = computed(() =>
+  consumptions.value.reduce((sum, item) => sum + (Number(item.amount) || 0), 0),
+)
+const totalPayment = computed(() =>
+  payments.value.reduce((sum, item) => sum + (Number(item.amount) || 0), 0),
+)
 const orderBoxItem = ref<OrderBoxItem | null>(null)
 const orderReminderCount = ref(0)
 const orderReminderNotice = ref('')
@@ -806,32 +809,51 @@ function syncLinkedMessageThreadFromThreads(
   linkedMessageThread.value = resolveLinkedMessageThread(threads, reservationItem)
 }
 
+async function fetchCandidateMessageThreads(reservationItem: ReservationDTO) {
+  // 用订单号等关键字做定向搜索，替代全量拉取整店会话列表
+  const reservationKeys = buildReservationMessageKeys(reservationItem)
+  if (reservationKeys.length === 0) {
+    return []
+  }
+
+  const responses = await Promise.allSettled(
+    reservationKeys.map((key) => getMessageThreadsPage({ page: 0, size: 10, search: key })),
+  )
+
+  const candidates: MessageThreadDTO[] = []
+  const seenThreadIds = new Set<number>()
+  for (const result of responses) {
+    if (result.status !== 'fulfilled' || !result.value.success || !result.value.data) {
+      continue
+    }
+
+    for (const thread of result.value.data.items || []) {
+      if (!seenThreadIds.has(thread.id)) {
+        seenThreadIds.add(thread.id)
+        candidates.push(thread)
+      }
+    }
+  }
+
+  return candidates
+}
+
 async function refreshLinkedMessageThread(
   reservationItem: ReservationDTO,
   requestToken: number,
-  prefetchedThreads?: Promise<MessageThreadDTO[] | null>,
 ) {
   syncLinkedMessageThreadFromThreads(notificationCenterStore.messageThreads, reservationItem, requestToken)
 
-  const nextThreads =
-    (await
-      (prefetchedThreads ||
-        getMessageThreads()
-          .then((response) => {
-            if (!response.success || !response.data) {
-              return null
-            }
+  try {
+    const candidates = await fetchCandidateMessageThreads(reservationItem)
+    if (candidates.length === 0) {
+      return
+    }
 
-            return response.data
-          })
-          .catch(() => null))) || null
-
-  if (!nextThreads) {
-    return
+    syncLinkedMessageThreadFromThreads(candidates, reservationItem, requestToken)
+  } catch {
+    // 定向查询失败时保留已有匹配结果即可
   }
-
-  notificationCenterStore.syncMessageThreads(nextThreads)
-  syncLinkedMessageThreadFromThreads(nextThreads, reservationItem, requestToken)
 }
 
 async function confirmAction(header: string, message: string, confirmText: string, destructive = false) {
@@ -870,15 +892,6 @@ async function loadDetail() {
 
   const currentReservationId = reservationId.value
   const requestToken = ++detailLoadToken
-  const prefetchedThreads = getMessageThreads()
-    .then((response) => {
-      if (!response.success || !response.data) {
-        return null
-      }
-
-      return response.data
-    })
-    .catch(() => null)
 
   if (reservation.value?.id !== currentReservationId) {
     linkedMessageThread.value = null
@@ -895,18 +908,17 @@ async function loadDetail() {
     }
     const currentReservation = reservationResponse.data
     reservation.value = currentReservation
-    syncLinkedMessageThreadFromThreads(notificationCenterStore.messageThreads, currentReservation, requestToken)
-    void refreshLinkedMessageThread(currentReservation, requestToken, prefetchedThreads)
+    void refreshLinkedMessageThread(currentReservation, requestToken)
+
+    logsLoadedForReservationId = null
+    logs.value = []
 
     const [results] = await Promise.all([
       Promise.allSettled([
         getReservationChannelInfo(currentReservationId),
-        getReservationLogs(currentReservationId),
         getConsumptionsByReservationId(currentReservationId),
         getPaymentsByReservationId(currentReservationId),
-        getTotalConsumption(currentReservationId),
-        getTotalPayment(currentReservationId),
-        getOrderBoxList(),
+        getOrderBoxItemByReservation(currentReservationId),
       ]),
       loadOrderReminderCount(),
     ])
@@ -915,21 +927,10 @@ async function loadDetail() {
       return
     }
 
-    const [
-      channelResult,
-      logResult,
-      consumptionResult,
-      paymentResult,
-      totalConsumptionResult,
-      totalPaymentResult,
-      orderBoxResult,
-    ] = results
+    const [channelResult, consumptionResult, paymentResult, orderBoxResult] = results
 
     if (channelResult.status === 'fulfilled' && channelResult.value.success) {
       channelInfo.value = channelResult.value.data || null
-    }
-    if (logResult.status === 'fulfilled' && logResult.value.success) {
-      logs.value = logResult.value.data || []
     }
     if (consumptionResult.status === 'fulfilled' && consumptionResult.value.success) {
       consumptions.value = consumptionResult.value.data || []
@@ -937,17 +938,15 @@ async function loadDetail() {
     if (paymentResult.status === 'fulfilled' && paymentResult.value.success) {
       payments.value = paymentResult.value.data || []
     }
-    if (totalConsumptionResult.status === 'fulfilled' && totalConsumptionResult.value.success) {
-      totalConsumption.value = Number(totalConsumptionResult.value.data || 0)
-    }
-    if (totalPaymentResult.status === 'fulfilled' && totalPaymentResult.value.success) {
-      totalPayment.value = Number(totalPaymentResult.value.data || 0)
-    }
     if (orderBoxResult.status === 'fulfilled' && orderBoxResult.value.success) {
-      orderBoxItem.value =
-        orderBoxResult.value.data.find((item) => item.reservation.id === currentReservationId) || null
+      orderBoxItem.value = orderBoxResult.value.data || null
     } else {
       orderBoxItem.value = null
+    }
+
+    // 日志只在用户切到「日志」页签时加载
+    if (activeSegment.value === 'logs') {
+      void loadLogsIfNeeded()
     }
   } finally {
     if (requestToken === detailLoadToken) {
@@ -955,6 +954,31 @@ async function loadDetail() {
     }
   }
 }
+
+let logsLoadedForReservationId: number | null = null
+
+async function loadLogsIfNeeded() {
+  const currentReservationId = reservationId.value
+  if (!currentReservationId || logsLoadedForReservationId === currentReservationId) {
+    return
+  }
+
+  try {
+    const response = await getReservationLogs(currentReservationId)
+    if (response.success && reservationId.value === currentReservationId) {
+      logs.value = response.data || []
+      logsLoadedForReservationId = currentReservationId
+    }
+  } catch {
+    // 日志加载失败不阻塞详情主流程
+  }
+}
+
+watch(activeSegment, (segment) => {
+  if (segment === 'logs') {
+    void loadLogsIfNeeded()
+  }
+})
 
 async function handleRefresh(event: CustomEvent) {
   try {
@@ -980,7 +1004,7 @@ async function handleCheckIn() {
     }
     showSuccessToast(t('order.mobile.messages.checkInSuccess'))
     await loadDetail()
-    await roomStatusStore.refreshAll()
+    roomStatusStore.markStale()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, t('roomStatus.messages.checkInFailed')))
@@ -1002,7 +1026,7 @@ async function handleCheckOut() {
     }
     showSuccessToast(t('order.mobile.messages.checkOutSuccess'))
     await loadDetail()
-    await roomStatusStore.refreshAll()
+    roomStatusStore.markStale()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, t('roomStatus.messages.checkOutFailed')))
@@ -1042,7 +1066,7 @@ async function handleUpdateReservation(payload: BookingFormSubmitPayload) {
     showSuccessToast(t('iosStage5.roomStatus.orderUpdated'))
     showBookingModal.value = false
     await loadDetail()
-    await roomStatusStore.refreshAll()
+    roomStatusStore.markStale()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, t('stage5Pattern.updateFailed')))
@@ -1065,7 +1089,7 @@ async function handleCancelReservation() {
     showSuccessToast(t('order.mobile.messages.cancelSuccess'))
     showCancelModal.value = false
     await loadDetail()
-    await roomStatusStore.refreshAll()
+    roomStatusStore.markStale()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, t('roomStatus.cancelReservation.messages.failed')))
@@ -1108,7 +1132,7 @@ async function handleMoveToOrderBox() {
 
     showSuccessToast(t('roomStatus.detail.messages.moveToOrderBoxSuccess'))
     await loadDetail()
-    await roomStatusStore.refreshAll()
+    roomStatusStore.markStale()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, t('roomStatus.detail.messages.moveToOrderBoxFailed')))
@@ -1143,7 +1167,7 @@ async function handleMoveOutOrderBox() {
 
     showSuccessToast(t('order.mobile.messages.moveOutSuccess'))
     await loadDetail()
-    await roomStatusStore.refreshAll()
+    roomStatusStore.markStale()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, t('order.mobile.messages.moveOutFailed')))

@@ -95,6 +95,65 @@ class RegistrationAdminControllerTest {
     }
 
     @Test
+    void listPage_shouldForwardPageSizeAndFilters() {
+        RegistrationAdminService registrationAdminService = mock(RegistrationAdminService.class);
+        RegistrationAdminController controller = new RegistrationAdminController();
+        ReflectionTestUtils.setField(controller, "registrationAdminService", registrationAdminService);
+
+        LocalDate checkInDate = LocalDate.of(2026, 5, 1);
+        when(registrationAdminService.listPage(
+                eq(RegistrationFormStatus.SUBMITTED),
+                eq(3L),
+                isNull(),
+                any(),
+                eq(9L),
+                eq(checkInDate),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(1),
+                eq(20)
+        )).thenReturn(org.springframework.data.domain.Page.empty());
+
+        ApiResponse<org.springframework.data.domain.Page<AdminRegistrationListItemDTO>> response =
+                controller.listPage(
+                        RegistrationFormStatus.SUBMITTED,
+                        3L,
+                        null,
+                        List.of("101"),
+                        null,
+                        9L,
+                        checkInDate,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        1,
+                        20
+                );
+
+        assertTrue(response.isSuccess());
+        verify(registrationAdminService).listPage(
+                eq(RegistrationFormStatus.SUBMITTED),
+                eq(3L),
+                isNull(),
+                eq(List.of("101")),
+                eq(9L),
+                eq(checkInDate),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(1),
+                eq(20)
+        );
+    }
+
+    @Test
     void list_shouldForwardDateRangeParams() {
         RegistrationAdminService registrationAdminService = mock(RegistrationAdminService.class);
         RegistrationAdminController controller = new RegistrationAdminController();
@@ -152,6 +211,23 @@ class RegistrationAdminControllerTest {
                 LocalDate.class,
                 LocalDate.class,
                 LocalDate.class
+        ));
+        assertStatsViewPermission(RegistrationAdminController.class.getMethod(
+                "listPage",
+                RegistrationFormStatus.class,
+                Long.class,
+                ReservationStatus.class,
+                List.class,
+                List.class,
+                Long.class,
+                LocalDate.class,
+                LocalDate.class,
+                LocalDate.class,
+                LocalDate.class,
+                LocalDate.class,
+                LocalDate.class,
+                int.class,
+                int.class
         ));
         assertStatsViewPermission(RegistrationAdminController.class.getMethod("detail", Long.class));
         assertStatsViewPermission(RegistrationAdminController.class.getMethod(

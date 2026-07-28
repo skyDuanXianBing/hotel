@@ -871,6 +871,19 @@ public class SuMessagingService {
     }
 
     @Transactional
+    /**
+     * 返回单个会话的摘要。移动端会话详情页用它替代全量 listThreads 定位当前会话。
+     */
+    public SuMessagingThreadDTO getThread(Long storeId, Long threadId) {
+        SuMessageThread thread = threadRepository.findByStoreIdAndId(storeId, threadId)
+                .orElseThrow(() -> new IllegalArgumentException("Thread not found or no permission"));
+
+        LocalDate today = currentStoreDate(storeId);
+        SuMessagingThreadDTO dto = toThreadDTO(storeId, thread, today);
+        fillAirbnbInquiryRoomTypeNames(storeId, List.of(dto));
+        return dto;
+    }
+
     public List<SuMessagingMessageDTO> getThreadMessages(Long storeId, Long threadId) {
         SuMessageThread thread = threadRepository.findByStoreIdAndId(storeId, threadId)
                 .orElseThrow(() -> new IllegalArgumentException("Thread not found or no permission"));

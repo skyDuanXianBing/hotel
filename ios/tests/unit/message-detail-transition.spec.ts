@@ -4,8 +4,8 @@ import MessageDetailPage from '@/views/messages/MessageDetailPage.vue'
 import { createTestI18n } from './helpers/i18n'
 
 const apiMocks = vi.hoisted(() => ({
-  getMessageThreads: vi.fn(),
-  getThreadMessages: vi.fn(),
+  getMessageThread: vi.fn(),
+  getThreadMessagesPage: vi.fn(),
   pollThreadMessages: vi.fn(),
   getMessageTranslationSetting: vi.fn(),
 }))
@@ -13,10 +13,6 @@ const apiMocks = vi.hoisted(() => ({
 const ionicLifecycle = vi.hoisted(() => ({
   willEnter: null as null | (() => unknown),
   willLeave: null as null | (() => unknown),
-}))
-
-const notificationCenterMocks = vi.hoisted(() => ({
-  syncMessageThreads: vi.fn(),
 }))
 
 const routerMocks = vi.hoisted(() => ({
@@ -53,6 +49,8 @@ vi.mock('@ionic/vue', async () => {
     IonContent: createStub('IonContent'),
     IonHeader: createStub('IonHeader'),
     IonIcon: createStub('IonIcon'),
+    IonInfiniteScroll: createStub('IonInfiniteScroll'),
+    IonInfiniteScrollContent: createStub('IonInfiniteScrollContent'),
     IonModal: createStub('IonModal'),
     IonPage: createStub('IonPage'),
     IonRefresher: createStub('IonRefresher'),
@@ -84,8 +82,8 @@ vi.mock('vue-router', async () => {
 
 vi.mock('@/api/message', () => ({
   MESSAGE_API_MOCK_ENABLED: true,
-  getMessageThreads: apiMocks.getMessageThreads,
-  getThreadMessages: apiMocks.getThreadMessages,
+  getMessageThread: apiMocks.getMessageThread,
+  getThreadMessagesPage: apiMocks.getThreadMessagesPage,
   pollThreadMessages: apiMocks.pollThreadMessages,
   getMessageTranslationSetting: apiMocks.getMessageTranslationSetting,
   generateThreadAiReplyDraft: vi.fn(),
@@ -96,10 +94,6 @@ vi.mock('@/api/message', () => ({
 
 vi.mock('@/api/reservation', () => ({
   getReservationsWithFilters: vi.fn(),
-}))
-
-vi.mock('@/stores/notificationCenter', () => ({
-  useNotificationCenterStore: () => notificationCenterMocks,
 }))
 
 vi.mock('@/utils/notify', () => ({
@@ -119,35 +113,37 @@ describe('MessageDetailPage transition state', () => {
     routerMocks.route.query = {}
     routerMocks.route.fullPath = '/tabs/messages/15'
 
-    apiMocks.getMessageThreads.mockResolvedValue({
+    apiMocks.getMessageThread.mockResolvedValue({
       success: true,
       message: 'ok',
-      data: [
-        {
-          id: 15,
-          channelId: 1,
-          channelName: 'Booking.com',
-          guestName: 'Alice',
-          lastActivity: '2026-07-18T10:00:00Z',
-          unreadCount: 0,
-          closed: false,
-        },
-      ],
+      data: {
+        id: 15,
+        channelId: 1,
+        channelName: 'Booking.com',
+        guestName: 'Alice',
+        lastActivity: '2026-07-18T10:00:00Z',
+        unreadCount: 0,
+        closed: false,
+      },
     })
-    apiMocks.getThreadMessages.mockResolvedValue({
+    apiMocks.getThreadMessagesPage.mockResolvedValue({
       success: true,
       message: 'ok',
-      data: [
-        {
-          id: 1501,
-          threadId: 15,
-          senderType: 'GUEST',
-          senderName: 'Bob',
-          content: 'Hello',
-          timestamp: '2026-07-18T10:00:00Z',
-          deliveryStatus: 'SENT',
-        },
-      ],
+      data: {
+        items: [
+          {
+            id: 1501,
+            threadId: 15,
+            senderType: 'GUEST',
+            senderName: 'Bob',
+            content: 'Hello',
+            timestamp: '2026-07-18T10:00:00Z',
+            deliveryStatus: 'SENT',
+          },
+        ],
+        limit: 50,
+        hasMoreBefore: false,
+      },
     })
     apiMocks.pollThreadMessages.mockResolvedValue({
       success: true,

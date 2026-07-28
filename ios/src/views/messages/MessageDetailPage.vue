@@ -36,6 +36,18 @@
         <span>{{ loadNotice || t('messageDetail.syncing') }}</span>
       </div>
 
+      <ion-infinite-scroll
+        v-if="hasMoreMessagesBefore && messages.length > 0"
+        position="top"
+        threshold="80px"
+        @ionInfinite="handleLoadOlderMessages"
+      >
+        <ion-infinite-scroll-content
+          loading-spinner="crescent"
+          :loading-text="t('messageDetail.loadEarlier')"
+        />
+      </ion-infinite-scroll>
+
       <section
         v-if="messages.length > 0"
         ref="messageStreamRef"
@@ -291,6 +303,8 @@ import {
   IonContent,
   IonHeader,
   IonIcon,
+  IonInfiniteScroll,
+  IonInfiniteScrollContent,
   IonModal,
   IonPage,
   IonRefresher,
@@ -308,9 +322,9 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import {
   generateThreadAiReplyDraft,
+  getMessageThread,
   getMessageTranslationSetting,
-  getThreadMessages,
-  getMessageThreads,
+  getThreadMessagesPage,
   MESSAGE_API_MOCK_ENABLED,
   pollThreadMessages,
   sendAiChatMessage,
@@ -319,7 +333,6 @@ import {
 } from '@/api/message'
 import { getReservationsWithFilters, type ReservationDTO } from '@/api/reservation'
 import { ROUTE_PATHS } from '@/router/guards'
-import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import type { MessageDTO, MessageThreadDTO } from '@/types/message'
 import { MessageSenderType } from '@/types/message'
 import { createAsyncTaskQueue } from '@/utils/asyncTaskQueue'
@@ -348,6 +361,8 @@ import {
 } from '@/utils/storeBusinessDate'
 
 const MESSAGE_POLL_INTERVAL = 8000
+// 与 client 端 MessagesPage 的 MESSAGE_PAGE_LIMIT 对齐
+const MESSAGE_PAGE_LIMIT = 50
 const INITIAL_TRANSLATION_BATCH_SIZE = 6
 const VISIBLE_TRANSLATION_LIMIT = 8
 const MESSAGE_TRANSLATION_SETTLE_MS = 180
@@ -382,19 +397,20 @@ const TRAILING_URL_PUNCTUATION_PATTERN = /[),.!?\]}]+$/
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
-const notificationCenterStore = useNotificationCenterStore()
-
 function resolveRouteThreadId() {
   return Number(route.params.threadId || 0)
 }
 
 const loading = ref(false)
+const loadingOlderMessages = ref(false)
 const sending = ref(false)
 const draftLoading = ref(false)
 const loadNotice = ref('')
 const composerValue = ref('')
 const messages = ref<MessageDTO[]>([])
 const threads = ref<MessageThreadDTO[]>([])
+const hasMoreMessagesBefore = ref(false)
+const nextBeforeMessageId = ref<number | null>(null)
 const reservationId = ref<number | null>(null)
 const linkedReservation = ref<ReservationDTO | null>(null)
 const aiDraftOpen = ref(false)
@@ -1083,37 +1099,57 @@ function getLatestTimestamp() {
   return messages.value[messages.value.length - 1].timestamp
 }
 
-function findThreadById(threadItems: MessageThreadDTO[], targetThreadId: number) {
-  for (const item of threadItems) {
-    if (item.id === targetThreadId) {
-      return item
-    }
-  }
-
-  return null
-}
-
-async function loadThreads(requestToken?: number, expectedThreadId?: number) {
-  const response = await getMessageThreads()
+async function loadActiveThread(expectedThreadId: number, requestToken?: number) {
+  // 单条会话接口替代全量 /threads，避免为定位一个会话拉整店列表
+  const response = await getMessageThread(expectedThreadId)
   if (!response.success || !response.data) {
     throw new Error(response.message || t('messageDetail.loadConversationFailed'))
   }
 
   if (
     typeof requestToken === 'number' &&
-    typeof expectedThreadId === 'number' &&
     !isActivePageRequest(requestToken, expectedThreadId)
   ) {
     return null
   }
 
-  threads.value = response.data
-  notificationCenterStore.syncMessageThreads(threads.value)
+  threads.value = [response.data]
   return response.data
 }
 
+function patchActiveThreadPreview(latestMessage?: MessageDTO) {
+  if (!latestMessage) {
+    return
+  }
+
+  const currentThread = threads.value[0]
+  if (!currentThread || currentThread.id !== latestMessage.threadId) {
+    return
+  }
+
+  threads.value = [
+    {
+      ...currentThread,
+      lastMessage: latestMessage.content,
+      lastActivity: latestMessage.timestamp,
+    },
+  ]
+}
+
+function mergeMessagesById(list: MessageDTO[]) {
+  const byId = new Map<number, MessageDTO>()
+  for (const item of list) {
+    byId.set(item.id, item)
+  }
+  return [...byId.values()]
+}
+
 async function loadMessages(expectedThreadId: number, requestToken?: number) {
-  const response = await getThreadMessages(expectedThreadId)
+  // 游标分页：首屏只取最近一页，更早的记录由顶部上拉加载
+  const response = await getThreadMessagesPage(expectedThreadId, {
+    limit: MESSAGE_PAGE_LIMIT,
+    markRead: true,
+  })
   if (!response.success || !response.data) {
     throw new Error(response.message || t('messageDetail.loadMessagesFailed'))
   }
@@ -1125,8 +1161,73 @@ async function loadMessages(expectedThreadId: number, requestToken?: number) {
     return false
   }
 
-  messages.value = sortMessages(response.data)
+  messages.value = sortMessages(response.data.items || [])
+  hasMoreMessagesBefore.value = Boolean(response.data.hasMoreBefore)
+  nextBeforeMessageId.value = response.data.nextBeforeMessageId || null
   return true
+}
+
+async function loadOlderMessages() {
+  const currentThreadId = threadId.value
+  const beforeMessageId = nextBeforeMessageId.value
+  if (
+    !hasValidThreadId(currentThreadId) ||
+    !beforeMessageId ||
+    loadingOlderMessages.value ||
+    loading.value
+  ) {
+    return
+  }
+
+  const requestToken = pageRequestToken
+  loadingOlderMessages.value = true
+  try {
+    const response = await getThreadMessagesPage(currentThreadId, {
+      limit: MESSAGE_PAGE_LIMIT,
+      beforeMessageId,
+      markRead: false,
+    })
+    if (!response.success || !response.data) {
+      throw new Error(response.message || t('messageDetail.loadMessagesFailed'))
+    }
+
+    if (!isActivePageRequest(requestToken, currentThreadId)) {
+      return
+    }
+
+    const scrollTarget = resolveContentScrollTarget()
+    const scrollElement = await scrollTarget?.getScrollElement?.()
+    const previousScrollHeight = scrollElement?.scrollHeight ?? 0
+    const previousScrollTop = scrollElement?.scrollTop ?? 0
+
+    messages.value = sortMessages(
+      mergeMessagesById([...(response.data.items || []), ...messages.value]),
+    )
+    hasMoreMessagesBefore.value = Boolean(response.data.hasMoreBefore)
+    nextBeforeMessageId.value = response.data.nextBeforeMessageId || null
+
+    await nextTick()
+    if (scrollElement) {
+      // 预置滚动位置，避免向上翻页后视口跳动
+      scrollElement.scrollTop =
+        previousScrollTop + (scrollElement.scrollHeight - previousScrollHeight)
+    }
+    refreshMessageTranslationObserver()
+  } catch (error) {
+    if (!isHandledRequestError(error)) {
+      showWarningToast(resolveWarningMessage(error, t('messageDetail.loadMessagesFailed')))
+    }
+  } finally {
+    loadingOlderMessages.value = false
+  }
+}
+
+async function handleLoadOlderMessages(event: CustomEvent) {
+  try {
+    await loadOlderMessages()
+  } finally {
+    event.detail.complete()
+  }
 }
 
 async function resolveReservationId(
@@ -1245,17 +1346,12 @@ function startPolling(expectedThreadId: number, requestToken: number) {
           300,
         )
       }
-      const nextThreads = await loadThreads(requestToken, expectedThreadId)
-      if (!nextThreads || !isActivePageRequest(requestToken, expectedThreadId)) {
-        return
-      }
+      // 本地更新会话预览即可，不再为此重新拉会话列表
+      patchActiveThreadPreview(messages.value[messages.value.length - 1])
 
       await scrollToConversationBottom(180)
       await nextTick()
       refreshMessageTranslationObserver()
-      if (!activeThread.value) {
-        stopPolling()
-      }
     } catch {
       stopPolling()
     }
@@ -1278,8 +1374,8 @@ async function loadPage() {
   loadNotice.value = ''
 
   try {
-    const nextThreads = await loadThreads(requestToken, currentThreadId)
-    if (!nextThreads || !isActivePageRequest(requestToken, currentThreadId)) {
+    const targetThread = await loadActiveThread(currentThreadId, requestToken)
+    if (!targetThread || !isActivePageRequest(requestToken, currentThreadId)) {
       return
     }
 
@@ -1288,7 +1384,6 @@ async function loadPage() {
       return
     }
 
-    const targetThread = findThreadById(nextThreads, currentThreadId)
     await resolveReservationId(targetThread, currentThreadId, requestToken)
     if (!isActivePageRequest(requestToken, currentThreadId)) {
       return
@@ -1332,7 +1427,7 @@ async function handleSendMessage() {
 
     composerValue.value = ''
     messages.value = sortMessages([...messages.value, response.data])
-    await loadThreads()
+    patchActiveThreadPreview(response.data)
     await scrollToConversationBottom(180)
     await nextTick()
     refreshMessageTranslationObserver()

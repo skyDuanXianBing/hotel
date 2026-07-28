@@ -202,3 +202,10 @@ export const countRoomTypesByPricePlan = (pricePlanId: number) => {
     method: 'GET',
   })
 }
+
+export const countRoomTypesByPricePlans = () => {
+  return request<ApiResponse<Record<string, number>>>({
+    url: '/price-plans/room-type-counts',
+    method: 'GET',
+  })
+}
