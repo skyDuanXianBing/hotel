@@ -307,6 +307,8 @@ import { computed, nextTick, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import {
+  generateThreadAiReplyDraft,
+  getMessageTranslationSetting,
   getThreadMessages,
   getMessageThreads,
   MESSAGE_API_MOCK_ENABLED,
@@ -379,7 +381,7 @@ const TRAILING_URL_PUNCTUATION_PATTERN = /[),.!?\]}]+$/
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const notificationCenterStore = useNotificationCenterStore()
 
 function resolveRouteThreadId() {
@@ -394,6 +396,7 @@ const composerValue = ref('')
 const messages = ref<MessageDTO[]>([])
 const threads = ref<MessageThreadDTO[]>([])
 const reservationId = ref<number | null>(null)
+const linkedReservation = ref<ReservationDTO | null>(null)
 const aiDraftOpen = ref(false)
 const aiDraft = ref('')
 const aiContextSummary = ref('')
@@ -740,45 +743,6 @@ function handleOpenMessageLink(url: string) {
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 
-function buildConversationContext() {
-  const historyLines: string[] = []
-  const recentMessages = messages.value.slice(-20)
-
-  for (const message of recentMessages) {
-    const role =
-      message.senderType === MessageSenderType.STAFF
-        ? t('messageDetail.staff')
-        : t('messageDetail.guest')
-    historyLines.push(`[${role}] ${message.content}`)
-  }
-
-  const header = [
-    t('messageDetail.contextChannel', { value: activeThread.value?.channelName || '-' }),
-    t('messageDetail.contextReservation', {
-      value: activeThread.value?.bookingId || activeThread.value?.threadId || '-',
-    }),
-    t('messageDetail.contextStatus', {
-      value: activeThread.value?.closed
-        ? t('messageDetail.closed')
-        : t('messageDetail.contextActive'),
-    }),
-  ].join('；')
-
-  return `${header}\n\n${t('messageDetail.contextHistory')}\n${
-    historyLines.join('\n') || t('messageDetail.noHistory')
-  }`
-}
-
-function parseAiDraft(rawReply: string) {
-  const contextMatch = rawReply.match(/\[CONTEXT\]([\s\S]*?)\[\/CONTEXT\]/i)
-  const draftMatch = rawReply.match(/\[DRAFT\]([\s\S]*?)\[\/DRAFT\]/i)
-
-  return {
-    contextSummary: contextMatch?.[1]?.trim() || '',
-    draftReply: draftMatch?.[1]?.trim() || rawReply.trim(),
-  }
-}
-
 function syncTranslationSettingsFromStorage() {
   const settings = loadMessageTranslationSettings()
   const shouldClearCaches =
@@ -791,6 +755,29 @@ function syncTranslationSettingsFromStorage() {
   if (shouldClearCaches) {
     clearTranslationCaches()
     clearAiDraftTranslation()
+  }
+}
+
+async function syncTranslationSettingsFromServer() {
+  try {
+    const response = await getMessageTranslationSetting()
+    if (!response.success || !response.data) {
+      throw new Error(response.message || t('messages.settingsLoadFailed'))
+    }
+
+    const shouldClearCaches =
+      translationEnabled.value !== response.data.enabled ||
+      translationTargetLanguage.value !== response.data.targetLanguage
+
+    translationEnabled.value = response.data.enabled
+    translationTargetLanguage.value = response.data.targetLanguage
+
+    if (shouldClearCaches) {
+      clearTranslationCaches()
+      clearAiDraftTranslation()
+    }
+  } catch (error) {
+    console.warn('Failed to load server translation settings, using local fallback:', error)
   }
 }
 
@@ -1148,6 +1135,7 @@ async function resolveReservationId(
   requestToken?: number,
 ) {
   reservationId.value = null
+  linkedReservation.value = null
   if (MESSAGE_API_MOCK_ENABLED) {
     return
   }
@@ -1194,6 +1182,7 @@ async function resolveReservationId(
 
   if (matchedReservation) {
     reservationId.value = matchedReservation.id
+    linkedReservation.value = matchedReservation
   }
 }
 
@@ -1378,37 +1367,39 @@ async function handleGenerateAiDraft() {
 
   draftLoading.value = true
   try {
-    const promptLines = [
-      '你是酒店客服 AI 助手，请根据会话生成一版可直接发送给住客的回复。',
-      '请严格输出以下格式：',
-      '[CONTEXT]',
-      '这里输出问题摘要',
-      '[/CONTEXT]',
-      '[DRAFT]',
-      '这里输出回复正文',
-      '[/DRAFT]',
-      '',
-      '要求：语气专业、简洁、友好，不要编造未确认事实。',
-    ]
-
-    if (aiInstruction.value.trim()) {
-      promptLines.push(`补充要求：${aiInstruction.value.trim()}`)
-    }
-
-    promptLines.push('', '会话上下文：', buildConversationContext())
-
-    const response = await sendAiChatMessage({
-      sessionId: aiSessionId.value || undefined,
-      message: promptLines.join('\n'),
+    const recentMessages = messages.value.slice(-20).map((message) => ({
+      direction:
+        message.senderType === MessageSenderType.STAFF
+          ? ('STAFF' as const)
+          : ('GUEST' as const),
+      content: message.content,
+      sentAt: message.timestamp,
+    }))
+    const latestGuestMessage = [...messages.value]
+      .reverse()
+      .find((message) => message.senderType === MessageSenderType.GUEST)
+    const response = await generateThreadAiReplyDraft(threadId.value, {
+      reservationId: linkedReservation.value?.id ?? reservationId.value ?? undefined,
+      bookingId: activeThread.value.bookingId?.trim() || undefined,
+      externalThreadId: activeThread.value.threadId?.trim() || undefined,
+      channel: activeThread.value.channelName?.trim() || undefined,
+      guestName:
+        linkedReservation.value?.guestName || activeThread.value.guestName || undefined,
+      roomId: linkedReservation.value?.roomId,
+      roomNumber: linkedReservation.value?.roomNumber,
+      roomTypeName:
+        linkedReservation.value?.roomTypeName || activeThread.value.roomTypeName || undefined,
+      latestGuestMessageId: latestGuestMessage?.id,
+      recentMessages,
+      language: locale.value,
     })
-    if (!response.success || !response.data?.reply) {
+    const draftReply = response.data?.draftReply?.trim()
+    if (!response.success || !draftReply) {
       throw new Error(response.message || t('messageDetail.draftFailed'))
     }
 
-    aiSessionId.value = response.data.sessionId || aiSessionId.value
-    const parsed = parseAiDraft(response.data.reply)
-    aiContextSummary.value = parsed.contextSummary || t('messageDetail.contextSummary')
-    aiDraft.value = parsed.draftReply
+    aiContextSummary.value = t('messageDetail.contextSummary')
+    aiDraft.value = draftReply
     clearAiDraftTranslation()
   } catch (error) {
     if (!isHandledRequestError(error)) {
@@ -1548,6 +1539,7 @@ onIonViewWillEnter(async () => {
   threadId.value = resolveRouteThreadId()
   messagePageActive = true
   syncTranslationSettingsFromStorage()
+  await syncTranslationSettingsFromServer()
   await loadPage()
 })
 

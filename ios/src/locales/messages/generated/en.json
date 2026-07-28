@@ -120,6 +120,7 @@
       "contactSupport": "Contact support",
       "close": "Close",
       "memo": "Memo",
+      "memoDetail": "View details",
       "memoPlaceholder": "Record today’s priorities or tasks"
     },
     "stat": {
@@ -1673,6 +1674,7 @@
       "confirmCancel": "Cancel the order for {guest}?",
       "confirmMoveOut": "Move this order out of Order Box?",
       "confirmMoveIn": "The order will not be assigned, occupy inventory, or count toward operating data. Continue?",
+      "confirmMarkSettled": "Mark the order for {guest} as manually settled?",
       "empty": "No data",
       "actions": {
         "cancel": "Cancel",
@@ -1688,7 +1690,8 @@
         "moveIn": "Move into Order Box",
         "confirmMoveIn": "Confirm move in",
         "viewDetails": "View details",
-        "viewGuestNotes": "View guest notes"
+        "viewGuestNotes": "View guest notes",
+        "markSettled": "Mark as settled"
       },
       "messages": {
         "syncFailed": "Order synchronization failed",
@@ -2721,6 +2724,10 @@
         "room": "Room",
         "group": "Group"
       },
+      "actions": {
+        "moveUpShort": "Up",
+        "moveDownShort": "Down"
+      },
       "messages": {
         "loadRoomTypesFailed": "Failed to load room types",
         "loadRoomsFailed": "Failed to load rooms",
@@ -2806,6 +2813,8 @@
       "back": "Back",
       "photos": {
         "title": "Photos",
+        "desktopTitle": "Desktop photos",
+        "mobileTitle": "Mobile photos",
         "maxCount": "Upload up to 40 images.",
         "typeAndSize": "Only image files are supported. Each file must be 5MB or less.",
         "recommendedSize": "Recommended width is at least 1200px for channel display quality.",
@@ -4746,6 +4755,60 @@
     "collapse": "Collapse",
     "close": "Close",
     "recordSuccess": "Transaction added",
+    "workbench": {
+      "back": "Back",
+      "title": "Today's tasks",
+      "refresh": "Refresh today's tasks",
+      "taskDate": "Task date",
+      "viewAll": "View all",
+      "typeFilter": "Task type filter",
+      "statusFilter": "Task status filter",
+      "notConnectedShort": "Not connected",
+      "notConnected": "{source} is not connected yet. Use its feature page to continue.",
+      "loading": "Loading today's tasks",
+      "retry": "Reload",
+      "emptyToday": "No tasks match the current filters today",
+      "loadMore": "Load more",
+      "loadFailed": "Could not load today's tasks",
+      "loadMoreFailed": "Could not load more tasks",
+      "loadCleanersFailed": "Could not load housekeeping staff",
+      "selectEmployeeFirst": "Select an employee first",
+      "assignFailed": "Could not assign the task",
+      "assignSuccess": "Task assigned",
+      "assignEmployee": "Employee",
+      "selectEmployee": "Select employee",
+      "assign": "Assign",
+      "complete": "Complete",
+      "confirmComplete": "Complete \"{task}\"?",
+      "completeFailed": "Could not complete the task",
+      "completeSuccess": "Task completed",
+      "assignedTo": "Assigned to {name}",
+      "unassignedEmployee": "No employee assigned",
+      "unreadMessages": "{count} unread messages",
+      "types": {
+        "all": "All",
+        "cleaning": "Cleaning",
+        "review": "Review",
+        "order": "Orders",
+        "message": "Messages",
+        "other": "Other"
+      },
+      "statuses": {
+        "all": "All",
+        "awaitingReview": "Awaiting review",
+        "awaitingReply": "Awaiting reply",
+        "pending": "Awaiting assignment",
+        "cleaningPending": "Awaiting assignment",
+        "orderPending": "Awaiting check-in / room assignment",
+        "awaitingCheckIn": "Awaiting check-in",
+        "orderUnassigned": "Room unassigned",
+        "unassigned": "Unassigned",
+        "assigned": "Assigned",
+        "inProgress": "In progress",
+        "expired": "Expired",
+        "completed": "Completed"
+      }
+    },
     "transaction": {
       "title": "Add transaction",
       "newEntry": "New transaction",
@@ -4773,6 +4836,30 @@
       "datetimeInvalid": "Select a valid time",
       "submitFailed": "Could not submit the transaction",
       "saved": "Transaction saved"
+    }
+  },
+  "internalTasks": {
+    "title": "Internal tasks",
+    "eyebrow": "Property operations",
+    "total": "{count} visible tasks",
+    "refresh": "Refresh internal tasks",
+    "pullToRefresh": "Pull to refresh internal tasks",
+    "filterLabel": "Internal task status",
+    "loading": "Loading internal tasks",
+    "loadFailed": "Could not load internal tasks",
+    "retry": "Reload",
+    "empty": "No tasks match this status",
+    "untitled": "Untitled task",
+    "loadMore": "Load more",
+    "complete": "Complete",
+    "confirmComplete": "Complete \"{task}\"?",
+    "completeFailed": "Could not complete the task",
+    "completeSuccess": "Task completed",
+    "statuses": {
+      "all": "All",
+      "unassigned": "Unassigned",
+      "assigned": "Assigned",
+      "completed": "Completed"
     }
   },
   "storeSelection": {
@@ -4899,6 +4986,11 @@
     "loggedOut": "Logged out"
   },
   "profile": {
+    "greeting": {
+      "morning": "Good morning, {name}",
+      "afternoon": "Good afternoon, {name}",
+      "evening": "Good evening, {name}"
+    },
     "pullToRefresh": "Pull to refresh profile",
     "unavailableEmail": "Email information is unavailable",
     "title": "Profile",
@@ -4974,6 +5066,7 @@
     "noLatestMessage": "No recent message",
     "settingsUpdated": "Translation settings updated",
     "settingsSaveFailed": "Could not save translation settings",
+    "settingsLoadFailed": "Could not load translation settings; local settings are being used",
     "routeTargetNotFound": "No conversation matched this reservation. Continue searching the current results.",
     "noRoomType": "No linked room type",
     "noStayDate": "No stay dates",
@@ -5926,7 +6019,20 @@
       "submitting": "Submitting...",
       "noRooms": "No rooms assigned",
       "roomsLinked": "{count} rooms linked",
-      "roomPreview": "Rooms {value}"
+      "roomPreview": "Rooms {value}",
+      "saveSettings": "Save settings",
+      "preview": "Preview",
+      "listSeparator": ", "
+    },
+    "messageVariables": {
+      "propertyName": "Property name",
+      "guestName": "Guest name",
+      "checkInDate": "Check-in date",
+      "checkOutDate": "Check-out date",
+      "roomNumber": "Room number",
+      "checkInCode": "Check-in code",
+      "roomTypeName": "Room type name",
+      "ratePlanName": "Rate plan name"
     },
     "autoMessages": {
       "sendImmediately": "Send immediately",
@@ -6363,6 +6469,9 @@
     "settings": "Settings"
   },
   "settings": {
+    "common": {
+      "delete": "Delete"
+    },
     "constants": {
       "sortType": {
         "roomType": "Room type order",
@@ -6629,16 +6738,16 @@
           "note": "Core revenue summary for the last 7 days"
         },
         "channel": {
-          "label": "Channel share",
-          "note": "OTA contribution remains stable"
+          "label": "Top channel share",
+          "note": "Top channel revenue share over the last 7 days"
         },
         "pending": {
           "label": "Pending review",
           "note": "Prioritize today’s check-in documents"
         },
         "finance": {
-          "label": "Finance reminders",
-          "note": "Review revenue records and AR"
+          "label": "Net income",
+          "note": "Income minus expenses over the last 7 days"
         }
       }
     },
@@ -6647,7 +6756,10 @@
       "keyMetrics": "Key metrics",
       "viewTips": "View tips",
       "backToStatistics": "Back to statistics",
-      "openReviews": "Open reviews"
+      "openReviews": "Open reviews",
+      "loading": "Loading...",
+      "exportDetails": "Export details",
+      "exportSuccess": "Report exported"
     },
     "reports": {
       "businessSummary": {
@@ -6665,7 +6777,7 @@
             "Revenue",
             "Occupancy",
             "Average rate",
-            "Alerts"
+            "Orders"
           ],
           "note": [
             "Up 8.4% from yesterday",
@@ -6712,9 +6824,9 @@
         "metrics": {
           "label": [
             "Top channel",
-            "Direct share",
-            "Pending mappings",
-            "Net revenue"
+            "Top channel share",
+            "Channels",
+            "Channel revenue"
           ],
           "note": [
             "31% of reservations",
@@ -6760,10 +6872,10 @@
         ],
         "metrics": {
           "label": [
-            "Today records",
-            "Missing receipts",
+            "Records",
+            "Expense records",
             "Manual income",
-            "Exception notes"
+            "Manual expenses"
           ],
           "note": [
             "Front desk and duty manager both entered data",
@@ -6809,10 +6921,10 @@
         ],
         "metrics": {
           "label": [
-            "Total payments",
+            "Total income",
             "Refunds",
-            "AR",
-            "Received rate"
+            "Total expenses",
+            "Net income"
           ],
           "note": [
             "Online and offline payments included",
@@ -6859,9 +6971,9 @@
         "metrics": {
           "label": [
             "Occupancy",
-            "Average stay",
-            "Member share",
-            "Operating alerts"
+            "Average daily rate",
+            "RevPAR",
+            "Rooms"
           ],
           "note": [
             "Weekend demand is strong",
@@ -6907,10 +7019,10 @@
         ],
         "metrics": {
           "label": [
-            "Room nights",
-            "Family travel",
-            "Long stays",
-            "Document alerts"
+            "Sold room nights",
+            "Occupancy",
+            "Rooms",
+            "Available room nights"
           ],
           "note": [
             "Up 11% from last week",
@@ -6957,9 +7069,9 @@
         "metrics": {
           "label": [
             "Net income",
-            "Costs",
-            "Pending write-off",
-            "Cash health"
+            "Total expenses",
+            "Refunds",
+            "Total income"
           ],
           "note": [
             "Refunds and fees deducted",
@@ -7007,6 +7119,7 @@
     "StoreSelection": "Select property",
     "Home": "Home",
     "HomeCustomize": "Customize",
+    "InternalTasks": "Internal tasks",
     "Rooms": "Rooms",
     "RoomsRoomTable": "Room table",
     "RoomsPricing": "Rate management",

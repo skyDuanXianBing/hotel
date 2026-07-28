@@ -4,40 +4,52 @@
     :title="$t('settings.entries.consumptionItems.0')"
     :hero-eyebrow="$t('stage5SourceText.5')"
     :hero-title="$t('stage5UiAttributes.54')"
+    :toolbar-action-label="$t('settingsStage4.roleManagement.actions.add')"
     :chips="[
       { label: `${$t('settings.entries.consumptionItems.0')} ${items.length}` },
       { label: `${$t('stage5.common.fields.category')} ${categories.length}` },
     ]"
     :show-refresher="true"
     :refresher-pulling-text="$t('stage5UiAttributes.15')"
-    content-class="settings-page-block"
-    hero-class="settings-page-block__hero"
+    page-class="settings-consumption-page"
+    content-class="settings-page-block mobile-page--dashboard settings-consumption-page__content"
+    hero-class="settings-page-block__hero mobile-dashboard-surface settings-consumption-page__hero"
     eyebrow-class="settings-page-block__eyebrow"
+    stack-class="settings-consumption-page__stack"
     @refresh="handleRefresh"
+    @toolbar-action="handleOpenCreate"
   >
-    <section class="mobile-card">
-      <div class="mobile-inline-row settings-consumption-page__toolbar">
-        <ion-segment :value="activeSegment" @ionChange="handleSegmentChange">
-          <ion-segment-button value="items">
-            <ion-label>{{ $t('settings.entries.consumptionItems.0') }}</ion-label>
-          </ion-segment-button>
-          <ion-segment-button value="categories">
-            <ion-label>{{ $t('stage5.common.fields.category') }}</ion-label>
-          </ion-segment-button>
-        </ion-segment>
-
-        <ion-button size="small" @click="handleOpenCreate">
-          {{ activeSegment === 'items' ? $t('settingsStage4.consumptionItems.dialog.addItem') : $t('settingsStage4.consumptionItems.addCategory') }}
-        </ion-button>
-      </div>
+    <section class="mobile-card mobile-dashboard-surface settings-consumption-page__tabs-card">
+      <ion-segment
+        class="settings-consumption-page__segment"
+        :value="activeSegment"
+        @ionChange="handleSegmentChange"
+      >
+        <ion-segment-button value="items">
+          <ion-label>{{ $t('settings.entries.consumptionItems.0') }}</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="categories">
+          <ion-label>{{ $t('stage5.common.fields.category') }}</ion-label>
+        </ion-segment-button>
+      </ion-segment>
     </section>
 
     <SettingsSectionCard
       v-if="activeSegment === 'items'"
       :title="$t('settingsStage4.consumptionItems.tabs.list')"
       :loading="loading"
+      card-class="mobile-dashboard-surface settings-consumption-page__list-card"
       header-class="settings-page-block__section-header"
     >
+      <template #headerActions>
+        <div class="settings-consumption-page__header-actions">
+          <ion-spinner v-if="loading" name="crescent" />
+          <ion-button class="settings-consumption-page__add-button" size="small" @click="handleOpenCreate">
+            {{ $t('settingsStage4.consumptionItems.dialog.addItem') }}
+          </ion-button>
+        </div>
+      </template>
+
       <div v-if="items.length > 0" class="mobile-list settings-minimal-list">
         <article v-for="item in items" :key="item.id" class="settings-minimal-card settings-consumption-item-card">
           <div class="settings-minimal-card__header">
@@ -45,7 +57,7 @@
               <strong>{{ item.name }}</strong>
               <p class="settings-minimal-card__summary">{{ item.category }}</p>
             </div>
-              <span class="settings-minimal-card__badge">{{ formatItemPrice(item.price) }}</span>
+            <span class="settings-minimal-card__badge">{{ formatItemPrice(item.price) }}</span>
           </div>
 
           <div class="settings-minimal-card__meta">
@@ -74,8 +86,18 @@
       v-else
       :title="$t('stage5UiAttributes.30')"
       :loading="loading"
+      card-class="mobile-dashboard-surface settings-consumption-page__list-card"
       header-class="settings-page-block__section-header"
     >
+      <template #headerActions>
+        <div class="settings-consumption-page__header-actions">
+          <ion-spinner v-if="loading" name="crescent" />
+          <ion-button class="settings-consumption-page__add-button" size="small" @click="handleOpenCreate">
+            {{ $t('settingsStage4.consumptionItems.addCategory') }}
+          </ion-button>
+        </div>
+      </template>
+
       <div v-if="categories.length > 0" class="mobile-list settings-minimal-list">
         <article
           v-for="category in categories"
@@ -188,6 +210,7 @@ import {
   IonSegmentButton,
   IonSelect,
   IonSelectOption,
+  IonSpinner,
   IonTextarea,
   IonToggle,
   onIonViewWillEnter,
@@ -559,7 +582,281 @@ onIonViewWillEnter(async () => {
 </script>
 
 <style scoped>
-.settings-consumption-page__toolbar {
-  align-items: flex-start;
+.settings-consumption-page :deep(.settings-consumption-page__content) {
+  display: block;
+  --background: var(--ios-pms-dashboard-page-background);
+  --padding-top: 12px;
+  --padding-bottom: calc(32px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+.settings-consumption-page :deep(.app-page-header__text-btn) {
+  --color: #333333;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.settings-consumption-page :deep(.settings-consumption-page__hero) {
+  margin: 0;
+  padding: 18px 16px 24px;
+  border-radius: var(--ios-pms-radius-card);
+}
+
+.settings-consumption-page :deep(.settings-consumption-page__hero::before) {
+  display: none;
+}
+
+.settings-consumption-page :deep(.settings-page-block__eyebrow) {
+  display: none;
+}
+
+.settings-consumption-page :deep(.settings-consumption-page__hero .mobile-title) {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 22px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.settings-consumption-page :deep(.settings-consumption-page__hero .mobile-chip-row) {
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.settings-consumption-page :deep(.settings-consumption-page__hero .mobile-chip) {
+  min-height: 26px;
+  padding: 2px 10px;
+  border-color: rgba(var(--ion-color-primary-rgb), 0.1);
+  background: rgba(var(--ion-color-primary-rgb), 0.07);
+  color: rgba(var(--ion-color-primary-rgb), 0.82);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.settings-consumption-page :deep(.settings-consumption-page__stack) {
+  gap: 18px;
+  margin-top: 16px;
+  padding-bottom: 6px;
+}
+
+.settings-consumption-page__tabs-card {
+  padding: 2px;
+  overflow: hidden;
+  border-radius: var(--ios-pms-radius-pill);
+}
+
+.settings-consumption-page__segment {
+  width: 100%;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--ios-pms-radius-pill);
+  background: transparent;
+}
+
+.settings-consumption-page__segment ion-segment-button {
+  --border-radius: var(--ios-pms-radius-pill);
+  --color: #242529;
+  --color-checked: #ffffff;
+  --indicator-color: #343436;
+  --indicator-box-shadow: none;
+  --padding-start: 6px;
+  --padding-end: 6px;
+  min-width: 0;
+  min-height: 34px;
+  height: 34px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.settings-consumption-page__segment ion-segment-button::part(native) {
+  min-height: 34px;
+  padding: 0 2px;
+  border-radius: var(--ios-pms-radius-pill);
+}
+
+.settings-consumption-page__segment ion-segment-button::part(indicator) {
+  padding: 0;
+}
+
+.settings-consumption-page__segment ion-segment-button::part(indicator-background) {
+  border-radius: var(--ios-pms-radius-pill);
+  background: #343436;
+  box-shadow: none;
+}
+
+.settings-consumption-page__segment ion-label {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.settings-consumption-page :deep(.settings-consumption-page__list-card) {
+  padding: 18px 16px 30px;
+  border-radius: var(--ios-pms-radius-card);
+}
+
+.settings-consumption-page :deep(.settings-page-block__section-header) {
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-consumption-page :deep(.settings-page-block__section-header > div:first-child) {
+  min-width: 0;
+}
+
+.settings-consumption-page :deep(.settings-page-block__section-header .mobile-section-title) {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 22px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.25;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-consumption-page__header-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-consumption-page__header-actions ion-spinner {
+  width: 18px;
+  height: 18px;
+  color: rgba(var(--ion-color-primary-rgb), 0.78);
+}
+
+.settings-consumption-page__add-button {
+  height: 28px;
+  min-height: 28px;
+  margin: 0;
+  --background: #266eff;
+  --background-activated: #1f5fe2;
+  --border-radius: var(--ios-pms-radius-pill);
+  --box-shadow: none;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.settings-consumption-page :deep(.settings-minimal-list) {
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.settings-consumption-page :deep(.settings-consumption-item-card),
+.settings-consumption-page :deep(.settings-consumption-category-card) {
+  padding: 14px;
+  border: 1px solid rgba(130, 143, 165, 0.2);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 6px 16px rgba(77, 98, 145, 0.035);
+}
+
+.settings-consumption-page :deep(.settings-consumption-item-card::before),
+.settings-consumption-page :deep(.settings-consumption-category-card::before) {
+  display: none;
+}
+
+.settings-consumption-page :deep(.settings-minimal-card__title-group) {
+  gap: 5px;
+}
+
+.settings-consumption-page :deep(.settings-minimal-card__title-group strong) {
+  color: #333333;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.settings-consumption-page :deep(.settings-minimal-card__summary) {
+  color: var(--ios-pms-text-muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.settings-consumption-page :deep(.settings-minimal-card__badge),
+.settings-consumption-page :deep(.settings-minimal-card__meta-pill) {
+  min-height: 26px;
+  padding: 2px 9px;
+  border-color: rgba(var(--ion-color-primary-rgb), 0.1);
+  background: rgba(var(--ion-color-primary-rgb), 0.07);
+  color: rgba(var(--ion-color-primary-rgb), 0.82);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.settings-consumption-page :deep(.settings-minimal-card__meta) {
+  margin-top: 12px;
+}
+
+.settings-consumption-page :deep(.settings-minimal-card__actions) {
+  gap: 6px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top-color: rgba(130, 143, 165, 0.12);
+}
+
+.settings-consumption-page :deep(.settings-minimal-card__actions ion-button) {
+  min-height: 32px;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.settings-consumption-page :deep(.settings-empty-state) {
+  margin: 18px 0 0;
+  color: #ff0000;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+@media (max-width: 374px) {
+  .settings-consumption-page :deep(.settings-consumption-page__content) {
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
+
+  .settings-consumption-page :deep(.settings-consumption-page__hero) {
+    padding: 16px 14px 22px;
+  }
+
+  .settings-consumption-page :deep(.settings-consumption-page__list-card) {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .settings-consumption-page :deep(.settings-page-block__section-header .mobile-section-title) {
+    font-size: 20px;
+  }
+
+  .settings-consumption-page__add-button {
+    --padding-start: 10px;
+    --padding-end: 10px;
+    font-size: 13px;
+  }
 }
 </style>

@@ -156,6 +156,43 @@
               <h2 class="mobile-section-title">{{ $t('stage5SourceText.47') }}</h2>
               <p class="mobile-note">{{ $t('stage5SourceText.120') }}</p>
             </div>
+            <div class="registration-review-detail-page__guest-message">
+              <div class="mobile-inline-row">
+                <strong>{{ $t('stage5.dataCenter.detail.approveMessageLabel') }}</strong>
+                <ion-button
+                  size="small"
+                  fill="clear"
+                  :disabled="quickReplyLoading"
+                  @click="loadQuickReplies"
+                >
+                  {{ $t('stage5.common.actions.refresh') }}
+                </ion-button>
+              </div>
+              <ion-select
+                v-model="selectedQuickReplyId"
+                fill="outline"
+                interface="action-sheet"
+                :disabled="quickReplyLoading || !canReview"
+                :placeholder="$t('stage5.dataCenter.detail.selectQuickReply')"
+                @ionChange="handleQuickReplyChange"
+              >
+                <ion-select-option
+                  v-for="reply in quickReplies"
+                  :key="reply.id"
+                  :value="reply.id"
+                >
+                  {{ reply.title }}
+                </ion-select-option>
+              </ion-select>
+              <ion-textarea
+                v-model="guestMessage"
+                auto-grow
+                fill="outline"
+                :rows="4"
+                :disabled="!canReview || isSubmitting"
+                :placeholder="$t('stage5.dataCenter.detail.approveMessagePlaceholder')"
+              />
+            </div>
             <div class="registration-review-detail-page__actions-grid">
               <ion-button color="success" :disabled="!canReview || isSubmitting" @click="handleApprove">{{ $t('stage5.common.actions.approve') }}</ion-button>
               <ion-button color="danger" fill="outline" :disabled="!canReview || isSubmitting" @click="handleReject">{{ $t('stage5.common.actions.reject') }}</ion-button>
@@ -263,6 +300,8 @@ import {
   IonHeader,
   IonModal,
   IonPage,
+  IonSelect,
+  IonSelectOption,
   IonSpinner,
   IonTextarea,
   IonTitle,
@@ -278,6 +317,7 @@ import {
   getRegistrationReviewDetail,
   rejectRegistrationReview,
 } from '@/api/review'
+import { getAllQuickReplies, type QuickReplyDTO } from '@/api/quickReply'
 import { getReviewStatusLabel, type ReviewAttachment, type ReviewRecord } from '@/constants/reviews'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useReviewStore } from '@/stores/reviews'
@@ -299,6 +339,10 @@ const isPdfDownloading = ref(false)
 const activeAttachmentId = ref('')
 const guestPreviewOpen = ref(false)
 const loadError = ref('')
+const guestMessage = ref('')
+const quickReplies = ref<QuickReplyDTO[]>([])
+const quickReplyLoading = ref(false)
+const selectedQuickReplyId = ref<number | null>(null)
 
 const formId = computed(() => {
   const rawFormId = Array.isArray(route.params.formId) ? route.params.formId[0] : route.params.formId
@@ -333,7 +377,7 @@ watch(
 )
 
 onIonViewWillEnter(async () => {
-  await Promise.all([loadRecordDetail(), reviewStore.refreshRecords()])
+  await Promise.all([loadRecordDetail(), reviewStore.refreshRecords(), loadQuickReplies()])
 })
 
 function buildDecisionNote(fallbackText: string) {
@@ -343,6 +387,72 @@ function buildDecisionNote(fallbackText: string) {
   }
 
   return fallbackText
+}
+
+function buildDecisionPayload(fallbackText: string) {
+  const message = guestMessage.value.trim()
+  return {
+    note: buildDecisionNote(fallbackText),
+    ...(message
+      ? {
+          guestMessage: message,
+          senderName: t('stage5.dataCenter.detail.frontDesk'),
+        }
+      : {}),
+  }
+}
+
+async function loadQuickReplies() {
+  quickReplyLoading.value = true
+  try {
+    const response = await getAllQuickReplies()
+    if (!response.success || !response.data) {
+      throw new Error(response.message || t('stage5.common.messages.dataLoadFailed'))
+    }
+    quickReplies.value = response.data
+  } catch (error) {
+    quickReplies.value = []
+    showUnhandledRequestWarning(error, t('stage5.common.messages.dataLoadFailed'))
+  } finally {
+    quickReplyLoading.value = false
+  }
+}
+
+function handleQuickReplyChange(event: CustomEvent) {
+  const selectedId = Number(event.detail.value || 0)
+  const reply = quickReplies.value.find((item) => item.id === selectedId)
+  selectedQuickReplyId.value = null
+  if (!reply?.message) {
+    return
+  }
+
+  const currentMessage = guestMessage.value.trim()
+  guestMessage.value = currentMessage ? `${currentMessage}\n\n${reply.message}` : reply.message
+}
+
+function showDecisionFeedback(
+  response: Awaited<ReturnType<typeof approveRegistrationReview>>,
+  successKey: string,
+  successWithMessageKey: string,
+) {
+  const message = guestMessage.value.trim()
+  if (!message) {
+    showSuccessToast(t(successKey))
+    return
+  }
+
+  const sendStatus = response?.messageLog?.sendStatus?.trim() || ''
+  if (!response?.messageAttempted || sendStatus !== 'SENT') {
+    showWarningToast(
+      response?.messageError ||
+        response?.messageLog?.errorMessage ||
+        t('stage5.dataCenter.detail.sendFailed'),
+    )
+    return
+  }
+
+  guestMessage.value = ''
+  showSuccessToast(t(successWithMessageKey))
 }
 
 function buildPdfFileName() {
@@ -506,8 +616,15 @@ async function handleApprove() {
   isSubmitting.value = true
 
   try {
-    await approveRegistrationReview(record.value.formNumericId, buildDecisionNote(t('stage5Final.review.approveNote')))
-    showSuccessToast(t('stage5Final.review.approved'))
+    const response = await approveRegistrationReview(
+      record.value.formNumericId,
+      buildDecisionPayload(t('stage5Final.review.approveNote')),
+    )
+    showDecisionFeedback(
+      response,
+      'stage5Final.review.approved',
+      'stage5.dataCenter.detail.approveWithMessageSuccess',
+    )
     await Promise.all([loadRecordDetail(), reviewStore.refreshRecords()])
   } catch (error) {
     showUnhandledRequestWarning(error, t('stage5Final.review.approveFailed'))
@@ -524,8 +641,15 @@ async function handleReject() {
   isSubmitting.value = true
 
   try {
-    await rejectRegistrationReview(record.value.formNumericId, buildDecisionNote(t('stage5Final.review.rejectNote')))
-    showSuccessToast(t('stage5Final.review.rejected'))
+    const response = await rejectRegistrationReview(
+      record.value.formNumericId,
+      buildDecisionPayload(t('stage5Final.review.rejectNote')),
+    )
+    showDecisionFeedback(
+      response,
+      'stage5Final.review.rejected',
+      'stage5.dataCenter.detail.rejectWithMessageSuccess',
+    )
     await Promise.all([loadRecordDetail(), reviewStore.refreshRecords()])
   } catch (error) {
     showUnhandledRequestWarning(error, t('stage5Final.review.rejectFailed'))
@@ -651,6 +775,21 @@ async function handleOpenLinks() {
 .registration-review-detail-page__actions-card {
   display: grid;
   gap: 12px;
+}
+
+.registration-review-detail-page__guest-message {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.82);
+}
+
+.registration-review-detail-page__guest-message ion-select,
+.registration-review-detail-page__guest-message ion-textarea {
+  --background: #fff;
+  --border-radius: 8px;
 }
 
 .registration-review-detail-page__loading-state {

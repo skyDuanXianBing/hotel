@@ -100,10 +100,7 @@ onBeforeUnmount(() => {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background:
-    radial-gradient(circle at top right, rgba(37, 99, 235, 0.14), transparent 36%),
-    radial-gradient(circle at top left, rgba(96, 165, 250, 0.1), transparent 30%),
-    var(--app-background);
+  background: var(--app-background);
 }
 
 #app-router-outlet,

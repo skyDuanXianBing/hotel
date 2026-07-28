@@ -1680,7 +1680,7 @@ async function handlePullRefresh(event: CustomEvent) {
 <style scoped>
 .data-center-page {
   display: block;
-  --background: #eef6ff;
+  --background: var(--app-background);
   --padding-top: 12px;
   --padding-bottom: calc(36px + var(--app-safe-bottom));
   --padding-start: 14px;

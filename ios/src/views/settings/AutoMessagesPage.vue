@@ -12,13 +12,12 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content fullscreen class="mobile-page settings-auto-messages-page">
+    <ion-content fullscreen class="mobile-page mobile-page--dashboard settings-auto-messages-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
         <ion-refresher-content :pulling-text="$t('stage5UiAttributes.16')" refreshing-spinner="crescent" />
       </ion-refresher>
 
-      <section class="mobile-hero settings-auto-messages-hero">
-        <p class="mobile-note settings-auto-messages-hero__eyebrow">{{ $t('stage5SourceText.159') }}</p>
+      <section class="mobile-hero mobile-dashboard-surface settings-auto-messages-hero">
         <h1 class="mobile-title">{{ $t('routes.SettingsAutoMessages') }}</h1>
         <div class="mobile-chip-row">
           <span class="mobile-chip">{{ $t('home.quick.messages.0') }} {{ messages.length }}</span>
@@ -29,7 +28,7 @@
       </section>
 
       <div class="mobile-stack">
-        <section class="mobile-card">
+        <section class="mobile-card mobile-dashboard-surface settings-auto-messages-list-card">
           <div class="mobile-inline-row settings-auto-messages-page__section-header">
             <div>
               <h2 class="mobile-section-title">{{ $t('stage5SourceText.161') }}</h2>
@@ -65,12 +64,12 @@
               </div>
 
               <div class="settings-minimal-card__actions settings-minimal-card__actions--dense">
-                <ion-button size="small" fill="outline" @click="handleEditMessage(message)">{{ $t('accommodation.roomPrice.editTitle') }}</ion-button>
-                <ion-button size="small" fill="outline" @click="handleCopyMessage(message)">{{ $t('home.support.copy') }}</ion-button>
-                <ion-button size="small" fill="outline" @click="handleToggleMessage(message)">
+                <ion-button class="settings-auto-message-card__primary-action" size="small" fill="solid" @click="handleEditMessage(message)">{{ $t('accommodation.roomPrice.editTitle') }}</ion-button>
+                <ion-button class="settings-auto-message-card__secondary-action" size="small" fill="outline" @click="handleCopyMessage(message)">{{ $t('home.support.copy') }}</ion-button>
+                <ion-button class="settings-auto-message-card__secondary-action" size="small" fill="outline" @click="handleToggleMessage(message)">
                   {{ message.enabled ? $t('roomStatus.store.roomState.outOfOrder') : $t('settingsStage4.accountList.status.enabled') }}
                 </ion-button>
-                <ion-button size="small" color="danger" fill="clear" @click="handleDeleteMessage(message)">
+                <ion-button class="settings-auto-message-card__delete-action" size="small" fill="outline" @click="handleDeleteMessage(message)">
                   {{ $t('roomStatus.roomLock.actions.delete') }}
                 </ion-button>
               </div>
@@ -82,19 +81,18 @@
 
       </div>
 
-      <ion-modal :is-open="editorOpen" @didDismiss="handleDismissEditor">
-        <ion-header>
-          <ion-toolbar>
-            <ion-title>{{ editingMessageId ? $t('stage5DynamicUi.68') : $t('stage5DynamicUi.41') }}</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="handleDismissEditor">{{ $t('home.section.close') }}</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-
-        <ion-content class="mobile-page settings-modal-page">
-          <section class="mobile-card">
-            <div class="settings-form-grid">
+      <SettingsEditorModal
+        :is-open="editorOpen"
+        :title="editingMessageId ? $t('stage5DynamicUi.68') : $t('stage5DynamicUi.41')"
+        :backdrop-dismiss="!submitting"
+        :close-disabled="submitting"
+        modal-class="settings-auto-message-editor-modal"
+        content-class="settings-auto-message-editor-page"
+        card-class="settings-auto-message-editor-card"
+        @close="handleDismissEditor"
+        @didDismiss="handleDismissEditor"
+      >
+        <div class="settings-form-grid settings-auto-message-editor-form">
               <label class="settings-form-field">
                 <span>{{ $t('stage5SourceText.148') }}</span>
                 <ion-input v-model="messageForm.title" fill="outline" :placeholder="$t('stage5UiAttributes.85')" />
@@ -129,7 +127,7 @@
                 </ion-select>
               </label>
 
-              <div class="settings-toggle-field">
+              <div class="settings-toggle-field settings-auto-message-editor-toggle">
                 <div>
                   <strong>{{ $t('stage5SourceText.213') }}</strong>
                 </div>
@@ -203,23 +201,21 @@
                 </ion-select>
               </label>
 
-              <div class="settings-toggle-field">
+              <div class="settings-toggle-field settings-auto-message-editor-toggle">
                 <div>
                   <strong>{{ $t('stage5SourceText.35') }}</strong>
                 </div>
                 <ion-toggle v-model="messageForm.enabled" />
               </div>
-            </div>
+        </div>
 
-            <div class="settings-form-actions">
-              <ion-button fill="outline" @click="handleDismissEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
-              <ion-button :disabled="submitting" @click="handleSaveMessage">
-                {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.18') }}
-              </ion-button>
-            </div>
-          </section>
-        </ion-content>
-      </ion-modal>
+        <template #actions>
+          <ion-button fill="outline" @click="handleDismissEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
+          <ion-button :disabled="submitting" @click="handleSaveMessage">
+            {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.18') }}
+          </ion-button>
+        </template>
+      </SettingsEditorModal>
     </ion-content>
   </ion-page>
 </template>
@@ -234,7 +230,6 @@ import {
   IonContent,
   IonHeader,
   IonInput,
-  IonModal,
   IonPage,
   IonRefresher,
   IonRefresherContent,
@@ -260,6 +255,7 @@ import {
   type SendTiming,
 } from '@/api/autoMessage'
 import { getAllChannels, type ChannelDTO } from '@/api/channel'
+import SettingsEditorModal from '@/components/settings/base/SettingsEditorModal.vue'
 import { getAllRoomGroups } from '@/api/roomGroup'
 import { getRooms } from '@/api/rooms'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
@@ -298,14 +294,14 @@ const sendTimingOptions = computed<Array<{ label: string; value: SendTiming }>>(
   { label: t('settingsResidual.autoMessages.hoursAfter', { value: 24 }), value: '24_HOUR' },
 ])
 
-const messageVariables = [
-  { label: 'Property name', code: '{{property_name}}' },
-  { label: "Guest's name", code: '{{guest_name}}' },
-  { label: 'Check-in date', code: '{{checkin_date}}' },
-  { label: 'Checkout date', code: '{{checkout_date}}' },
-  { label: 'Room number', code: '{{room_number}}' },
-  { label: 'Check-in code', code: '{{checkin_code}}' },
-]
+const messageVariables = computed(() => [
+  { label: t('settingsResidual.messageVariables.propertyName'), code: '{{property_name}}' },
+  { label: t('settingsResidual.messageVariables.guestName'), code: '{{guest_name}}' },
+  { label: t('settingsResidual.messageVariables.checkInDate'), code: '{{checkin_date}}' },
+  { label: t('settingsResidual.messageVariables.checkOutDate'), code: '{{checkout_date}}' },
+  { label: t('settingsResidual.messageVariables.roomNumber'), code: '{{room_number}}' },
+  { label: t('settingsResidual.messageVariables.checkInCode'), code: '{{checkin_code}}' },
+])
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -392,12 +388,12 @@ function formatActionLabel(action: AutoMessageAction) {
 
 function formatActionPayloadLabel(action: AutoMessageAction) {
   if (action === 'CHECK_IN') {
-    return '入住'
+    return t('settingsResidual.autoMessages.checkIn')
   }
   if (action === 'CHECK_OUT') {
-    return '离店'
+    return t('settingsResidual.autoMessages.checkOut')
   }
-  return '预订确认'
+  return t('settingsResidual.autoMessages.bookingConfirm')
 }
 
 function formatTimingLabel(value: string) {
@@ -435,7 +431,7 @@ function formatChannelSummary(rawValue: string) {
   if (names.length === 0) {
     return t('settingsResidual.autoMessages.allChannels')
   }
-  return names.join('、')
+  return names.join(t('settingsResidual.common.listSeparator'))
 }
 
 function formatChannelTag(rawValue: string) {
@@ -466,7 +462,7 @@ function formatRoomSummary(roomSelectionType: RoomSelectionType, rawValue: strin
       return t('settingsResidual.autoMessages.byRoomType')
     }
 
-    return names.join('、')
+    return names.join(t('settingsResidual.common.listSeparator'))
   }
 
   if (roomSelectionType === 'BY_GROUP') {
@@ -480,7 +476,9 @@ function formatRoomSummary(roomSelectionType: RoomSelectionType, rawValue: strin
       }
     }
 
-    return names.length > 0 ? names.join('、') : t('settingsResidual.autoMessages.byGroup')
+    return names.length > 0
+      ? names.join(t('settingsResidual.common.listSeparator'))
+      : t('settingsResidual.autoMessages.byGroup')
   }
 
   if (roomSelectionType === 'BY_ROOM') {
@@ -494,7 +492,9 @@ function formatRoomSummary(roomSelectionType: RoomSelectionType, rawValue: strin
       }
     }
 
-    return names.length > 0 ? names.join('、') : t('settingsResidual.autoMessages.byRoom')
+    return names.length > 0
+      ? names.join(t('settingsResidual.common.listSeparator'))
+      : t('settingsResidual.autoMessages.byRoom')
   }
 
   return t('settingsResidual.common.unset')
@@ -502,7 +502,7 @@ function formatRoomSummary(roomSelectionType: RoomSelectionType, rawValue: strin
 
 function formatRoomPayloadSummary(roomSelectionType: RoomSelectionType, rawValue: string) {
   if (roomSelectionType === 'ALL_LOCAL') {
-    return '全部房型'
+    return t('settingsResidual.autoMessages.allRoomTypes')
   }
 
   const selectedIds = parseNumberList(rawValue)
@@ -510,21 +510,27 @@ function formatRoomPayloadSummary(roomSelectionType: RoomSelectionType, rawValue
     const names = selectedIds
       .map((id) => roomTypes.value.find((item) => item.id === id)?.name)
       .filter((name): name is string => Boolean(name))
-    return names.length > 0 ? names.join('、') : '按房型'
+    return names.length > 0
+      ? names.join(t('settingsResidual.common.listSeparator'))
+      : t('settingsResidual.autoMessages.byRoomType')
   }
   if (roomSelectionType === 'BY_GROUP') {
     const names = selectedIds
       .map((id) => roomGroups.value.find((item) => Number(item.id) === id)?.name)
       .filter((name): name is string => Boolean(name))
-    return names.length > 0 ? names.join('、') : '按分组'
+    return names.length > 0
+      ? names.join(t('settingsResidual.common.listSeparator'))
+      : t('settingsResidual.autoMessages.byGroup')
   }
   if (roomSelectionType === 'BY_ROOM') {
     const names = selectedIds
       .map((id) => rooms.value.find((item) => item.id === id)?.roomNumber)
       .filter((name): name is string => Boolean(name))
-    return names.length > 0 ? names.join('、') : '按房间'
+    return names.length > 0
+      ? names.join(t('settingsResidual.common.listSeparator'))
+      : t('settingsResidual.autoMessages.byRoom')
   }
-  return '未设置'
+  return t('settingsResidual.common.unset')
 }
 
 function handleRoomSelectionTypeChange() {
@@ -724,10 +730,10 @@ async function handleSaveMessage() {
       sendTiming,
       enabled: messageForm.value.enabled,
       automationRule: formatActionPayloadLabel((messageForm.value.action || 'BOOKING_CONFIRM') as AutoMessageAction),
-      channel: channelNames.join('、'),
+      channel: channelNames.join(t('settingsResidual.common.listSeparator')),
       room:
         messageForm.value.roomSelectionType === 'ALL_LOCAL'
-          ? '全部房型'
+          ? t('settingsResidual.autoMessages.allRoomTypes')
           : formatRoomPayloadSummary(
               messageForm.value.roomSelectionType,
               JSON.stringify(messageForm.value.selectedRoomTypeIds),
@@ -811,27 +817,260 @@ onIonViewWillEnter(async () => {
 <style scoped>
 .settings-auto-messages-page {
   display: block;
+  --background: var(--ios-pms-dashboard-page-background);
+  --padding-top: 12px;
+  --padding-bottom: calc(30px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+.app-page-header__title {
+  color: #333333;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.app-page-header__text-btn {
+  --color: #333333;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
 .settings-auto-messages-hero {
-  margin-top: 4px;
+  margin-top: 10px;
+  padding: 18px 16px 20px;
+  border: 1px solid var(--ios-pms-dashboard-card-border);
+  border-radius: var(--ios-pms-radius-card);
+  background: var(--ios-pms-dashboard-card-background);
+  box-shadow: var(--ios-pms-dashboard-card-shadow);
 }
 
-.settings-auto-messages-hero__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
+.settings-auto-messages-hero::before {
+  display: none;
+}
+
+.settings-auto-messages-hero .mobile-title {
+  margin: 0;
+  color: #333333;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.24;
+  letter-spacing: 0;
+}
+
+.settings-auto-messages-hero .mobile-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.settings-auto-messages-hero .mobile-chip {
+  min-height: 23px;
+  padding: 3px 10px;
+  border: 0;
+  border-radius: var(--ios-pms-radius-pill);
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  color: #1d73ff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
 }
 
 .settings-auto-messages-page > .mobile-stack {
-  margin-top: var(--ios-pms-space-4);
+  gap: 0;
+  margin-top: 20px;
+  padding-bottom: 6px;
+}
+
+.settings-auto-messages-list-card {
+  padding: 24px 16px 22px;
+  border: 1px solid var(--ios-pms-dashboard-card-border);
+  border-radius: var(--ios-pms-radius-card);
+  background: var(--ios-pms-dashboard-card-background);
+  box-shadow: var(--ios-pms-dashboard-card-shadow);
 }
 
 .settings-auto-messages-page__section-header {
+  align-items: center;
+  min-height: 32px;
+}
+
+.settings-auto-messages-page__section-header .mobile-section-title {
+  margin: 0;
+  color: #333333;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.settings-auto-messages-page__section-header ion-spinner {
+  width: 18px;
+  height: 18px;
+  color: rgba(var(--ion-color-primary-rgb), 0.78);
+}
+
+.settings-auto-messages-list {
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.settings-auto-message-card {
+  padding: 16px 14px 18px;
+  border: 1px solid rgba(130, 143, 165, 0.2);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 6px 16px rgba(77, 98, 145, 0.035);
+}
+
+.settings-auto-message-card::before {
+  display: none;
+}
+
+.settings-auto-message-card .settings-minimal-card__header {
+  flex-wrap: nowrap;
   align-items: flex-start;
+  gap: 12px;
+}
+
+.settings-auto-message-card .settings-minimal-card__title-group {
+  flex: 1;
+  gap: 6px;
+}
+
+.settings-auto-message-card .settings-minimal-card__title-group strong {
+  color: #333333;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.settings-auto-message-card .settings-minimal-card__summary {
+  color: #8f8f8f;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+
+.settings-auto-message-card .settings-minimal-card__badge {
+  min-height: 28px;
+  padding: 2px 10px;
+  border: 0;
+  border-radius: var(--ios-pms-radius-pill);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.settings-auto-message-card .settings-minimal-card__badge--success {
+  background: rgba(var(--ion-color-success-rgb), 0.74);
+  color: #ffffff;
+}
+
+.settings-auto-message-card .settings-minimal-card__badge--warning {
+  background: rgba(var(--ion-color-warning-rgb), 0.13);
+  color: var(--ion-color-warning);
+}
+
+.settings-auto-message-card .settings-minimal-card__meta {
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.settings-auto-message-card .settings-minimal-card__meta-pill {
+  min-height: 24px;
+  padding: 2px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #444444;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.settings-auto-message-card .settings-minimal-card__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.settings-auto-message-card .settings-minimal-card__actions ion-button {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  height: 30px;
+  min-height: 30px;
+  margin: 0;
+  --padding-start: 13px;
+  --padding-end: 13px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --border-color: #d9d9d9;
+  --border-style: solid;
+  --border-width: 1px;
+  --border-radius: 11px;
+  --box-shadow: none;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.settings-auto-message-card .settings-minimal-card__actions ion-button::part(native) {
+  min-height: 30px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.settings-auto-message-card__primary-action {
+  --background: #266eff;
+  --background-activated: #1f5fe0;
+  --border-color: #266eff;
+  --color: #ffffff;
+}
+
+.settings-auto-message-card__secondary-action {
+  --background: rgba(255, 255, 255, 0.72);
+  --background-activated: rgba(52, 116, 246, 0.05);
+  --border-color: #d9d9d9;
+  --color: #2346ff;
+}
+
+.settings-auto-message-card__delete-action {
+  --background: rgba(255, 255, 255, 0.72);
+  --background-activated: rgba(255, 0, 0, 0.05);
+  --background-activated-opacity: 1;
+  --background-focused: rgba(255, 0, 0, 0.04);
+  --background-hover: rgba(255, 0, 0, 0.03);
+  --border-color: #d9d9d9;
+  --color: #ff0000;
+  --color-activated: #ff0000;
+  --color-focused: #ff0000;
+  --color-hover: #ff0000;
+  color: #ff0000;
 }
 
 .settings-auto-messages-page__empty-state {
-  padding-top: 16px;
+  margin: 18px 0 0;
+  padding: 24px 12px;
+  border: 1px dashed rgba(130, 143, 165, 0.24);
+  border-radius: var(--ios-pms-radius-input);
+  color: var(--ios-pms-text-muted);
+  text-align: center;
 }
 
 .settings-modal-page {
@@ -925,5 +1164,300 @@ onIonViewWillEnter(async () => {
   gap: 10px;
   flex-wrap: wrap;
   margin-top: 18px;
+}
+
+:global(.settings-auto-message-editor-modal) {
+  --width: 100%;
+  --height: 100%;
+  --border-radius: 0;
+  --background: #eef6ff;
+}
+
+:global(.settings-auto-message-editor-modal ion-header) {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+:global(.settings-auto-message-editor-modal ion-header::after) {
+  display: none;
+}
+
+:global(.settings-auto-message-editor-modal ion-toolbar) {
+  --background: rgba(255, 255, 255, 0.94);
+  --border-color: transparent;
+  --min-height: 64px;
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+:global(.settings-auto-message-editor-modal ion-title) {
+  color: #333333;
+  font-size: 23px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+:global(.settings-auto-message-editor-close) {
+  max-width: min(42vw, 150px);
+  min-height: 36px;
+  margin: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+  --background: transparent;
+  --background-activated: transparent;
+  --box-shadow: none;
+  --color: #777777;
+  color: #777777;
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+:global(.settings-auto-message-editor-close::part(native)) {
+  white-space: normal;
+}
+
+:global(ion-content.settings-auto-message-editor-page) {
+  --background: #eef6ff;
+  --padding-top: 34px;
+  --padding-bottom: calc(90px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+  background: #eef6ff;
+}
+
+:global(.settings-auto-message-editor-card) {
+  width: 100%;
+  margin: 0 auto;
+  padding: 30px 16px 24px;
+  border: 0;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 8px 18px rgba(67, 92, 132, 0.08);
+}
+
+:global(.settings-auto-message-editor-form) {
+  gap: 18px;
+}
+
+:global(.settings-auto-message-editor-card .settings-form-field) {
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+  transition: none;
+}
+
+:global(.settings-auto-message-editor-card .settings-form-field span),
+:global(.settings-auto-message-editor-card .settings-variable-panel h3),
+:global(.settings-auto-message-editor-card .settings-auto-message-editor-toggle strong) {
+  color: #333333;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+:global(.settings-auto-message-editor-card .settings-form-field span),
+:global(.settings-auto-message-editor-card .settings-variable-panel h3) {
+  font-size: 20px;
+}
+
+:global(.settings-auto-message-editor-card .settings-auto-message-editor-toggle strong) {
+  font-size: 18px;
+}
+
+:global(.settings-auto-message-editor-card .settings-form-field ion-input),
+:global(.settings-auto-message-editor-card .settings-form-field ion-select),
+:global(.settings-auto-message-editor-card .settings-form-field ion-textarea) {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  height: 44px;
+  margin: 0;
+  overflow: visible;
+  border: 1px solid #d8d8dc;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: none;
+  color: #333333;
+  font-size: 18px;
+  font-weight: 400;
+  --background: rgba(255, 255, 255, 0.62);
+  --border-color: #d8d8dc;
+  --border-radius: 11px;
+  --color: #333333;
+  --highlight-color-focused: #d8d8dc;
+  --highlight-color-valid: #d8d8dc;
+  --highlight-color-invalid: var(--ion-color-danger);
+  --placeholder-color: #666666;
+  --placeholder-opacity: 1;
+  --padding-start: 18px;
+  --padding-end: 18px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+}
+
+:global(.settings-auto-message-editor-card .settings-form-field ion-input::part(native)),
+:global(.settings-auto-message-editor-card .settings-form-field ion-textarea::part(native)) {
+  color: #333333;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+:global(.settings-auto-message-editor-card .settings-form-field ion-textarea[rows='7']) {
+  height: auto;
+  min-height: 132px;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+}
+
+:global(.settings-auto-message-editor-card .settings-form-field ion-textarea[rows='7']::part(native)) {
+  min-height: 108px;
+}
+
+:global(.settings-auto-message-editor-card .settings-variable-panel) {
+  display: grid;
+  gap: 12px;
+  margin-top: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+:global(.settings-auto-message-editor-card .settings-variable-panel h3) {
+  margin: 0;
+}
+
+:global(.settings-auto-message-editor-card .settings-variable-panel__list) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  min-height: 56px;
+  margin-top: 0;
+  padding: 10px 18px;
+  border: 1px solid #d8d8dc;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+:global(.settings-auto-message-editor-card .settings-variable-chip) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 28px;
+  height: auto;
+  margin: 0;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: var(--ios-pms-radius-pill);
+  background: #e1f0ff;
+  color: #017cfe;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+:global(.settings-auto-message-editor-toggle) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 41px;
+  margin-top: 14px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 9px;
+  background: #dceaff;
+  box-shadow: none;
+}
+
+:global(.settings-auto-message-editor-toggle ion-toggle) {
+  width: 44px;
+  min-width: 44px;
+  height: 22px;
+  min-height: 22px;
+  contain: layout size style;
+  --track-background: #d9d9d9;
+  --track-background-checked: linear-gradient(90deg, #81bfff 0%, #017cfe 100%);
+  --handle-background: #ffffff;
+  --handle-background-checked: #ffffff;
+  --handle-width: 22px;
+  --handle-height: 22px;
+  --handle-spacing: 0;
+  --handle-box-shadow: none;
+}
+
+:global(.settings-auto-message-editor-toggle ion-toggle::part(track)) {
+  width: 44px;
+  height: 22px;
+  border-radius: var(--ios-pms-radius-pill);
+}
+
+:global(.settings-auto-message-editor-toggle ion-toggle::part(handle)) {
+  top: 0;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+:global(.settings-auto-message-editor-card .settings-form-actions) {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+:global(.settings-auto-message-editor-card .settings-form-actions ion-button) {
+  width: 100%;
+  min-height: 30px;
+  height: 30px;
+  margin: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --padding-start: 10px;
+  --padding-end: 10px;
+  --border-radius: 6px;
+  --box-shadow: none;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+:global(.settings-auto-message-editor-card .settings-form-actions ion-button::part(native)) {
+  min-height: 30px;
+  padding-top: 0;
+  padding-bottom: 0;
+  white-space: normal;
+}
+
+:global(.settings-auto-message-editor-card .settings-form-actions ion-button[fill='outline']) {
+  --background: rgba(255, 255, 255, 0.96);
+  --background-activated: #f7f7f7;
+  --border-color: rgba(193, 204, 220, 0.95);
+  --border-width: 1px;
+  --color: #8a96a8;
+}
+
+:global(.settings-auto-message-editor-card .settings-form-actions ion-button:not([fill='outline'])) {
+  --background: #2687f7;
+  --background-activated: #1f78df;
+  --color: #ffffff;
 }
 </style>

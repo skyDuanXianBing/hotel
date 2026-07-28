@@ -11,8 +11,11 @@ import type {
   ChatMessageRequest,
   ChatMessageResponse,
   MessageDTO,
+  MessageAiReplyDraftRequest,
+  MessageAiReplyDraftResponse,
   MessageSendRequest,
   MessageThreadDTO,
+  MessageTranslationSetting,
   MessageTranslationRequest,
   MessageTranslationResponse,
 } from '@/types/message'
@@ -176,6 +179,39 @@ export const translateThreadMessage = (
     timeoutMs: options?.timeoutMs,
     signal: options?.signal,
     suppressErrorToast: options?.suppressErrorToast,
+  })
+}
+
+export const getMessageTranslationSetting = () => {
+  return request<ApiResponse<MessageTranslationSetting>>({
+    url: '/su-messaging/translation-settings',
+    method: 'GET',
+    suppressErrorToast: true,
+  })
+}
+
+export const updateMessageTranslationSetting = (data: MessageTranslationSetting) => {
+  return request<ApiResponse<MessageTranslationSetting>>({
+    url: '/su-messaging/translation-settings',
+    method: 'PUT',
+    data: {
+      enabled: data.enabled,
+      targetLanguage: data.targetLanguage,
+    },
+    suppressErrorToast: true,
+  })
+}
+
+export const generateThreadAiReplyDraft = (
+  threadId: number,
+  data: MessageAiReplyDraftRequest,
+) => {
+  return request<ApiResponse<MessageAiReplyDraftResponse>>({
+    url: `/su-messaging/threads/${threadId}/ai-reply-draft`,
+    method: 'POST',
+    data,
+    timeoutMs: 45000,
+    suppressErrorToast: true,
   })
 }
 

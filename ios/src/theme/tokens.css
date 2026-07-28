@@ -37,9 +37,10 @@
   --ion-color-danger-tint: #dd6d6d;
 
   --ios-pms-bg-page:
-    radial-gradient(circle at top right, rgba(111, 156, 255, 0.12), transparent 28%),
-    linear-gradient(180deg, #f2f6ff 0%, #f7faff 48%, #fdfdff 100%);
-  --ios-pms-bg-page-plain: #f7faff;
+    radial-gradient(115% 72% at -10% 0%, rgba(203, 235, 255, 0.52) 0%, rgba(224, 241, 254, 0.34) 36%, rgba(246, 250, 254, 0) 72%),
+    radial-gradient(86% 62% at 112% 76%, rgba(211, 229, 250, 0.46) 0%, rgba(229, 239, 252, 0.34) 44%, rgba(246, 250, 254, 0) 78%),
+    linear-gradient(160deg, #eaf6ff 0%, #f2f7fe 42%, #f7faff 62%, #eaf3fc 100%);
+  --ios-pms-bg-page-plain: #f2f7fe;
   --ios-pms-surface: rgba(255, 255, 255, 0.96);
   --ios-pms-surface-strong: rgba(255, 255, 255, 0.98);
   --ios-pms-surface-muted: rgba(246, 249, 255, 0.94);
@@ -119,8 +120,8 @@
   --app-safe-top: env(safe-area-inset-top, 0px);
   --app-safe-bottom: env(safe-area-inset-bottom, 0px);
 
-  --ion-background-color: #f7faff;
-  --ion-background-color-rgb: 247, 250, 255;
+  --ion-background-color: #f2f7fe;
+  --ion-background-color-rgb: 242, 247, 254;
   --ion-text-color: var(--ios-pms-text-primary);
   --ion-text-color-rgb: 22, 35, 59;
   --ion-border-color: var(--ios-pms-border-soft);

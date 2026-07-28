@@ -9,37 +9,34 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content fullscreen class="mobile-page profile-page">
+    <ion-content fullscreen class="mobile-page mobile-page--dashboard profile-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
         <ion-refresher-content :pulling-text="t('profile.pullToRefresh')" refreshing-spinner="crescent" />
       </ion-refresher>
 
-      <section class="mobile-hero profile-hero">
-        <div class="profile-hero__content">
-          <h1 class="mobile-title">{{ displayName }}</h1>
-          <p class="mobile-subtitle">{{ userStore.currentUser?.email || t('profile.unavailableEmail') }}</p>
-        </div>
-      </section>
+      <div class="profile-shell mobile-stack">
+        <section class="mobile-dashboard-surface profile-hero">
+          <div class="profile-hero__content">
+            <h1 class="profile-hero__title">{{ greetingText }}</h1>
+            <p class="profile-hero__email">{{ userStore.currentUser?.email || t('profile.unavailableEmail') }}</p>
+          </div>
+        </section>
 
-      <div class="mobile-stack">
-        <section class="mobile-card profile-form-card">
+        <section class="mobile-dashboard-surface profile-form-card">
           <div class="mobile-inline-row profile-form-card__header">
-            <div>
-              <h2 class="mobile-section-title">{{ t('profile.details') }}</h2>
-              <p class="mobile-note">{{ t('profile.detailsDescription') }}</p>
-            </div>
+            <h2 class="profile-section-title">{{ t('profile.details') }}</h2>
             <ion-spinner v-if="loading || saving" class="profile-form-card__spinner" name="crescent" />
           </div>
 
           <div class="profile-form-grid">
             <label class="profile-form-field">
               <span>{{ t('profile.nickname') }}</span>
-              <ion-input v-model="form.nickname" fill="outline" :placeholder="t('profile.nicknamePlaceholder')" />
+              <ion-input v-model="form.nickname" :placeholder="t('profile.nicknamePlaceholder')" />
             </label>
 
             <label class="profile-form-field">
               <span>{{ t('profile.gender') }}</span>
-              <ion-select v-model="form.gender" fill="outline" interface="action-sheet">
+              <ion-select v-model="form.gender" interface="action-sheet">
                 <ion-select-option value="male">{{ t('profile.genderMale') }}</ion-select-option>
                 <ion-select-option value="female">{{ t('profile.genderFemale') }}</ion-select-option>
                 <ion-select-option value="private">{{ t('profile.genderPrivate') }}</ion-select-option>
@@ -48,7 +45,7 @@
 
             <label class="profile-form-field profile-form-field--full">
               <span>{{ t('profile.avatar') }}</span>
-              <ion-input v-model="form.avatar" fill="outline" :placeholder="t('profile.avatarPlaceholder')" />
+              <ion-input v-model="form.avatar" :placeholder="t('profile.avatarPlaceholder')" />
             </label>
           </div>
 
@@ -60,10 +57,14 @@
           </div>
         </section>
 
-        <section class="mobile-card profile-security-card">
-          <h2 class="mobile-section-title">{{ t('profile.security') }}</h2>
-          <p class="mobile-note">{{ t('profile.securityDescription') }}</p>
-          <ion-button fill="outline" @click="passwordModalOpen = true">{{ t('profile.changePassword') }}</ion-button>
+        <section class="mobile-dashboard-surface profile-security-card">
+          <div class="profile-security-card__copy">
+            <h2 class="profile-section-title profile-security-card__title">{{ t('profile.security') }}</h2>
+            <p class="profile-security-card__note">{{ t('profile.securityDescription') }}</p>
+          </div>
+          <ion-button fill="outline" class="profile-security-card__action" @click="passwordModalOpen = true">
+            {{ t('profile.changePassword') }}
+          </ion-button>
         </section>
       </div>
 
@@ -84,7 +85,6 @@
                 <span>{{ t('profile.currentPassword') }}</span>
                 <ion-input
                   v-model="passwordForm.currentPassword"
-                  fill="outline"
                   type="password"
                   :placeholder="t('profile.currentPasswordPlaceholder')"
                 />
@@ -94,7 +94,6 @@
                 <span>{{ t('profile.newPassword') }}</span>
                 <ion-input
                   v-model="passwordForm.newPassword"
-                  fill="outline"
                   type="password"
                   :placeholder="t('profile.newPasswordPlaceholder')"
                 />
@@ -104,7 +103,6 @@
                 <span>{{ t('profile.confirmPassword') }}</span>
                 <ion-input
                   v-model="passwordForm.confirmPassword"
-                  fill="outline"
                   type="password"
                   :placeholder="t('profile.confirmPasswordPlaceholder')"
                 />
@@ -145,7 +143,7 @@ import {
   IonToolbar,
   onIonViewWillEnter,
 } from '@ionic/vue'
-import { computed, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { changePassword, updateProfile } from '@/api/auth'
@@ -162,6 +160,7 @@ const loading = ref(false)
 const saving = ref(false)
 const changingPassword = ref(false)
 const passwordModalOpen = ref(false)
+const currentHour = ref(new Date().getHours())
 
 const form = reactive({
   nickname: '',
@@ -186,6 +185,28 @@ const displayName = computed(() => {
 
   return t('profile.title')
 })
+
+const greetingPeriod = computed(() => {
+  if (currentHour.value < 12) {
+    return 'morning'
+  }
+
+  if (currentHour.value < 18) {
+    return 'afternoon'
+  }
+
+  return 'evening'
+})
+
+const greetingText = computed(() => {
+  return t(`profile.greeting.${greetingPeriod.value}`, { name: displayName.value })
+})
+
+function refreshCurrentHour() {
+  currentHour.value = new Date().getHours()
+}
+
+const greetingTimer = window.setInterval(refreshCurrentHour, 60 * 1000)
 
 function normalizeGender(value?: string | null) {
   if (value === 'male' || value === 'female') {
@@ -315,100 +336,101 @@ async function handleRefresh(event: CustomEvent) {
 }
 
 onIonViewWillEnter(async () => {
+  refreshCurrentHour()
   await loadProfile(false)
+})
+
+onBeforeUnmount(() => {
+  window.clearInterval(greetingTimer)
 })
 </script>
 
 <style scoped>
 .profile-page {
   display: block;
-  --background: var(--ios-pms-bg-page);
+  --background: var(--ios-pms-dashboard-page-background);
+  --padding-top: 12px;
+  --padding-bottom: calc(20px + var(--app-safe-bottom));
+  --padding-start: 14px;
+  --padding-end: 14px;
 }
 
-.profile-hero {
-  margin-top: 4px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  box-shadow: none;
+.profile-shell {
+  gap: 12px;
+  padding-bottom: calc(4px + var(--app-safe-bottom));
 }
 
-.profile-hero::before {
-  display: none;
-}
-
-.profile-hero__content {
-  padding: 8px 4px 0;
-}
-
-.profile-hero .mobile-title {
-  font-size: 34px;
-  line-height: 1.06;
-  letter-spacing: -0.045em;
-}
-
-.profile-hero .mobile-subtitle {
-  max-width: 30ch;
-  margin-top: 6px;
-  font-size: 15px;
-}
-
-.profile-page > .mobile-stack {
-  gap: 14px;
-  margin-top: var(--ios-pms-space-4);
-  padding-bottom: calc(20px + var(--app-safe-bottom));
-}
-
+.profile-hero,
 .profile-form-card,
 .profile-security-card {
   display: grid;
-  gap: 14px;
+  gap: 12px;
+  overflow: hidden;
+  border-radius: var(--ios-pms-radius-card-sm);
+}
+
+.profile-hero {
+  padding: 16px 16px 20px;
+}
+
+.profile-hero__content {
+  min-width: 0;
+}
+
+.profile-hero__title {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 18px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.profile-hero__email {
+  margin: 6px 0 0;
+  color: var(--ios-pms-text-secondary);
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
 }
 
 .profile-form-card {
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.98);
+  padding: 16px 16px 20px;
 }
 
 .profile-form-card__header {
-  align-items: flex-start;
+  align-items: center;
 }
 
-.profile-form-card__header .mobile-note {
-  max-width: 30ch;
-  margin-top: 2px;
+.profile-section-title {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 17px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.25;
+  letter-spacing: -0.02em;
 }
 
 .profile-form-card__spinner {
   flex-shrink: 0;
-  margin-top: 4px;
   color: var(--ios-pms-primary);
 }
 
 .profile-form-grid {
   display: grid;
-  gap: 0;
-  overflow: hidden;
-  border: 1px solid rgba(110, 134, 181, 0.1);
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(246, 249, 255, 0.78), rgba(251, 253, 255, 0.96));
+  gap: 11px;
 }
 
 .profile-form-field {
   display: grid;
-  gap: 8px;
-  padding: 13px 14px;
-}
-
-.profile-form-field + .profile-form-field {
-  border-top: 1px solid rgba(116, 138, 185, 0.08);
+  gap: 6px;
 }
 
 .profile-form-field span {
-  color: var(--ios-pms-text-soft);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  color: var(--ios-pms-text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
 .profile-form-field--full {
@@ -417,70 +439,115 @@ onIonViewWillEnter(async () => {
 
 .profile-form-field :deep(ion-input),
 .profile-form-field :deep(ion-select) {
-  --background: rgba(255, 255, 255, 0.9);
-  --border-color: rgba(116, 138, 185, 0.1);
-  --highlight-color-focused: var(--ios-pms-primary);
-  --highlight-color-valid: var(--ios-pms-primary);
-  --border-radius: 14px;
+  --background: var(--ios-pms-dashboard-card-background);
+  --highlight-color-focused: #d8d8dc;
+  --highlight-color-valid: #d8d8dc;
+  --color: var(--ios-pms-text-primary);
+  --placeholder-color: rgba(115, 130, 157, 0.78);
+  --placeholder-opacity: 1;
+  --border-radius: 11px;
   --padding-start: 12px;
   --padding-end: 12px;
-  min-height: 50px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #d8d8dc;
+  border-radius: 11px;
+  background: var(--ios-pms-dashboard-card-background);
+  box-shadow: none;
+  overflow: visible;
+  font-size: 14px;
+  font-weight: 400;
 }
 
 .profile-form-actions {
   display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-  gap: 8px;
-  margin-top: 0;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: 12px;
+  margin-top: 2px;
 }
 
 .profile-form-actions ion-button {
   margin: 0;
-  min-height: 48px;
-  font-size: 14px;
-  font-weight: 700;
-  --border-radius: 16px;
+  min-height: 30px;
+  height: 30px;
+  font-size: 13px;
+  font-weight: 500;
+  --border-radius: 6px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --padding-start: 10px;
+  --padding-end: 10px;
 }
 
 .profile-form-actions ion-button:first-child {
-  --background: rgba(255, 255, 255, 0.72);
-  --border-color: rgba(116, 138, 185, 0.14);
-  --color: var(--ios-pms-text-secondary);
+  --background: rgba(255, 255, 255, 0.96);
+  --border-color: rgba(193, 204, 220, 0.95);
+  --border-width: 1px;
+  --box-shadow: none;
+  --color: #8a96a8;
 }
 
 .profile-form-actions ion-button:last-child {
-  --box-shadow: var(--app-button-shadow);
+  --background: linear-gradient(180deg, #3191ff 0%, #2687f7 100%);
+  --box-shadow: 0 4px 10px rgba(52, 116, 246, 0.1);
+  --color: #ffffff;
+}
+
+.profile-form-actions ion-button:last-child::part(native) {
+  border: none;
 }
 
 .profile-security-card {
+  display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
     'title action'
-    'note action';
-  align-items: center;
-  padding: 16px 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(251, 253, 255, 0.96));
+    'note note';
+  align-items: start;
+  column-gap: 12px;
+  row-gap: 8px;
+  padding: 16px 16px 20px;
 }
 
-.profile-security-card .mobile-section-title {
+.profile-security-card__copy {
+  display: contents;
+}
+
+.profile-security-card__title {
   grid-area: title;
   margin-bottom: 0;
 }
 
-.profile-security-card .mobile-note {
+.profile-security-card__note {
   grid-area: note;
-  max-width: 26ch;
+  width: 100%;
+  margin: 0;
+  color: var(--ios-pms-text-muted);
+  font-size: 14px;
+  line-height: 1.6;
 }
 
-.profile-security-card > ion-button {
+.profile-security-card__action {
   grid-area: action;
+  justify-self: end;
+  align-self: start;
   margin: 0;
-  --padding-start: 16px;
-  --padding-end: 16px;
-  --border-radius: 16px;
-  --background: rgba(255, 255, 255, 0.76);
-  --border-color: rgba(116, 138, 185, 0.14);
-  --color: var(--ios-pms-primary-strong);
+  min-height: 30px;
+  height: 30px;
+  --padding-start: 14px;
+  --padding-end: 14px;
+  --border-radius: 6px;
+  --border-color: rgba(73, 136, 249, 0.28);
+  --border-width: 1px;
+  --background: rgba(255, 255, 255, 0.96);
+  --box-shadow: none;
+  --color: var(--ios-pms-primary);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .profile-modal-page {

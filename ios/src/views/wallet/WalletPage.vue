@@ -9,25 +9,31 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content fullscreen class="mobile-page wallet-page">
+    <ion-content fullscreen class="mobile-page mobile-page--dashboard wallet-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
         <ion-refresher-content :pulling-text="$t('iosStage5.wallet.pullToRefresh')" refreshing-spinner="crescent" />
       </ion-refresher>
 
-      <section class="mobile-hero wallet-hero">
-        <p class="mobile-note wallet-hero__eyebrow">{{ $t('iosStage5.wallet.eyebrow') }}</p>
-        <h1 class="mobile-title">{{ $t('routes.Wallet') }}</h1>
-        <p class="mobile-subtitle">{{ $t('iosStage5.wallet.subtitle') }}</p>
-        <div class="mobile-chip-row">
-        <span class="mobile-chip">{{ $t('iosStage5.wallet.balance') }} {{ formatWalletMoney(stats.balance) }}</span>
-        <span class="mobile-chip">{{ $t('iosStage5.wallet.withdrawing') }} {{ formatWalletMoney(stats.withdrawing) }}</span>
-        <span class="mobile-chip">{{ $t('iosStage5.wallet.pendingDeposit') }} {{ formatWalletMoney(stats.pending) }}</span>
+      <section class="mobile-hero mobile-dashboard-surface wallet-hero">
+        <div class="wallet-hero__header">
+          <h1 class="wallet-hero__title">{{ $t('routes.Wallet') }}</h1>
+          <span class="wallet-hero__action">{{ $t('iosStage5.wallet.eyebrow') }}</span>
+        </div>
+        <p class="wallet-hero__subtitle">{{ $t('iosStage5.wallet.subtitle') }}</p>
+        <div class="mobile-chip-row wallet-hero__chips">
+          <span class="mobile-chip">{{ $t('iosStage5.wallet.balance') }} {{ formatWalletMoney(stats.balance) }}</span>
+          <span class="mobile-chip">{{ $t('iosStage5.wallet.withdrawing') }} {{ formatWalletMoney(stats.withdrawing) }}</span>
+          <span class="mobile-chip">{{ $t('iosStage5.wallet.pendingDeposit') }} {{ formatWalletMoney(stats.pending) }}</span>
         </div>
       </section>
 
-      <div class="mobile-stack">
-        <section class="mobile-card">
-          <ion-segment :value="activeSegment" @ionChange="handleSegmentChange">
+      <div class="mobile-stack wallet-stack">
+        <section class="mobile-card mobile-dashboard-surface wallet-primary-tabs">
+          <ion-segment
+            class="wallet-segment wallet-segment--primary"
+            :value="activeSegment"
+            @ionChange="handleSegmentChange"
+          >
             <ion-segment-button value="account">
               <ion-label>{{ $t('iosStage5.wallet.account') }}</ion-label>
             </ion-segment-button>
@@ -40,7 +46,7 @@
           </ion-segment>
         </section>
 
-        <section class="mobile-card wallet-summary-card">
+        <section class="mobile-card mobile-dashboard-surface wallet-summary-card">
           <div class="wallet-summary-grid">
             <article class="wallet-stat-card">
               <span>{{ $t('iosStage5.wallet.availableBalance') }}</span>
@@ -63,7 +69,10 @@
           <p v-if="loadNotice" class="mobile-note wallet-summary-card__notice">{{ loadNotice }}</p>
         </section>
 
-        <section v-if="activeSegment === 'account'" class="mobile-card wallet-account-card">
+        <section
+          v-if="activeSegment === 'account'"
+          class="mobile-card mobile-dashboard-surface wallet-account-card"
+        >
           <div class="mobile-inline-row">
             <div>
               <h2 class="mobile-section-title">{{ $t('iosStage5.wallet.accountActivity') }}</h2>
@@ -72,7 +81,11 @@
             <ion-spinner v-if="loading" name="crescent" />
           </div>
 
-          <ion-segment :value="accountSegment" @ionChange="handleAccountSegmentChange">
+          <ion-segment
+            class="wallet-segment wallet-segment--secondary"
+            :value="accountSegment"
+            @ionChange="handleAccountSegmentChange"
+          >
             <ion-segment-button value="balance">
               <ion-label>{{ $t('iosStage5.wallet.balanceActivity') }}</ion-label>
             </ion-segment-button>
@@ -124,7 +137,10 @@
           </div>
         </section>
 
-        <section v-if="activeSegment === 'withdraw'" class="mobile-card wallet-withdraw-card">
+        <section
+          v-if="activeSegment === 'withdraw'"
+          class="mobile-card mobile-dashboard-surface wallet-withdraw-card"
+        >
           <div class="mobile-inline-row">
             <div>
               <h2 class="mobile-section-title">{{ $t('iosStage5.wallet.withdrawRequest') }}</h2>
@@ -193,7 +209,10 @@
           </div>
         </section>
 
-        <section v-if="activeSegment === 'identity'" class="mobile-card wallet-identity-card">
+        <section
+          v-if="activeSegment === 'identity'"
+          class="mobile-card mobile-dashboard-surface wallet-identity-card"
+        >
           <h2 class="mobile-section-title">{{ $t('iosStage5.wallet.identityVerification') }}</h2>
           <p class="mobile-note">{{ $t('iosStage5.wallet.identityDescription') }}</p>
 
@@ -496,29 +515,210 @@ onIonViewWillEnter(async () => {
 <style scoped>
 .wallet-page {
   display: block;
+  --background: var(--ios-pms-dashboard-page-background);
+  --padding-top: 12px;
+  --padding-bottom: calc(28px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+ion-header {
+  backdrop-filter: blur(14px);
+}
+
+ion-header::after {
+  display: none;
 }
 
 .wallet-hero {
-  margin-top: 4px;
+  margin-top: 0;
+  padding: 16px 16px 22px;
+  border-radius: var(--ios-pms-radius-card);
 }
 
-.wallet-hero__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
+.wallet-hero::before {
+  display: none;
+}
+
+.wallet-hero__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wallet-hero__title {
+  min-width: 0;
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 22px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.2;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.wallet-hero__action {
+  flex-shrink: 0;
+  color: rgba(var(--ion-color-primary-rgb), 0.86);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.wallet-hero__subtitle {
+  margin: 8px 0 0;
+  color: #333333;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.wallet-hero__chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.wallet-hero__chips .mobile-chip {
+  box-sizing: border-box;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 26px;
+  padding: 2px 8px;
+  border-color: rgba(var(--ion-color-primary-rgb), 0.1);
+  background: rgba(var(--ion-color-primary-rgb), 0.07);
+  color: rgba(var(--ion-color-primary-rgb), 0.88);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.wallet-stack {
+  gap: 18px;
+  margin-top: 16px;
+  padding-bottom: 4px;
+}
+
+.wallet-primary-tabs {
+  padding: 2px;
+  overflow: hidden;
+  border-radius: var(--ios-pms-radius-pill);
+}
+
+.wallet-segment {
+  width: 100%;
+  min-height: 32px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(130, 143, 165, 0.18);
+  border-radius: var(--ios-pms-radius-pill);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.wallet-primary-tabs .wallet-segment {
+  border: none;
+  background: transparent;
+}
+
+.wallet-segment--primary {
+  height: 34px;
+  min-height: 34px;
+}
+
+.wallet-segment--secondary {
+  height: 32px;
+  min-height: 32px;
+}
+
+.wallet-segment ion-segment-button {
+  --border-radius: var(--ios-pms-radius-pill);
+  --color: #242529;
+  --color-checked: #ffffff;
+  --indicator-color: #343436;
+  --indicator-box-shadow: none;
+  --padding-start: 6px;
+  --padding-end: 6px;
+  min-width: 0;
+  min-height: 100%;
+  height: 100%;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.wallet-segment--secondary ion-segment-button {
+  font-size: 14px;
+}
+
+.wallet-segment ion-segment-button::part(native) {
+  min-height: 100%;
+  padding: 0 2px;
+  border-radius: var(--ios-pms-radius-pill);
+}
+
+.wallet-segment ion-segment-button::part(indicator) {
+  padding: 0;
+}
+
+.wallet-segment ion-segment-button::part(indicator-background) {
+  border-radius: var(--ios-pms-radius-pill);
+  background: #343436;
+  box-shadow: none;
+}
+
+.wallet-segment ion-label {
+  margin: 0;
+  line-height: 1.2;
+  white-space: normal;
 }
 
 .wallet-summary-card {
   display: grid;
-  gap: 12px;
+  gap: 10px;
+  padding: 14px 16px 22px;
 }
 
 .wallet-summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
-.wallet-stat-card,
+.wallet-stat-card {
+  padding: 10px 12px;
+  border: 1px solid rgba(130, 143, 165, 0.22);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 0 rgba(59, 75, 104, 0.04);
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-height: 58px;
+}
+
+.wallet-stat-card span {
+  color: var(--ios-pms-text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.wallet-stat-card strong {
+  color: rgba(var(--ion-color-primary-rgb), 0.9);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
 .wallet-withdraw-overview__item,
 .wallet-record-card,
 .wallet-identity-placeholder {
@@ -528,33 +728,70 @@ onIonViewWillEnter(async () => {
   background: rgba(255, 255, 255, 0.84);
 }
 
-.wallet-stat-card,
 .wallet-withdraw-overview__item {
   display: grid;
   gap: 6px;
 }
 
-.wallet-stat-card span,
 .wallet-withdraw-overview__item span {
   color: var(--app-muted);
   font-size: 13px;
 }
 
-.wallet-stat-card strong,
 .wallet-withdraw-overview__item strong {
   color: var(--app-heading);
   font-size: 18px;
 }
 
 .wallet-summary-card__notice {
+  margin: 2px 0 0;
   color: var(--ion-color-warning);
+  font-size: 14px;
+  line-height: 1.55;
 }
 
 .wallet-account-card,
 .wallet-withdraw-card,
 .wallet-identity-card {
   display: grid;
-  gap: 14px;
+  gap: 12px;
+  padding: 14px 16px 22px;
+}
+
+.wallet-account-card .mobile-inline-row,
+.wallet-withdraw-card .mobile-inline-row {
+  align-items: flex-start;
+}
+
+.wallet-account-card .mobile-inline-row > div,
+.wallet-withdraw-card .mobile-inline-row > div {
+  min-width: 0;
+}
+
+.wallet-account-card .mobile-section-title,
+.wallet-withdraw-card .mobile-section-title,
+.wallet-identity-card .mobile-section-title {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 20px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.wallet-account-card .mobile-inline-row .mobile-note,
+.wallet-withdraw-card .mobile-inline-row .mobile-note,
+.wallet-identity-card > .mobile-note {
+  margin-top: 4px;
+  color: var(--ios-pms-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.wallet-account-card ion-spinner,
+.wallet-withdraw-card ion-spinner {
+  flex-shrink: 0;
+  color: var(--ios-pms-primary);
 }
 
 .wallet-list {
@@ -584,13 +821,28 @@ onIonViewWillEnter(async () => {
 
 .wallet-empty-state {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   justify-items: flex-start;
+  padding-top: 4px;
 }
 
 .wallet-empty-state h3,
 .wallet-empty-state p {
   margin: 0;
+}
+
+.wallet-empty-state h3 {
+  color: var(--ion-color-danger);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+
+.wallet-empty-state p {
+  color: var(--ion-color-warning);
+  font-size: 14px;
+  line-height: 1.55;
 }
 
 .wallet-withdraw-overview {
@@ -649,5 +901,48 @@ onIonViewWillEnter(async () => {
   margin-top: 10px;
   color: var(--app-muted);
   line-height: 1.6;
+}
+
+@media (max-width: 374px) {
+  .wallet-page {
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
+
+  .wallet-hero {
+    padding: 14px 14px 20px;
+  }
+
+  .wallet-hero__title {
+    font-size: 21px;
+  }
+
+  .wallet-hero__action {
+    font-size: 13px;
+  }
+
+  .wallet-segment ion-segment-button {
+    font-size: 13px;
+  }
+
+  .wallet-segment--secondary ion-segment-button {
+    font-size: 12px;
+  }
+
+  .wallet-summary-card,
+  .wallet-account-card,
+  .wallet-withdraw-card,
+  .wallet-identity-card {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .wallet-stat-card {
+    padding: 9px 10px;
+  }
+
+  .wallet-stat-card strong {
+    font-size: 17px;
+  }
 }
 </style>

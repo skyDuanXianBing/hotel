@@ -7,6 +7,15 @@ export interface DateRangeParams {
   endDate: string
 }
 
+export interface BusinessSummaryDTO {
+  totalRevenue: number
+  totalOrders: number
+  totalRoomNights?: number
+  averageRoomRate?: number
+  averageOrderValue?: number
+  occupancyRate: number
+}
+
 export interface BusinessOverviewDTO {
   totalRevenue: number
   roomFee: number
@@ -47,6 +56,10 @@ export interface RevenueSummaryDTO {
   totalRevenue: number
   splitAccount: number
   actualReceived: number
+  totalIncome?: number
+  totalExpense?: number
+  netIncome?: number
+  paymentRefund?: number
   paymentMethodStats: PaymentMethodStat[]
   categoryStats: CategoryStat[]
   incomeDistribution: Distribution[]
@@ -219,6 +232,8 @@ function toNumber(value: unknown) {
   return 0
 }
 
+export type StatisticsReportType = 'room-fees' | 'transaction-summary' | 'daily'
+
 const statisticsText = (key: string) => i18n.global.t(`runtime.statistics.${key}`)
 
 function normalizeChannelDistribution(item: ChannelDistribution): ChannelDistribution {
@@ -368,6 +383,12 @@ export const getBusinessOverview = (params: DateRangeParams) => {
   })
 }
 
+export const getBusinessSummary = (params: DateRangeParams) => {
+  return request.get<ApiResponse<BusinessSummaryDTO>>('/statistics/business/summary', {
+    params: { ...params },
+  })
+}
+
 export const getRevenueSummary = (params: DateRangeParams) => {
   return request.get<ApiResponse<RevenueSummaryDTO>>('/statistics/business/revenue-summary', {
     params: { ...params },
@@ -396,12 +417,25 @@ export const getOperationalMetrics = async (params: DateRangeParams) => {
   return normalizeApiResponse(response, normalizeOperationalMetrics)
 }
 
+export const downloadStatisticsReport = (
+  type: StatisticsReportType,
+  params: DateRangeParams,
+) => {
+  return request.blob(`/statistics/reports/${type}`, {
+    params: { ...params },
+    timeoutMs: 30000,
+    suppressErrorToast: true,
+  })
+}
+
 const statisticsApi = {
+  getBusinessSummary,
   getBusinessOverview,
   getRevenueSummary,
   getChannelSummary,
   getSalesSummary,
   getOperationalMetrics,
+  downloadStatisticsReport,
 }
 
 export default statisticsApi

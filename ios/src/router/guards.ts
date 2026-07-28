@@ -21,6 +21,7 @@ export const ROUTE_PATHS = {
   tabsRoot: '/tabs',
   home: '/tabs/home',
   homeCustomize: '/tabs/home/customize',
+  internalTasks: '/tabs/tasks/internal',
   rooms: '/tabs/rooms',
   roomsRoomTable: '/tabs/rooms/room-table',
   roomsPricing: '/tabs/rooms/pricing',

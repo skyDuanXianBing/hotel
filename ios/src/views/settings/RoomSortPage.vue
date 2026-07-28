@@ -1,63 +1,88 @@
 <template>
-  <SettingsSortablePage
-    :back-href="ROUTE_PATHS.settings"
-    :title="$t('settings.entries.roomSort.0')"
-    :hero-eyebrow="$t('settings.groups.accommodation')"
-    :hero-title="$t('settings.entries.roomSort.0')"
-    :show-refresher="true"
-    :refresher-pulling-text="$t('stage5UiAttributes.11')"
-    :section-title="$t('stage5UiAttributes.41')"
-    :loading="loading"
-    @refresh="handleRefresh"
-  >
-    <template #controls>
-      <ion-segment :value="activeSegment" @ionChange="handleSegmentChange">
-        <ion-segment-button value="ROOM_TYPE">
-          <ion-label>{{ $t('accommodation.common.roomType') }}</ion-label>
-        </ion-segment-button>
-        <ion-segment-button value="ROOM">
-          <ion-label>{{ $t('accommodation.common.room') }}</ion-label>
-        </ion-segment-button>
-        <ion-segment-button value="GROUP">
-          <ion-label>{{ $t('channel.mobile.mapping.groups') }}</ion-label>
-        </ion-segment-button>
-      </ion-segment>
-    </template>
+  <ion-page>
+    <ion-header translucent>
+      <ion-toolbar class="app-page-header__toolbar">
+        <ion-buttons slot="start">
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.settings" />
+        </ion-buttons>
+        <ion-title class="app-page-header__title">{{ $t('settings.entries.roomSort.0') }}</ion-title>
+      </ion-toolbar>
+    </ion-header>
 
-    <div v-if="currentItems.length > 0" class="mobile-list settings-card-list">
-      <article v-for="(item, index) in currentItems" :key="item.id" class="settings-card-item settings-card-item--compact">
-        <div>
-          <strong>{{ item.name }}</strong>
-          <p>{{ item.description }}</p>
+    <ion-content fullscreen class="mobile-page mobile-page--dashboard room-sort-page">
+      <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
+        <ion-refresher-content :pulling-text="$t('stage5UiAttributes.11')" refreshing-spinner="crescent" />
+      </ion-refresher>
+
+      <section class="room-sort-tabs" :aria-label="$t('settings.entries.roomSort.0')">
+        <ion-segment class="room-sort-segment" :value="activeSegment" @ionChange="handleSegmentChange">
+          <ion-segment-button value="ROOM_TYPE">
+            <ion-label>{{ $t('accommodation.common.roomType') }}</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="ROOM">
+            <ion-label>{{ $t('accommodation.common.room') }}</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="GROUP">
+            <ion-label>{{ $t('channel.mobile.mapping.groups') }}</ion-label>
+          </ion-segment-button>
+        </ion-segment>
+      </section>
+
+      <section class="mobile-card mobile-dashboard-surface room-sort-order-card">
+        <div class="room-sort-order-card__header">
+          <h2 class="room-sort-order-card__title">{{ $t('stage5UiAttributes.41') }}</h2>
+          <ion-spinner v-if="loading" name="crescent" />
         </div>
 
-        <div class="settings-card-item__actions settings-card-item__actions--vertical">
-          <ion-button size="small" fill="outline" :disabled="index === 0" @click="handleMove(index, -1)">{{ $t('stage5SourceText.3') }}</ion-button>
-          <ion-button size="small" fill="outline" :disabled="index === currentItems.length - 1" @click="handleMove(index, 1)">{{ $t('stage5SourceText.4') }}</ion-button>
+        <div v-if="currentItems.length > 0" class="mobile-list room-sort-list">
+          <article v-for="(item, index) in currentItems" :key="item.id" class="room-sort-item">
+            <div class="room-sort-item__content">
+              <span class="room-sort-item__order">{{ $t('stage5DynamicUi.142') }} {{ index + 1 }}</span>
+              <strong>{{ item.name }}</strong>
+              <p>{{ item.description }}</p>
+            </div>
+
+            <div class="room-sort-item__actions">
+              <ion-button size="small" fill="outline" :disabled="index === 0" @click="handleMove(index, -1)">
+                {{ $t('settingsStage4.roomSort.actions.moveUpShort') }}
+              </ion-button>
+              <ion-button size="small" fill="outline" :disabled="index === currentItems.length - 1" @click="handleMove(index, 1)">
+                {{ $t('settingsStage4.roomSort.actions.moveDownShort') }}
+              </ion-button>
+            </div>
+          </article>
         </div>
-      </article>
-    </div>
 
-    <p v-else-if="!loading" class="mobile-note">{{ $t('stage5SourceText.57') }}</p>
+        <p v-else-if="!loading" class="mobile-note room-sort-empty">{{ $t('stage5SourceText.57') }}</p>
 
-    <template #sectionFooter>
-      <div class="settings-form-actions settings-form-actions--section">
-        <ion-button fill="outline" :disabled="loading || saving" @click="loadPageData">{{ $t('accommodation.common.reset') }}</ion-button>
-        <ion-button :disabled="loading || saving || currentItems.length === 0" @click="handleSaveSortOrder">
-          {{ saving ? $t('channel.mobile.common.saving') : $t('stage5DynamicUi.24') }}
-        </ion-button>
-      </div>
-    </template>
-  </SettingsSortablePage>
+        <div class="room-sort-save-actions">
+          <ion-button fill="outline" :disabled="loading || saving" @click="loadPageData">{{ $t('accommodation.common.reset') }}</ion-button>
+          <ion-button :disabled="loading || saving || currentItems.length === 0" @click="handleSaveSortOrder">
+            {{ saving ? $t('channel.mobile.common.saving') : $t('stage5DynamicUi.24') }}
+          </ion-button>
+        </div>
+      </section>
+    </ion-content>
+  </ion-page>
 </template>
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import {
+  IonBackButton,
   IonButton,
+  IonButtons,
+  IonContent,
+  IonHeader,
   IonLabel,
+  IonPage,
+  IonRefresher,
+  IonRefresherContent,
   IonSegment,
   IonSegmentButton,
+  IonSpinner,
+  IonTitle,
+  IonToolbar,
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { computed, ref } from 'vue'
@@ -65,7 +90,6 @@ import { getAllRoomGroups } from '@/api/roomGroup'
 import { getRooms } from '@/api/rooms'
 import { getSortOrderMap, updateSortOrders } from '@/api/sortConfig'
 import { getAllRoomTypes } from '@/api/roomType'
-import SettingsSortablePage from '@/components/settings/families/SettingsSortablePage.vue'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useUserStore } from '@/stores/user'
 import type { RoomDTO, RoomGroupDTO, SortEntityType } from '@/types/settings'
@@ -246,19 +270,267 @@ onIonViewWillEnter(async () => {
 </script>
 
 <style scoped>
-.settings-card-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid var(--app-border);
-  background: rgba(255, 255, 255, 0.82);
+.room-sort-page {
+  display: block;
+  --background: var(--app-background);
+  --padding-top: 20px;
+  --padding-bottom: calc(32px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+  background: var(--app-background);
 }
 
-.settings-card-item__actions--vertical {
-  flex-direction: column;
-  align-items: stretch;
+.room-sort-tabs {
+  margin: 0 0 20px;
+}
+
+.room-sort-segment {
+  width: 100%;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  overflow: hidden;
+  border: none;
+  border-radius: var(--ios-pms-radius-pill);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.room-sort-segment ion-segment-button {
+  --border-radius: var(--ios-pms-radius-pill);
+  --color: #050505;
+  --color-checked: #ffffff;
+  --indicator-color: #343436;
+  --indicator-box-shadow: none;
+  --padding-start: 6px;
+  --padding-end: 6px;
+  min-width: 0;
+  min-height: 100%;
+  height: 100%;
+  margin: 0;
+  color: #050505;
+  font-size: 16px;
+  font-weight: var(--ios-pms-weight-bold);
+  letter-spacing: 0;
+}
+
+.room-sort-segment ion-segment-button::part(native) {
+  min-height: 100%;
+  padding: 0 2px;
+  border-radius: var(--ios-pms-radius-pill);
+}
+
+.room-sort-segment ion-segment-button.segment-button-checked,
+.room-sort-segment ion-segment-button.segment-button-checked ion-label,
+.room-sort-segment ion-segment-button.segment-button-checked::part(native) {
+  color: #ffffff !important;
+}
+
+.room-sort-segment ion-segment-button::part(indicator) {
+  padding: 0;
+}
+
+.room-sort-segment ion-segment-button::part(indicator-background) {
+  border-radius: var(--ios-pms-radius-pill);
+  background: #343436;
+  box-shadow: none;
+}
+
+.room-sort-segment ion-label {
+  margin: 0;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+.room-sort-order-card {
+  display: grid;
+  gap: 18px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 28px 16px 22px;
+  border-radius: var(--ios-pms-radius-card);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.room-sort-order-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.room-sort-order-card__title {
+  margin: 0;
+  color: #30343a;
+  font-size: 22px;
+  font-weight: var(--ios-pms-weight-bold);
+  line-height: 1.22;
+  letter-spacing: 0;
+}
+
+.room-sort-order-card__header ion-spinner {
+  flex-shrink: 0;
+  color: var(--ios-pms-primary);
+}
+
+.room-sort-list {
+  gap: 16px;
+}
+
+.room-sort-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  min-height: 96px;
+  padding: 16px 86px 16px 16px;
+  border: 1px solid rgba(130, 143, 165, 0.18);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.room-sort-item__content {
+  min-width: 0;
+}
+
+.room-sort-item__order {
+  display: block;
+  margin: 0 0 8px;
+  color: #7d828a;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.room-sort-item strong {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  color: #30343a;
+  font-size: 19px;
+  font-weight: var(--ios-pms-weight-bold);
+  line-height: 1.24;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.room-sort-item p {
+  min-width: 0;
+  margin: 4px 0 0;
+  color: #7f858d;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.room-sort-item__actions {
+  position: absolute;
+  right: 14px;
+  bottom: 16px;
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.room-sort-item__actions ion-button {
+  width: 58px;
+  height: 28px;
+  min-height: 28px;
+  margin: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --border-radius: var(--ios-pms-radius-pill);
+  --border-color: rgba(102, 112, 128, 0.22);
+  --border-width: 1px;
+  --background: rgba(255, 255, 255, 0.74);
+  --background-hover: rgba(255, 255, 255, 0.9);
+  --background-activated: rgba(52, 116, 246, 0.08);
+  --box-shadow: none;
+  --color: #2756ff;
+  color: #2756ff;
+  font-size: 15px;
+  font-weight: var(--ios-pms-weight-bold);
+  letter-spacing: 0;
+}
+
+.room-sort-item__actions ion-button::part(native) {
+  padding: 0;
+}
+
+.room-sort-item__actions ion-button.button-disabled {
+  opacity: 0.42;
+}
+
+.room-sort-empty {
+  padding: 10px 0 2px;
+  color: var(--ios-pms-text-muted);
+  font-size: 14px;
+}
+
+.room-sort-save-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(130, 143, 165, 0.14);
+}
+
+.room-sort-save-actions ion-button {
+  min-height: 36px;
+  margin: 0;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --border-radius: var(--ios-pms-radius-pill);
+  --box-shadow: none;
+  font-size: 14px;
+  font-weight: var(--ios-pms-weight-bold);
+  letter-spacing: 0;
+}
+
+.room-sort-save-actions ion-button[fill='outline'] {
+  --background: rgba(255, 255, 255, 0.76);
+  --border-color: rgba(52, 116, 246, 0.18);
+}
+
+@media (max-width: 374px) {
+  .room-sort-page {
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
+
+  .room-sort-segment ion-segment-button {
+    font-size: 14px;
+  }
+
+  .room-sort-order-card {
+    padding: 24px 14px 20px;
+  }
+
+  .room-sort-item {
+    gap: 10px;
+    padding-right: 78px;
+    padding-left: 14px;
+  }
+
+  .room-sort-item strong {
+    font-size: 17px;
+  }
+
+  .room-sort-item__actions ion-button {
+    width: 54px;
+    font-size: 14px;
+  }
 }
 </style>

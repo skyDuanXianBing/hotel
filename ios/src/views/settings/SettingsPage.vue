@@ -104,7 +104,11 @@
       </div>
     </ion-content>
 
-    <MemoSheetModal :is-open="visibleToolsStore.memoOpen" @dismiss="visibleToolsStore.closeMemo" />
+    <MemoSheetModal
+      :is-open="visibleToolsStore.memoOpen"
+      show-workbench
+      @dismiss="visibleToolsStore.closeMemo"
+    />
 
     <RecordTransactionModal
       :is-open="visibleToolsStore.recordOpen"

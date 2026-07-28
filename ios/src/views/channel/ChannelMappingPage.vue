@@ -900,7 +900,7 @@ onIonViewWillEnter(async () => {
 
 <style scoped>
 .channel-mapping-page {
-  --background: linear-gradient(180deg, #edf8ff 0%, #f3f9ff 54%, #f8fbff 100%);
+  --background: var(--app-background);
   --padding-top: 10px;
   --padding-start: 22px;
   --padding-end: 20px;

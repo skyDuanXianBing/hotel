@@ -1,5 +1,6 @@
 <template>
   <SettingsSortablePage
+    class="settings-note-page"
     :back-href="ROUTE_PATHS.settings"
     :title="$t('settings.entries.noteSettings.0')"
     :hero-eyebrow="$t('settings.groups.finance')"
@@ -27,7 +28,11 @@
     </template>
 
     <div v-if="currentCategories.length > 0" class="mobile-list settings-minimal-list">
-      <article v-for="(category, index) in currentCategories" :key="category.id" class="settings-minimal-card">
+      <article
+        v-for="(category, index) in currentCategories"
+        :key="category.id"
+        class="settings-minimal-card note-category-card"
+      >
         <div class="settings-minimal-card__header">
           <div class="settings-minimal-card__title-group">
             <strong>{{ category.name }}</strong>
@@ -57,7 +62,7 @@
       </article>
     </div>
 
-    <p v-else-if="!loading" class="mobile-note">{{ $t('stage5SourceText.56') }}</p>
+    <p v-else-if="!loading" class="mobile-note note-settings-empty">{{ $t('stage5SourceText.56') }}</p>
 
     <template #sectionFooter>
       <div class="settings-form-actions settings-form-actions--section">
@@ -312,3 +317,308 @@ onIonViewWillEnter(async () => {
   await loadPageData()
 })
 </script>
+
+<style scoped>
+.settings-note-page :deep(.settings-sortable-page) {
+  display: block;
+  --background: var(--ios-pms-dashboard-page-background);
+  --padding-top: 12px;
+  --padding-bottom: calc(30px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+.settings-note-page :deep(.app-page-header__title) {
+  color: #333333;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.settings-note-page :deep(.app-page-header__text-btn) {
+  --color: #333333;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.settings-note-page :deep(.settings-page-block__hero) {
+  display: none;
+}
+
+.settings-note-page :deep(.settings-page-shell__stack) {
+  gap: 14px;
+  margin-top: 0;
+  padding-bottom: 6px;
+}
+
+.settings-note-page :deep(.settings-sortable-page__controls-card) {
+  padding: 0;
+  border: 1px solid rgba(130, 143, 165, 0.18);
+  border-radius: var(--ios-pms-radius-pill);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 4px 12px rgba(77, 98, 145, 0.035);
+}
+
+.settings-note-page :deep(.settings-sortable-page__controls-card ion-segment) {
+  min-height: 36px;
+  padding: 0;
+  border-radius: var(--ios-pms-radius-pill);
+  background: transparent;
+}
+
+.settings-note-page :deep(.settings-sortable-page__controls-card ion-segment-button) {
+  min-width: 0;
+  min-height: 36px;
+  margin: 0;
+  --border-radius: var(--ios-pms-radius-pill);
+  --color: var(--ios-pms-text-primary);
+  --color-checked: #ffffff;
+  --indicator-color: #343436;
+  --indicator-box-shadow: none;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.settings-note-page
+  :deep(.settings-sortable-page__controls-card ion-segment-button::part(indicator-background)) {
+  border-radius: var(--ios-pms-radius-pill);
+}
+
+.settings-note-page :deep(.settings-page-shell__stack > .mobile-card:not(.settings-sortable-page__controls-card)) {
+  padding: 18px 16px 22px;
+  border: 1px solid var(--ios-pms-dashboard-card-border);
+  border-radius: var(--ios-pms-radius-card);
+  background: var(--ios-pms-dashboard-card-background);
+  box-shadow: var(--ios-pms-dashboard-card-shadow);
+}
+
+.settings-note-page :deep(.settings-page-block__section-header) {
+  align-items: center;
+  min-height: 32px;
+}
+
+.settings-note-page :deep(.settings-page-block__section-header .mobile-section-title) {
+  margin: 0;
+  color: #333333;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.settings-note-page :deep(.settings-page-block__section-header ion-spinner) {
+  width: 18px;
+  height: 18px;
+  color: rgba(var(--ion-color-primary-rgb), 0.78);
+}
+
+.settings-note-page :deep(.settings-minimal-list) {
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.settings-note-page :deep(.note-category-card) {
+  padding: 16px 14px 14px;
+  border: 1px solid rgba(130, 143, 165, 0.2);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 6px 16px rgba(77, 98, 145, 0.035);
+}
+
+.settings-note-page :deep(.note-category-card::before) {
+  display: none;
+}
+
+.settings-note-page :deep(.note-category-card .settings-minimal-card__header) {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.settings-note-page :deep(.note-category-card .settings-minimal-card__title-group) {
+  flex: 1;
+  gap: 8px;
+}
+
+.settings-note-page :deep(.note-category-card .settings-minimal-card__title-group strong) {
+  color: #333333;
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.settings-note-page :deep(.note-category-card .settings-minimal-card__summary) {
+  color: #999999;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+
+.settings-note-page :deep(.note-category-card .settings-minimal-card__badge) {
+  box-sizing: border-box;
+  height: 26px;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 26px;
+  letter-spacing: 0;
+}
+
+.settings-note-page :deep(.note-category-card .settings-minimal-card__badge--success) {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.settings-note-page :deep(.note-category-card .settings-minimal-card__badge--warning) {
+  background: #fff2e8;
+  color: #fa8c16;
+}
+
+.settings-note-page :deep(.note-category-card .settings-minimal-card__actions) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top-color: rgba(130, 143, 165, 0.2);
+}
+
+.settings-note-page :deep(.note-category-card .settings-minimal-card__actions ion-button) {
+  width: auto;
+  min-width: 62px;
+  min-height: 28px;
+  height: 28px;
+  margin: 0;
+  --padding-start: 15px;
+  --padding-end: 15px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --background: #ffffff;
+  --background-activated: #f7f7f7;
+  --border-color: #d9d9d9;
+  --border-style: solid;
+  --border-width: 1px;
+  --border-radius: 11px;
+  --box-shadow: none;
+  --color: #2346ff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.settings-note-page
+  :deep(.note-category-card .settings-minimal-card__actions ion-button[fill='outline']) {
+  --background: #ffffff;
+  --border-color: #d9d9d9;
+  --border-width: 1px;
+  --color: #2346ff;
+}
+
+.settings-note-page
+  :deep(.note-category-card .settings-minimal-card__actions ion-button[color='danger']) {
+  --background: #ffffff;
+  --border-color: #d9d9d9;
+  --border-style: solid;
+  --border-width: 1px;
+  --color: #ff0000;
+}
+
+.settings-note-page
+  :deep(.note-category-card .settings-minimal-card__actions ion-button:first-child) {
+  --background: #266eff;
+  --background-activated: #1f5edb;
+  --border-color: #266eff;
+  --color: #ffffff;
+}
+
+.settings-note-page
+  :deep(.note-category-card .settings-minimal-card__actions ion-button.button-disabled) {
+  opacity: 0.42;
+}
+
+.settings-note-page :deep(.settings-section-card__footer) {
+  margin-top: 20px;
+}
+
+.settings-note-page :deep(.settings-form-actions--section) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 36px;
+  margin-top: 0;
+  padding-top: 14px;
+  border-top: 0;
+}
+
+.settings-note-page :deep(.settings-form-actions--section ion-button) {
+  width: 100%;
+  min-height: 34px;
+  height: 34px;
+  margin: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --border-radius: 6px;
+  --box-shadow: none;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.settings-note-page :deep(.settings-form-actions--section ion-button:first-child) {
+  --background: #ffffff;
+  --border-color: #d9d9d9;
+  --border-width: 1px;
+  --color: #999999;
+}
+
+.settings-note-page :deep(.settings-form-actions--section ion-button:last-child) {
+  --background: #1890ff;
+  --background-activated: #1683e6;
+  --color: #ffffff;
+}
+
+.settings-note-page :deep(.note-settings-empty) {
+  margin: 18px 0 0;
+  padding: 24px 12px;
+  border: 1px dashed rgba(130, 143, 165, 0.24);
+  border-radius: var(--ios-pms-radius-input);
+  color: var(--ios-pms-text-muted);
+  text-align: center;
+}
+
+@media (max-width: 374px) {
+  .settings-note-page :deep(.settings-sortable-page) {
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
+
+  .settings-note-page
+    :deep(.settings-page-shell__stack > .mobile-card:not(.settings-sortable-page__controls-card)) {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .settings-note-page :deep(.settings-page-block__section-header .mobile-section-title) {
+    font-size: 20px;
+  }
+
+  .settings-note-page :deep(.note-category-card) {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .settings-note-page :deep(.note-category-card .settings-minimal-card__title-group strong) {
+    font-size: 17px;
+  }
+}
+</style>

@@ -44,6 +44,7 @@
               :auto-saving="memoStore.autoSaving"
               :loading="memoStore.loading"
               :status-text="memoStore.saveStatusText"
+              @detail="handleOpenMemoWorkbench"
             />
           </div>
         </div>
@@ -59,6 +60,12 @@
 
       <ContactSupportModal :is-open="supportModalOpen" @dismiss="handleDismissSupportModal" />
     </ion-content>
+
+    <MemoSheetModal
+      :is-open="memoWorkbenchOpen"
+      show-workbench
+      @dismiss="handleDismissMemoWorkbench"
+    />
   </ion-page>
 </template>
 
@@ -85,6 +92,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { getDailyOccupancy, getHomeStatistics, type DailyOccupancyDTO, type HomeStatisticsDTO } from '@/api/home'
 import ContactSupportModal from '@/components/global/ContactSupportModal.vue'
+import MemoSheetModal from '@/components/global/MemoSheetModal.vue'
 import HomeHelpCenter, { type HomeHelpCenterItem } from '@/components/home/HomeHelpCenter.vue'
 import HomeHelpCenterMoreModal from '@/components/home/HomeHelpCenterMoreModal.vue'
 import HomeMemoCard from '@/components/home/HomeMemoCard.vue'
@@ -123,6 +131,7 @@ const homeStatistics = ref<HomeStatisticsDTO | undefined>()
 const loadNoticeKeys = ref<string[]>([])
 const helpCenterMoreOpen = ref(false)
 const supportModalOpen = ref(false)
+const memoWorkbenchOpen = ref(false)
 
 interface HomeHelpRouteItem extends HomeHelpCenterItem {
   path: string
@@ -469,6 +478,14 @@ function handleOpenSupportModal() {
 
 function handleDismissSupportModal() {
   supportModalOpen.value = false
+}
+
+function handleOpenMemoWorkbench() {
+  memoWorkbenchOpen.value = true
+}
+
+function handleDismissMemoWorkbench() {
+  memoWorkbenchOpen.value = false
 }
 
 async function handleRefresh(event: CustomEvent) {

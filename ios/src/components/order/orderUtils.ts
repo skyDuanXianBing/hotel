@@ -280,6 +280,10 @@ export function canCancelOrder(reservation: ReservationDTO) {
   return normalized !== 'CANCELLED' && normalized !== 'CHECKED_OUT'
 }
 
+export function canMarkManualSettlement(tab: OrderTabValue) {
+  return tab === 'pending'
+}
+
 export function getAssignStatusText(reservation: ReservationDTO) {
   if (!reservation.roomId) {
     return t('order.assignStatus.unassigned')
@@ -301,6 +305,9 @@ export function getAssignStatusColor(reservation: ReservationDTO) {
 }
 
 export function getSettlementStatusText(reservation: ReservationDTO) {
+  if (reservation.settled) {
+    return t('order.settlement.settled')
+  }
   const paidAmount = Number(reservation.paidAmount ?? 0)
   const totalAmount = Number(reservation.totalAmount ?? 0)
   if (totalAmount > 0 && paidAmount >= totalAmount) {
@@ -313,6 +320,9 @@ export function getSettlementStatusText(reservation: ReservationDTO) {
 }
 
 export function getSettlementStatusColor(reservation: ReservationDTO) {
+  if (reservation.settled) {
+    return 'success'
+  }
   const paidAmount = Number(reservation.paidAmount ?? 0)
   const totalAmount = Number(reservation.totalAmount ?? 0)
   if (totalAmount > 0 && paidAmount >= totalAmount) {

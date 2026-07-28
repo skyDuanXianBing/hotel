@@ -274,7 +274,11 @@ import {
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { getMessageThreads } from '@/api/message'
+import {
+  getMessageThreads,
+  getMessageTranslationSetting,
+  updateMessageTranslationSetting,
+} from '@/api/message'
 import { buildMessageDetailPath, ROUTE_PATHS } from '@/router/guards'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import type { MessageThreadDTO } from '@/types/message'
@@ -572,6 +576,35 @@ function syncTranslationSettingsFromStorage() {
   }
 }
 
+async function syncTranslationSettingsFromServer(showFallbackWarning = false) {
+  try {
+    const response = await getMessageTranslationSetting()
+    if (!response.success || !response.data) {
+      throw new Error(response.message || t('messages.settingsLoadFailed'))
+    }
+
+    const shouldClearCaches =
+      translationEnabled.value !== response.data.enabled ||
+      translationTargetLanguage.value !== response.data.targetLanguage
+
+    translationEnabled.value = response.data.enabled
+    translationTargetLanguage.value = response.data.targetLanguage
+    saveMessageTranslationSettings({
+      enabled: response.data.enabled,
+      targetLanguage: response.data.targetLanguage,
+    })
+
+    if (shouldClearCaches) {
+      resetThreadTranslationState()
+    }
+  } catch (error) {
+    console.warn('Failed to load server translation settings, using local fallback:', error)
+    if (showFallbackWarning && !isHandledRequestError(error)) {
+      showWarningToast(t('messages.settingsLoadFailed'))
+    }
+  }
+}
+
 function clearPreviewTranslationTimer() {
   if (previewTranslationTimer) {
     window.clearTimeout(previewTranslationTimer)
@@ -773,8 +806,9 @@ async function restartVisibleThreadTranslations() {
   scheduleVisibleThreadTranslations()
 }
 
-function handleOpenTranslationSettings() {
+async function handleOpenTranslationSettings() {
   syncTranslationSettingsFromStorage()
+  await syncTranslationSettingsFromServer(true)
   stopThreadPreviewTranslations()
   translationSettingsOpen.value = true
 }
@@ -795,9 +829,18 @@ function handleDismissTranslationSettings() {
 async function handleApplyTranslationSettings() {
   isApplyingTranslationSettings.value = true
   try {
-    saveMessageTranslationSettings({
+    const response = await updateMessageTranslationSetting({
       enabled: translationEnabled.value,
       targetLanguage: translationTargetLanguage.value,
+    })
+    if (!response.success || !response.data) {
+      throw new Error(response.message || t('messages.settingsSaveFailed'))
+    }
+    translationEnabled.value = response.data.enabled
+    translationTargetLanguage.value = response.data.targetLanguage
+    saveMessageTranslationSettings({
+      enabled: response.data.enabled,
+      targetLanguage: response.data.targetLanguage,
     })
     translationSettingsOpen.value = false
     resetThreadTranslationState()
@@ -1135,6 +1178,7 @@ watch(
 onIonViewWillEnter(async () => {
   messagesPageActive = true
   syncTranslationSettingsFromStorage()
+  await syncTranslationSettingsFromServer()
   await loadThreads()
   await nextTick()
   refreshThreadPreviewObserver()

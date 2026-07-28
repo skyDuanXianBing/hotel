@@ -518,3 +518,503 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Standard full-screen editor used by form-based settings modals. */
+.settings-form-modal.settings-form-modal {
+  --width: 100%;
+  --height: 100%;
+  --border-radius: 0;
+  --background: #eef6ff;
+}
+
+.settings-form-modal.settings-form-modal ion-header {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.settings-form-modal.settings-form-modal ion-header::after {
+  display: none;
+}
+
+.settings-form-modal.settings-form-modal ion-toolbar {
+  --background: rgba(255, 255, 255, 0.94);
+  --border-color: transparent;
+  --min-height: 64px;
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+.settings-form-modal.settings-form-modal ion-title {
+  color: #333333;
+  font-size: 23px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.settings-form-modal.settings-form-modal .settings-editor-modal__close-button {
+  max-width: min(42vw, 150px);
+  min-height: 36px;
+  margin: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+  --background: transparent;
+  --background-activated: transparent;
+  --box-shadow: none;
+  --color: #777777;
+  color: #777777;
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.settings-form-modal.settings-form-modal .settings-editor-modal__close-button::part(native) {
+  gap: 4px;
+  white-space: normal;
+}
+
+.settings-form-modal.settings-form-modal .settings-editor-modal__back-icon {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  color: #777777;
+}
+
+ion-content.settings-form-modal__page.settings-form-modal__page {
+  --background: #eef6ff;
+  --padding-top: 34px;
+  --padding-bottom: calc(90px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+  background: #eef6ff;
+}
+
+.settings-form-modal__card.settings-form-modal__card {
+  display: block;
+  width: 100%;
+  margin: 0 auto;
+  padding: 30px 16px 24px;
+  border: 0;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 8px 18px rgba(67, 92, 132, 0.08);
+}
+
+.settings-form-modal__card.settings-form-modal__card .settings-form-section,
+.settings-form-modal__card.settings-form-modal__card .settings-form-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-form-modal__card.settings-form-modal__card .settings-form-section + .settings-form-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(130, 143, 165, 0.16);
+}
+
+.settings-form-modal__card.settings-form-modal__card .settings-form-field {
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+  transition: none;
+}
+
+.settings-form-modal__card.settings-form-modal__card .settings-form-field:focus-within {
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.settings-form-modal__card.settings-form-modal__card .settings-form-field > span {
+  color: #333333;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.settings-form-modal__card.settings-form-modal__card .settings-form-field ion-input,
+.settings-form-modal__card.settings-form-modal__card .settings-form-field ion-select,
+.settings-form-modal__card.settings-form-modal__card .settings-form-field ion-textarea {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  overflow: visible;
+  border: 1px solid #d8d8dc;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: none;
+  color: #333333;
+  font-size: 18px;
+  font-weight: 400;
+  --background: rgba(255, 255, 255, 0.62);
+  --border-color: #d8d8dc;
+  --border-radius: 11px;
+  --color: #333333;
+  --highlight-color-focused: #d8d8dc;
+  --highlight-color-valid: #d8d8dc;
+  --highlight-color-invalid: var(--ion-color-danger);
+  --placeholder-color: #666666;
+  --placeholder-opacity: 1;
+  --padding-start: 18px;
+  --padding-end: 18px;
+}
+
+.settings-form-modal__card.settings-form-modal__card .settings-form-field ion-input,
+.settings-form-modal__card.settings-form-modal__card .settings-form-field ion-select {
+  height: 44px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+}
+
+.settings-form-modal__card.settings-form-modal__card .settings-form-field ion-textarea {
+  height: auto;
+  min-height: 104px;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+}
+
+.settings-form-modal__card.settings-form-modal__card
+  .settings-form-field
+  ion-textarea[rows='1'] {
+  min-height: 44px;
+  height: 44px;
+  --padding-top: 10px;
+  --padding-bottom: 10px;
+}
+
+.settings-form-modal__card.settings-form-modal__card
+  .settings-form-field
+  ion-input::part(native),
+.settings-form-modal__card.settings-form-modal__card
+  .settings-form-field
+  ion-textarea::part(native) {
+  color: #333333;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.settings-form-modal__card.settings-form-modal__card .settings-form-field--full {
+  grid-column: 1 / -1;
+}
+
+.settings-form-modal__card.settings-form-modal__card .settings-toggle-field {
+  margin-top: 0;
+}
+
+.settings-form-modal__card.settings-form-modal__card
+  .settings-form-actions.settings-form-modal__actions {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.settings-form-modal__card.settings-form-modal__card
+  .settings-form-actions.settings-form-modal__actions
+  ion-button {
+  width: 100%;
+  min-height: 30px;
+  height: 30px;
+  margin: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --padding-start: 10px;
+  --padding-end: 10px;
+  --border-radius: 6px;
+  --box-shadow: none;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.settings-form-modal__card.settings-form-modal__card
+  .settings-form-actions.settings-form-modal__actions
+  ion-button::part(native) {
+  min-height: 30px;
+  padding-top: 0;
+  padding-bottom: 0;
+  white-space: normal;
+}
+
+.settings-form-modal__card.settings-form-modal__card
+  .settings-form-actions.settings-form-modal__actions
+  ion-button[fill='outline'] {
+  --background: rgba(255, 255, 255, 0.96);
+  --background-activated: #f7f7f7;
+  --border-color: rgba(193, 204, 220, 0.95);
+  --border-width: 1px;
+  --color: #8a96a8;
+}
+
+.settings-form-modal__card.settings-form-modal__card
+  .settings-form-actions.settings-form-modal__actions
+  ion-button:not([fill='outline']) {
+  --background: #2687f7;
+  --background-activated: #1f78df;
+  --color: #ffffff;
+}
+
+.settings-form-modal__card.settings-form-modal__card
+  .settings-form-actions.settings-form-modal__actions
+  .settings-form-modal__wide-action {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 374px) {
+  ion-content.settings-form-modal__page.settings-form-modal__page {
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
+
+  .settings-form-modal.settings-form-modal ion-title {
+    font-size: 21px;
+  }
+
+  .settings-form-modal__card.settings-form-modal__card {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .settings-form-modal__card.settings-form-modal__card .settings-form-field > span {
+    font-size: 18px;
+  }
+}
+
+.settings-store-detail-page .settings-detail-form-page {
+  --background: var(--ios-pms-dashboard-page-background);
+  --padding-top: 10px;
+  --padding-bottom: calc(136px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+.settings-store-detail-page .settings-detail-hero {
+  margin: 0 0 16px;
+  padding: 18px 16px;
+  border: 1px solid var(--ios-pms-dashboard-card-border);
+  border-radius: var(--ios-pms-radius-card);
+  background: var(--ios-pms-dashboard-card-background);
+  box-shadow: var(--ios-pms-dashboard-card-shadow);
+}
+
+.settings-store-detail-page .settings-detail-hero::before {
+  display: none;
+}
+
+.settings-store-detail-page .settings-detail-hero__eyebrow {
+  margin: 0;
+  color: var(--ios-pms-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.settings-store-detail-page .settings-detail-hero .mobile-title {
+  max-width: none;
+  margin: 8px 0 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.settings-store-detail-page .settings-detail-hero__summary {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top-color: var(--ios-pms-dashboard-card-border);
+}
+
+.settings-store-detail-page .settings-detail-hero__meta {
+  gap: 8px;
+}
+
+.settings-store-detail-page .settings-detail-hero__meta-item {
+  gap: 4px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid rgba(130, 143, 165, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
+}
+
+.settings-store-detail-page .settings-detail-hero__meta-label {
+  color: var(--ios-pms-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.settings-store-detail-page .settings-detail-hero__meta-item strong {
+  color: var(--ios-pms-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.settings-store-detail-page .settings-page-shell__stack {
+  gap: 18px;
+  margin-top: 0;
+  padding-bottom: 8px;
+}
+
+.settings-store-detail-page .settings-store-detail-page__form-card {
+  padding: 18px 16px 24px;
+  border: 1px solid var(--ios-pms-dashboard-card-border);
+  border-radius: var(--ios-pms-radius-card);
+  background: var(--ios-pms-dashboard-card-background);
+  box-shadow: var(--ios-pms-dashboard-card-shadow);
+}
+
+.settings-store-detail-page .settings-detail-page__section-header {
+  align-items: center;
+  min-height: 30px;
+}
+
+.settings-store-detail-page .settings-detail-page__section-header .mobile-section-title {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.settings-store-detail-page__form-grid {
+  gap: 18px 14px;
+  margin-top: 18px;
+}
+
+.settings-store-detail-page__form-grid .settings-form-field {
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.settings-store-detail-page__form-grid .settings-form-field:focus-within {
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.settings-store-detail-page__form-grid .settings-form-field > span {
+  color: var(--ios-pms-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.settings-store-detail-page__form-grid .settings-form-field ion-input,
+.settings-store-detail-page__form-grid .settings-form-field ion-select,
+.settings-store-detail-page__form-grid .settings-form-field ion-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  border: 1px solid #d8d8dc;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: none;
+  --background: transparent;
+  --border-color: transparent;
+  --border-radius: 8px;
+  --color: var(--ios-pms-text-primary);
+  --highlight-color-focused: transparent;
+  --highlight-color-valid: transparent;
+  --highlight-color-invalid: var(--ion-color-danger);
+  --placeholder-color: var(--ios-pms-text-muted);
+  --placeholder-opacity: 0.82;
+  --padding-start: 13px;
+  --padding-end: 13px;
+}
+
+.settings-store-detail-page__form-grid .settings-form-field ion-input,
+.settings-store-detail-page__form-grid .settings-form-field ion-select {
+  min-height: 46px;
+  height: 46px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+}
+
+.settings-store-detail-page__form-grid .settings-form-field ion-textarea {
+  --padding-top: 11px;
+  --padding-bottom: 11px;
+}
+
+.settings-store-detail-page__form-grid .settings-form-field:focus-within ion-input,
+.settings-store-detail-page__form-grid .settings-form-field:focus-within ion-select,
+.settings-store-detail-page__form-grid .settings-form-field:focus-within ion-textarea {
+  border-color: rgba(var(--ion-color-primary-rgb), 0.48);
+  box-shadow: 0 0 0 3px rgba(var(--ion-color-primary-rgb), 0.08);
+}
+
+.settings-store-detail-page__form-grid .settings-form-field ion-input::part(native),
+.settings-store-detail-page__form-grid .settings-form-field ion-textarea::part(native) {
+  color: var(--ios-pms-text-primary);
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.settings-store-detail-page__form-grid .settings-form-field ion-select::part(container) {
+  min-height: 44px;
+}
+
+.settings-store-detail-page__form-grid .settings-form-field ion-select::part(text),
+.settings-store-detail-page__form-grid .settings-form-field ion-select::part(placeholder) {
+  font-size: 16px;
+}
+
+.settings-store-detail-page .settings-page-shell__footer-inner {
+  padding: 10px 16px calc(12px + var(--app-safe-bottom));
+  border-top-color: var(--ios-pms-dashboard-card-border);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 -8px 20px rgba(77, 98, 145, 0.08);
+}
+
+.settings-store-detail-page__actions {
+  gap: 12px;
+}
+
+.settings-store-detail-page__actions ion-button {
+  min-height: 46px;
+  --border-radius: 8px;
+  --box-shadow: none;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+@media (max-width: 374px) {
+  .settings-store-detail-page .settings-detail-form-page {
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
+
+  .settings-store-detail-page .settings-detail-hero,
+  .settings-store-detail-page .settings-store-detail-page__form-card {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .settings-store-detail-page .settings-detail-hero .mobile-title {
+    font-size: 22px;
+  }
+
+  .settings-store-detail-page__actions ion-button {
+    font-size: 15px;
+  }
+}

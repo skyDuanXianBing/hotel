@@ -39,6 +39,7 @@ export interface ReservationDTO {
   paymentMethod?: string
   commission?: number
   paidAmount?: number
+  settled?: boolean
   pricePlan?: string
   createdBy?: string
   notes?: string
@@ -174,6 +175,16 @@ export const checkOutReservation = async (reservationId: number) => {
 
 export const cancelReservation = async (reservationId: number) => {
   return request.post<ApiResponse<ReservationDTO>>(`/reservations/${reservationId}/cancel`)
+}
+
+export const updateReservationSettlementStatus = async (
+  reservationId: number,
+  settled: boolean,
+) => {
+  return request.post<ApiResponse<ReservationDTO>>(
+    `/reservations/${reservationId}/settlement-status`,
+    { settled },
+  )
 }
 
 export const getReservationById = async (reservationId: number) => {

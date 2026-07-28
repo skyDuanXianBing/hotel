@@ -120,6 +120,7 @@
       "contactSupport": "联系客服",
       "close": "关闭",
       "memo": "备忘录",
+      "memoDetail": "详情查看",
       "memoPlaceholder": "记录今日重点事项或待办"
     },
     "stat": {
@@ -1673,6 +1674,7 @@
       "confirmCancel": "确认取消 {guest} 的订单吗？",
       "confirmMoveOut": "确认将该订单移出盒子吗？",
       "confirmMoveIn": "移入后订单不会实际排房、不占库存，且营业数据不计入统计。确认继续吗？",
+      "confirmMarkSettled": "确认将 {guest} 的订单标记为手动结账吗？",
       "empty": "暂无数据",
       "actions": {
         "cancel": "取消",
@@ -1688,7 +1690,8 @@
         "moveIn": "移入订单盒子",
         "confirmMoveIn": "确认移入",
         "viewDetails": "查看详情",
-        "viewGuestNotes": "查看客人备注"
+        "viewGuestNotes": "查看客人备注",
+        "markSettled": "标记为已结账"
       },
       "messages": {
         "syncFailed": "订单数据同步失败",
@@ -2721,6 +2724,10 @@
         "room": "房间",
         "group": "分组"
       },
+      "actions": {
+        "moveUpShort": "上移",
+        "moveDownShort": "下移"
+      },
       "messages": {
         "loadRoomTypesFailed": "加载房型失败",
         "loadRoomsFailed": "加载房间失败",
@@ -2806,6 +2813,8 @@
       "back": "返回",
       "photos": {
         "title": "照片",
+        "desktopTitle": "桌面端图片",
+        "mobileTitle": "移动端图片",
         "maxCount": "最多上传 40 张图片。",
         "typeAndSize": "仅支持图片格式，单张大小不超过 5MB。",
         "recommendedSize": "建议图片宽度至少 1200px，以保证渠道展示效果。",
@@ -4746,6 +4755,60 @@
     "collapse": "收起",
     "close": "关闭",
     "recordSuccess": "已完成记一笔录入",
+    "workbench": {
+      "back": "返回",
+      "title": "今日任务",
+      "refresh": "刷新今日任务",
+      "taskDate": "任务日期",
+      "viewAll": "查看全部",
+      "typeFilter": "任务类型筛选",
+      "statusFilter": "任务状态筛选",
+      "notConnectedShort": "待接入",
+      "notConnected": "{source}暂未接入，请前往对应功能页面处理。",
+      "loading": "正在加载今日任务",
+      "retry": "重新加载",
+      "emptyToday": "当前筛选条件下暂无今日任务",
+      "loadMore": "加载更多",
+      "loadFailed": "今日任务加载失败",
+      "loadMoreFailed": "更多任务加载失败",
+      "loadCleanersFailed": "保洁人员加载失败",
+      "selectEmployeeFirst": "请先选择指派员工",
+      "assignFailed": "任务指派失败",
+      "assignSuccess": "任务指派成功",
+      "assignEmployee": "指派员工",
+      "selectEmployee": "请选择员工",
+      "assign": "指派",
+      "complete": "完成",
+      "confirmComplete": "确认完成“{task}”吗？",
+      "completeFailed": "完成任务失败",
+      "completeSuccess": "任务已完成",
+      "assignedTo": "已指派：{name}",
+      "unassignedEmployee": "尚未指派员工",
+      "unreadMessages": "{count} 条未读消息",
+      "types": {
+        "all": "全部",
+        "cleaning": "保洁",
+        "review": "审查",
+        "order": "订单",
+        "message": "消息",
+        "other": "其他"
+      },
+      "statuses": {
+        "all": "全部",
+        "awaitingReview": "待审查",
+        "awaitingReply": "待回复",
+        "pending": "待指派",
+        "cleaningPending": "待指派",
+        "orderPending": "待入住 / 未排房",
+        "awaitingCheckIn": "待入住",
+        "orderUnassigned": "未排房",
+        "unassigned": "待分配",
+        "assigned": "已指派",
+        "inProgress": "进行中",
+        "expired": "已过期",
+        "completed": "已完成"
+      }
+    },
     "transaction": {
       "title": "记一笔",
       "newEntry": "新增账目",
@@ -4773,6 +4836,30 @@
       "datetimeInvalid": "请选择有效时间",
       "submitFailed": "记一笔提交失败",
       "saved": "记一笔已保存"
+    }
+  },
+  "internalTasks": {
+    "title": "内部任务",
+    "eyebrow": "门店运营",
+    "total": "共 {count} 个可见任务",
+    "refresh": "刷新内部任务",
+    "pullToRefresh": "下拉刷新内部任务",
+    "filterLabel": "内部任务状态",
+    "loading": "正在加载内部任务",
+    "loadFailed": "加载内部任务失败",
+    "retry": "重新加载",
+    "empty": "当前状态下暂无任务",
+    "untitled": "未命名任务",
+    "loadMore": "加载更多",
+    "complete": "完成",
+    "confirmComplete": "确认完成“{task}”吗？",
+    "completeFailed": "完成任务失败",
+    "completeSuccess": "任务已完成",
+    "statuses": {
+      "all": "全部",
+      "unassigned": "未分配",
+      "assigned": "已分配",
+      "completed": "已完成"
     }
   },
   "storeSelection": {
@@ -4899,6 +4986,11 @@
     "loggedOut": "已退出登录"
   },
   "profile": {
+    "greeting": {
+      "morning": "\u65e9\u4e0a\u597d\uff0c{name}",
+      "afternoon": "\u4e0b\u5348\u597d\uff0c{name}",
+      "evening": "\u665a\u4e0a\u597d\uff0c{name}"
+    },
     "pullToRefresh": "下拉刷新个人资料",
     "unavailableEmail": "未恢复邮箱信息",
     "title": "个人中心",
@@ -4974,6 +5066,7 @@
     "noLatestMessage": "暂无最新消息",
     "settingsUpdated": "全局翻译设置已更新",
     "settingsSaveFailed": "翻译设置保存失败",
+    "settingsLoadFailed": "翻译设置加载失败，已使用本地设置",
     "routeTargetNotFound": "暂未找到该订单对应的会话，可在当前结果中继续查找。",
     "noRoomType": "未关联房型",
     "noStayDate": "未关联入住日期",
@@ -5926,7 +6019,20 @@
       "submitting": "提交中...",
       "noRooms": "当前分组未分配房间",
       "roomsLinked": "已关联 {count} 间房",
-      "roomPreview": "房间 {value}"
+      "roomPreview": "房间 {value}",
+      "saveSettings": "保存设置",
+      "preview": "试听",
+      "listSeparator": "、"
+    },
+    "messageVariables": {
+      "propertyName": "门店名称",
+      "guestName": "客人姓名",
+      "checkInDate": "入住日期",
+      "checkOutDate": "离店日期",
+      "roomNumber": "房间号",
+      "checkInCode": "入住码",
+      "roomTypeName": "房型名称",
+      "ratePlanName": "价格计划名称"
     },
     "autoMessages": {
       "sendImmediately": "立即发送",
@@ -6363,6 +6469,9 @@
     "settings": "设置"
   },
   "settings": {
+    "common": {
+      "delete": "删除"
+    },
     "constants": {
       "sortType": {
         "roomType": "房型排序",
@@ -6629,16 +6738,16 @@
           "note": "近 7 天核心营收摘要"
         },
         "channel": {
-          "label": "渠道占比",
-          "note": "OTA 贡献保持稳定"
+          "label": "主力渠道占比",
+          "note": "近 7 天主力渠道营收占比"
         },
         "pending": {
           "label": "待审查",
           "note": "优先处理今日入住资料"
         },
         "finance": {
-          "label": "财务提醒",
-          "note": "待核对流水与挂账"
+          "label": "净收入",
+          "note": "近 7 天收入减支出"
         }
       }
     },
@@ -6647,7 +6756,10 @@
       "keyMetrics": "关键指标",
       "viewTips": "查看提示",
       "backToStatistics": "返回统计",
-      "openReviews": "打开审查"
+      "openReviews": "打开审查",
+      "loading": "加载中...",
+      "exportDetails": "导出明细",
+      "exportSuccess": "报表导出成功"
     },
     "reports": {
       "businessSummary": {
@@ -6665,7 +6777,7 @@
             "营业额",
             "入住率",
             "平均房价",
-            "异常提醒"
+            "订单数"
           ],
           "note": [
             "较昨日 +8.4%",
@@ -6712,9 +6824,9 @@
         "metrics": {
           "label": [
             "主力渠道",
-            "直营占比",
-            "待核对映射",
-            "净收益"
+            "主力渠道占比",
+            "渠道数",
+            "渠道营收"
           ],
           "note": [
             "订单占比 31%",
@@ -6760,10 +6872,10 @@
         ],
         "metrics": {
           "label": [
-            "今日记账",
-            "待补票据",
+            "记录数",
+            "支出笔数",
             "手工收入",
-            "异常备注"
+            "手工支出"
           ],
           "note": [
             "前台与值班经理均有录入",
@@ -6809,10 +6921,10 @@
         ],
         "metrics": {
           "label": [
-            "总收款",
+            "总收入",
             "退款",
-            "挂账",
-            "到账率"
+            "总支出",
+            "净收入"
           ],
           "note": [
             "含线上与线下支付",
@@ -6859,9 +6971,9 @@
         "metrics": {
           "label": [
             "出租率",
-            "平均入住天数",
-            "会员占比",
-            "经营提醒"
+            "平均房价",
+            "RevPAR",
+            "房间数"
           ],
           "note": [
             "周末档期较强",
@@ -6907,10 +7019,10 @@
         ],
         "metrics": {
           "label": [
-            "客房晚数",
-            "家庭出行",
-            "长住订单",
-            "补证提醒"
+            "已售房晚",
+            "出租率",
+            "房间数",
+            "可售房晚"
           ],
           "note": [
             "较上周 +11%",
@@ -6957,9 +7069,9 @@
         "metrics": {
           "label": [
             "净收入",
-            "成本支出",
-            "待核销",
-            "现金健康"
+            "总支出",
+            "退款",
+            "总收入"
           ],
           "note": [
             "已扣退款与手续费",
@@ -7007,6 +7119,7 @@
     "StoreSelection": "选择门店",
     "Home": "首页",
     "HomeCustomize": "管理",
+    "InternalTasks": "内部任务",
     "Rooms": "房态",
     "RoomsRoomTable": "房情表",
     "RoomsPricing": "房价管理",

@@ -1,5 +1,6 @@
 <template>
   <SettingsDetailFormShell
+    class="settings-store-detail-page settings-store-details-page"
     :back-href="ROUTE_PATHS.settings"
     :title="$t('settingsStage4.storeDetails.title')"
     :hero-eyebrow="$t('common.currentStore')"
@@ -34,9 +35,12 @@
     <SettingsSectionCard
       :title="$t('settingsStage4.storeDetails.title')"
       :loading="loading"
+      card-class="settings-store-detail-page__form-card settings-store-details-page__form-card"
       header-class="settings-detail-page__section-header"
     >
-      <div class="settings-form-grid settings-form-grid--top">
+      <div
+        class="settings-form-grid settings-form-grid--top settings-store-detail-page__form-grid settings-store-details-page__form-grid"
+      >
         <label class="settings-form-field">
           <span>{{ $t('settingsStage4.storeDetails.fields.email') }}</span>
           <ion-input v-model="form.email" fill="outline" :placeholder="$t('settingsStage4.accountList.placeholders.email')" />
@@ -125,30 +129,34 @@
           <ion-textarea v-model="form.description" :rows="4" fill="outline" :placeholder="$t('stage5UiAttributes.99')" />
         </label>
 
-        <label class="settings-form-field settings-form-field--full">
-          <span>{{ $t('stage5SourceText.150') }}</span>
-          <ion-textarea
+        <div class="settings-form-field settings-form-field--full">
+          <span>{{ $t('settingsStage4.roomTypeDetails.photos.desktopTitle') }}</span>
+          <MediaUrlUploader
             v-model="form.desktopPhotoUrlsText"
-            :rows="4"
-            fill="outline"
-            :placeholder="$t('stage5UiAttributes.52')"
+            scope="store-desktop"
+            :disabled="loading || saving"
           />
-        </label>
+        </div>
 
-        <label class="settings-form-field settings-form-field--full">
-          <span>{{ $t('stage5SourceText.171') }}</span>
-          <ion-textarea
+        <div class="settings-form-field settings-form-field--full">
+          <span>{{ $t('settingsStage4.roomTypeDetails.photos.mobileTitle') }}</span>
+          <MediaUrlUploader
             v-model="form.mobilePhotoUrlsText"
-            :rows="4"
-            fill="outline"
-            :placeholder="$t('stage5UiAttributes.52')"
+            scope="store-mobile"
+            :disabled="loading || saving"
           />
-        </label>
+        </div>
       </div>
     </SettingsSectionCard>
 
-    <SettingsSectionCard :title="$t('stage5UiAttributes.110')">
-      <div class="settings-form-grid settings-form-grid--top">
+    <SettingsSectionCard
+      :title="$t('stage5UiAttributes.110')"
+      card-class="settings-store-detail-page__form-card settings-store-details-page__form-card settings-store-details-page__policy-card"
+      header-class="settings-detail-page__section-header"
+    >
+      <div
+        class="settings-form-grid settings-form-grid--top settings-store-detail-page__form-grid settings-store-details-page__form-grid"
+      >
         <label class="settings-form-field settings-form-field--full">
           <span>{{ $t('stage5SourceText.11') }}</span>
           <ion-textarea v-model="policyForm.childPolicy" :rows="3" fill="outline" :placeholder="$t('stage5UiAttributes.62')" />
@@ -181,14 +189,21 @@
       </div>
     </SettingsSectionCard>
 
-    <SettingsSectionCard :title="$t('stage5UiAttributes.37')">
+    <SettingsSectionCard
+      :title="$t('stage5UiAttributes.37')"
+      card-class="settings-store-detail-page__form-card settings-store-details-page__form-card settings-store-details-page__map-card"
+      header-class="settings-detail-page__section-header"
+    >
       <div class="settings-map-placeholder">
+        <span class="settings-map-placeholder__icon" aria-hidden="true">
+          <ion-icon :icon="locationOutline" />
+        </span>
         <strong>{{ form.address || $t('stage5DynamicUi.48') }}</strong>
       </div>
     </SettingsSectionCard>
 
     <template #bottomActions>
-      <div class="settings-page-actions">
+      <div class="settings-page-actions settings-store-detail-page__actions settings-store-details-page__actions">
         <ion-button fill="outline" :disabled="loading || saving" @click="loadPageData">{{ $t('accommodation.common.reset') }}</ion-button>
         <ion-button :disabled="loading || saving" @click="handleSave">
           {{ saving ? $t('channel.mobile.common.saving') : $t('stage5DynamicUi.22') }}
@@ -199,10 +214,20 @@
 </template>
 
 <script setup lang="ts">
-import { IonButton, IonInput, IonSelect, IonSelectOption, IonTextarea, onIonViewWillEnter } from '@ionic/vue'
+import {
+  IonButton,
+  IonIcon,
+  IonInput,
+  IonSelect,
+  IonSelectOption,
+  IonTextarea,
+  onIonViewWillEnter,
+} from '@ionic/vue'
+import { locationOutline } from 'ionicons/icons'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getStoreById, getStorePolicy, updateStore, updateStorePolicy } from '@/api/store'
+import MediaUrlUploader from '@/components/settings/MediaUrlUploader.vue'
 import SettingsSectionCard from '@/components/settings/base/SettingsSectionCard.vue'
 import SettingsDetailFormShell from '@/components/settings/families/SettingsDetailFormShell.vue'
 import { STORE_FACILITY_OPTIONS } from '@/constants/settings'
@@ -217,12 +242,17 @@ import { ROUTE_PATHS } from '@/router/guards'
 import { useStoreStore } from '@/stores/store'
 import type { StoreDTO, StoreRequest } from '@/types/store'
 import type { StorePolicyDTO } from '@/types/settings'
+import {
+  createDevicePhotoTextState,
+  mapDevicePhotoTextState,
+  type DevicePhotoTextState,
+} from '@/utils/devicePhotos'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
-import { formatTextList, normalizeTextList } from '@/utils/settings'
+import { normalizeTextList } from '@/utils/settings'
 import { DEFAULT_BUSINESS_TIME_ZONE, resolveBusinessTimeZone } from '@/utils/storeBusinessDate'
 
-interface StoreDetailsFormState {
+interface StoreDetailsFormState extends DevicePhotoTextState {
   email: string
   address: string
   city: string
@@ -232,8 +262,6 @@ interface StoreDetailsFormState {
   timezone: string
   currency: string
   description: string
-  desktopPhotoUrlsText: string
-  mobilePhotoUrlsText: string
 }
 
 const storeStore = useStoreStore()
@@ -297,8 +325,7 @@ function createEmptyForm(): StoreDetailsFormState {
     timezone: DEFAULT_BUSINESS_TIME_ZONE,
     currency: 'CNY',
     description: '',
-    desktopPhotoUrlsText: '',
-    mobilePhotoUrlsText: '',
+    ...createDevicePhotoTextState(),
   }
 }
 
@@ -340,8 +367,7 @@ function fillStoreForm(store: StoreDTO) {
     timezone: resolveBusinessTimeZone(store.timezone),
     currency: store.currency || 'CNY',
     description: store.description || '',
-    desktopPhotoUrlsText: formatTextList(store.desktopPhotoUrls),
-    mobilePhotoUrlsText: formatTextList(store.mobilePhotoUrls),
+    ...createDevicePhotoTextState(store.desktopPhotoUrls, store.mobilePhotoUrls),
   }
 
   const facilityKeys: string[] = []
@@ -361,6 +387,8 @@ function buildStorePayload(): Partial<StoreRequest> {
     (item) => item.payload,
   )
 
+  const photos = mapDevicePhotoTextState(form.value, normalizeTextList)
+
   return {
     email: form.value.email.trim(),
     address: form.value.address.trim(),
@@ -372,8 +400,8 @@ function buildStorePayload(): Partial<StoreRequest> {
     currency: form.value.currency,
     description: form.value.description.trim(),
     facilities,
-    desktopPhotoUrls: normalizeTextList(form.value.desktopPhotoUrlsText),
-    mobilePhotoUrls: normalizeTextList(form.value.mobilePhotoUrlsText),
+    desktopPhotoUrls: photos.desktop,
+    mobilePhotoUrls: photos.mobile,
   }
 }
 
@@ -496,21 +524,52 @@ onIonViewWillEnter(async () => {
 </script>
 
 <style scoped>
+.settings-store-details-page__form-grid .settings-form-field ion-textarea {
+  min-height: 112px;
+}
+
+.settings-store-details-page :deep(.settings-store-details-page__policy-card) {
+  padding-bottom: 26px;
+}
+
+.settings-store-details-page :deep(.settings-store-details-page__map-card) {
+  padding-bottom: 18px;
+}
+
 .settings-map-placeholder {
   display: grid;
-  gap: 8px;
-  padding: 16px;
-  border-radius: 18px;
-  background: var(--app-primary-soft);
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 76px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.16);
+  border-radius: 8px;
+  background: rgba(var(--ion-color-primary-rgb), 0.06);
 }
 
-.settings-map-placeholder strong,
-.settings-map-placeholder p {
+.settings-map-placeholder__icon {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ios-pms-primary);
+  color: #ffffff;
+}
+
+.settings-map-placeholder__icon ion-icon {
+  font-size: 21px;
+}
+
+.settings-map-placeholder strong {
   margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
-.settings-map-placeholder p {
-  color: var(--app-muted);
-  line-height: 1.6;
-}
 </style>

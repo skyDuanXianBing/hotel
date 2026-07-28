@@ -695,7 +695,7 @@ onIonViewWillEnter(async () => {
 
 <style scoped>
 .channel-sync-page {
-  --background: linear-gradient(180deg, #eef3fb 0%, #f4f7fc 18%, #f8fafd 100%);
+  --background: var(--app-background);
 }
 
 .channel-sync-hero {

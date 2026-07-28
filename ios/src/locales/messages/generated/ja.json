@@ -120,6 +120,7 @@
       "contactSupport": "サポートに連絡",
       "close": "閉じる",
       "memo": "メモ",
+      "memoDetail": "詳細を見る",
       "memoPlaceholder": "今日の重点事項やタスクを記録"
     },
     "stat": {
@@ -1673,6 +1674,7 @@
       "confirmCancel": "{guest} の予約をキャンセルしますか？",
       "confirmMoveOut": "この予約を予約ボックスから移動しますか？",
       "confirmMoveIn": "客室は割り当てられず、在庫を使用せず、営業データにも集計されません。続行しますか？",
+      "confirmMarkSettled": "{guest} の予約を手動精算済みにしますか？",
       "empty": "データがありません",
       "actions": {
         "cancel": "キャンセル",
@@ -1688,7 +1690,8 @@
         "moveIn": "予約ボックスへ移動",
         "confirmMoveIn": "移動を確定",
         "viewDetails": "詳細を表示",
-        "viewGuestNotes": "宿泊者メモを表示"
+        "viewGuestNotes": "宿泊者メモを表示",
+        "markSettled": "精算済みにする"
       },
       "messages": {
         "syncFailed": "予約データの同期に失敗しました",
@@ -2721,6 +2724,10 @@
         "room": "客室",
         "group": "グループ"
       },
+      "actions": {
+        "moveUpShort": "上へ",
+        "moveDownShort": "下へ"
+      },
       "messages": {
         "loadRoomTypesFailed": "客室タイプの読み込みに失敗しました",
         "loadRoomsFailed": "客室の読み込みに失敗しました",
@@ -2806,6 +2813,8 @@
       "back": "戻る",
       "photos": {
         "title": "写真",
+        "desktopTitle": "デスクトップ用写真",
+        "mobileTitle": "モバイル用写真",
         "maxCount": "最大40枚までアップロードできます。",
         "typeAndSize": "画像形式のみ対応しています。1枚あたり5MB以下にしてください。",
         "recommendedSize": "チャネル表示品質のため、幅1200px以上を推奨します。",
@@ -4746,6 +4755,60 @@
     "collapse": "閉じる",
     "close": "閉じる",
     "recordSuccess": "取引を追加しました",
+    "workbench": {
+      "back": "戻る",
+      "title": "今日のタスク",
+      "refresh": "今日のタスクを更新",
+      "taskDate": "タスク日",
+      "viewAll": "すべて表示",
+      "typeFilter": "タスク種別フィルター",
+      "statusFilter": "タスク状態フィルター",
+      "notConnectedShort": "未接続",
+      "notConnected": "{source}はまだ接続されていません。対応する機能画面で処理してください。",
+      "loading": "今日のタスクを読み込み中",
+      "retry": "再読み込み",
+      "emptyToday": "現在の条件に一致する今日のタスクはありません",
+      "loadMore": "さらに読み込む",
+      "loadFailed": "今日のタスクを読み込めませんでした",
+      "loadMoreFailed": "追加のタスクを読み込めませんでした",
+      "loadCleanersFailed": "清掃担当者を読み込めませんでした",
+      "selectEmployeeFirst": "担当者を選択してください",
+      "assignFailed": "タスクを割り当てられませんでした",
+      "assignSuccess": "タスクを割り当てました",
+      "assignEmployee": "担当者",
+      "selectEmployee": "担当者を選択",
+      "assign": "割り当て",
+      "complete": "完了",
+      "confirmComplete": "「{task}」を完了しますか？",
+      "completeFailed": "タスクを完了できませんでした",
+      "completeSuccess": "タスクを完了しました",
+      "assignedTo": "担当：{name}",
+      "unassignedEmployee": "担当者未設定",
+      "unreadMessages": "未読メッセージ {count} 件",
+      "types": {
+        "all": "すべて",
+        "cleaning": "清掃",
+        "review": "審査",
+        "order": "予約",
+        "message": "メッセージ",
+        "other": "その他"
+      },
+      "statuses": {
+        "all": "すべて",
+        "awaitingReview": "審査待ち",
+        "awaitingReply": "返信待ち",
+        "pending": "割り当て待ち",
+        "cleaningPending": "割り当て待ち",
+        "orderPending": "チェックイン待ち / 部屋未割り当て",
+        "awaitingCheckIn": "チェックイン待ち",
+        "orderUnassigned": "部屋未割り当て",
+        "unassigned": "未割当",
+        "assigned": "割当済み",
+        "inProgress": "進行中",
+        "expired": "期限切れ",
+        "completed": "完了"
+      }
+    },
     "transaction": {
       "title": "取引を追加",
       "newEntry": "新しい取引",
@@ -4773,6 +4836,30 @@
       "datetimeInvalid": "有効な日時を選択してください",
       "submitFailed": "取引を送信できませんでした",
       "saved": "取引を保存しました"
+    }
+  },
+  "internalTasks": {
+    "title": "内部タスク",
+    "eyebrow": "施設運営",
+    "total": "表示可能なタスク {count} 件",
+    "refresh": "内部タスクを更新",
+    "pullToRefresh": "引き下げて内部タスクを更新",
+    "filterLabel": "内部タスクの状態",
+    "loading": "内部タスクを読み込み中",
+    "loadFailed": "内部タスクを読み込めませんでした",
+    "retry": "再読み込み",
+    "empty": "この状態のタスクはありません",
+    "untitled": "無題のタスク",
+    "loadMore": "さらに読み込む",
+    "complete": "完了",
+    "confirmComplete": "「{task}」を完了しますか？",
+    "completeFailed": "タスクを完了できませんでした",
+    "completeSuccess": "タスクを完了しました",
+    "statuses": {
+      "all": "すべて",
+      "unassigned": "未割り当て",
+      "assigned": "割り当て済み",
+      "completed": "完了"
     }
   },
   "storeSelection": {
@@ -4899,6 +4986,11 @@
     "loggedOut": "ログアウトしました"
   },
   "profile": {
+    "greeting": {
+      "morning": "\u304a\u306f\u3088\u3046\u3054\u3056\u3044\u307e\u3059\u3001{name}",
+      "afternoon": "\u3053\u3093\u306b\u3061\u306f\u3001{name}",
+      "evening": "\u3053\u3093\u3070\u3093\u306f\u3001{name}"
+    },
     "pullToRefresh": "下に引いてプロフィールを更新",
     "unavailableEmail": "メール情報を取得できません",
     "title": "プロフィール",
@@ -4974,6 +5066,7 @@
     "noLatestMessage": "最新メッセージはありません",
     "settingsUpdated": "翻訳設定を更新しました",
     "settingsSaveFailed": "翻訳設定を保存できませんでした",
+    "settingsLoadFailed": "翻訳設定を読み込めなかったため、端末内の設定を使用しています",
     "routeTargetNotFound": "この予約に対応する会話が見つかりません。現在の結果から検索を続けてください。",
     "noRoomType": "客室タイプ未設定",
     "noStayDate": "宿泊日未設定",
@@ -5926,7 +6019,20 @@
       "submitting": "送信中...",
       "noRooms": "客室が割り当てられていません",
       "roomsLinked": "{count}室を連携済み",
-      "roomPreview": "客室 {value}"
+      "roomPreview": "客室 {value}",
+      "saveSettings": "設定を保存",
+      "preview": "試聴",
+      "listSeparator": "、"
+    },
+    "messageVariables": {
+      "propertyName": "施設名",
+      "guestName": "ゲスト名",
+      "checkInDate": "チェックイン日",
+      "checkOutDate": "チェックアウト日",
+      "roomNumber": "客室番号",
+      "checkInCode": "チェックインコード",
+      "roomTypeName": "客室タイプ名",
+      "ratePlanName": "料金プラン名"
     },
     "autoMessages": {
       "sendImmediately": "すぐに送信",
@@ -6363,6 +6469,9 @@
     "settings": "設定"
   },
   "settings": {
+    "common": {
+      "delete": "削除"
+    },
     "constants": {
       "sortType": {
         "roomType": "客室タイプの並び順",
@@ -6629,16 +6738,16 @@
           "note": "直近7日間の主要売上サマリー"
         },
         "channel": {
-          "label": "チャネル比率",
-          "note": "OTAの貢献は安定"
+          "label": "主要チャネル比率",
+          "note": "直近7日間の主要チャネル売上比率"
         },
         "pending": {
           "label": "レビュー待ち",
           "note": "本日のチェックイン資料を優先"
         },
         "finance": {
-          "label": "財務リマインダー",
-          "note": "売上記録とARを確認"
+          "label": "純収入",
+          "note": "直近7日間の収入から支出を差し引いた金額"
         }
       }
     },
@@ -6647,7 +6756,10 @@
       "keyMetrics": "主要指標",
       "viewTips": "表示のヒント",
       "backToStatistics": "統計へ戻る",
-      "openReviews": "審査を開く"
+      "openReviews": "審査を開く",
+      "loading": "読み込み中...",
+      "exportDetails": "明細をエクスポート",
+      "exportSuccess": "レポートをエクスポートしました"
     },
     "reports": {
       "businessSummary": {
@@ -6662,10 +6774,10 @@
         ],
         "metrics": {
           "label": [
-            "Revenue",
-            "Occupancy",
-            "Average rate",
-            "Alerts"
+            "売上",
+            "稼働率",
+            "平均客室単価",
+            "予約数"
           ],
           "note": [
             "Up 8.4% from yesterday",
@@ -6711,10 +6823,10 @@
         ],
         "metrics": {
           "label": [
-            "Top channel",
-            "Direct share",
-            "Pending mappings",
-            "Net revenue"
+            "主要チャネル",
+            "主要チャネル比率",
+            "チャネル数",
+            "チャネル売上"
           ],
           "note": [
             "31% of reservations",
@@ -6760,10 +6872,10 @@
         ],
         "metrics": {
           "label": [
-            "Today records",
-            "Missing receipts",
-            "Manual income",
-            "Exception notes"
+            "記録数",
+            "支出件数",
+            "手入力収入",
+            "手入力支出"
           ],
           "note": [
             "Front desk and duty manager both entered data",
@@ -6809,10 +6921,10 @@
         ],
         "metrics": {
           "label": [
-            "Total payments",
-            "Refunds",
-            "AR",
-            "Received rate"
+            "総収入",
+            "返金",
+            "総支出",
+            "純収入"
           ],
           "note": [
             "Online and offline payments included",
@@ -6858,10 +6970,10 @@
         ],
         "metrics": {
           "label": [
-            "Occupancy",
-            "Average stay",
-            "Member share",
-            "Operating alerts"
+            "稼働率",
+            "平均客室単価",
+            "RevPAR",
+            "客室数"
           ],
           "note": [
             "Weekend demand is strong",
@@ -6907,10 +7019,10 @@
         ],
         "metrics": {
           "label": [
-            "Room nights",
-            "Family travel",
-            "Long stays",
-            "Document alerts"
+            "販売客室泊数",
+            "稼働率",
+            "客室数",
+            "販売可能客室泊数"
           ],
           "note": [
             "Up 11% from last week",
@@ -6956,10 +7068,10 @@
         ],
         "metrics": {
           "label": [
-            "Net income",
-            "Costs",
-            "Pending write-off",
-            "Cash health"
+            "純収入",
+            "総支出",
+            "返金",
+            "総収入"
           ],
           "note": [
             "Refunds and fees deducted",
@@ -7007,6 +7119,7 @@
     "StoreSelection": "施設を選択",
     "Home": "ホーム",
     "HomeCustomize": "カスタマイズ",
+    "InternalTasks": "内部タスク",
     "Rooms": "客室状況",
     "RoomsRoomTable": "客室一覧",
     "RoomsPricing": "料金管理",

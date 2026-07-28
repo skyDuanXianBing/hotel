@@ -70,19 +70,15 @@
 
       </div>
 
-      <ion-modal :is-open="editorOpen" @didDismiss="handleDismissEditor">
-        <ion-header>
-          <ion-toolbar>
-            <ion-title>{{ editingRelationId ? $t('stage5DynamicUi.64') : $t('stage5DynamicUi.36') }}</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="handleDismissEditor">{{ $t('home.section.close') }}</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-
-        <ion-content class="mobile-page settings-modal-page">
-          <section class="mobile-card">
-            <div class="settings-form-grid">
+      <SettingsEditorModal
+        :is-open="editorOpen"
+        :title="editingRelationId ? $t('stage5DynamicUi.64') : $t('stage5DynamicUi.36')"
+        :backdrop-dismiss="!submitting"
+        :close-disabled="submitting"
+        @close="handleDismissEditor"
+        @didDismiss="handleDismissEditor"
+      >
+        <div class="settings-form-grid">
               <label class="settings-form-field">
                 <span>{{ $t('accommodation.common.roomType') }}</span>
                 <ion-select
@@ -100,8 +96,12 @@
               <label class="settings-form-field">
                 <span>{{ $t('channel.hotel.priceMode') }}</span>
                 <ion-select v-model="relationForm.priceMode" fill="outline" interface="action-sheet">
-                  <ion-select-option value="unified">unified</ion-select-option>
-                  <ion-select-option value="multiple">multiple</ion-select-option>
+                  <ion-select-option value="unified">
+                    {{ $t('settingsResidual.priceRates.unifiedPrice') }}
+                  </ion-select-option>
+                  <ion-select-option value="multiple">
+                    {{ $t('settingsResidual.priceRates.multiplePrice') }}
+                  </ion-select-option>
                 </ion-select>
               </label>
 
@@ -136,17 +136,15 @@
                 </div>
                 <ion-checkbox :checked="clearFutureOverridesOnSave" @ionChange="handleClearFutureOverridesChange" />
               </div>
-            </div>
+        </div>
 
-            <div class="settings-form-actions">
-              <ion-button fill="outline" @click="handleDismissEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
-              <ion-button :disabled="submitting" @click="handleSaveRelation">
-                {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.12') }}
-              </ion-button>
-            </div>
-          </section>
-        </ion-content>
-      </ion-modal>
+        <template #actions>
+          <ion-button fill="outline" @click="handleDismissEditor">{{ $t('accommodation.common.cancel') }}</ion-button>
+          <ion-button :disabled="submitting" @click="handleSaveRelation">
+            {{ submitting ? $t('iosStage5.cleaning.submitting') : $t('stage5DynamicUi.12') }}
+          </ion-button>
+        </template>
+      </SettingsEditorModal>
     </ion-content>
   </ion-page>
 </template>
@@ -162,7 +160,6 @@ import {
   IonContent,
   IonHeader,
   IonInput,
-  IonModal,
   IonPage,
   IonRefresher,
   IonRefresherContent,
@@ -185,6 +182,7 @@ import {
   type RoomTypePricePlanDTO,
 } from '@/api/pricePlan'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
+import SettingsEditorModal from '@/components/settings/base/SettingsEditorModal.vue'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
