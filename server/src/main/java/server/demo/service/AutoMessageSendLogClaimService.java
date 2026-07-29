@@ -53,4 +53,27 @@ public class AutoMessageSendLogClaimService {
             sendLogRepository.save(log);
         });
     }
+
+    /**
+     * 独立事务把目标记录重置为"等待重发"状态（手动重放等强制重发场景使用）。
+     *
+     * 必须与调用方事务解耦：若调用方在自己的事务里先写/锁该行，再由 updateResult
+     * （REQUIRES_NEW）更新同一行，会形成行锁等待超时；而调用方事务若早于本提交建立
+     * REPEATABLE_READ 快照，还会读不到该行而误判为不存在。
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void resetForResend(Long storeId, String action, String targetType, Long targetId,
+                               Long autoMessageId, String waitingMessage) {
+        AutoMessageSendLog log = sendLogRepository
+                .findByStoreIdAndActionAndTargetTypeAndTargetId(storeId, action, targetType, targetId)
+                .orElseGet(AutoMessageSendLog::new);
+        log.setStoreId(storeId);
+        log.setAction(action);
+        log.setTargetType(targetType);
+        log.setTargetId(targetId);
+        log.setAutoMessageId(autoMessageId);
+        log.setSuccess(false);
+        log.setErrorMessage(waitingMessage);
+        sendLogRepository.save(log);
+    }
 }

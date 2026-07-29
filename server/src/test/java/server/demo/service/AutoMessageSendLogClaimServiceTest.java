@@ -87,4 +87,52 @@ class AutoMessageSendLogClaimServiceTest {
         assertNotNull(transactional);
         assertEquals(Propagation.REQUIRES_NEW, transactional.propagation());
     }
+
+    @Test
+    void resetForResend_createsRowWhenMissing() {
+        when(repository.findByStoreIdAndActionAndTargetTypeAndTargetId(26L, "AM:13", "RESERVATION", 800L))
+                .thenReturn(Optional.empty());
+
+        service.resetForResend(26L, "AM:13", "RESERVATION", 800L, 13L, "WAITING_MANUAL_REPLAY: manual replay requested");
+
+        org.mockito.ArgumentCaptor<AutoMessageSendLog> captor = org.mockito.ArgumentCaptor.forClass(AutoMessageSendLog.class);
+        verify(repository).save(captor.capture());
+        AutoMessageSendLog saved = captor.getValue();
+        assertEquals(26L, saved.getStoreId());
+        assertEquals("AM:13", saved.getAction());
+        assertEquals("RESERVATION", saved.getTargetType());
+        assertEquals(800L, saved.getTargetId());
+        assertEquals(13L, saved.getAutoMessageId());
+        assertEquals(Boolean.FALSE, saved.getSuccess());
+        assertEquals("WAITING_MANUAL_REPLAY: manual replay requested", saved.getErrorMessage());
+    }
+
+    @Test
+    void resetForResend_rewritesExistingRow() {
+        AutoMessageSendLog existing = new AutoMessageSendLog();
+        existing.setId(4315L);
+        existing.setStoreId(26L);
+        existing.setAction("AM:13");
+        existing.setTargetType("RESERVATION");
+        existing.setTargetId(800L);
+        existing.setSuccess(true);
+        when(repository.findByStoreIdAndActionAndTargetTypeAndTargetId(26L, "AM:13", "RESERVATION", 800L))
+                .thenReturn(Optional.of(existing));
+
+        service.resetForResend(26L, "AM:13", "RESERVATION", 800L, 13L, "WAITING_MANUAL_REPLAY: manual replay requested");
+
+        assertEquals(Boolean.FALSE, existing.getSuccess());
+        assertEquals("WAITING_MANUAL_REPLAY: manual replay requested", existing.getErrorMessage());
+        assertEquals(13L, existing.getAutoMessageId());
+        verify(repository).save(existing);
+    }
+
+    @Test
+    void resetForResend_runsInRequiresNewTransaction() throws Exception {
+        Method method = AutoMessageSendLogClaimService.class.getMethod(
+                "resetForResend", Long.class, String.class, String.class, Long.class, Long.class, String.class);
+        Transactional transactional = method.getAnnotation(Transactional.class);
+        assertNotNull(transactional, "resetForResend 必须声明 @Transactional(REQUIRES_NEW)");
+        assertEquals(Propagation.REQUIRES_NEW, transactional.propagation());
+    }
 }

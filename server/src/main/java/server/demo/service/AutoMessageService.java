@@ -6,10 +6,8 @@ import org.springframework.transaction.annotation.Transactional;
 import server.demo.context.StoreContext;
 import server.demo.context.StoreContextHolder;
 import server.demo.entity.AutoMessage;
-import server.demo.entity.AutoMessageSendLog;
 import server.demo.entity.Reservation;
 import server.demo.repository.AutoMessageRepository;
-import server.demo.repository.AutoMessageSendLogRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.util.StoreTimeZoneUtil;
 
@@ -35,7 +33,7 @@ public class AutoMessageService {
     private ReservationRepository reservationRepository;
 
     @Autowired
-    private AutoMessageSendLogRepository autoMessageSendLogRepository;
+    private AutoMessageSendLogClaimService autoMessageSendLogClaimService;
 
     @Autowired
     private SuBusinessAutoMessageService suBusinessAutoMessageService;
@@ -174,7 +172,15 @@ public class AutoMessageService {
         return autoMessageRepository.save(message);
     }
 
-    @Transactional
+    /**
+     * 手动重放：先把发送日志重置为"等待重发"（独立短事务提交），再触发发送。
+     *
+     * 本方法刻意不加 @Transactional：发送结果回写（AutoMessageSendLogClaimService 的
+     * REQUIRES_NEW 方法）与外层事务写/锁同一行会相互冲突——外层持行锁会让结果回写
+     * 锁等待超时，外层 REPEATABLE_READ 快照也会让 trySendForReservation 读不到
+     * 本方法刚刚写入的重置行。保持无外层事务后，resetForResend 先独立提交，
+     * trySendForReservation 开启的新事务即可读到并重放，结果回写也无锁冲突。
+     */
     public void replayAutoMessage(Long reservationId, Long autoMessageId) {
         if (reservationId == null) {
             throw new RuntimeException("缺少 reservationId");
@@ -193,18 +199,14 @@ public class AutoMessageService {
             throw new RuntimeException("无权限重放该自动化消息模板");
         }
 
-        AutoMessageSendLog sendLog = autoMessageSendLogRepository
-                .findByStoreIdAndAutoMessageIdAndTargetTypeAndTargetId(storeId, autoMessageId, TARGET_TYPE_RESERVATION, reservationId)
-                .orElseGet(AutoMessageSendLog::new);
-
-        sendLog.setStoreId(storeId);
-        sendLog.setAction(SENDLOG_ACTION_PREFIX + autoMessageId);
-        sendLog.setTargetType(TARGET_TYPE_RESERVATION);
-        sendLog.setTargetId(reservationId);
-        sendLog.setAutoMessageId(autoMessageId);
-        sendLog.setSuccess(false);
-        sendLog.setErrorMessage(WAITING_MANUAL_REPLAY + ": manual replay requested");
-        autoMessageSendLogRepository.save(sendLog);
+        autoMessageSendLogClaimService.resetForResend(
+                storeId,
+                SENDLOG_ACTION_PREFIX + autoMessageId,
+                TARGET_TYPE_RESERVATION,
+                reservationId,
+                autoMessageId,
+                WAITING_MANUAL_REPLAY + ": manual replay requested"
+        );
 
         suBusinessAutoMessageService.trySendForReservation(
                 storeId,
