@@ -196,22 +196,18 @@ public class SuBusinessAutoMessageService {
             return;
         }
 
-        AutoMessageSendLog log;
+        // 发送结果（success/errorMessage）一律经 sendLogClaimService.updateResult 在独立短事务里回写；
+        // 外层长事务只读取、不修改该表，避免 REPEATABLE_READ 快照看不到 REQUIRES_NEW 抢占行，
+        // save detached 实体时抛 StaleObjectStateException、拖垮整个 tick 事务导致 success 落不了库。
+        Long sendLogId;
         if (existing.isPresent()) {
-            log = existing.get();
-            log.setStoreId(storeId);
-            log.setAction(sendLogAction);
-            log.setTargetType(TARGET_TYPE_RESERVATION);
-            log.setTargetId(reservation.getId());
-            log.setAutoMessageId(template.getId());
-            log.setSuccess(null);
-            log.setErrorMessage(null);
+            sendLogId = existing.get().getId();
         } else {
             try {
                 // 独立事务抢占唯一键 (store_id, action, target_type, target_id)，
                 // 冲突异常在 REQUIRES_NEW 边界外被捕获，不会毒化外层事务。
-                log = sendLogClaimService.insertClaim(storeId, sendLogAction, TARGET_TYPE_RESERVATION,
-                        reservation.getId(), template.getId());
+                sendLogId = sendLogClaimService.insertClaim(storeId, sendLogAction, TARGET_TYPE_RESERVATION,
+                        reservation.getId(), template.getId()).getId();
             } catch (DataIntegrityViolationException e) {
                 // 并发抢占失败：对方已插入。外层 session 干净，重读已有记录。
                 AutoMessageSendLog existingNow = sendLogRepository
@@ -223,7 +219,7 @@ public class SuBusinessAutoMessageService {
                     // 不要重试插入，否则会再次撞唯一键。
                     return;
                 }
-                log = existingNow;
+                sendLogId = existingNow.getId();
             }
         }
 
@@ -232,7 +228,7 @@ public class SuBusinessAutoMessageService {
         try {
             SuMessageThread thread = resolveThreadForReservation(storeId, reservation, store);
             if (thread == null) {
-                markWaiting(log, "WAITING_THREAD", "thread not found; wait for webhook sync");
+                markWaiting(sendLogId, "WAITING_THREAD", "thread not found; wait for webhook sync");
                 autoMessageLogger.info("[AutoMessage] waiting thread. storeId={}, reservationId={}, autoMessageId={}, channelId={}",
                         storeId, reservation.getId(), template.getId(), reservation.getChannel() != null ? reservation.getChannel().getId() : null);
                 return;
@@ -240,7 +236,7 @@ public class SuBusinessAutoMessageService {
 
             String rendered = renderTemplate(store, reservation, template.getMessage());
             if (rendered == null || rendered.isBlank()) {
-                markFailed(log, "template rendered empty");
+                markFailed(sendLogId, "template rendered empty");
                 return;
             }
             String content = rendered.trim();
@@ -253,7 +249,7 @@ public class SuBusinessAutoMessageService {
             }
 
             if (thread.getListingId() == null || thread.getListingId().isBlank()) {
-                markWaiting(log, "WAITING_LISTINGID", "thread missing listingid");
+                markWaiting(sendLogId, "WAITING_LISTINGID", "thread missing listingid");
                 autoMessageLogger.info("[AutoMessage] waiting listingid. storeId={}, reservationId={}, autoMessageId={}, threadId={}",
                         storeId, reservation.getId(), template.getId(), thread.getId());
                 return;
@@ -263,7 +259,7 @@ public class SuBusinessAutoMessageService {
                 String threadId = thread.getThreadId();
                 String guestId = thread.getGuestId();
                 if (threadId == null || threadId.isBlank() || guestId == null || guestId.isBlank()) {
-                    markWaiting(log, "WAITING_THREAD_FIELDS", "airbnb thread missing threadid/guestid");
+                    markWaiting(sendLogId, "WAITING_THREAD_FIELDS", "airbnb thread missing threadid/guestid");
                     autoMessageLogger.info("[AutoMessage] waiting airbnb thread fields. storeId={}, reservationId={}, autoMessageId={}, threadDbId={} ",
                             storeId, reservation.getId(), template.getId(), thread.getId());
                     return;
@@ -271,7 +267,7 @@ public class SuBusinessAutoMessageService {
             }
 
             if (Boolean.TRUE.equals(thread.getClosed())) {
-                markFailed(log, "thread is closed");
+                markFailed(sendLogId, "thread is closed");
                 return;
             }
 
@@ -286,7 +282,7 @@ public class SuBusinessAutoMessageService {
             if (thread.getChannelId() != null && thread.getChannelId() == SuMessagingService.CHANNEL_BOOKING) {
                 String bookingId = resolveBookingReplyBookingId(thread);
                 if (bookingId == null || bookingId.isBlank()) {
-                    markWaiting(log, "WAITING_THREAD_FIELDS", "booking thread missing bookingid");
+                    markWaiting(sendLogId, "WAITING_THREAD_FIELDS", "booking thread missing bookingid");
                     autoMessageLogger.info("[AutoMessage] waiting bookingid. storeId={}, reservationId={}, autoMessageId={}, threadDbId={}",
                             storeId, reservation.getId(), template.getId(), thread.getId());
                     return;
@@ -334,9 +330,7 @@ public class SuBusinessAutoMessageService {
                 throw new RuntimeException(sendError);
             }
 
-            log.setSuccess(true);
-            log.setErrorMessage(null);
-            sendLogRepository.save(log);
+            markResult(sendLogId, true, null);
 
             autoMessageLogger.info("[AutoMessage] sent ok. storeId={}, reservationId={}, autoMessageId={}, action={}, sendTiming={}",
                     storeId, reservation.getId(), template.getId(), template.getAction(), template.getSendTiming());
@@ -348,9 +342,9 @@ public class SuBusinessAutoMessageService {
             autoMessageLogger.error("[AutoMessage] send failed. storeId={}, reservationId={}, autoMessageId={}, err={}",
                     storeId, reservation.getId(), template.getId(), err);
             if (waitState != null) {
-                markWaiting(log, waitState.code(), waitState.detail());
+                markWaiting(sendLogId, waitState.code(), waitState.detail());
             } else {
-                markFailed(log, err);
+                markFailed(sendLogId, err);
             }
         }
     }
@@ -1591,16 +1585,28 @@ public class SuBusinessAutoMessageService {
 
     private record WaitState(String code, String detail) {}
 
-    private void markWaiting(AutoMessageSendLog log, String code, String msg) {
-        log.setSuccess(false);
-        log.setErrorMessage(trimErr(code + ": " + msg));
-        sendLogRepository.save(log);
+    /**
+     * 发送结果统一经独立短事务（REQUIRES_NEW）回写，与外层 tick 长事务解耦：
+     * Su 侧消息一旦送达就无法回滚，success 标记必须可靠落库，否则下一分钟会重发。
+     * 回写自身失败（如数据库瞬时故障）只记日志，不中断当前派发循环。
+     */
+    private void markResult(Long sendLogId, Boolean success, String errorMessage) {
+        try {
+            sendLogClaimService.updateResult(sendLogId, success, errorMessage);
+        } catch (Exception e) {
+            logger.error("[AutoMessage] persist send result failed. sendLogId={}, success={}, err={}",
+                    sendLogId, success, e.getMessage(), e);
+            autoMessageLogger.error("[AutoMessage] persist send result failed. sendLogId={}, success={}, err={}",
+                    sendLogId, success, e.getMessage());
+        }
     }
 
-    private void markFailed(AutoMessageSendLog log, String err) {
-        log.setSuccess(false);
-        log.setErrorMessage(trimErr(err));
-        sendLogRepository.save(log);
+    private void markWaiting(Long sendLogId, String code, String msg) {
+        markResult(sendLogId, false, trimErr(code + ": " + msg));
+    }
+
+    private void markFailed(Long sendLogId, String err) {
+        markResult(sendLogId, false, trimErr(err));
     }
 
     private static String trimErr(String err) {

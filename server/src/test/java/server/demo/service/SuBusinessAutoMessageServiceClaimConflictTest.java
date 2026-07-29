@@ -28,11 +28,10 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -43,7 +42,8 @@ import static org.mockito.Mockito.when;
  * - trySendForReservation 必须正常返回、不向外抛异常（否则会毒化外层 webhook 事务）；
  * - 重读为空（REPEATABLE_READ 快照读不到对方提交）时直接跳过，不再 save / 重试插入；
  * - 重读到 success=TRUE 的记录时跳过；
- * - 重读到 WAITING_ 状态的记录时继续走发送流程。
+ * - 重读到 WAITING_ 状态的记录时继续走发送流程，
+ *   发送结果经 sendLogClaimService.updateResult（独立短事务）按 id 回写，不经外层事务 save。
  */
 @ExtendWith(MockitoExtension.class)
 class SuBusinessAutoMessageServiceClaimConflictTest {
@@ -150,6 +150,7 @@ class SuBusinessAutoMessageServiceClaimConflictTest {
     @Test
     void claimConflict_rereadWaitingRecord_continuesSendFlowWithExistingLog() {
         AutoMessageSendLog waiting = new AutoMessageSendLog();
+        waiting.setId(555L);
         waiting.setStoreId(STORE_ID);
         waiting.setSuccess(false);
         waiting.setErrorMessage("WAITING_THREAD: thread not found; wait for webhook sync");
@@ -170,9 +171,10 @@ class SuBusinessAutoMessageServiceClaimConflictTest {
                 STORE_ID, reservation, template, LocalDateTime.of(2026, 7, 28, 5, 0), Duration.ZERO
         ));
 
-        // 继续走了发送流程（本例中到达 markWaiting），且写的是重读到的那条记录
-        verify(sendLogRepository).save(waiting);
-        assertEquals(Boolean.FALSE, waiting.getSuccess());
-        assertTrue(waiting.getErrorMessage().startsWith("WAITING_THREAD"));
+        // 继续走了发送流程（本例中到达 markWaiting），结果经独立短事务按 id 回写到重读出的那条记录，
+        // 不经外层事务 save（外层 save 在 REPEATABLE_READ 快照下会抛 StaleObjectStateException 拖垮整个 tick）。
+        verify(sendLogClaimService).updateResult(
+                eq(555L), eq(false), argThat(msg -> msg != null && msg.startsWith("WAITING_THREAD")));
+        verify(sendLogRepository, never()).save(any(AutoMessageSendLog.class));
     }
 }
