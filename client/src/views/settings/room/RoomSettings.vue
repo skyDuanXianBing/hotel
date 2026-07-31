@@ -319,6 +319,7 @@ import {
   deleteRoomType,
   type RoomTypeDeleteBlockInfo,
 } from '@/api/roomType'
+import { isUpgradeGuided } from '@/utils/request'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -839,7 +840,11 @@ const handleSave = async () => {
     }
   } catch (error) {
     console.error('保存失败:', error)
-    ElMessage.error(t('settingsStage4.roomSettings.messages.saveFailed'))
+    // 402 容量超限已由全局升级引导弹窗接管，跳过通用错误 toast（P10 双 toast 修复的遗漏面：
+    // 路由 settings/room-type 实际挂载本组件，此前守卫只加了 RoomTypeManagement.vue）
+    if (!isUpgradeGuided(error)) {
+      ElMessage.error(t('settingsStage4.roomSettings.messages.saveFailed'))
+    }
   } finally {
     loading.value = false
   }

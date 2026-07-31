@@ -199,6 +199,7 @@ import {
   type FacilityDTO,
   type RoomTypeDTO,
 } from '@/api/roomType'
+import { isUpgradeGuided } from '@/utils/request'
 import { ROOM_FACILITY_SECTIONS } from '@/constants/suFacilities'
 import {
   LEGACY_ROOM_TYPE_CODE_MAP,
@@ -495,7 +496,10 @@ const handleSaveBasic = async () => {
     await saveRoomType(t('settingsStage4.storeBasic.messages.saveSuccess'))
   } catch (error) {
     console.error('Failed to save room type:', error)
-    ElMessage.error(t('settingsStage4.roomTypeDetails.messages.saveFailed'))
+    // 402 容量超限已由全局升级引导弹窗接管，跳过通用错误 toast（P10 双 toast 修复）
+    if (!isUpgradeGuided(error)) {
+      ElMessage.error(t('settingsStage4.roomTypeDetails.messages.saveFailed'))
+    }
   } finally {
     savingBasic.value = false
   }
@@ -507,7 +511,10 @@ const handleSaveFacilities = async () => {
     await saveRoomType(t('settingsStage4.roomTypeDetails.messages.facilitiesSaved'))
   } catch (error) {
     console.error('Failed to save facilities:', error)
-    ElMessage.error(t('settingsStage4.roomTypeDetails.messages.facilitiesSaveFailed'))
+    // 402 容量超限已由全局升级引导弹窗接管，跳过通用错误 toast（P10 双 toast 修复）
+    if (!isUpgradeGuided(error)) {
+      ElMessage.error(t('settingsStage4.roomTypeDetails.messages.facilitiesSaveFailed'))
+    }
   } finally {
     savingFacilities.value = false
   }
@@ -519,7 +526,10 @@ const handleSavePhotos = async () => {
     await saveRoomType(t('settingsStage4.roomTypeDetails.messages.photosSaved'))
   } catch (error) {
     console.error('Failed to save photos:', error)
-    ElMessage.error(t('settingsStage4.roomTypeDetails.messages.photosSaveFailed'))
+    // 402 容量超限已由全局升级引导弹窗接管，跳过通用错误 toast（P10 双 toast 修复）
+    if (!isUpgradeGuided(error)) {
+      ElMessage.error(t('settingsStage4.roomTypeDetails.messages.photosSaveFailed'))
+    }
   } finally {
     savingPhotos.value = false
   }

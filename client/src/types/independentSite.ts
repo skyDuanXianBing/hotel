@@ -320,6 +320,8 @@ export interface PublicIndependentSitePage {
   seoDescription?: string | null
   type: IndependentSitePageType | string
   roomTypeId?: number | null
+  /** 门店权益失效暂停接单（P9 契约）：信息型端点返回；字段缺失按 false 容错 */
+  closed?: boolean
   // 缺省按 BLOCKS 处理
   format?: IndependentSitePageFormat
   // schema 结构随 format 变化（BLOCKS 区块 schema / CANVAS 节点树），消费前必须经对应 normalize
@@ -345,6 +347,8 @@ export interface PublicIndependentSite {
   paymentProvider?: string
   simulatedPaymentEnabled: boolean
   paymentNotice?: string
+  /** 门店权益失效暂停接单（P9 契约）：信息型端点返回，前端展示维护态；字段缺失按 false 容错 */
+  closed?: boolean
   themeKey?: string
   pages?: PublicIndependentSitePageNavItem[]
 }

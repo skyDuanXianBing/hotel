@@ -5,7 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, View, Upload } from '@element-plus/icons-vue'
 import RoomTypeEditor from './RoomTypeEditor.vue'
 import RoomTypeBasicInfo from './RoomTypeBasicInfo.vue'
-import { request } from '@/utils/request'
+import { isUpgradeGuided, request } from '@/utils/request'
 
 interface RoomInfo {
   id: number
@@ -166,6 +166,10 @@ const createRoomTypeApi = async (roomTypeData: any) => {
     }
   } catch (error) {
     console.error('创建房型失败:', error)
+    // 402 容量超限已由全局升级引导弹窗接管，跳过通用错误 toast（P10 双 toast 修复）
+    if (isUpgradeGuided(error)) {
+      return false
+    }
     ElMessage.error(t('settingsStage4.roomTypeManagement.messages.createFailed'))
     return false
   } finally {
@@ -348,7 +352,10 @@ const handleSaveBasicInfo = async (data: any) => {
     }
   } catch (error) {
     console.error('更新房型失败:', error)
-    ElMessage.error(t('settingsStage4.roomTypeManagement.messages.updateFailed'))
+    // 402 容量超限已由全局升级引导弹窗接管，跳过通用错误 toast（P10 双 toast 修复）
+    if (!isUpgradeGuided(error)) {
+      ElMessage.error(t('settingsStage4.roomTypeManagement.messages.updateFailed'))
+    }
   }
   handleBackFromBasicEditor()
 }

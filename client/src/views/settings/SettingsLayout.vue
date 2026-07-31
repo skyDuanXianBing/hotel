@@ -16,6 +16,8 @@ import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue'
 import WorkspaceSidebar from '@/components/layout/WorkspaceSidebar.vue'
 import type { WorkspaceSidebarItem } from '@/components/layout/workspace'
 import { PermissionAction, PermissionModule } from '@/api/role'
+import { SAAS_FEATURE_CODES } from '@/api/billing'
+import { useEntitlementStore } from '@/stores/entitlement'
 import {
   usePermissionStore,
   type PermissionMatchMode,
@@ -25,6 +27,7 @@ import {
 const router = useRouter()
 const route = useRoute()
 const permissionStore = usePermissionStore()
+const entitlementStore = useEntitlementStore()
 const { t } = useI18n()
 
 interface MenuChildItem {
@@ -34,6 +37,8 @@ interface MenuChildItem {
   activePaths?: string[]
   requiredPermissions?: PermissionRequirement[]
   permissionMatchMode?: PermissionMatchMode
+  /** SaaS 套餐权益门禁：entitlement store fail-open（未加载时不隐藏菜单）。 */
+  requiredFeatures?: string[]
 }
 
 interface MenuItem {
@@ -200,6 +205,20 @@ const menuItems: MenuItem[] = [
         label: 'settings.layout.items.independentSite',
         path: '/settings/independent-site',
         requiredPermissions: independentSitePermission,
+        requiredFeatures: [SAAS_FEATURE_CODES.INDEPENDENT_WEBSITE],
+      },
+    ],
+  },
+  {
+    key: 'subscription',
+    label: 'saasSubscription.menu.group',
+    icon: Coin,
+    children: [
+      {
+        key: 'my-plan',
+        label: 'saasSubscription.menu.myPlan',
+        path: '/settings/package-settings',
+        requiredPermissions: storeSettingsPermission,
       },
     ],
   },
@@ -310,11 +329,15 @@ const childMatchesRoute = (child: MenuChildItem, routePath = route.path) => {
 const filteredMenuItems = computed(() =>
   menuItems
     .map((item) => {
-      const children = item.children.filter(
-        (child) =>
+      const children = item.children.filter((child) => {
+        const permissionPassed =
           !child.requiredPermissions ||
-          permissionStore.hasPermissions(child.requiredPermissions, child.permissionMatchMode ?? 'all'),
-      )
+          permissionStore.hasPermissions(child.requiredPermissions, child.permissionMatchMode ?? 'all')
+        const featurePassed =
+          !child.requiredFeatures ||
+          child.requiredFeatures.every((featureCode) => entitlementStore.hasFeature(featureCode))
+        return permissionPassed && featurePassed
+      })
 
       return {
         ...item,

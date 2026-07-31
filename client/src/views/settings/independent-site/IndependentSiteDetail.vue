@@ -31,6 +31,7 @@ import {
   updateIndependentSite,
   updateIndependentSitePage,
 } from '@/api/independentSite'
+import { isUpgradeGuided } from '@/utils/request'
 import { getCurrentStorePricePlans, type PricePlanDTO } from '@/api/pricePlan'
 import { getAllRoomTypesWithRooms } from '@/api/roomType'
 import { useStoreStore } from '@/stores/store'
@@ -638,7 +639,7 @@ const refreshPages = async (silent = false) => {
       ElMessage.error(response.message || t('independentSite.detail.errors.refreshPagesFailed'))
     }
   } catch (error) {
-    if (!silent) {
+    if (!silent && !isUpgradeGuided(error)) {
       ElMessage.error(getErrorMessage(error, t('independentSite.detail.errors.refreshPagesFailed')))
     }
   } finally {
@@ -788,8 +789,11 @@ const persistSettings = async (
     if (sequence !== loadSequence) {
       return false
     }
-    // 启用门槛、slug 冲突等错误直接展示后端 message
-    ElMessage.error(getErrorMessage(error, t('independentSite.detail.errors.saveSettingsFailed')))
+    // 启用门槛、slug 冲突等错误直接展示后端 message；
+    // 402 无独立站权益已由全局升级引导弹窗接管，跳过通用错误 toast（P10 双 toast 修复）
+    if (!isUpgradeGuided(error)) {
+      ElMessage.error(getErrorMessage(error, t('independentSite.detail.errors.saveSettingsFailed')))
+    }
     return false
   } finally {
     saving.value = false
@@ -892,7 +896,9 @@ const handlePageEnabledChange = async (page: IndependentSitePageSummary, value: 
       t(value ? 'independentSite.detail.messages.pageEnabled' : 'independentSite.detail.messages.pageDisabled'),
     )
   } catch (error) {
-    ElMessage.error(getErrorMessage(error, t('independentSite.detail.errors.updatePageStatusFailed')))
+    if (!isUpgradeGuided(error)) {
+      ElMessage.error(getErrorMessage(error, t('independentSite.detail.errors.updatePageStatusFailed')))
+    }
   } finally {
     togglingPageId.value = null
   }
@@ -923,7 +929,9 @@ const handleCreatePage = async () => {
     ElMessage.success(t('independentSite.detail.messages.pageCreated'))
     await refreshPages()
   } catch (error) {
-    ElMessage.error(getErrorMessage(error, t('independentSite.detail.errors.createPageFailed')))
+    if (!isUpgradeGuided(error)) {
+      ElMessage.error(getErrorMessage(error, t('independentSite.detail.errors.createPageFailed')))
+    }
   } finally {
     creatingPage.value = false
   }
@@ -974,7 +982,9 @@ const handleRenamePage = async () => {
     ElMessage.success(t('independentSite.detail.messages.pageInfoSaved'))
     await refreshPages(true)
   } catch (error) {
-    ElMessage.error(getErrorMessage(error, t('independentSite.detail.errors.savePageInfoFailed')))
+    if (!isUpgradeGuided(error)) {
+      ElMessage.error(getErrorMessage(error, t('independentSite.detail.errors.savePageInfoFailed')))
+    }
   } finally {
     renaming.value = false
   }
@@ -1008,7 +1018,9 @@ const handleDeletePage = async (page: IndependentSitePageSummary) => {
     ElMessage.success(t('independentSite.detail.messages.pageDeleted'))
     pages.value = pages.value.filter((item) => item.id !== page.id)
   } catch (error) {
-    ElMessage.error(getErrorMessage(error, t('independentSite.detail.errors.deletePageFailed')))
+    if (!isUpgradeGuided(error)) {
+      ElMessage.error(getErrorMessage(error, t('independentSite.detail.errors.deletePageFailed')))
+    }
   } finally {
     deletingPageId.value = null
   }
@@ -1054,7 +1066,9 @@ const handleGenerateRoomPages = async () => {
       duration: 8000,
     })
   } catch (error) {
-    ElMessage.error(getErrorMessage(error, t('independentSite.detail.errors.generateRoomPagesFailed')))
+    if (!isUpgradeGuided(error)) {
+      ElMessage.error(getErrorMessage(error, t('independentSite.detail.errors.generateRoomPagesFailed')))
+    }
   } finally {
     generatingRoomPages.value = false
   }
@@ -1126,8 +1140,11 @@ const handleImportPage = async () => {
     if (sequence !== loadSequence) {
       return
     }
-    // 400 URL_NOT_ALLOWED / 409 路径冲突 / 422 抓取失败 / 429 限流等直接展示后端 message
-    ElMessage.error(getErrorMessage(error, t('independentSite.detail.errors.importRetry')))
+    // 400 URL_NOT_ALLOWED / 409 路径冲突 / 422 抓取失败 / 429 限流等直接展示后端 message；
+    // 402（AI 配额耗尽 / 无权益）已由全局升级引导弹窗接管，跳过通用错误 toast（P10 双 toast 修复）
+    if (!isUpgradeGuided(error)) {
+      ElMessage.error(getErrorMessage(error, t('independentSite.detail.errors.importRetry')))
+    }
   } finally {
     importing.value = false
   }

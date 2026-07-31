@@ -328,6 +328,10 @@ const loadPageContent = async () => {
     if (!response.success || !response.data) {
       throw new Error(response.message || t('independentSite.public.pageUnavailable'))
     }
+    // 页面级信息响应带 closed（P9 契约）：与站点级 closed 等价，并入站点维护态
+    if (response.data.closed === true) {
+      loadedSite.closed = true
+    }
     activePageFormat.value = normalizeIndependentSitePageFormat(response.data.format)
     if (activePageFormat.value === 'CANVAS') {
       const canvasSchema = normalizeCanvasSchema(response.data.schema)
@@ -427,6 +431,15 @@ onBeforeUnmount(() => window.removeEventListener('storage', handleManagementSess
     </div>
 
     <template v-else>
+      <!-- 门店失去独立站权益（降级/到期）：整页维护态（业主拍板公开侧停止接单）。
+           此前仅在预订流程内提示，客人可浏览全站到下单才发现，与决策不符。 -->
+      <div v-if="site.closed" class="site-state" role="status">
+        <span class="state-code">STAY</span>
+        <h1>{{ t('independentSite.booking.storeClosedTitle') }}</h1>
+        <p>{{ t('independentSite.booking.storeClosedDescription') }}</p>
+      </div>
+
+      <template v-else>
       <div
         v-if="previewRequested"
         class="management-preview-banner"
@@ -534,6 +547,7 @@ onBeforeUnmount(() => window.removeEventListener('storage', handleManagementSess
           <a :href="privacyUrl">{{ t('independentSite.public.privacyPolicy') }}</a>
         </nav>
       </footer>
+      </template>
     </template>
   </main>
 </template>

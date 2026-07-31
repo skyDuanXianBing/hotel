@@ -10,6 +10,8 @@ import { stage6Messages } from './stage6'
 import { managedOperationSettlementMessages } from './managedOperationSettlement'
 import { independentSiteMessages } from './independentSite'
 import { suReviewMessages } from './suReviews'
+import { saasSubscriptionMessages } from './saasSubscription'
+import { adminMessages } from './admin'
 
 const zhCN = mergeLocaleMessages(
   {
@@ -189,6 +191,8 @@ const zhCN = mergeLocaleMessages(
   managedOperationSettlementMessages['zh-CN'],
   independentSiteMessages['zh-CN'],
   suReviewMessages['zh-CN'],
+  saasSubscriptionMessages['zh-CN'],
+  adminMessages['zh-CN'],
   {
     routeTitles: {
       checkinRegistration: '入住登记',
@@ -229,7 +233,7 @@ const zhCN = mergeLocaleMessages(
       roomGroupSettings: '房间分组设置',
       sortSettings: '排序设置',
       roomManagement: '房间管理',
-      packageSettings: '包栋设置',
+      packageSettings: '我的套餐',
       bookingFunctionSettings: '订单功能设置',
       frontDeskAutomation: '前台自动化',
       paymentMethods: '收款方式',

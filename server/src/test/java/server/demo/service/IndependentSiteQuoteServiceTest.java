@@ -3,6 +3,8 @@ package server.demo.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import server.demo.constants.SaasFeatureCodes;
 import server.demo.dto.IndependentSiteDtos;
 import server.demo.entity.Channel;
 import server.demo.entity.IndependentSite;
@@ -31,6 +33,7 @@ import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
+import server.demo.service.saas.EntitlementService;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -49,7 +52,9 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class IndependentSiteQuoteServiceTest {
 
@@ -66,6 +71,7 @@ class IndependentSiteQuoteServiceTest {
     private ObjectMapper objectMapper;
     private IndependentSitePageSchemaValidator schemaValidator;
     private Clock clock;
+    private EntitlementService entitlementService;
     private IndependentSiteQuoteService service;
     private Map<String, IndependentSite> sitesBySlug;
     private Map<Long, Store> storesById;
@@ -115,6 +121,10 @@ class IndependentSiteQuoteServiceTest {
         objectMapper = new ObjectMapper();
         schemaValidator = new IndependentSitePageSchemaValidator(objectMapper);
         clock = Clock.fixed(Instant.parse("2026-07-20T00:00:00Z"), ZoneOffset.UTC);
+        // 缺省按“权益具备”处理，既有用例不受影响；closed 语义由专门用例覆盖
+        entitlementService = Mockito.mock(EntitlementService.class);
+        Mockito.lenient().when(entitlementService.storeHasFeature(Mockito.any(), Mockito.any()))
+                .thenReturn(true);
         service = new IndependentSiteQuoteService(
                 siteRepository,
                 publicationRepository,
@@ -129,7 +139,8 @@ class IndependentSiteQuoteServiceTest {
                 schemaValidator,
                 objectMapper,
                 clock,
-                new IndependentSiteCanvasValidator(objectMapper)
+                new IndependentSiteCanvasValidator(objectMapper),
+                entitlementService
         );
     }
 
@@ -236,6 +247,44 @@ class IndependentSiteQuoteServiceTest {
                 IndependentSitePageSchemaValidator.SCHEMA_VERSION,
                 response.schema().path("schemaVersion").asText()
         );
+    }
+
+    @Test
+    void getPublicSite_shouldExposeClosedFlagWhenEntitlementMissing() {
+        IndependentSite site = site(1L, 11L, "alpha");
+        sitesBySlug.put("alpha", site);
+        storesById.put(1L, store(1L, "Alpha Hotel"));
+        publicationsBySite.put(
+                siteKey(1L, 11L),
+                List.of(publication(site, IndependentSitePublicationType.ROOM_TYPE, 101L))
+        );
+        roomTypesByStoreAndId.put(entityKey(1L, 101L), roomType(101L, 1L, "Alpha Room"));
+
+        // 门店缺失 independent_website 权益 → closed=true（前端据此展示维护页）
+        Mockito.when(entitlementService.storeHasFeature(1L, SaasFeatureCodes.INDEPENDENT_WEBSITE))
+                .thenReturn(false);
+        assertTrue(service.getPublicSite("alpha").closed());
+
+        // 权益具备 → closed=false，站点正常展示
+        Mockito.when(entitlementService.storeHasFeature(1L, SaasFeatureCodes.INDEPENDENT_WEBSITE))
+                .thenReturn(true);
+        assertFalse(service.getPublicSite("alpha").closed());
+    }
+
+    @Test
+    void getPublicPage_shouldExposeClosedFlagWhenEntitlementMissing() {
+        IndependentSite site = site(1L, 11L, "alpha");
+        sitesBySlug.put("alpha", site);
+        IndependentSitePage custom = customPage(site, "/about-us", "About Us", true);
+        pagesBySite.get(siteKey(1L, 11L)).add(custom);
+
+        Mockito.when(entitlementService.storeHasFeature(1L, SaasFeatureCodes.INDEPENDENT_WEBSITE))
+                .thenReturn(false);
+        assertTrue(service.getPublicPage("alpha", "/about-us").closed());
+
+        Mockito.when(entitlementService.storeHasFeature(1L, SaasFeatureCodes.INDEPENDENT_WEBSITE))
+                .thenReturn(true);
+        assertFalse(service.getPublicPage("alpha", "/about-us").closed());
     }
 
     @Test

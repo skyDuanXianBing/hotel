@@ -4,6 +4,7 @@ import { ElConfigProvider } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getElementPlusLocale } from '@/locales'
+import UpgradeGuideDialog from '@/components/saas/UpgradeGuideDialog.vue'
 import { useLanguageStore } from '@/stores/language'
 
 const languageStore = useLanguageStore()
@@ -37,6 +38,8 @@ watch(
 <template>
   <el-config-provider :locale="elementLocale" :z-index="ELEMENT_PLUS_OVERLAY_Z_INDEX">
     <router-view />
+    <!-- 全局 SaaS 402 升级引导弹窗（entitlement store 驱动） -->
+    <UpgradeGuideDialog />
   </el-config-provider>
 </template>
 

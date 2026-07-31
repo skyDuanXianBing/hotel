@@ -233,7 +233,8 @@ public final class IndependentSiteDtos {
             String type,
             Long roomTypeId,
             JsonNode schema,
-            String format
+            String format,
+            boolean closed
     ) {
     }
 
@@ -291,7 +292,8 @@ public final class IndependentSiteDtos {
             String paymentNotice,
             String themeKey,
             List<PublicPageNavItem> pages,
-            String format
+            String format,
+            boolean closed
     ) {
     }
 

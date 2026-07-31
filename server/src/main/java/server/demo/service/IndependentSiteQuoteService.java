@@ -35,7 +35,9 @@ import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
+import server.demo.constants.SaasFeatureCodes;
 import server.demo.service.helper.util.ReservationOccupancyProjection;
+import server.demo.service.saas.EntitlementService;
 import server.demo.util.IndependentSitePricePolicy;
 import server.demo.util.LocalBasePriceResolver;
 import server.demo.util.StoreTimeZoneUtil;
@@ -92,6 +94,7 @@ public class IndependentSiteQuoteService {
     private final ObjectMapper objectMapper;
     private final Clock clock;
     private final IndependentSiteCanvasValidator canvasValidator;
+    private final EntitlementService entitlementService;
 
     public IndependentSiteQuoteService(
             IndependentSiteRepository siteRepository,
@@ -107,7 +110,8 @@ public class IndependentSiteQuoteService {
             IndependentSitePageSchemaValidator pageSchemaValidator,
             ObjectMapper objectMapper,
             Clock clock,
-            IndependentSiteCanvasValidator canvasValidator
+            IndependentSiteCanvasValidator canvasValidator,
+            EntitlementService entitlementService
     ) {
         this.siteRepository = siteRepository;
         this.publicationRepository = publicationRepository;
@@ -123,6 +127,7 @@ public class IndependentSiteQuoteService {
         this.objectMapper = objectMapper;
         this.clock = clock;
         this.canvasValidator = canvasValidator;
+        this.entitlementService = entitlementService;
     }
 
     @Transactional(readOnly = true)
@@ -191,7 +196,8 @@ public class IndependentSiteQuoteService {
                 paymentNotice(site),
                 site.getThemeKey(),
                 publicPageNavItems(site),
-                homePage.getFormat().name()
+                homePage.getFormat().name(),
+                siteClosed(site)
         );
     }
 
@@ -211,8 +217,25 @@ public class IndependentSiteQuoteService {
                 page.getType() != null ? page.getType().name() : null,
                 page.getRoomTypeId(),
                 readAndValidateSchema(page),
-                page.getFormat().name()
+                page.getFormat().name(),
+                siteClosed(site)
         );
+    }
+
+    /**
+     * 门店独立站权益（independent_website）缺失时 closed=true——前端据此展示维护页，
+     * 与公开交易端点 403「该店铺暂停接单」的判定口径一致（fail-closed）。
+     */
+    private boolean siteClosed(IndependentSite site) {
+        return !entitlementService.storeHasFeature(site.getStoreId(), SaasFeatureCodes.INDEPENDENT_WEBSITE);
+    }
+
+    /**
+     * 公开交易端点的权益守卫用：按站点 slug 解析归属门店 id。
+     * 站点不可用（slug 非法/未发布/渠道校验失败）时与正文端点一致地抛 404。
+     */
+    public Long resolveEnabledStoreId(String slug) {
+        return resolveEnabledSite(slug).getStoreId();
     }
 
     /** 公开站点的支付提示文案：STRIPE 站点明示真实收卡；SIMULATED 维持既有模拟语义。 */

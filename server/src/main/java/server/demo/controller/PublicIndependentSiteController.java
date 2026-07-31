@@ -9,11 +9,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import server.demo.constants.SaasFeatureCodes;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.IndependentSiteDtos;
 import server.demo.service.IndependentSiteBookingService;
 import server.demo.service.IndependentSitePublicRateLimiter;
 import server.demo.service.IndependentSiteQuoteService;
+import server.demo.service.saas.EntitlementService;
 
 @RestController
 @RequestMapping("/api/public/independent-sites")
@@ -22,15 +24,31 @@ public class PublicIndependentSiteController {
     private final IndependentSiteQuoteService quoteService;
     private final IndependentSiteBookingService bookingService;
     private final IndependentSitePublicRateLimiter rateLimiter;
+    private final EntitlementService entitlementService;
 
     public PublicIndependentSiteController(
             IndependentSiteQuoteService quoteService,
             IndependentSiteBookingService bookingService,
-            IndependentSitePublicRateLimiter rateLimiter
+            IndependentSitePublicRateLimiter rateLimiter,
+            EntitlementService entitlementService
     ) {
         this.quoteService = quoteService;
         this.bookingService = bookingService;
         this.rateLimiter = rateLimiter;
+        this.entitlementService = entitlementService;
+    }
+
+    /**
+     * 交易型端点守卫（P9，业主拍板：公开独立站停止接单）：按站点解析归属门店，
+     * 门店有效订阅缺失 independent_website 权益时返回 403 success=false「该店铺暂停接单」。
+     * 站点不可用（未发布/渠道失效）由解析层抛 404；权益具备时返回 null 放行。
+     */
+    private <T> ResponseEntity<ApiResponse<T>> storeClosedResponse(String slug) {
+        Long storeId = quoteService.resolveEnabledStoreId(slug);
+        if (entitlementService.storeHasFeature(storeId, SaasFeatureCodes.INDEPENDENT_WEBSITE)) {
+            return null;
+        }
+        return ResponseEntity.status(403).body(ApiResponse.error("该店铺暂停接单"));
     }
 
     @GetMapping("/{slug}")
@@ -64,6 +82,10 @@ public class PublicIndependentSiteController {
             @Valid @RequestBody IndependentSiteDtos.QuoteRequest request,
             HttpServletRequest httpRequest
     ) {
+        ResponseEntity<ApiResponse<IndependentSiteDtos.QuoteResponse>> closed = storeClosedResponse(slug);
+        if (closed != null) {
+            return closed;
+        }
         rateLimiter.checkQuote(slug, httpRequest.getRemoteAddr());
         return ResponseEntity.ok(ApiResponse.success(
                 "报价成功",
@@ -77,6 +99,10 @@ public class PublicIndependentSiteController {
             @Valid @RequestBody IndependentSiteDtos.HoldRequest request,
             HttpServletRequest httpRequest
     ) {
+        ResponseEntity<ApiResponse<IndependentSiteDtos.PaymentAttemptResponse>> closed = storeClosedResponse(slug);
+        if (closed != null) {
+            return closed;
+        }
         rateLimiter.checkHold(slug, httpRequest.getRemoteAddr());
         return ResponseEntity.ok(ApiResponse.success(
                 "订房保留已创建",
@@ -89,6 +115,10 @@ public class PublicIndependentSiteController {
             @PathVariable String slug,
             @PathVariable String paymentAttemptId
     ) {
+        ResponseEntity<ApiResponse<IndependentSiteDtos.PaymentAttemptResponse>> closed = storeClosedResponse(slug);
+        if (closed != null) {
+            return closed;
+        }
         return ResponseEntity.ok(ApiResponse.success(
                 "支付确认成功",
                 bookingService.confirmPublicPayment(slug, paymentAttemptId)
@@ -101,6 +131,10 @@ public class PublicIndependentSiteController {
             @PathVariable String paymentAttemptId,
             HttpServletRequest httpRequest
     ) {
+        ResponseEntity<ApiResponse<IndependentSiteDtos.StripeIntentResponse>> closed = storeClosedResponse(slug);
+        if (closed != null) {
+            return closed;
+        }
         rateLimiter.checkIntent(slug, httpRequest.getRemoteAddr());
         return ResponseEntity.ok(ApiResponse.success(
                 "支付意图已就绪",

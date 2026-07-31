@@ -9,6 +9,7 @@ import server.demo.dto.ApiResponse;
 import server.demo.dto.CreateRoomTypeRequest;
 import server.demo.dto.RoomTypeWithRoomsDTO;
 import server.demo.entity.RoomType;
+import server.demo.exception.NeedUpgradeException;
 import server.demo.service.RoomTypeService;
 
 import java.util.ArrayList;
@@ -117,6 +118,9 @@ public class RoomTypeController extends BaseStoreController {
             }
             RoomType createdRoomType = roomTypeService.createRoomTypeWithRoomInputs(roomType, roomInputs);
             return ApiResponse.success("房型创建成功", createdRoomType);
+        } catch (NeedUpgradeException e) {
+            // SaaS 容量超限：交由 SaasEntitlementExceptionHandler 统一返回 402，不能在此吞掉
+            throw e;
         } catch (Exception e) {
             return ApiResponse.error("房型创建失败: " + e.getMessage());
         }
@@ -168,6 +172,9 @@ public class RoomTypeController extends BaseStoreController {
             }
             RoomType updatedRoomType = roomTypeService.updateRoomTypeWithRoomInputs(id, roomType, roomInputs);
             return ApiResponse.success("房型更新成功", updatedRoomType);
+        } catch (NeedUpgradeException e) {
+            // SaaS 容量超限：交由 SaasEntitlementExceptionHandler 统一返回 402，不能在此吞掉
+            throw e;
         } catch (Exception e) {
             return ApiResponse.error("房型更新失败: " + e.getMessage());
         }

@@ -10,6 +10,8 @@ import { stage6Messages } from './stage6'
 import { managedOperationSettlementMessages } from './managedOperationSettlement'
 import { independentSiteMessages } from './independentSite'
 import { suReviewMessages } from './suReviews'
+import { saasSubscriptionMessages } from './saasSubscription'
+import { adminMessages } from './admin'
 
 const en = mergeLocaleMessages(
   {
@@ -192,6 +194,8 @@ const en = mergeLocaleMessages(
   managedOperationSettlementMessages.en,
   independentSiteMessages.en,
   suReviewMessages.en,
+  saasSubscriptionMessages.en,
+  adminMessages.en,
   {
     routeTitles: {
       checkinRegistration: 'Check-in Registration',
@@ -232,7 +236,7 @@ const en = mergeLocaleMessages(
       roomGroupSettings: 'Room Group Settings',
       sortSettings: 'Sort Settings',
       roomManagement: 'Room Management',
-      packageSettings: 'Package Settings',
+      packageSettings: 'My Plan',
       bookingFunctionSettings: 'Booking Function Settings',
       frontDeskAutomation: 'Front Desk Automation',
       paymentMethods: 'Payment Methods',

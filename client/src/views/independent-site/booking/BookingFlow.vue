@@ -18,6 +18,7 @@ import type {
   PublicIndependentSiteRoomType,
   PublicIndependentSite,
 } from '@/types/independentSite'
+import { isStoreClosedError } from '@/utils/publicRequest'
 import { safeIndependentSiteImageUrl } from '@/views/independent-site/pageSchema'
 
 interface SearchForm {
@@ -85,6 +86,19 @@ const paymentError = ref('')
 const paymentResult = ref<IndependentSitePaymentAttempt | null>(null)
 const idempotencyKey = ref('')
 let quoteRequestSequence = 0
+
+// 门店权益失效暂停接单（P9）：信息型端点 closed=true 或交易端点 403 时切换维护态
+const storeClosedByRequest = ref(false)
+const siteClosed = computed(() => props.site.closed === true || storeClosedByRequest.value)
+
+/** 交易请求命中 403「该店铺暂停接单」→ 切维护态并吞掉原错误（不再透传固定中文 message）。 */
+const markClosedIfStoreClosed = (error: unknown): boolean => {
+  if (isStoreClosedError(error)) {
+    storeClosedByRequest.value = true
+    return true
+  }
+  return false
+}
 
 // Stripe 卡支付状态（provider=STRIPE 时启用；卡号只进入 Stripe Elements iframe，不经过本站）
 const stripeCardContainer = ref<HTMLElement | null>(null)
@@ -448,6 +462,9 @@ const handleSearch = async () => {
       return
     }
     quote.value = null
+    if (markClosedIfStoreClosed(error)) {
+      return
+    }
     quoteError.value = getErrorMessage(error, t('independentSite.booking.errors.loadQuotes'))
   } finally {
     if (isCurrentSearch()) {
@@ -535,7 +552,11 @@ const handleCheckout = async () => {
       block: 'start',
     })
   } catch (error) {
-    checkoutError.value = getErrorMessage(error, t('independentSite.booking.errors.priceChanged'))
+    if (markClosedIfStoreClosed(error)) {
+      checkoutError.value = ''
+    } else {
+      checkoutError.value = getErrorMessage(error, t('independentSite.booking.errors.priceChanged'))
+    }
   } finally {
     checkoutLoading.value = false
   }
@@ -574,7 +595,11 @@ const handleSimulatedPayment = async () => {
     paymentResult.value = response.data
     await refreshPaymentStatus()
   } catch (error) {
-    paymentError.value = getErrorMessage(error, t('independentSite.booking.errors.simulatedPaymentRetry'))
+    if (markClosedIfStoreClosed(error)) {
+      paymentError.value = ''
+    } else {
+      paymentError.value = getErrorMessage(error, t('independentSite.booking.errors.simulatedPaymentRetry'))
+    }
   } finally {
     paymentLoading.value = false
   }
@@ -663,7 +688,11 @@ const setupStripePayment = async () => {
     stripeClientSecret = intent.clientSecret
     await mountStripeCardElement()
   } catch (error) {
-    stripeIntentError.value = getErrorMessage(error, t('independentSite.booking.errors.stripeRetry'))
+    if (markClosedIfStoreClosed(error)) {
+      stripeIntentError.value = ''
+    } else {
+      stripeIntentError.value = getErrorMessage(error, t('independentSite.booking.errors.stripeRetry'))
+    }
   } finally {
     stripeIntentLoading.value = false
   }
@@ -819,7 +848,14 @@ watch(
 
 <template>
   <section id="booking" class="booking-section">
-    <div class="booking-heading">
+    <!-- 门店权益失效暂停接单（P9）：closed=true 或交易 403 后整段切换为维护态 -->
+    <div v-if="siteClosed" class="store-closed" role="status">
+      <span class="store-closed-eyebrow">{{ t('independentSite.booking.headingEyebrow') }}</span>
+      <h2>{{ t('independentSite.booking.storeClosedTitle') }}</h2>
+      <p>{{ t('independentSite.booking.storeClosedDescription') }}</p>
+    </div>
+
+    <div v-if="!siteClosed" class="booking-heading">
       <div>
         <span>{{ t('independentSite.booking.headingEyebrow') }}</span>
         <h2>{{ t('independentSite.booking.heading') }}</h2>
@@ -833,6 +869,7 @@ watch(
     </div>
 
     <el-form
+      v-if="!siteClosed"
       ref="searchFormRef"
       :model="searchForm"
       :rules="searchRules"
@@ -897,7 +934,7 @@ watch(
     </el-form>
 
     <el-alert
-      v-if="quoteError"
+      v-if="quoteError && !siteClosed"
       class="booking-alert"
       type="warning"
       :title="quoteError"
@@ -905,7 +942,7 @@ watch(
       :closable="false"
     />
 
-    <section v-if="quote" id="availability-results" class="availability-results">
+    <section v-if="quote && !siteClosed" id="availability-results" class="availability-results">
       <div class="result-heading">
         <div>
           <span>{{ t('independentSite.booking.resultsEyebrow') }}</span>
@@ -990,7 +1027,7 @@ watch(
       </p>
     </section>
 
-    <section v-if="selectedQuote && !checkout" id="guest-details" class="checkout-panel">
+    <section v-if="selectedQuote && !checkout && !siteClosed" id="guest-details" class="checkout-panel">
       <div class="checkout-heading">
         <span>{{ t(canBookOnline ? 'independentSite.booking.guestDetails' : 'independentSite.booking.bookingNotice') }}</span>
         <h3>{{ t(canBookOnline ? 'independentSite.booking.guestDetailsHeading' : 'independentSite.booking.quoteReady') }}</h3>
@@ -1087,7 +1124,7 @@ watch(
       </div>
     </section>
 
-    <section v-if="checkout" id="payment-step" class="payment-panel">
+    <section v-if="checkout && !siteClosed" id="payment-step" class="payment-panel">
       <template v-if="paymentStatus === 'SUCCEEDED'">
         <div class="success-mark" aria-hidden="true">
           <el-icon><Check /></el-icon>
@@ -1308,6 +1345,37 @@ watch(
 
 .booking-alert {
   margin-top: 18px;
+}
+
+.store-closed {
+  padding: 72px 24px;
+  border: 1px solid #dce4e1;
+  border-radius: 18px;
+  background: #fff;
+  text-align: center;
+}
+
+.store-closed-eyebrow {
+  color: #b47b46;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.17em;
+}
+
+.store-closed h2 {
+  margin: 10px 0 8px;
+  color: var(--site-primary, #214e46);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(26px, 4vw, 38px);
+  font-weight: 500;
+}
+
+.store-closed p {
+  max-width: 520px;
+  margin: 0 auto;
+  color: #6f7976;
+  font-size: 14px;
+  line-height: 1.7;
 }
 
 .availability-results,

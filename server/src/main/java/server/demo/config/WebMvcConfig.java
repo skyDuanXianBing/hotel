@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import server.demo.interceptor.AdminAuthInterceptor;
 import server.demo.interceptor.JwtInterceptor;
 import server.demo.interceptor.StoreContextInterceptor;
 
@@ -19,6 +20,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Autowired
     private StoreContextInterceptor storeContextInterceptor;
+
+    @Autowired
+    private AdminAuthInterceptor adminAuthInterceptor;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
@@ -42,5 +46,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
         registry.addInterceptor(storeContextInterceptor)
                 .addPathPatterns("/api/v1/**");
+
+        // 平台管理端：SecurityConfig 全放行，此拦截器是 /api/admin/** 唯一认证屏障；仅放行登录。
+        registry.addInterceptor(adminAuthInterceptor)
+                .addPathPatterns("/api/admin/**")
+                .excludePathPatterns("/api/admin/auth/login");
     }
 }

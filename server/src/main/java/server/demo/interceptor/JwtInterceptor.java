@@ -1,5 +1,6 @@
 package server.demo.interceptor;
 
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,9 +9,17 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import server.demo.util.JwtUtil;
 import server.demo.util.RedisUtil;
 
+import java.util.Set;
+
 /**
  * JWT拦截器
  * 负责验证JWT token并注入用户信息到请求属性中
+ *
+ * <p>受众隔离（P10 修复）：管理端 token（aud=admin）与门店用户 token 共用同一签名密钥，
+ * 不校验 audience 时管理端 token 可调通 /api/v1/** 租户链路（越权）。此处强制：
+ * aud 存在时必须为租户值（{@link JwtUtil#TENANT_TOKEN_AUDIENCE}），否则一律 401；
+ * 无 aud 的旧 token 按既有租户声明（userId）判定——userId 缺失同样 401（管理端 token 无 userId，
+ * 被两道检查同时拦截）。</p>
  */
 @Component
 public class JwtInterceptor implements HandlerInterceptor {
@@ -52,10 +61,25 @@ public class JwtInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        // 从token中提取用户信息
+        // 从token中提取用户信息（含受众隔离校验）
         try {
-            Long userId = jwtUtil.getUserIdFromToken(token);
-            String email = jwtUtil.getEmailFromToken(token);
+            Claims claims = jwtUtil.getClaims(token);
+
+            // 受众白名单：携带 aud 的 token 必须是租户受众；aud=admin 等一律拒绝
+            Set<String> audience = claims.getAudience();
+            if (audience != null && !audience.isEmpty()
+                    && !audience.contains(JwtUtil.TENANT_TOKEN_AUDIENCE)) {
+                writeUnauthorized(response, "非租户端认证令牌");
+                return false;
+            }
+
+            // 无 aud 的旧 token 兼容策略：按既有租户声明 userId 判定，缺失即非租户令牌
+            Long userId = claims.get("userId", Long.class);
+            if (userId == null) {
+                writeUnauthorized(response, "非租户端认证令牌");
+                return false;
+            }
+            String email = claims.getSubject();
 
             // 将用户信息存储到请求属性中
             request.setAttribute("userId", userId);
@@ -64,10 +88,14 @@ public class JwtInterceptor implements HandlerInterceptor {
 
             return true;
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"success\":false,\"message\":\"认证令牌解析失败\",\"data\":null}");
+            writeUnauthorized(response, "认证令牌解析失败");
             return false;
         }
+    }
+
+    private void writeUnauthorized(HttpServletResponse response, String message) throws Exception {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"success\":false,\"message\":\"" + message + "\",\"data\":null}");
     }
 }

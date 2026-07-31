@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import server.demo.constants.SaasFeatureCodes;
 import server.demo.dto.RoomTypeDeleteBlockInfo;
 import server.demo.dto.RoomTypeWithRoomsDTO;
 import server.demo.entity.Reservation;
@@ -26,6 +27,7 @@ import server.demo.repository.ChannelPriceRepository;
 import server.demo.repository.PriceLabsConnectionRepository;
 import server.demo.repository.CleaningTaskRepository;
 import server.demo.repository.RoomBlockoutRepository;
+import server.demo.service.saas.EntitlementService;
 import server.demo.util.StoreContextUtils;
 import server.demo.util.SuHotelIdUtil;
 
@@ -78,6 +80,9 @@ public class RoomTypeService {
 
     @Autowired
     private RoomBlockoutRepository roomBlockoutRepository;
+
+    @Autowired
+    private EntitlementService entitlementService;
 
     @Autowired
     private SuContentSyncService suContentSyncService;
@@ -265,6 +270,12 @@ public class RoomTypeService {
         roomType.setUser(user);
         applyOptionalRoomTypeFields(roomType, roomType);
         RoomType savedRoomType = roomTypeRepository.save(roomType);
+
+        // SaaS 容量软限制：仅阻断新增，存量房间不受影响
+        if (!passcodeByRoomNumber.isEmpty()) {
+            entitlementService.checkCapacity(storeId, SaasFeatureCodes.ROOM_COUNT,
+                    roomRepository.countByStoreId(storeId), passcodeByRoomNumber.size());
+        }
 
         for (Map.Entry<String, String> entry : passcodeByRoomNumber.entrySet()) {
             Room room = new Room(entry.getKey(), savedRoomType, null);
@@ -547,6 +558,12 @@ public class RoomTypeService {
             }
 
             Long userId = currentUserId();
+            // SaaS 容量软限制：rename 不增减房间数，净增 = 新增 - 删除；仅净增时校验
+            long roomDelta = roomNumbersToAdd.size() - roomsToDelete.size();
+            if (roomDelta > 0) {
+                entitlementService.checkCapacity(storeId, SaasFeatureCodes.ROOM_COUNT,
+                        roomRepository.countByStoreId(storeId), roomDelta);
+            }
             for (String roomNumber : roomNumbersToAdd) {
                 Room room = new Room(roomNumber, savedRoomType, null);
                 if (applyPasscodes) {

@@ -22,7 +22,7 @@ doc
 *.zip
 *.tar.gz
 *.rar
-
+.pi-subagents
 # virtual machine crash logs
 hs_err_pid*
 replay_pid*

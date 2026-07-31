@@ -14,6 +14,7 @@ import {
   undoIndependentSitePageAiEdit,
   updateIndependentSitePage,
 } from '@/api/independentSite'
+import { isUpgradeGuided } from '@/utils/request'
 import type {
   IndependentSitePageDetail,
   PublicIndependentSiteRoomType,
@@ -389,6 +390,10 @@ const performAutosave = async (): Promise<boolean> => {
       saveError.value = t('independentSite.canvas.draftUpdatedElsewhere')
       ElMessage.error(t('independentSite.canvas.confirmBeforeEditing', { message: saveError.value }))
       await reloadPageDetail()
+    } else if (isUpgradeGuided(error)) {
+      // 402 无独立站权益已由全局升级引导弹窗接管，跳过自动保存失败 toast（P10 双 toast 修复）
+      saveState.value = 'error'
+      saveError.value = ''
     } else {
       saveState.value = 'error'
       saveError.value = getErrorMessage(error, t('independentSite.canvas.autosaveRequestFailed'))
@@ -543,6 +548,10 @@ const runAiEdit = async (instruction: string) => {
     chatPanelRef.value?.appendAiDelivery(buildDiffSummary(diff))
     emit('updated')
   } catch (error) {
+    // 402（AI 配额耗尽 / 无权益）已由全局升级引导弹窗接管，跳过 toast 与聊天面板错误（P10）
+    if (isUpgradeGuided(error)) {
+      return
+    }
     const message = getErrorMessage(error, t('independentSite.canvas.aiEditRetry'))
     ElMessage.error(message)
     chatPanelRef.value?.appendAiError(message)
@@ -594,6 +603,10 @@ const runGenerate = async (prompt: string) => {
       chatPanelRef.value?.appendAiError(t('independentSite.canvas.aiDraftAutosaveFailed'))
     }
   } catch (error) {
+    // 402（AI 配额耗尽 / 无权益）已由全局升级引导弹窗接管，跳过 toast 与聊天面板错误（P10）
+    if (isUpgradeGuided(error)) {
+      return
+    }
     const message = getErrorMessage(error, t('independentSite.canvas.aiGenerateRetry'))
     ElMessage.error(message)
     chatPanelRef.value?.appendAiError(message)

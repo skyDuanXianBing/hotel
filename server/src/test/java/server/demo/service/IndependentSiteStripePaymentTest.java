@@ -1444,7 +1444,8 @@ class IndependentSiteStripePaymentTest {
 
         private RecordingQuoteService(IndependentSite site, QuoteComputation quote) {
             super(null, null, publishedHomePageRepository(site), null, null, null, null, null, null, null,
-                    null, null, null, null);
+                    null, null, null, null,
+                    org.mockito.Mockito.mock(server.demo.service.saas.EntitlementService.class));
             this.site = site;
             this.quote = quote;
         }

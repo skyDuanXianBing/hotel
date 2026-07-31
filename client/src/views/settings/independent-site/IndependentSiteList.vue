@@ -21,6 +21,9 @@ import {
   listIndependentSites,
   updateIndependentSitePage,
 } from '@/api/independentSite'
+import { isUpgradeGuided } from '@/utils/request'
+import { SAAS_FEATURE_CODES } from '@/api/billing'
+import { useEntitlementStore } from '@/stores/entitlement'
 import { useStoreStore } from '@/stores/store'
 import type { IndependentSiteDetail, IndependentSiteSummary } from '@/types/independentSite'
 import StripeSettingsDialog from '@/views/settings/independent-site/StripeSettingsDialog.vue'
@@ -42,6 +45,7 @@ interface CreateSiteForm {
 
 const router = useRouter()
 const storeStore = useStoreStore()
+const entitlementStore = useEntitlementStore()
 const { locale, t } = useI18n()
 const createFormRef = ref<FormInstance>()
 const loading = ref(true)
@@ -63,6 +67,11 @@ const createForm = reactive<CreateSiteForm>({
 })
 
 const stylePresets = computed(() => getCanvasStylePresets(t))
+
+// SaaS 配额展示：AI 建站剩余次数（entitlement store fail-open，未加载时不显示）
+const aiWebsiteGenQuota = computed(() =>
+  entitlementStore.quotaFor(SAAS_FEATURE_CODES.AI_WEBSITE_GEN),
+)
 
 const slugValidator: FormItemRule['validator'] = (_rule, value, callback) => {
   const slug = String(value || '').trim()
@@ -132,7 +141,10 @@ const loadSites = async () => {
       return
     }
     sites.value = []
-    loadError.value = getErrorMessage(error, t('independentSite.list.messages.loadFailed'))
+    // 402 无独立站权益已由全局升级引导弹窗接管，不再展示陈旧的内联加载失败（P10）
+    if (!isUpgradeGuided(error)) {
+      loadError.value = getErrorMessage(error, t('independentSite.list.messages.loadFailed'))
+    }
   } finally {
     if (sequence === loadSequence) {
       loading.value = false
@@ -189,9 +201,14 @@ const generateHomePageDraft = async (site: IndependentSiteDetail) => {
       throw new Error(saveResponse.message || t('independentSite.list.messages.aiDraftSaveFailed'))
     }
     ElMessage.success(t('independentSite.list.messages.draftGenerated'))
+    // AI 生成已扣减配额，静默刷新剩余次数展示
+    void entitlementStore.refresh(true)
   } catch (error) {
     console.warn('[independent-site] 首页 AI 初稿生成失败', error)
-    ElMessage.warning(t('independentSite.list.messages.draftGenerationFailed'))
+    // 402（AI 配额耗尽 / 无权益）已由全局升级引导弹窗接管，跳过通用提示（P10 双 toast 修复）
+    if (!isUpgradeGuided(error)) {
+      ElMessage.warning(t('independentSite.list.messages.draftGenerationFailed'))
+    }
   }
 }
 
@@ -220,7 +237,10 @@ const handleCreateSite = async () => {
       await loadSites()
     }
   } catch (error) {
-    ElMessage.error(getErrorMessage(error, t('independentSite.list.messages.createFailed')))
+    // 402 无独立站权益已由全局升级引导弹窗接管，跳过通用错误 toast（P10 双 toast 修复）
+    if (!isUpgradeGuided(error)) {
+      ElMessage.error(getErrorMessage(error, t('independentSite.list.messages.createFailed')))
+    }
   } finally {
     creatingPhase.value = 'idle'
   }
@@ -255,8 +275,11 @@ const handleDeleteSite = async (site: IndependentSiteSummary) => {
     ElMessage.success(t('independentSite.list.messages.deleted'))
     sites.value = sites.value.filter((item) => item.id !== site.id)
   } catch (error) {
-    // 409（存在支付记录等）与其他错误都直接展示后端 message
-    ElMessage.error(getErrorMessage(error, t('independentSite.list.messages.deleteFailed')))
+    // 409（存在支付记录等）与其他错误都直接展示后端 message；
+    // 402 无独立站权益已由全局升级引导弹窗接管，跳过通用错误 toast（P10 双 toast 修复）
+    if (!isUpgradeGuided(error)) {
+      ElMessage.error(getErrorMessage(error, t('independentSite.list.messages.deleteFailed')))
+    }
   } finally {
     deletingSiteId.value = null
   }
@@ -275,7 +298,10 @@ const openPublicSite = (site: IndependentSiteSummary) => {
   window.open(sitePublicUrl(site.slug), '_blank', 'noopener,noreferrer')
 }
 
-onMounted(loadSites)
+onMounted(() => {
+  loadSites()
+  void entitlementStore.refresh()
+})
 
 watch(
   () => storeStore.currentStore?.id,
@@ -303,6 +329,15 @@ watch(
         <p>{{ t('independentSite.list.description') }}</p>
       </div>
       <div class="header-actions">
+        <el-tag v-if="aiWebsiteGenQuota" type="info" effect="plain" class="ai-quota-tag">
+          {{
+            aiWebsiteGenQuota.remaining === null
+              ? t('saasSubscription.quota.aiWebsiteGenUnlimited')
+              : t('saasSubscription.quota.aiWebsiteGenRemaining', {
+                  count: aiWebsiteGenQuota.remaining,
+                })
+          }}
+        </el-tag>
         <el-button :icon="CreditCard" @click="stripeDialogVisible = true">
           {{ t('independentSite.list.stripeSettings') }}
         </el-button>

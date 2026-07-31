@@ -10,6 +10,8 @@ import { stage6Messages } from './stage6'
 import { managedOperationSettlementMessages } from './managedOperationSettlement'
 import { independentSiteMessages } from './independentSite'
 import { suReviewMessages } from './suReviews'
+import { saasSubscriptionMessages } from './saasSubscription'
+import { adminMessages } from './admin'
 
 const zhTW = mergeLocaleMessages(
   {
@@ -189,6 +191,8 @@ const zhTW = mergeLocaleMessages(
   managedOperationSettlementMessages['zh-TW'],
   independentSiteMessages['zh-TW'],
   suReviewMessages['zh-TW'],
+  saasSubscriptionMessages['zh-TW'],
+  adminMessages['zh-TW'],
   {
     routeTitles: {
       checkinRegistration: '入住登記',
@@ -229,7 +233,7 @@ const zhTW = mergeLocaleMessages(
       roomGroupSettings: '房間分組設定',
       sortSettings: '排序設定',
       roomManagement: '房間管理',
-      packageSettings: '包棟設定',
+      packageSettings: '我的套餐',
       bookingFunctionSettings: '訂單功能設定',
       frontDeskAutomation: '前台自動化',
       paymentMethods: '收款方式',

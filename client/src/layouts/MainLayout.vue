@@ -11,6 +11,7 @@ import { appTopNavBindingsKey, type AppTopNavProps } from '@/components/layout/a
 import { PermissionAction, PermissionModule } from '@/api/role'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import { useMemoStore } from '@/stores/memo'
+import { useEntitlementStore } from '@/stores/entitlement'
 import { usePermissionStore } from '@/stores/permission'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
@@ -23,6 +24,7 @@ const { t } = useI18n()
 const userStore = useUserStore()
 const memoStore = useMemoStore()
 const permissionStore = usePermissionStore()
+const entitlementStore = useEntitlementStore()
 const storeStore = useStoreStore()
 const notificationCenterStore = useNotificationCenterStore()
 
@@ -230,6 +232,7 @@ const handleWorkspaceSwitch = async () => {
     userStore.setUser(null)
     storeStore.clearStoreData()
     permissionStore.clearPermissions()
+    entitlementStore.clear()
     router.replace({ path: '/login', query: { workspace: 'CLEANER', switch: '1' } })
   }
 }
@@ -239,6 +242,7 @@ const handleLogout = async () => {
     await userStore.logout()
     storeStore.clearStoreData()
     permissionStore.clearPermissions()
+    entitlementStore.clear()
     ElMessage.success(t('layout.logoutSuccess'))
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : t('layout.logoutFailed')
@@ -297,12 +301,16 @@ watch(
   (storeId) => {
     if (!storeId) {
       permissionStore.clearPermissions()
+      entitlementStore.clear()
       return
     }
 
     void permissionStore.fetchCurrentStorePermissions(true).catch(() => {
       /* route guard handles permission failures */
     })
+    // SaaS 权益快照：登录/切店后静默刷新，供菜单过滤与路由权益门禁使用；
+    // refresh 内部永不抛错，拉取失败 fail-open 不拦截。
+    void entitlementStore.refresh(true)
   },
   { immediate: true },
 )

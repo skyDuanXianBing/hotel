@@ -562,7 +562,8 @@ class IndependentSiteCanvasFormatDispatchTest {
                     new IndependentSitePageSchemaValidator(objectMapper),
                     objectMapper,
                     Clock.systemUTC(),
-                    new IndependentSiteCanvasValidator(objectMapper)
+                    new IndependentSiteCanvasValidator(objectMapper),
+                    org.mockito.Mockito.mock(server.demo.service.saas.EntitlementService.class)
             );
         }
     }

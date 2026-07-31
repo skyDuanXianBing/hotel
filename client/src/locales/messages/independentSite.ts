@@ -192,6 +192,8 @@ const translations: Record<string, Translation> = {
   'roomList.cta': { en: 'View prices / book', ja: '料金を見る / 予約する', 'zh-CN': '查看价格 / 预订', 'zh-TW': '查看價格 / 預訂' },
 
   'booking.unavailableTitle': { en: 'Online payment is not available for this site', ja: 'このサイトではオンライン決済を利用できません', 'zh-CN': '当前站点未开放在线支付', 'zh-TW': '目前站點未開放線上付款' },
+  'booking.storeClosedTitle': { en: 'Store under maintenance — bookings paused', ja: '店舗メンテナンス中のため予約を停止しています', 'zh-CN': '店铺维护中，暂停接单', 'zh-TW': '店鋪維護中，暫停接單' },
+  'booking.storeClosedDescription': { en: 'This property is temporarily unable to take online bookings. Please check back later or contact the property directly.', ja: '現在メンテナンス中のため、オンライン予約を一時停止しています。しばらくしてから再度お試しいただくか、施設へ直接お問い合わせください。', 'zh-CN': '门店正在维护中，暂时无法在线预订。请稍后再来，或直接联系门店。', 'zh-TW': '門店正在維護中，暫時無法線上預訂。請稍後再來，或直接聯絡門店。' },
   'booking.unavailableDescription': { en: 'You can check live availability and prices, but online checkout is not available. Contact the property to complete your reservation.', ja: 'リアルタイムの空室と料金は確認できますが、オンライン予約・決済は利用できません。予約は施設へお問い合わせください。', 'zh-CN': '您可以查询实时房量与价格，但暂时无法在线下单支付。请联系门店完成预订。', 'zh-TW': '您可以查詢即時房量與價格，但暫時無法線上下單付款。請聯絡門店完成預訂。' },
   'booking.processing': { en: 'Processing', ja: '処理中', 'zh-CN': '处理中', 'zh-TW': '處理中' },
   'booking.referenceSeparator': { en: ', ', ja: '、', 'zh-CN': '、', 'zh-TW': '、' },

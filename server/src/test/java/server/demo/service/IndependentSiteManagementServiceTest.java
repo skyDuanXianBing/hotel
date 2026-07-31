@@ -867,7 +867,8 @@ class IndependentSiteManagementServiceTest {
                     validator,
                     objectMapper,
                     Clock.systemUTC(),
-                    canvasValidator
+                    canvasValidator,
+                    org.mockito.Mockito.mock(server.demo.service.saas.EntitlementService.class)
             );
         }
 

@@ -316,7 +316,7 @@ import { Setting } from '@element-plus/icons-vue'
 import type { UploadFile } from 'element-plus'
 import type { SupportedLocale } from '@/locales'
 import { useLanguageStore } from '@/stores/language'
-import publicRequest from '@/utils/publicRequest'
+import publicRequest, { getPublicErrorMessage } from '@/utils/publicRequest'
 import {
   getInitialRegistrationLocale,
   normalizeRegistrationLocale,
@@ -1234,7 +1234,7 @@ async function onPassportFileChange(guest: GuestModel, raw?: File) {
       ElMessage.error(t('imageTooLarge'))
       return
     }
-    ElMessage.error(e?.response?.data?.message || e?.message || t('uploadFailed'))
+    ElMessage.error(getPublicErrorMessage(e, t('uploadFailed')))
   }
 }
 
@@ -1249,7 +1249,7 @@ async function load() {
     }
     hydrate(resp.data as PublicRegistrationResponse)
   } catch (e: any) {
-    setPublicRegistrationError(e?.response?.data?.message || e?.message)
+    setPublicRegistrationError(getPublicErrorMessage(e, t('loadFailed')))
   } finally {
     loading.value = false
   }
@@ -1288,7 +1288,7 @@ async function saveDraft() {
     hydrate(resp.data as PublicRegistrationResponse)
     ElMessage.success(t('saved'))
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || t('saveFailed'))
+    ElMessage.error(getPublicErrorMessage(e, t('saveFailed')))
   } finally {
     saving.value = false
   }
@@ -1314,7 +1314,7 @@ async function submit() {
     hydrate(resp.data as PublicRegistrationResponse)
     ElMessage.success(t('submitted'))
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || t('submitFailed'))
+    ElMessage.error(getPublicErrorMessage(e, t('submitFailed')))
   } finally {
     submitting.value = false
   }

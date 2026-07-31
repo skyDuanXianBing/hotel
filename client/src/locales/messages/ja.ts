@@ -10,6 +10,8 @@ import { stage6Messages } from './stage6'
 import { managedOperationSettlementMessages } from './managedOperationSettlement'
 import { independentSiteMessages } from './independentSite'
 import { suReviewMessages } from './suReviews'
+import { saasSubscriptionMessages } from './saasSubscription'
+import { adminMessages } from './admin'
 
 const ja = mergeLocaleMessages(
   {
@@ -191,6 +193,8 @@ const ja = mergeLocaleMessages(
   managedOperationSettlementMessages.ja,
   independentSiteMessages.ja,
   suReviewMessages.ja,
+  saasSubscriptionMessages.ja,
+  adminMessages.ja,
   {
     routeTitles: {
       checkinRegistration: 'チェックイン登録',
@@ -231,7 +235,7 @@ const ja = mergeLocaleMessages(
       roomGroupSettings: '客室グループ設定',
       sortSettings: '並び順設定',
       roomManagement: '客室管理',
-      packageSettings: '一棟貸し設定',
+      packageSettings: 'マイプラン',
       bookingFunctionSettings: '予約機能設定',
       frontDeskAutomation: 'フロント自動化',
       paymentMethods: '支払方法',

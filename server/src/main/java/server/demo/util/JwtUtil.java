@@ -19,6 +19,12 @@ import java.util.Map;
 @Component
 public class JwtUtil {
 
+    /**
+     * 租户端（门店用户/保洁员等 /api/v1/** 体系）token 的受众标识。
+     * 新签发的租户 token 携带 aud=tenant，JwtInterceptor 据此与管理端 token（aud=admin）隔离。
+     */
+    public static final String TENANT_TOKEN_AUDIENCE = "tenant";
+
     @Value("${jwt.secret}")
     private String secret;
 
@@ -43,6 +49,8 @@ public class JwtUtil {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("email", email);
+        // 受众标记：与管理端 token（aud=admin）隔离，JwtInterceptor 校验 aud 白名单
+        claims.put("aud", TENANT_TOKEN_AUDIENCE);
 
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
@@ -54,6 +62,36 @@ public class JwtUtil {
                 .expiration(expiryDate)
                 .signWith(getSigningKey())
                 .compact();
+    }
+
+    /**
+     * 生成带自定义claims的JWT token（供管理端等非用户体系认证使用，不破坏既有 generateToken(userId, email) 调用）。
+     *
+     * @param claims 自定义claims（如 aud/username/role）
+     * @param subject token主体
+     * @return JWT token
+     */
+    public String generateToken(Map<String, Object> claims, String subject) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + expiration);
+
+        return Jwts.builder()
+                .claims(claims)
+                .subject(subject)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    /**
+     * 解析token获取全部Claims（校验签名；过期/非法会抛异常，调用方需自行捕获）。
+     *
+     * @param token JWT token
+     * @return Claims
+     */
+    public Claims getClaims(String token) {
+        return getClaimsFromToken(token);
     }
 
     /**

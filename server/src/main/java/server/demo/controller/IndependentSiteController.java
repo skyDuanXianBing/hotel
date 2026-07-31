@@ -10,8 +10,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import server.demo.annotation.RequireFeature;
 import server.demo.annotation.RequirePermission;
 import server.demo.annotation.StoreScoped;
+import server.demo.constants.SaasFeatureCodes;
 import server.demo.context.StoreContext;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.IndependentSiteDtos;
@@ -30,6 +32,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/independent-sites")
 @StoreScoped
+@RequireFeature(SaasFeatureCodes.INDEPENDENT_WEBSITE) // 类级 BOOLEAN 模块门禁：无独立站权益的套餐整体 402
 public class IndependentSiteController {
 
     private final IndependentSiteManagementService managementService;
@@ -197,6 +200,7 @@ public class IndependentSiteController {
     }
 
     @PostMapping("/{id}/pages/import-url")
+    @RequireFeature(SaasFeatureCodes.AI_WEBSITE_GEN)
     @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.MANAGE_CHANNELS)
     public ResponseEntity<ApiResponse<IndependentSiteDtos.PageDetailResponse>> importPageFromUrl(
             @PathVariable Long id,
@@ -221,6 +225,7 @@ public class IndependentSiteController {
 
     @PostMapping("/{id}/pages/{pageId}/generate")
     @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.MANAGE_CHANNELS)
+    @RequireFeature(SaasFeatureCodes.AI_WEBSITE_GEN)
     public ResponseEntity<ApiResponse<IndependentSiteDtos.PageDraftResponse>> generatePageDraftForPage(
             @PathVariable Long id,
             @PathVariable Long pageId,
@@ -237,6 +242,7 @@ public class IndependentSiteController {
 
     @PostMapping("/{id}/pages/{pageId}/ai-edit")
     @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.MANAGE_CHANNELS)
+    @RequireFeature(SaasFeatureCodes.AI_WEBSITE_GEN)
     public ResponseEntity<ApiResponse<IndependentSiteDtos.PageDetailResponse>> aiEditPage(
             @PathVariable Long id,
             @PathVariable Long pageId,
@@ -289,6 +295,7 @@ public class IndependentSiteController {
     @Deprecated
     @PostMapping("/{id}/page-drafts/generate")
     @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.MANAGE_CHANNELS)
+    @RequireFeature(SaasFeatureCodes.AI_WEBSITE_GEN)
     public ResponseEntity<ApiResponse<IndependentSiteDtos.PageDraftResponse>> generatePageDraft(
             @PathVariable Long id,
             @Valid @RequestBody IndependentSiteDtos.PageDraftRequest request
