@@ -28,6 +28,7 @@ import server.demo.util.SmartLockMaskingUtils;
 import java.util.List;
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/smart-locks")
 @StoreScoped
@@ -41,9 +42,9 @@ public class SmartLockController {
     @GetMapping("/integrations")
     public ApiResponse<List<SmartLockIntegrationDTO>> listIntegrations() {
         try {
-            return ApiResponse.success("获取门锁集成配置成功", smartLockService.listIntegrations());
+            return ApiResponse.success(ApiMessages.get("api.t.9f641d4f49ba"), smartLockService.listIntegrations());
         } catch (RuntimeException ex) {
-            return errorResponse("获取门锁集成配置失败", ex);
+            return errorResponse(ApiMessages.get("api.t.5d6d32237900"), ex);
         }
     }
 
@@ -52,9 +53,9 @@ public class SmartLockController {
             @RequestBody SmartLockRequests.UpsertIntegrationRequest request
     ) {
         try {
-            return ApiResponse.success("保存门锁集成配置成功", smartLockService.saveIntegration(request));
+            return ApiResponse.success(ApiMessages.get("api.t.b0c98b2459df"), smartLockService.saveIntegration(request));
         } catch (RuntimeException ex) {
-            return errorResponse("保存门锁集成配置失败", ex);
+            return errorResponse(ApiMessages.get("api.t.78d7e7a45aa8"), ex);
         }
     }
 
@@ -64,36 +65,36 @@ public class SmartLockController {
             @RequestBody SmartLockRequests.UpsertIntegrationRequest request
     ) {
         try {
-            return ApiResponse.success("更新门锁集成配置成功", smartLockService.updateIntegration(id, request));
+            return ApiResponse.success(ApiMessages.get("api.t.475242bee3d4"), smartLockService.updateIntegration(id, request));
         } catch (RuntimeException ex) {
-            return errorResponse("更新门锁集成配置失败", ex);
+            return errorResponse(ApiMessages.get("api.t.eff9e7869ab0"), ex);
         }
     }
 
     @PostMapping("/integrations/{id}/test")
     public ApiResponse<SmartLockTestResultDTO> testIntegration(@PathVariable Long id) {
         try {
-            return ApiResponse.success("门锁连接测试完成", smartLockService.testIntegration(id));
+            return ApiResponse.success(ApiMessages.get("api.t.6b519e2a4d15"), smartLockService.testIntegration(id));
         } catch (RuntimeException ex) {
-            return errorResponse("门锁连接测试失败", ex);
+            return errorResponse(ApiMessages.get("api.t.02d915e87301"), ex);
         }
     }
 
     @PostMapping("/integrations/{id}/refresh-token")
     public ApiResponse<SmartLockIntegrationDTO> refreshToken(@PathVariable Long id) {
         try {
-            return ApiResponse.success("刷新门锁访问令牌成功", smartLockService.refreshToken(id));
+            return ApiResponse.success(ApiMessages.get("api.t.443158ea90e0"), smartLockService.refreshToken(id));
         } catch (RuntimeException ex) {
-            return errorResponse("刷新门锁访问令牌失败", ex);
+            return errorResponse(ApiMessages.get("api.t.8a0ab8680f9b"), ex);
         }
     }
 
     @PostMapping("/integrations/{id}/devices/sync")
     public ApiResponse<List<SmartLockDeviceDTO>> syncDevices(@PathVariable Long id) {
         try {
-            return ApiResponse.success("同步门锁设备成功", smartLockService.syncDevices(id));
+            return ApiResponse.success(ApiMessages.get("api.t.816edcc7423c"), smartLockService.syncDevices(id));
         } catch (RuntimeException ex) {
-            return errorResponse("同步门锁设备失败", ex);
+            return errorResponse(ApiMessages.get("api.t.b5ebc2b8adda"), ex);
         }
     }
 
@@ -102,9 +103,9 @@ public class SmartLockController {
             @RequestParam(required = false) SmartLockProvider provider
     ) {
         try {
-            return ApiResponse.success("获取门锁设备成功", smartLockService.listDevices(provider));
+            return ApiResponse.success(ApiMessages.get("api.t.736210f82335"), smartLockService.listDevices(provider));
         } catch (RuntimeException ex) {
-            return errorResponse("获取门锁设备失败", ex);
+            return errorResponse(ApiMessages.get("api.t.4b54438b8eee"), ex);
         }
     }
 
@@ -114,9 +115,9 @@ public class SmartLockController {
             @RequestParam(required = false) Long roomTypeId
     ) {
         try {
-            return ApiResponse.success("获取房间门锁绑定状态成功", smartLockService.listRooms(provider, roomTypeId));
+            return ApiResponse.success(ApiMessages.get("api.t.94906216bcbd"), smartLockService.listRooms(provider, roomTypeId));
         } catch (RuntimeException ex) {
-            return errorResponse("获取房间门锁绑定状态失败", ex);
+            return errorResponse(ApiMessages.get("api.t.1b908da0612c"), ex);
         }
     }
 
@@ -125,9 +126,9 @@ public class SmartLockController {
             @RequestBody SmartLockRequests.CreateBindingRequest request
     ) {
         try {
-            return ApiResponse.success("绑定房间门锁成功", smartLockService.createBinding(request));
+            return ApiResponse.success(ApiMessages.get("api.t.aa12a9ce4700"), smartLockService.createBinding(request));
         } catch (RuntimeException ex) {
-            return errorResponse("绑定房间门锁失败", ex);
+            return errorResponse(ApiMessages.get("api.t.8b56fc209f77"), ex);
         }
     }
 
@@ -135,27 +136,27 @@ public class SmartLockController {
     public ApiResponse<Void> deleteBinding(@PathVariable Long id) {
         try {
             smartLockService.deleteBinding(id);
-            return ApiResponse.success("解绑房间门锁成功", null);
+            return ApiResponse.success(ApiMessages.get("api.t.0ae5fdb8ea4b"), null);
         } catch (RuntimeException ex) {
-            return errorResponse("解绑房间门锁失败", ex);
+            return errorResponse(ApiMessages.get("api.t.012ad78eac7d"), ex);
         }
     }
 
     @GetMapping("/rooms/{roomId}/status")
     public ApiResponse<SmartLockStatusDTO> getRoomStatus(@PathVariable Long roomId) {
         try {
-            return ApiResponse.success("获取门锁状态成功", smartLockService.getRoomStatus(roomId));
+            return ApiResponse.success(ApiMessages.get("api.t.bc9e7c5bb633"), smartLockService.getRoomStatus(roomId));
         } catch (RuntimeException ex) {
-            return errorResponse("获取门锁状态失败", ex);
+            return errorResponse(ApiMessages.get("api.t.204157e63e63"), ex);
         }
     }
 
     @PostMapping("/rooms/{roomId}/status/refresh")
     public ApiResponse<SmartLockStatusDTO> refreshRoomStatus(@PathVariable Long roomId) {
         try {
-            return ApiResponse.success("刷新门锁状态成功", smartLockService.refreshRoomStatus(roomId));
+            return ApiResponse.success(ApiMessages.get("api.t.813821e50cf6"), smartLockService.refreshRoomStatus(roomId));
         } catch (RuntimeException ex) {
-            return errorResponse("刷新门锁状态失败", ex);
+            return errorResponse(ApiMessages.get("api.t.b492d296f349"), ex);
         }
     }
 
@@ -165,9 +166,9 @@ public class SmartLockController {
             @RequestBody SmartLockRequests.ConfirmationRequest request
     ) {
         try {
-            return ApiResponse.success("门锁操作确认已生成", smartLockService.createConfirmation(roomId, request));
+            return ApiResponse.success(ApiMessages.get("api.t.2a507b5c2b4c"), smartLockService.createConfirmation(roomId, request));
         } catch (RuntimeException ex) {
-            return errorResponse("生成门锁操作确认失败", ex);
+            return errorResponse(ApiMessages.get("api.t.b52ffdfd50d2"), ex);
         }
     }
 
@@ -177,9 +178,9 @@ public class SmartLockController {
             @RequestBody SmartLockRequests.LockOperationRequest request
     ) {
         try {
-            return ApiResponse.success("门锁开锁任务已记录", smartLockService.unlock(roomId, request));
+            return ApiResponse.success(ApiMessages.get("api.t.58548bc61880"), smartLockService.unlock(roomId, request));
         } catch (RuntimeException ex) {
-            return errorResponse("门锁开锁失败", ex);
+            return errorResponse(ApiMessages.get("api.t.a7a83eb843d4"), ex);
         }
     }
 
@@ -189,18 +190,18 @@ public class SmartLockController {
             @RequestBody SmartLockRequests.LockOperationRequest request
     ) {
         try {
-            return ApiResponse.success("门锁上锁任务已记录", smartLockService.lock(roomId, request));
+            return ApiResponse.success(ApiMessages.get("api.t.768fffe29123"), smartLockService.lock(roomId, request));
         } catch (RuntimeException ex) {
-            return errorResponse("门锁上锁失败", ex);
+            return errorResponse(ApiMessages.get("api.t.649a9b208f46"), ex);
         }
     }
 
     @GetMapping("/rooms/{roomId}/passcodes")
     public ApiResponse<List<SmartLockPasscodeDTO>> listPasscodes(@PathVariable Long roomId) {
         try {
-            return ApiResponse.success("获取门锁密码记录成功", smartLockService.listPasscodes(roomId));
+            return ApiResponse.success(ApiMessages.get("api.t.814946c40d9a"), smartLockService.listPasscodes(roomId));
         } catch (RuntimeException ex) {
-            return errorResponse("获取门锁密码记录失败", ex);
+            return errorResponse(ApiMessages.get("api.t.5eb64b888a7a"), ex);
         }
     }
 
@@ -210,27 +211,27 @@ public class SmartLockController {
             @RequestBody SmartLockRequests.CreatePasscodeRequest request
     ) {
         try {
-            return ApiResponse.success("创建门锁密码任务已记录", smartLockService.createPasscode(roomId, request));
+            return ApiResponse.success(ApiMessages.get("api.t.de4b99781498"), smartLockService.createPasscode(roomId, request));
         } catch (RuntimeException ex) {
-            return errorResponse("创建门锁密码失败", ex);
+            return errorResponse(ApiMessages.get("api.t.3f6d9a83db57"), ex);
         }
     }
 
     @DeleteMapping("/passcodes/{recordId}")
     public ApiResponse<SmartLockPasscodeDTO> deletePasscode(@PathVariable Long recordId) {
         try {
-            return ApiResponse.success("删除门锁密码任务已记录", smartLockService.deletePasscode(recordId));
+            return ApiResponse.success(ApiMessages.get("api.t.1d3e90954742"), smartLockService.deletePasscode(recordId));
         } catch (RuntimeException ex) {
-            return errorResponse("删除门锁密码失败", ex);
+            return errorResponse(ApiMessages.get("api.t.37bcc1e62755"), ex);
         }
     }
 
     @GetMapping("/passcode-tasks/{taskId}")
     public ApiResponse<SmartLockTaskDTO> getTask(@PathVariable Long taskId) {
         try {
-            return ApiResponse.success("获取门锁任务成功", smartLockService.getTask(taskId));
+            return ApiResponse.success(ApiMessages.get("api.t.f87d46d31348"), smartLockService.getTask(taskId));
         } catch (RuntimeException ex) {
-            return errorResponse("获取门锁任务失败", ex);
+            return errorResponse(ApiMessages.get("api.t.b7bf075865c7"), ex);
         }
     }
 
@@ -255,11 +256,11 @@ class SmartLockPublicWebhookController {
     ) {
         try {
             return ApiResponse.success(
-                    "SwitchBot webhook 已处理",
+                    ApiMessages.get("api.t.c2dd8c254aaf"),
                     smartLockService.handleSwitchBotWebhook(token, payload)
             );
         } catch (RuntimeException ex) {
-            return ApiResponse.error("SwitchBot webhook 处理失败: " + SmartLockMaskingUtils.safeExceptionMessage(ex));
+            return ApiResponse.error(ApiMessages.get("api.t.c800720831d6") + SmartLockMaskingUtils.safeExceptionMessage(ex));
         }
     }
 }

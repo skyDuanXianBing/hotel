@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import server.demo.i18n.ApiMessages;
 /**
  * Su roomid 生成与校验工具。
  * <p>
@@ -31,30 +32,30 @@ public final class SuRoomIdUtil {
 
     public static String buildRoomId(Room room) {
         if (room == null) {
-            throw new IllegalArgumentException("房间不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.09f7f9543841"));
         }
 
         RoomType roomType = room.getRoomType();
         if (roomType == null || roomType.getId() == null) {
-            throw new IllegalArgumentException("生成 Su roomid 需要 roomTypeId（请检查 Room 是否已加载 RoomType）");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.8d36940175a1"));
         }
 
         String roomNumber = normalizeRoomNumber(room.getRoomNumber());
         String suRoomId = roomType.getId() + "-" + roomNumber;
         if (suRoomId.length() > MAX_SU_ROOM_ID_LENGTH) {
-            throw new IllegalArgumentException("Su roomid 超过 20 字符: " + suRoomId);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.0e80b6e5b3c8") + suRoomId);
         }
         return suRoomId;
     }
 
     public static String buildDisplayName(Room room) {
         if (room == null) {
-            throw new IllegalArgumentException("房间不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.09f7f9543841"));
         }
 
         RoomType roomType = room.getRoomType();
         if (roomType == null || roomType.getId() == null) {
-            throw new IllegalArgumentException("生成显示名需要 roomTypeId（请检查 Room 是否已加载 RoomType）");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.e91aba90ec45"));
         }
 
         String roomTypeName = roomType.getName();
@@ -76,7 +77,7 @@ public final class SuRoomIdUtil {
             }
             RoomType roomType = room.getRoomType();
             if (roomType == null || roomType.getId() == null) {
-                throw new IllegalArgumentException("生成 Su roomid 需要 roomTypeId（请检查 Room 是否已加载 RoomType）");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.8d36940175a1"));
             }
             String roomNumber = normalizeRoomNumber(room.getRoomNumber());
             String suRoomId = roomType.getId() + "-" + roomNumber;
@@ -99,18 +100,18 @@ public final class SuRoomIdUtil {
 
     private static String normalizeRoomNumber(String roomNumber) {
         if (roomNumber == null) {
-            throw new IllegalArgumentException("房间号不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.d1eaae8bb920"));
         }
         String trimmed = roomNumber.trim();
         if (trimmed.isBlank()) {
-            throw new IllegalArgumentException("房间号不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.d1eaae8bb920"));
         }
         return trimmed;
     }
 
     private static String buildTooLongMessage(List<TooLongRoomId> tooLong) {
         StringBuilder sb = new StringBuilder();
-        sb.append("以下房间生成的 Su roomid 超过 20 字符（规则：roomTypeId-roomNumber），请回到 PMS 缩短房型标识/房间号：");
+        sb.append(ApiMessages.get("api.t.6e3784cb5c82"));
         for (TooLongRoomId it : tooLong) {
             if (it == null) {
                 continue;

@@ -13,6 +13,7 @@ import server.demo.exception.PermissionDeniedException;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/cleaners")
 @StoreScoped
@@ -28,7 +29,7 @@ public class CleanerController {
     public ApiResponse<List<Cleaner>> getCleaners() {
         Long storeId = getCurrentStoreId();
         List<Cleaner> cleaners = cleanerService.getCleanersByStoreId(getCurrentStoreId());
-        return ApiResponse.success("获取保洁员列表成功", cleaners);
+        return ApiResponse.success(ApiMessages.get("api.t.908b60717e6f"), cleaners);
     }
 
     @Deprecated
@@ -37,7 +38,7 @@ public class CleanerController {
             @PathVariable Long userId,
             @PathVariable Long storeId) {
         List<Cleaner> cleaners = cleanerService.getCleanersByStoreId(storeId);
-        return ApiResponse.success("获取保洁员列表成功", cleaners);
+        return ApiResponse.success(ApiMessages.get("api.t.908b60717e6f"), cleaners);
     }
 
     @Deprecated
@@ -45,40 +46,40 @@ public class CleanerController {
     public ApiResponse<List<Cleaner>> getCleanersByUserId(@PathVariable Long userId) {
         Long storeId = getCurrentStoreId();
         List<Cleaner> cleaners = cleanerService.getCleanersByStoreId(storeId);
-        return ApiResponse.success("获取保洁员列表成功", cleaners);
+        return ApiResponse.success(ApiMessages.get("api.t.908b60717e6f"), cleaners);
     }
 
     @Deprecated
     @GetMapping("/store/{storeId}")
     public ApiResponse<List<Cleaner>> getCleanersByStoreId(@PathVariable Long storeId) {
         List<Cleaner> cleaners = cleanerService.getCleanersByStoreId(getCurrentStoreId());
-        return ApiResponse.success("获取保洁员列表成功", cleaners);
+        return ApiResponse.success(ApiMessages.get("api.t.908b60717e6f"), cleaners);
     }
 
     @GetMapping("/{id}")
     public ApiResponse<Cleaner> getCleanerById(@PathVariable Long id) {
         return cleanerService.getCleanerById(getCurrentStoreId(), id)
-                .map(cleaner -> ApiResponse.success("获取保洁员详情成功", cleaner))
-                .orElse(ApiResponse.error("保洁员不存在"));
+                .map(cleaner -> ApiResponse.success(ApiMessages.get("api.t.14f7418c7719"), cleaner))
+                .orElse(ApiResponse.error(ApiMessages.get("api.t.bea2ad1fb3f3")));
     }
 
     @PostMapping
     public ApiResponse<Cleaner> createCleaner(@RequestBody Cleaner cleaner) {
         Cleaner createdCleaner = cleanerService.createCleaner(cleaner);
-        return ApiResponse.success("创建保洁员成功", createdCleaner);
+        return ApiResponse.success(ApiMessages.get("api.t.9842b593b45a"), createdCleaner);
     }
 
     @GetMapping("/identity-audit")
     public ApiResponse<List<String>> auditIdentities() {
         requireManager();
         List<String> issues = cleanerIdentityService.auditActiveIdentities(getCurrentStoreId());
-        return ApiResponse.success(issues.isEmpty() ? "保洁员身份检查通过" : "发现保洁员身份问题", issues);
+        return ApiResponse.success(issues.isEmpty() ? ApiMessages.get("api.t.c626eefe4cb3") : ApiMessages.get("api.t.0371e5eb58e1"), issues);
     }
 
     @PostMapping("/{id}/reconcile-identity")
     public ApiResponse<Cleaner> reconcileIdentity(@PathVariable Long id) {
         requireManager();
-        return ApiResponse.success("保洁员身份修复完成", cleanerIdentityService.reconcileIdentity(getCurrentStoreId(), id));
+        return ApiResponse.success(ApiMessages.get("api.t.17bb91d4d323"), cleanerIdentityService.reconcileIdentity(getCurrentStoreId(), id));
     }
 
     @PutMapping("/{id}")
@@ -87,7 +88,7 @@ public class CleanerController {
             @RequestBody Cleaner cleaner) {
         try {
             Cleaner updatedCleaner = cleanerService.updateCleaner(getCurrentStoreId(), id, cleaner);
-            return ApiResponse.success("更新保洁员成功", updatedCleaner);
+            return ApiResponse.success(ApiMessages.get("api.t.e23cde6ff653"), updatedCleaner);
         } catch (RuntimeException e) {
             return ApiResponse.error(e.getMessage());
         }
@@ -97,7 +98,7 @@ public class CleanerController {
     public ApiResponse<Void> deleteCleaner(@PathVariable Long id) {
         try {
             cleanerService.deleteCleaner(getCurrentStoreId(), id);
-            return ApiResponse.success("删除保洁员成功", null);
+            return ApiResponse.success(ApiMessages.get("api.t.9198a8bbbff5"), null);
         } catch (RuntimeException e) {
             return ApiResponse.error(e.getMessage());
         }
@@ -106,7 +107,7 @@ public class CleanerController {
     private Long getCurrentStoreId() {
         StoreContext storeContext = StoreContextHolder.getContext();
         if (storeContext == null || storeContext.getStoreId() == null) {
-            throw new RuntimeException("无法获取当前门店信息");
+            throw new RuntimeException(ApiMessages.get("api.t.642b7e97c7d4"));
         }
         return storeContext.getStoreId();
     }
@@ -115,7 +116,7 @@ public class CleanerController {
         StoreContext context = StoreContextHolder.getContext();
         String role = context == null ? null : context.getRole();
         if (!"owner".equalsIgnoreCase(role) && !"admin".equalsIgnoreCase(role)) {
-            throw new PermissionDeniedException("仅门店所有者或管理员可执行身份治理");
+            throw new PermissionDeniedException(ApiMessages.get("api.t.801ea6613c98"));
         }
     }
 }

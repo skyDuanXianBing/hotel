@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 public class SmartLockCredentialData {
     private SmartLockProvider provider;
     private String switchBotToken;
@@ -41,7 +42,7 @@ public class SmartLockCredentialData {
             data.requireTtLockFields();
             return data;
         }
-        throw new IllegalArgumentException("不支持的门锁服务商");
+        throw new IllegalArgumentException(ApiMessages.get("api.t.f54a891063c3"));
     }
 
     public SmartLockCredentialData copy() {
@@ -146,7 +147,7 @@ public class SmartLockCredentialData {
         }
         if (passwordMd5 != null) {
             if (!passwordMd5.matches("(?i)[0-9a-f]{32}")) {
-                throw new IllegalArgumentException("TTLock passwordMd5 必须是 32 位十六进制小写 MD5");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.e3f33d0522d7"));
             }
             ttLockPasswordMd5 = passwordMd5.toLowerCase();
         }
@@ -172,14 +173,14 @@ public class SmartLockCredentialData {
 
     private void requireSwitchBotFields() {
         if (!hasText(switchBotToken) || !hasText(switchBotSecret)) {
-            throw new IllegalArgumentException("SwitchBot token 和 secret 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.338659eace08"));
         }
     }
 
     private void requireTtLockFields() {
         if (!hasText(ttLockClientId) || !hasText(ttLockClientSecret)
                 || !hasText(ttLockUsername) || !hasText(ttLockPasswordMd5)) {
-            throw new IllegalArgumentException("TTLock clientId、clientSecret、username 和 password 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.c35a4db26c11"));
         }
     }
 
@@ -193,7 +194,7 @@ public class SmartLockCredentialData {
             }
             return builder.toString();
         } catch (Exception ex) {
-            throw new IllegalStateException("MD5 不可用", ex);
+            throw new IllegalStateException(ApiMessages.get("api.t.825ac18696db"), ex);
         }
     }
 

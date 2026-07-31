@@ -9,6 +9,7 @@ import server.demo.dto.ApiResponse;
 import server.demo.exception.InternalTaskConflictException;
 import server.demo.exception.InternalTaskNotFoundException;
 
+import server.demo.i18n.ApiMessages;
 @RestControllerAdvice(assignableTypes = InternalTaskController.class)
 public class InternalTaskExceptionHandler {
     @ExceptionHandler(InternalTaskNotFoundException.class)
@@ -19,7 +20,7 @@ public class InternalTaskExceptionHandler {
     @ExceptionHandler({InternalTaskConflictException.class, OptimisticLockingFailureException.class})
     public ResponseEntity<ApiResponse<Object>> conflict(RuntimeException exception) {
         String message = exception instanceof InternalTaskConflictException
-                ? exception.getMessage() : "任务已被其他人更新，请刷新后重试";
+                ? exception.getMessage() : ApiMessages.get("api.t.22bc9b0297f4");
         return ResponseEntity.status(409).body(ApiResponse.error(message));
     }
 

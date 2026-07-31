@@ -22,6 +22,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/room-status-share")
 public class RoomStatusShareController {
@@ -51,7 +52,7 @@ public class RoomStatusShareController {
             RoomStatusShareResponse response = roomStatusShareService.getShares(page, pageSize);
             return ApiResponse.success(response);
         } catch (Exception e) {
-            return ApiResponse.error("获取分享列表失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.10a3709994eb") + e.getMessage());
         }
     }
 
@@ -65,7 +66,7 @@ public class RoomStatusShareController {
             RoomStatusShare share = roomStatusShareService.createShare(request);
             return ApiResponse.success(share);
         } catch (Exception e) {
-            return ApiResponse.error("创建分享链接失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.2253f6080fba") + e.getMessage());
         }
     }
 
@@ -81,7 +82,7 @@ public class RoomStatusShareController {
             RoomStatusShare share = roomStatusShareService.updateShare(id, request);
             return ApiResponse.success(share);
         } catch (Exception e) {
-            return ApiResponse.error("更新分享链接失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.493a6eb3f801") + e.getMessage());
         }
     }
 
@@ -93,9 +94,9 @@ public class RoomStatusShareController {
     public ApiResponse<String> deleteShare(@PathVariable Long id) {
         try {
             roomStatusShareService.deleteShare(id);
-            return ApiResponse.success("删除成功");
+            return ApiResponse.success(ApiMessages.get("api.t.86e8d12a79b3"));
         } catch (Exception e) {
-            return ApiResponse.error("删除分享链接失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.bcd7c2aa400c") + e.getMessage());
         }
     }
 
@@ -108,7 +109,7 @@ public class RoomStatusShareController {
             RoomStatusSharePublicResponse share = roomStatusShareService.getPublicShareByToken(shareToken);
             return ApiResponse.success(share);
         } catch (Exception e) {
-            return ApiResponse.error("获取分享信息失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.bc7a18061909") + e.getMessage());
         }
     }
 
@@ -126,11 +127,11 @@ public class RoomStatusShareController {
 
             Long userId = share.getUserId();
             if (userId == null) {
-                return ApiResponse.error("无法获取分享用户信息");
+                return ApiResponse.error(ApiMessages.get("api.t.d3dc30220d0d"));
             }
             Long storeId = share.getStoreId();
             if (storeId == null) {
-                return ApiResponse.error("无法获取分享门店信息");
+                return ApiResponse.error(ApiMessages.get("api.t.4e4d0f0d8598"));
             }
 
             // 设置默认日期范围（从分享门店今天开始7天）
@@ -150,7 +151,7 @@ public class RoomStatusShareController {
             
             return ApiResponse.success(filteredData);
         } catch (Exception e) {
-            return ApiResponse.error("获取房态数据失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.a18f541b0774") + e.getMessage());
         }
     }
 
@@ -168,7 +169,7 @@ public class RoomStatusShareController {
             // 获取分享用户的ID
             Long storeId = share.getStoreId();
             if (storeId == null) {
-                return ApiResponse.error("无法获取分享门店信息");
+                return ApiResponse.error(ApiMessages.get("api.t.4e4d0f0d8598"));
             }
 
             // 设置默认日期为分享门店今天
@@ -180,7 +181,7 @@ public class RoomStatusShareController {
 
             return ApiResponse.success(statistics);
         } catch (Exception e) {
-            return ApiResponse.error("获取统计数据失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.9bde0b59ef4c") + e.getMessage());
         }
     }
 

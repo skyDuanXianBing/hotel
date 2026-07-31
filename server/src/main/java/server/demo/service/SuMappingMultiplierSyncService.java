@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class SuMappingMultiplierSyncService {
 
@@ -52,16 +53,16 @@ public class SuMappingMultiplierSyncService {
 
     public ChannelMappingMultiplierSyncSummaryDTO syncForChannel(Long storeId, Channel channel) {
         if (storeId == null) {
-            return ChannelMappingMultiplierSyncSummaryDTO.skipped(null, "缺少门店上下文，未同步 Su 映射倍率");
+            return ChannelMappingMultiplierSyncSummaryDTO.skipped(null, ApiMessages.get("api.t.2ea59979ee53"));
         }
         if (channel == null || channel.getCode() == null) {
-            return ChannelMappingMultiplierSyncSummaryDTO.skipped(null, "缺少渠道信息，未同步 Su 映射倍率");
+            return ChannelMappingMultiplierSyncSummaryDTO.skipped(null, ApiMessages.get("api.t.70a48c7a87e9"));
         }
 
         String channelCode = normalizeChannelCode(channel.getCode());
         String suChannelId = resolveSuChannelId(channelCode);
         if (suChannelId == null) {
-            return ChannelMappingMultiplierSyncSummaryDTO.skipped(channelCode, "该渠道不使用 Su 映射倍率");
+            return ChannelMappingMultiplierSyncSummaryDTO.skipped(channelCode, ApiMessages.get("api.t.2160c520542e"));
         }
 
         PriceModifier modifier = buildPriceModifier(channel);
@@ -73,20 +74,20 @@ public class SuMappingMultiplierSyncService {
 
         if (OtaChannelPricePolicy.CHANNEL_CODE_AIRBNB.equals(channelCode)) {
             summary.setStatus(STATUS_SKIPPED);
-            summary.setMessage("Airbnb 旧渠道级 Su 同步已停用；请在映射级价格设置中逐行保存后同步");
+            summary.setMessage(ApiMessages.get("api.t.c8a775331584"));
             return summary;
         }
 
         if (modifier.multiplier().compareTo(BigDecimal.ZERO) < 0) {
             summary.setStatus(STATUS_FAILED);
-            summary.setMessage("百分比调整不能小于 -100%，未同步 Su 映射倍率");
+            summary.setMessage(ApiMessages.get("api.t.00c6964fa6ae"));
             return summary;
         }
 
         Optional<OtaIntegration> integrationOpt = findOtaIntegration(storeId, channelCode);
         if (integrationOpt.isEmpty()) {
             summary.setStatus(STATUS_FAILED);
-            summary.setMessage("未找到当前门店的 OTA 配置，未同步 Su 映射倍率");
+            summary.setMessage(ApiMessages.get("api.t.2f152166d528"));
             return summary;
         }
 
@@ -96,7 +97,7 @@ public class SuMappingMultiplierSyncService {
             hotelId = resolveReadOnlySuHotelId(storeId, integration);
         } catch (Exception e) {
             summary.setStatus(STATUS_FAILED);
-            summary.setMessage("解析 Su 酒店标识失败：" + e.getMessage());
+            summary.setMessage(ApiMessages.get("api.t.ec44d7b6a88e") + e.getMessage());
             return summary;
         }
         summary.setHotelId(hotelId);
@@ -109,14 +110,14 @@ public class SuMappingMultiplierSyncService {
             );
         } catch (Exception e) {
             summary.setStatus(STATUS_FAILED);
-            summary.setMessage("读取 Su 映射失败：" + e.getMessage());
+            summary.setMessage(ApiMessages.get("api.t.f8b1cd03d09a") + e.getMessage());
             return summary;
         }
 
         List<MappingTarget> targets = extractTargets(channelCode, suChannelId, mappings);
         if (targets.isEmpty()) {
             summary.setStatus(STATUS_FAILED);
-            summary.setMessage("Su 未返回可同步的映射记录，请先完成渠道房型和价格计划映射");
+            summary.setMessage(ApiMessages.get("api.t.f2895d650cde"));
             return summary;
         }
 
@@ -132,12 +133,12 @@ public class SuMappingMultiplierSyncService {
             try {
                 JsonNode response = postMappingUpdate(channelCode, hotelId, target, modifier);
                 if (suApiClient.isSuSuccess(response)) {
-                    items.add(ChannelMappingMultiplierSyncSummaryDTO.Item.success(ref, "Su 映射倍率已同步"));
+                    items.add(ChannelMappingMultiplierSyncSummaryDTO.Item.success(ref, ApiMessages.get("api.t.21f991d48579")));
                     continue;
                 }
                 String message = suApiClient.extractSuErrorMessage(response);
                 if (message == null || message.isBlank()) {
-                    message = "Su 返回非成功状态";
+                    message = "{api.t.e6a6240b1105}";
                 }
                 items.add(ChannelMappingMultiplierSyncSummaryDTO.Item.failure(ref, message));
             } catch (Exception e) {
@@ -172,7 +173,7 @@ public class SuMappingMultiplierSyncService {
         }
 
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new RuntimeException("门店不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.051df0941ec3")));
         String storeHotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
         if (storeHotelId == null) {
             storeHotelId = SuHotelIdUtil.buildDefault(storeId);
@@ -278,31 +279,31 @@ public class SuMappingMultiplierSyncService {
 
     private String validateTarget(String channelCode, MappingTarget target) {
         if (!isActive(target.status())) {
-            return "Su 映射未启用，未同步该条映射";
+            return ApiMessages.get("api.t.aa40d7023589");
         }
         if (isBlank(target.channelHotelId())) {
-            return "Su 映射缺少 ChannelHotelID，未同步该条映射";
+            return ApiMessages.get("api.t.a578691015a6");
         }
         if (isBlank(target.roomId())) {
-            return "Su 映射缺少 PMS roomid，未同步该条映射";
+            return ApiMessages.get("api.t.5c67452b9080");
         }
         if (isBlank(target.rateId())) {
-            return "Su 映射缺少 PMS rateid，未同步该条映射";
+            return ApiMessages.get("api.t.99adecbccbaf");
         }
         if (isBlank(target.applicableNoOfGuest())) {
-            return "Su 映射缺少入住人数，未同步该条映射";
+            return ApiMessages.get("api.t.3488af0a1ec5");
         }
         if (OtaChannelPricePolicy.CHANNEL_CODE_AIRBNB.equals(channelCode)) {
             if (isBlank(target.listingId())) {
-                return "Airbnb 映射缺少 listingid，未同步该条映射";
+                return ApiMessages.get("api.t.c2c122bf0cbd");
             }
             return null;
         }
         if (isBlank(target.channelRoomId())) {
-            return "Booking 映射缺少 channelroomid，未同步该条映射";
+            return ApiMessages.get("api.t.601ccdb857a2");
         }
         if (isBlank(target.channelRateId())) {
-            return "Booking 映射缺少 channelrateid，未同步该条映射";
+            return ApiMessages.get("api.t.76be9aae3ce9");
         }
         return null;
     }
@@ -474,12 +475,12 @@ public class SuMappingMultiplierSyncService {
             return summary.getMessage();
         }
         if (summary.getFailureCount() == 0) {
-            return "Su 映射倍率已全部同步";
+            return ApiMessages.get("api.t.5f11b61b4028");
         }
         if (summary.getSuccessCount() == 0) {
-            return "Su 映射倍率同步失败";
+            return ApiMessages.get("api.t.a51fc31e4bbe");
         }
-        return "Su 映射倍率部分同步失败";
+        return ApiMessages.get("api.t.2ac4d961fbe4");
     }
 
     private record PriceModifier(BigDecimal multiplier, BigDecimal surcharge) {}

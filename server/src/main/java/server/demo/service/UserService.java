@@ -7,6 +7,7 @@ import server.demo.repository.UserRepository;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class UserService {
     
@@ -19,15 +20,15 @@ public class UserService {
     
     public User getUserById(Long id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("用户不存在，ID: " + id));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.a8d6c10c342c") + id));
     }
     
     public User createUser(User user) {
         if (userRepository.existsByUsername(user.getUsername())) {
-            throw new RuntimeException("用户名已存在: " + user.getUsername());
+            throw new RuntimeException(ApiMessages.get("api.t.e626c970a344") + user.getUsername());
         }
         if (userRepository.existsByEmail(user.getEmail())) {
-            throw new RuntimeException("邮箱已存在: " + user.getEmail());
+            throw new RuntimeException(ApiMessages.get("api.t.bc0077151305") + user.getEmail());
         }
         return userRepository.save(user);
     }
@@ -37,12 +38,12 @@ public class UserService {
         
         if (!user.getUsername().equals(userDetails.getUsername()) && 
             userRepository.existsByUsername(userDetails.getUsername())) {
-            throw new RuntimeException("用户名已存在: " + userDetails.getUsername());
+            throw new RuntimeException(ApiMessages.get("api.t.e626c970a344") + userDetails.getUsername());
         }
         
         if (!user.getEmail().equals(userDetails.getEmail()) && 
             userRepository.existsByEmail(userDetails.getEmail())) {
-            throw new RuntimeException("邮箱已存在: " + userDetails.getEmail());
+            throw new RuntimeException(ApiMessages.get("api.t.bc0077151305") + userDetails.getEmail());
         }
         
         user.setUsername(userDetails.getUsername());
@@ -67,11 +68,11 @@ public class UserService {
     
     public User findByUsername(String username) {
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("用户不存在，用户名: " + username));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.b2685dee4d5d") + username));
     }
     
     public User findByEmail(String email) {
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("用户不存在，邮箱: " + email));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1fc075c05ede") + email));
     }
 }

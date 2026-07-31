@@ -13,6 +13,7 @@ import server.demo.dto.admin.AdminDtos.LoginResponse;
 import server.demo.interceptor.AdminAuthInterceptor;
 import server.demo.service.admin.AdminAuthService;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 平台管理员认证（独立登录端点，WebMvcConfig 中对 /api/admin/** 唯一放行）。
  */
@@ -28,7 +29,7 @@ public class AdminAuthController {
 
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ApiResponse.success("登录成功", adminAuthService.login(request));
+        return ApiResponse.success(ApiMessages.get("api.t.2991317aba58"), adminAuthService.login(request));
     }
 
     /**
@@ -41,6 +42,6 @@ public class AdminAuthController {
     ) {
         String username = (String) httpRequest.getAttribute(AdminAuthInterceptor.ATTR_ADMIN_USERNAME);
         adminAuthService.changePassword(username, request);
-        return ApiResponse.success("密码已修改", null);
+        return ApiResponse.success(ApiMessages.get("api.t.be60abcc480d"), null);
     }
 }

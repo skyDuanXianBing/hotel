@@ -12,6 +12,7 @@ import server.demo.controller.ManagedOperationSettlementController;
 import server.demo.dto.ApiResponse;
 import server.demo.exception.ManagedOperationValidationException;
 
+import server.demo.i18n.ApiMessages;
 @RestControllerAdvice(assignableTypes = ManagedOperationSettlementController.class)
 public class ManagedOperationExceptionHandler {
     @ExceptionHandler(ManagedOperationValidationException.class)
@@ -22,12 +23,12 @@ public class ManagedOperationExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<Void>> handleTooLarge(MaxUploadSizeExceededException ex) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
-                .body(ApiResponse.error("上传文件超过服务器限制"));
+                .body(ApiResponse.error(ApiMessages.get("api.t.81153184aefd")));
     }
 
     @ExceptionHandler({MissingServletRequestPartException.class, HttpMessageNotReadableException.class, MultipartException.class})
     public ResponseEntity<ApiResponse<Void>> handleMalformedRequest(Exception ex) {
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error("请求格式错误，请确认已上传 Airbnb、Booking 文件且 request 为有效 JSON"));
+                .body(ApiResponse.error(ApiMessages.get("api.t.296a9b037d86")));
     }
 }

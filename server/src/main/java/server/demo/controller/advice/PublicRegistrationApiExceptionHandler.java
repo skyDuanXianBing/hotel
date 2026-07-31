@@ -10,6 +10,7 @@ import server.demo.controller.PublicRegistrationBookingController;
 import server.demo.controller.PublicRegistrationController;
 import server.demo.dto.ApiResponse;
 
+import server.demo.i18n.ApiMessages;
 @RestControllerAdvice(assignableTypes = {
         PublicRegistrationController.class,
         PublicRegistrationBookingController.class
@@ -26,7 +27,7 @@ public class PublicRegistrationApiExceptionHandler {
     @ExceptionHandler(MultipartException.class)
     public ResponseEntity<ApiResponse<Object>> handleMultipart(MultipartException e) {
         logger.warn("public registration multipart error: {}", e.getMessage());
-        return ResponseEntity.ok(ApiResponse.error("\u4e0a\u4f20\u5931\u8d25\uff1a\u8bf7\u786e\u8ba4\u9009\u62e9\u4e86\u6587\u4ef6\uff0c\u5e76\u91cd\u8bd5"));
+        return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.69cf5090aeb8")));
     }
 
     @ExceptionHandler(RuntimeException.class)
@@ -38,6 +39,6 @@ public class PublicRegistrationApiExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleOther(Exception e) {
         logger.error("public registration unexpected error", e);
-        return ResponseEntity.ok(ApiResponse.error("\u7cfb\u7edf\u9519\u8bef\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5"));
+        return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.9a3b4594bb0a")));
     }
 }

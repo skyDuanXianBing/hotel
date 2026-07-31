@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class SuMessagingAiReplyDraftService {
     private static final Logger logger = LoggerFactory.getLogger(SuMessagingAiReplyDraftService.class);
@@ -61,7 +62,7 @@ public class SuMessagingAiReplyDraftService {
         SuMessagingAiReplyDraftRequest safeRequest =
                 request == null ? new SuMessagingAiReplyDraftRequest() : request;
         SuMessageThread thread = threadRepository.findByStoreIdAndId(storeId, threadId)
-                .orElseThrow(() -> new IllegalArgumentException("消息会话不存在或不属于当前门店"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.fe251a0072dd")));
 
         List<String> warnings = new ArrayList<>();
         SuMessagingThreadContext context = contextResolver.resolve(storeId, thread, safeRequest);
@@ -80,7 +81,7 @@ public class SuMessagingAiReplyDraftService {
                 warnings
         );
         if (latestGuestMessage.content() == null || latestGuestMessage.content().isBlank()) {
-            throw new IllegalArgumentException("缺少可用于生成草稿的客人消息");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.9c37ab494e80"));
         }
 
         MessageKnowledgeSearchResult searchResult = searchSimilarSafely(
@@ -357,13 +358,13 @@ public class SuMessagingAiReplyDraftService {
 
     private static String fallbackDraft(String latestGuestMessage) {
         if (latestGuestMessage != null && latestGuestMessage.matches(".*[\\u3040-\\u30FF].*")) {
-            return "お問い合わせありがとうございます。確認のうえ、スタッフより改めてご案内いたします。";
+            return ApiMessages.get("api.t.3404656994c7");
         }
         if (latestGuestMessage != null && latestGuestMessage.matches(".*[\\uAC00-\\uD7AF].*")) {
             return "문의해 주셔서 감사합니다. 확인 후 직원이 다시 안내드리겠습니다.";
         }
         if (latestGuestMessage != null && latestGuestMessage.matches(".*[\\u4E00-\\u9FFF].*")) {
-            return "您好，感谢您的消息。我们会尽快确认后回复您。";
+            return ApiMessages.get("api.t.25d0a6aceb1f");
         }
         return "Thank you for your message. We will check this and get back to you shortly.";
     }

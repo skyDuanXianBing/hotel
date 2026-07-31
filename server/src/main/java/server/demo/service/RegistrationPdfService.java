@@ -32,6 +32,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class RegistrationPdfService {
 
@@ -73,7 +74,7 @@ public class RegistrationPdfService {
             builder.run();
             return os.toByteArray();
         } catch (Exception e) {
-            throw new RuntimeException("生成PDF失败: " + e.getMessage(), e);
+            throw new RuntimeException(ApiMessages.get("api.t.ec8450f09396") + e.getMessage(), e);
         }
     }
 
@@ -126,7 +127,7 @@ public class RegistrationPdfService {
         sb.append("<table class='header-table'>");
         sb.append("<tr>");
         sb.append("<td class='store' style='width:33%;'>").append(escape(storeName)).append("</td>");
-        sb.append("<td class='title' style='width:34%;'>宿泊者名簿<br/>REGISTRATION FORM</td>");
+        sb.append(ApiMessages.get("api.t.61884115cec4"));
         sb.append("<td class='roomline' style='width:33%;'>")
             .append("Booking Number: ").append(escape(reservation != null ? reservation.getOrderNumber() : ""))
             .append("</td>");
@@ -134,10 +135,10 @@ public class RegistrationPdfService {
         sb.append("</table>");
 
         sb.append("<table>");
-        sb.append(row2("Name registered when booking", "予約者名", reservation != null ? reservation.getGuestName() : ""));
-        sb.append(row2("Check-In Day", "チェックイン日", addRandomCheckInTime(reservation != null && reservation.getCheckInDate() != null ? reservation.getCheckInDate().toString() : "")));
-        sb.append(row2("Check-Out Day", "チェックアウト日", addRandomCheckOutTime(reservation != null && reservation.getCheckOutDate() != null ? reservation.getCheckOutDate().toString() : "")));
-        sb.append(row2("Room Number", "部屋番号", roomNumber));
+        sb.append(row2("Name registered when booking", ApiMessages.get("api.t.a7cae0d86c73"), reservation != null ? reservation.getGuestName() : ""));
+        sb.append(row2("Check-In Day", ApiMessages.get("api.t.ad462f50beae"), addRandomCheckInTime(reservation != null && reservation.getCheckInDate() != null ? reservation.getCheckInDate().toString() : "")));
+        sb.append(row2("Check-Out Day", ApiMessages.get("api.t.ff4bc79d5a18"), addRandomCheckOutTime(reservation != null && reservation.getCheckOutDate() != null ? reservation.getCheckOutDate().toString() : "")));
+        sb.append(row2("Room Number", ApiMessages.get("api.t.e325cab1205f"), roomNumber));
         sb.append("</table>");
 
         int idx = 1;
@@ -149,31 +150,31 @@ public class RegistrationPdfService {
             
             if (isOther) {
                 // Other地区布局
-                sb.append(row2("Guest Name", "宿泊者名", (nvl(g.getLastName()) + " " + nvl(g.getFirstName())).trim()));
-                sb.append(row2("Residence", "居住地", g.getResidenceType() == null ? "" : g.getResidenceType().name()));
-                sb.append(row2("Date of Birth", "生年月日", g.getBirthday() != null ? g.getBirthday().toString() : ""));
-                sb.append(row2("Phone number", "電話番号", g.getPhone()));
+                sb.append(row2("Guest Name", ApiMessages.get("api.t.5d6cde2ec4ae"), (nvl(g.getLastName()) + " " + nvl(g.getFirstName())).trim()));
+                sb.append(row2("Residence", ApiMessages.get("api.t.7564e3130eab"), g.getResidenceType() == null ? "" : g.getResidenceType().name()));
+                sb.append(row2("Date of Birth", ApiMessages.get("api.t.ac354d7920e3"), g.getBirthday() != null ? g.getBirthday().toString() : ""));
+                sb.append(row2("Phone number", ApiMessages.get("api.t.8835fa85e12b"), g.getPhone()));
                 
                 // 综合地址信息
                 String fullAddress = buildFullAddress(g);
-                sb.append(row2("Home Address", "住所", fullAddress));
+                sb.append(row2("Home Address", ApiMessages.get("api.t.fb69b1ae94ab"), fullAddress));
                 
-                sb.append(row2("Previous location", "前泊地", g.getPriorStay()));
-                sb.append(row2("Next destination", "行先", g.getNextDestination()));
-                sb.append(row2("Passport number", "旅券番号", g.getPassportNumber()));
-                sb.append(row2("Nationality", "国籍", g.getNationality()));
+                sb.append(row2("Previous location", ApiMessages.get("api.t.583b046fa412"), g.getPriorStay()));
+                sb.append(row2("Next destination", ApiMessages.get("api.t.25cd3abd688d"), g.getNextDestination()));
+                sb.append(row2("Passport number", ApiMessages.get("api.t.515f94f0667c"), g.getPassportNumber()));
+                sb.append(row2("Nationality", ApiMessages.get("api.t.604eeab4d93d"), g.getNationality()));
 
                 RegistrationAttachment passport = (g.getId() == null) ? null : passportByGuestId.get(g.getId());
                 String img = passport == null ? "" : toDataUri(passport);
                 String passportCell = img.isBlank() ? "" : ("<img class='passport-img' src='" + img + "'/>");
-                sb.append(rowHtmlWithTrClass("avoid-break", labelHtml2("Passport photo", "旅券写真"), passportCell));
+                sb.append(rowHtmlWithTrClass("avoid-break", labelHtml2("Passport photo", ApiMessages.get("api.t.97e98f738e6b")), passportCell));
             } else {
                 // Japan地区布局
-                sb.append(row2("Guest Name", "宿泊者名", (nvl(g.getLastName()) + " " + nvl(g.getFirstName())).trim()));
-                sb.append(row2("Residence", "居住地", g.getResidenceType() == null ? "" : g.getResidenceType().name()));
-                sb.append(row2("Date of Birth", "生年月日", g.getBirthday() != null ? g.getBirthday().toString() : ""));
-                sb.append(row2("Phone number", "電話番号", g.getPhone()));
-                sb.append(row2("Home Address", "住所", g.getAddress()));
+                sb.append(row2("Guest Name", ApiMessages.get("api.t.5d6cde2ec4ae"), (nvl(g.getLastName()) + " " + nvl(g.getFirstName())).trim()));
+                sb.append(row2("Residence", ApiMessages.get("api.t.7564e3130eab"), g.getResidenceType() == null ? "" : g.getResidenceType().name()));
+                sb.append(row2("Date of Birth", ApiMessages.get("api.t.ac354d7920e3"), g.getBirthday() != null ? g.getBirthday().toString() : ""));
+                sb.append(row2("Phone number", ApiMessages.get("api.t.8835fa85e12b"), g.getPhone()));
+                sb.append(row2("Home Address", ApiMessages.get("api.t.fb69b1ae94ab"), g.getAddress()));
             }
 
             sb.append("</table>");

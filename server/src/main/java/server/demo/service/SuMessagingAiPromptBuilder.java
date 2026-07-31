@@ -10,6 +10,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class SuMessagingAiPromptBuilder {
     private static final int MAX_RECENT_MESSAGES = 30;
@@ -225,32 +226,32 @@ public class SuMessagingAiPromptBuilder {
 
     private static String formatStoredRole(SuMessagingSenderType senderType) {
         if (senderType == SuMessagingSenderType.GUEST) {
-            return "客户";
+            return ApiMessages.get("api.t.f20687060126");
         }
         if (senderType == SuMessagingSenderType.STAFF) {
-            return "员工";
+            return ApiMessages.get("api.t.9834f85de584");
         }
-        return "未知";
+        return ApiMessages.get("api.t.d9c32a4c3dda");
     }
 
     private static String formatRequestRole(String direction) {
         if (direction == null || direction.isBlank()) {
-            return "未知";
+            return ApiMessages.get("api.t.d9c32a4c3dda");
         }
         String normalized = direction.trim();
         if ("GUEST".equalsIgnoreCase(normalized)
                 || "CUSTOMER".equalsIgnoreCase(normalized)
                 || "USER".equalsIgnoreCase(normalized)) {
-            return "客户";
+            return ApiMessages.get("api.t.f20687060126");
         }
         if ("STAFF".equalsIgnoreCase(normalized)
                 || "HOST".equalsIgnoreCase(normalized)
                 || "EMPLOYEE".equalsIgnoreCase(normalized)) {
-            return "员工";
+            return ApiMessages.get("api.t.9834f85de584");
         }
         if ("SYSTEM".equalsIgnoreCase(normalized)) {
-            return "系统";
+            return ApiMessages.get("api.t.1a1f6dff7826");
         }
-        return "未知";
+        return ApiMessages.get("api.t.d9c32a4c3dda");
     }
 }

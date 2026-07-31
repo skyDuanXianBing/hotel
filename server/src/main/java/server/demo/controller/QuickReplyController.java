@@ -9,6 +9,7 @@ import server.demo.service.QuickReplyService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 快捷回复控制器
  */
@@ -26,7 +27,7 @@ public class QuickReplyController {
     @GetMapping
     public ApiResponse<List<QuickReply>> getAllQuickReplies() {
         List<QuickReply> quickReplies = quickReplyService.getAllQuickReplies();
-        return ApiResponse.success("获取快捷回复列表成功", quickReplies);
+        return ApiResponse.success(ApiMessages.get("api.t.1ad8f2e7a29e"), quickReplies);
     }
 
     /**
@@ -35,8 +36,8 @@ public class QuickReplyController {
     @GetMapping("/{id}")
     public ApiResponse<QuickReply> getQuickReplyById(@PathVariable Long id) {
         return quickReplyService.getQuickReplyById(id)
-                .map(quickReply -> ApiResponse.success("获取快捷回复详情成功", quickReply))
-                .orElse(ApiResponse.error("快捷回复不存在"));
+                .map(quickReply -> ApiResponse.success(ApiMessages.get("api.t.87ca2696a5fe"), quickReply))
+                .orElse(ApiResponse.error(ApiMessages.get("api.t.8c2528a4b0b3")));
     }
 
     /**
@@ -45,7 +46,7 @@ public class QuickReplyController {
     @PostMapping
     public ApiResponse<QuickReply> createQuickReply(@RequestBody QuickReply quickReply) {
         QuickReply createdQuickReply = quickReplyService.createQuickReply(quickReply);
-        return ApiResponse.success("创建快捷回复成功", createdQuickReply);
+        return ApiResponse.success(ApiMessages.get("api.t.0d95279881b9"), createdQuickReply);
     }
 
     /**
@@ -55,7 +56,7 @@ public class QuickReplyController {
     public ApiResponse<QuickReply> updateQuickReply(@PathVariable Long id, @RequestBody QuickReply quickReply) {
         try {
             QuickReply updatedQuickReply = quickReplyService.updateQuickReply(id, quickReply);
-            return ApiResponse.success("更新快捷回复成功", updatedQuickReply);
+            return ApiResponse.success(ApiMessages.get("api.t.519a8633e5ad"), updatedQuickReply);
         } catch (RuntimeException e) {
             return ApiResponse.error(e.getMessage());
         }
@@ -67,6 +68,6 @@ public class QuickReplyController {
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteQuickReply(@PathVariable Long id) {
         quickReplyService.deleteQuickReply(id);
-        return ApiResponse.success("删除快捷回复成功", null);
+        return ApiResponse.success(ApiMessages.get("api.t.09ff7dd1869e"), null);
     }
 }

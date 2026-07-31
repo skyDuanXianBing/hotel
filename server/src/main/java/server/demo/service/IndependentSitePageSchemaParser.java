@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class IndependentSitePageSchemaParser {
 
@@ -24,27 +25,27 @@ public class IndependentSitePageSchemaParser {
      */
     public JsonNode parse(String output, int maxLength) {
         if (output == null || output.isBlank()) {
-            throw new IllegalArgumentException("AI 页面配置为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.e96e077abc75"));
         }
         if (output.length() > maxLength) {
-            throw new IllegalArgumentException("AI 页面配置超过长度限制");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.9e638c4ee6d3"));
         }
 
         String trimmed = output.trim();
         int start = trimmed.indexOf('{');
         int end = trimmed.lastIndexOf('}');
         if (start < 0 || end < start) {
-            throw new IllegalArgumentException("AI 页面配置不包含 JSON 对象");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.c33f6c124a7a"));
         }
         String json = trimmed.substring(start, end + 1);
         try {
             JsonNode root = objectMapper.readTree(json);
             if (root == null || !root.isObject()) {
-                throw new IllegalArgumentException("AI 页面配置必须是 JSON 对象");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.e7eca5b0b012"));
             }
             return root;
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("AI 页面配置不是有效 JSON", e);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.df362517ef00"), e);
         }
     }
 }

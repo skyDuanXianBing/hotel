@@ -1,21 +1,23 @@
 package server.demo.enums;
 
+import server.demo.i18n.ApiMessages;
+
 /**
  * 通知类型枚举
  */
 public enum NotificationType {
-    SYSTEM("系统通知"),
-    ORDER("订单提醒"),
-    CLEANING("保洁通知"),
-    TASK("任务待分配");
+    SYSTEM("api.t.b7575d6f5557"),
+    ORDER("api.t.2801f5fb25b6"),
+    CLEANING("api.t.060198af05ea"),
+    TASK("api.t.0116bb1fadab");
 
-    private final String description;
+    private final String descriptionKey;
 
-    NotificationType(String description) {
-        this.description = description;
+    NotificationType(String descriptionKey) {
+        this.descriptionKey = descriptionKey;
     }
 
     public String getDescription() {
-        return description;
+        return ApiMessages.get(descriptionKey);
     }
 }

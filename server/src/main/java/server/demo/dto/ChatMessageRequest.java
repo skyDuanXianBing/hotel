@@ -14,8 +14,8 @@ public class ChatMessageRequest {
     /**
      * 用户发送的消息内容
      */
-    @NotBlank(message = "消息内容不能为空")
-    @Size(max = 8000, message = "message 超过 8000 字符限制")
+    @NotBlank(message = "{api.t.d86594c188e5}")
+    @Size(max = 8000, message = "{api.t.395814f093c6}")
     private String message;
 
     /**

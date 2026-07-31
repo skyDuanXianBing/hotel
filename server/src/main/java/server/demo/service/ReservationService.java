@@ -75,6 +75,7 @@ import java.util.StringJoiner;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 @Transactional
 public class ReservationService {
@@ -270,14 +271,14 @@ public class ReservationService {
             Set<Long> lockedRoomTypeIds
     ) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1b2a3e6bd117")));
 
         Room room = loadRoomForAssignmentWithLock(storeId, request.getRoomId());
         assertRoomTypeLockHeld(room, lockedRoomTypeIds);
 
         // 验证渠道是否存在
         Channel channel = channelRepository.findById(request.getChannelId())
-                .orElseThrow(() -> new RuntimeException("渠道不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.11e0759cc797")));
 
         assertRoomAvailableForDateRange(
                 storeId,
@@ -352,13 +353,13 @@ public class ReservationService {
      */
     public BatchCreateReservationResponse createBatchReservations(BatchCreateReservationRequest request) {
         if (request == null || request.getReservations() == null || request.getReservations().isEmpty()) {
-            throw new RuntimeException("批量预订数据不能为空");
+            throw new RuntimeException(ApiMessages.get("api.t.7db15c34c88d"));
         }
 
         List<CreateReservationRequest> items = request.getReservations();
         for (CreateReservationRequest item : items) {
             if (item == null) {
-                throw new RuntimeException("批量预订明细不能为空");
+                throw new RuntimeException(ApiMessages.get("api.t.4ceed0674629"));
             }
         }
         Long storeId = currentStoreId();
@@ -395,7 +396,7 @@ public class ReservationService {
         Reservation reservation = loadReservationInStore(reservationId);
 
         if (reservation.getStatus() != ReservationStatus.CONFIRMED) {
-            throw new RuntimeException("预订状态不正确，无法办理入住");
+            throw new RuntimeException(ApiMessages.get("api.t.222ccaf7d6e6"));
         }
 
         reservation.setStatus(ReservationStatus.CHECKED_IN);
@@ -420,10 +421,10 @@ public class ReservationService {
         operationLogService.logOperation(
                 savedReservation.getId(),
                 OperationType.ORDER,
-                "办理入住",
+                ApiMessages.get("api.t.ca95e5af8c7e"),
                 null,
                 null,
-                List.of(new OperationLogDetailDTO("房间", formatRoomDisplay(savedReservation)))
+                List.of(new OperationLogDetailDTO(ApiMessages.get("api.t.dab2ced9277b"), formatRoomDisplay(savedReservation)))
         );
         return convertToDTO(savedReservation);
     }
@@ -435,7 +436,7 @@ public class ReservationService {
         Reservation reservation = loadReservationInStore(reservationId);
 
         if (reservation.getStatus() != ReservationStatus.CHECKED_IN) {
-            throw new RuntimeException("预订状态不正确，无法办理退房");
+            throw new RuntimeException(ApiMessages.get("api.t.199aeff830db"));
         }
 
         reservation.setStatus(ReservationStatus.CHECKED_OUT);
@@ -461,10 +462,10 @@ public class ReservationService {
         operationLogService.logOperation(
                 savedReservation.getId(),
                 OperationType.ORDER,
-                "办理退房",
+                ApiMessages.get("api.t.5a97d4b67156"),
                 null,
                 null,
-                List.of(new OperationLogDetailDTO("房间", formatRoomDisplay(savedReservation)))
+                List.of(new OperationLogDetailDTO(ApiMessages.get("api.t.dab2ced9277b"), formatRoomDisplay(savedReservation)))
         );
         return convertToDTO(savedReservation);
     }
@@ -477,7 +478,7 @@ public class ReservationService {
         Reservation reservation = loadReservationInStore(reservationId);
 
         if (reservation.getStatus() == ReservationStatus.CHECKED_OUT) {
-            throw new RuntimeException("已退房订单无法取消");
+            throw new RuntimeException(ApiMessages.get("api.t.c08ef7959cb3"));
         }
 
         reservation.setStatus(ReservationStatus.CANCELLED);
@@ -502,12 +503,12 @@ public class ReservationService {
         operationLogService.logOperation(
                 savedReservation.getId(),
                 OperationType.ORDER,
-                "取消订单",
+                ApiMessages.get("api.t.3eedd32d80a7"),
                 null,
                 null,
                 List.of(
-                        new OperationLogDetailDTO("订单号", savedReservation.getOrderNumber()),
-                        new OperationLogDetailDTO("状态", savedReservation.getStatus().name())
+                        new OperationLogDetailDTO(ApiMessages.get("api.t.459868e5cb99"), savedReservation.getOrderNumber()),
+                        new OperationLogDetailDTO(ApiMessages.get("api.t.62e951a692ff"), savedReservation.getStatus().name())
                 )
         );
         orderNotificationDispatchService.notifyOrderCancelled(reservation.getStoreId(), savedReservation, userId);
@@ -900,7 +901,7 @@ public class ReservationService {
         Room room = loadRoomForAssignmentWithLock(storeId, request.getRoomId());
         assertRoomTypeLockHeld(room, lockedRoomTypeIds);
         Channel channel = channelRepository.findById(request.getChannelId())
-                .orElseThrow(() -> new RuntimeException("渠道不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.11e0759cc797")));
 
         Long currentRoomId = existingReservation.getRoom() != null ? existingReservation.getRoom().getId() : null;
 
@@ -943,7 +944,7 @@ public class ReservationService {
         existingReservation.setBookingDate(request.getBookingDate());
         existingReservation.setStoreId(storeId);
         existingReservation.setUser(userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("用户不存在")));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1b2a3e6bd117"))));
 
         Reservation savedReservation = reservationRepository.save(existingReservation);
         cleaningTaskAutoService.syncTaskForReservation(savedReservation);
@@ -995,7 +996,7 @@ public class ReservationService {
         LocalDate checkIn = reservation.getCheckInDate();
         LocalDate checkOut = reservation.getCheckOutDate();
         if (checkIn == null || checkOut == null) {
-            throw new RuntimeException("订单缺少入住/退房日期，无法排房");
+            throw new RuntimeException(ApiMessages.get("api.t.d89051e159c1"));
         }
 
         List<Room> allRooms = roomRepository.findByStoreIdWithRoomType(storeId);
@@ -1084,14 +1085,14 @@ public class ReservationService {
         LocalDate checkIn = reservation.getCheckInDate();
         LocalDate checkOut = reservation.getCheckOutDate();
         if (checkIn == null || checkOut == null) {
-            throw new RuntimeException("订单缺少入住/退房日期，无法排房");
+            throw new RuntimeException(ApiMessages.get("api.t.d89051e159c1"));
         }
         ReservationStatus reservationStatus = reservation.getStatus();
         boolean assignableStatus = reservationStatus == ReservationStatus.CONFIRMED
                 || reservationStatus == ReservationStatus.REQUESTED
                 || reservationStatus == ReservationStatus.CHECKED_IN;
         if (!assignableStatus) {
-            throw new RuntimeException("当前订单状态不支持排房（仅已确认/待确认/已入住可排房）");
+            throw new RuntimeException(ApiMessages.get("api.t.18c85f34511f"));
         }
 
         Room oldRoom = reservation.getRoom();
@@ -1108,10 +1109,10 @@ public class ReservationService {
         );
 
         Room room = roomRepository.findByStoreIdAndIdForUpdate(storeId, roomId)
-                .orElseThrow(() -> new RuntimeException("房间不存在或无权限"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.43248df8f842")));
         assertRoomTypeLockHeld(room, lockedRoomTypeIds);
         if (room.getStatus() == RoomStatus.OUT_OF_ORDER || room.getStatus() == RoomStatus.MAINTENANCE) {
-            throw new RuntimeException("该房间当前不可用");
+            throw new RuntimeException(ApiMessages.get("api.t.8567629fa303"));
         }
 
         List<Reservation> conflicts = reservationRepository.findByStoreIdAndRoomIdAndDateRange(storeId, roomId, checkIn, checkOut)
@@ -1119,7 +1120,7 @@ public class ReservationService {
                 .filter(r -> !Objects.equals(r.getId(), reservationId))
                 .collect(Collectors.toList());
         if (!conflicts.isEmpty()) {
-            throw new RuntimeException("该房间在订单日期范围内已被占用，请选择其他房间");
+            throw new RuntimeException(ApiMessages.get("api.t.ebb861944324"));
         }
 
         Channel oldChannel = reservation.getChannel();
@@ -1167,7 +1168,7 @@ public class ReservationService {
      */
     public BigDecimal getCurrentRoomPrice(Long roomTypeId, LocalDate date) {
         RoomType roomType = roomTypeRepository.findById(roomTypeId)
-                .orElseThrow(() -> new RuntimeException("房型不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.0ee42ec64b2f")));
         
         // 判断是否为周末（周六、周日）
         DayOfWeek dayOfWeek = date.getDayOfWeek();
@@ -1507,7 +1508,7 @@ public class ReservationService {
 
     private Room loadRoomForAssignmentWithLock(Long storeId, Long roomId) {
         return roomRepository.findByStoreIdAndIdForUpdate(storeId, roomId)
-                .orElseThrow(() -> new RuntimeException("房间不存在或无权限"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.43248df8f842")));
     }
 
     private Set<Long> lockInventoryRoomTypes(
@@ -1524,7 +1525,7 @@ public class ReservationService {
         if (roomIds != null) {
             for (Long roomId : roomIds) {
                 if (roomId == null || roomId <= 0) {
-                    throw new RuntimeException("房间 ID 无效");
+                    throw new RuntimeException(ApiMessages.get("api.t.dbb79ced60d4"));
                 }
                 requestedRoomIds.add(roomId);
             }
@@ -1535,13 +1536,13 @@ public class ReservationService {
             for (Room room : rooms) {
                 if (room == null || room.getId() == null
                         || room.getRoomType() == null || room.getRoomType().getId() == null) {
-                    throw new RuntimeException("房间缺少有效房型");
+                    throw new RuntimeException(ApiMessages.get("api.t.686158efb32f"));
                 }
                 foundRoomIds.add(room.getId());
                 resolvedRoomTypeIds.add(room.getRoomType().getId());
             }
             if (!foundRoomIds.equals(requestedRoomIds)) {
-                throw new RuntimeException("房间不存在或无权限");
+                throw new RuntimeException(ApiMessages.get("api.t.43248df8f842"));
             }
         }
         return inventoryLockService.lockRoomTypes(storeId, resolvedRoomTypeIds);
@@ -1553,7 +1554,7 @@ public class ReservationService {
                 : null;
         if (roomTypeId == null || lockedRoomTypeIds == null
                 || !lockedRoomTypeIds.contains(roomTypeId)) {
-            throw new IllegalStateException("房间所属房型已变化，请重试");
+            throw new IllegalStateException(ApiMessages.get("api.t.4a760f66b1b7"));
         }
     }
 
@@ -1574,15 +1575,15 @@ public class ReservationService {
                 .toList();
 
         if (!conflicts.isEmpty()) {
-            throw new RuntimeException("房间在指定日期已有预订，请选择其他日期或房间");
+            throw new RuntimeException(ApiMessages.get("api.t.eda6eadfd270"));
         }
     }
 
     private Reservation loadReservationInStore(Long reservationId) {
         Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new RuntimeException("预订不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.21907b69c6a3")));
         if (!currentStoreId().equals(reservation.getStoreId())) {
-            throw new RuntimeException("无权操作该预订");
+            throw new RuntimeException(ApiMessages.get("api.t.ad047b5b5591"));
         }
         return reservation;
     }
@@ -1593,11 +1594,11 @@ public class ReservationService {
     private String getChannelDisplayName(String value) {
         switch (value) {
             case "direct":
-                return "直营客";
+                return ApiMessages.get("api.t.7b9d7b5461f2");
             case "meituan":
-                return "美团民宿";
+                return ApiMessages.get("api.t.d338812b9217");
             case "tujia":
-                return "途家";
+                return ApiMessages.get("api.t.7653e8da4dcc");
             default:
                 return value;
         }
@@ -1764,27 +1765,27 @@ public class ReservationService {
 
     private void logCreateReservation(Reservation reservation) {
         List<OperationLogDetailDTO> details = new ArrayList<>();
-        details.add(new OperationLogDetailDTO("联系人", reservation.getGuestName()));
+        details.add(new OperationLogDetailDTO(ApiMessages.get("api.t.2425bd4bc11b"), reservation.getGuestName()));
         if (reservation.getGuestPhone() != null && !reservation.getGuestPhone().isBlank()) {
-            details.add(new OperationLogDetailDTO("手机号", reservation.getGuestPhone()));
+            details.add(new OperationLogDetailDTO(ApiMessages.get("api.t.5a9cc5e89148"), reservation.getGuestPhone()));
         }
         if (reservation.getChannel() != null) {
-            details.add(new OperationLogDetailDTO("渠道", reservation.getChannel().getName()));
+            details.add(new OperationLogDetailDTO(ApiMessages.get("api.t.c152be9f5040"), reservation.getChannel().getName()));
         }
         if (reservation.getChannelOrderNumber() != null && !reservation.getChannelOrderNumber().isBlank()) {
-            details.add(new OperationLogDetailDTO("渠道订单号", reservation.getChannelOrderNumber()));
+            details.add(new OperationLogDetailDTO(ApiMessages.get("api.t.0c195543e2e2"), reservation.getChannelOrderNumber()));
         }
-        details.add(new OperationLogDetailDTO("房间", formatRoomDisplay(reservation)));
-        details.add(new OperationLogDetailDTO("入住", reservation.getCheckInDate() == null ? "-" : reservation.getCheckInDate().toString()));
-        details.add(new OperationLogDetailDTO("离店", reservation.getCheckOutDate() == null ? "-" : reservation.getCheckOutDate().toString()));
-        details.add(new OperationLogDetailDTO("成人", String.valueOf(reservation.getAdults() == null ? 0 : reservation.getAdults())));
-        details.add(new OperationLogDetailDTO("儿童", String.valueOf(reservation.getChildren() == null ? 0 : reservation.getChildren())));
-        details.add(new OperationLogDetailDTO("订单金额", reservation.getTotalAmount() == null ? "0.00" : reservation.getTotalAmount().toPlainString()));
+        details.add(new OperationLogDetailDTO(ApiMessages.get("api.t.dab2ced9277b"), formatRoomDisplay(reservation)));
+        details.add(new OperationLogDetailDTO(ApiMessages.get("api.t.8729a688a7c8"), reservation.getCheckInDate() == null ? "-" : reservation.getCheckInDate().toString()));
+        details.add(new OperationLogDetailDTO(ApiMessages.get("api.t.228922a21df6"), reservation.getCheckOutDate() == null ? "-" : reservation.getCheckOutDate().toString()));
+        details.add(new OperationLogDetailDTO(ApiMessages.get("api.t.f4455f0ea8e7"), String.valueOf(reservation.getAdults() == null ? 0 : reservation.getAdults())));
+        details.add(new OperationLogDetailDTO(ApiMessages.get("api.t.873fc984fc0a"), String.valueOf(reservation.getChildren() == null ? 0 : reservation.getChildren())));
+        details.add(new OperationLogDetailDTO(ApiMessages.get("api.t.d98167d36dbd"), reservation.getTotalAmount() == null ? "0.00" : reservation.getTotalAmount().toPlainString()));
 
         operationLogService.logOperation(
                 reservation.getId(),
                 OperationType.ORDER,
-                "新增预订订单",
+                ApiMessages.get("api.t.4c7d5871eef8"),
                 null,
                 null,
                 details
@@ -1809,41 +1810,41 @@ public class ReservationService {
             operationLogService.logOperation(
                     reservation.getId(),
                     OperationType.ORDER,
-                    "分配房间",
+                    ApiMessages.get("api.t.b1595c614a90"),
                     null,
                     null,
                     List.of(
-                            new OperationLogDetailDTO("原房间", formatRoomDisplay(oldRoom)),
-                            new OperationLogDetailDTO("新房间", formatRoomDisplay(newRoom))
+                            new OperationLogDetailDTO(ApiMessages.get("api.t.d7e62861f282"), formatRoomDisplay(oldRoom)),
+                            new OperationLogDetailDTO(ApiMessages.get("api.t.18898bf2a561"), formatRoomDisplay(newRoom))
                     )
             );
         }
 
         List<OperationLogDetailDTO> details = new ArrayList<>();
         if (!Objects.equals(oldGuestName, reservation.getGuestName())) {
-            details.add(new OperationLogDetailDTO("联系人", (oldGuestName == null ? "-" : oldGuestName) + " → " + (reservation.getGuestName() == null ? "-" : reservation.getGuestName())));
+            details.add(new OperationLogDetailDTO(ApiMessages.get("api.t.2425bd4bc11b"), (oldGuestName == null ? "-" : oldGuestName) + " → " + (reservation.getGuestName() == null ? "-" : reservation.getGuestName())));
         }
         if (!Objects.equals(oldGuestPhone, reservation.getGuestPhone())) {
-            details.add(new OperationLogDetailDTO("手机号", (oldGuestPhone == null ? "-" : oldGuestPhone) + " → " + (reservation.getGuestPhone() == null ? "-" : reservation.getGuestPhone())));
+            details.add(new OperationLogDetailDTO(ApiMessages.get("api.t.5a9cc5e89148"), (oldGuestPhone == null ? "-" : oldGuestPhone) + " → " + (reservation.getGuestPhone() == null ? "-" : reservation.getGuestPhone())));
         }
         if (!Objects.equals(oldChannel == null ? null : oldChannel.getId(), newChannel == null ? null : newChannel.getId())) {
-            details.add(new OperationLogDetailDTO("渠道", (oldChannel == null ? "-" : oldChannel.getName()) + " → " + (newChannel == null ? "-" : newChannel.getName())));
+            details.add(new OperationLogDetailDTO(ApiMessages.get("api.t.c152be9f5040"), (oldChannel == null ? "-" : oldChannel.getName()) + " → " + (newChannel == null ? "-" : newChannel.getName())));
         }
         if (!Objects.equals(oldCheckIn, reservation.getCheckInDate())) {
-            details.add(new OperationLogDetailDTO("入住日期", (oldCheckIn == null ? "-" : oldCheckIn.toString()) + " → " + (reservation.getCheckInDate() == null ? "-" : reservation.getCheckInDate().toString())));
+            details.add(new OperationLogDetailDTO(ApiMessages.get("api.t.0b47d70496d9"), (oldCheckIn == null ? "-" : oldCheckIn.toString()) + " → " + (reservation.getCheckInDate() == null ? "-" : reservation.getCheckInDate().toString())));
         }
         if (!Objects.equals(oldCheckOut, reservation.getCheckOutDate())) {
-            details.add(new OperationLogDetailDTO("离店日期", (oldCheckOut == null ? "-" : oldCheckOut.toString()) + " → " + (reservation.getCheckOutDate() == null ? "-" : reservation.getCheckOutDate().toString())));
+            details.add(new OperationLogDetailDTO(ApiMessages.get("api.t.c6c26ae50f90"), (oldCheckOut == null ? "-" : oldCheckOut.toString()) + " → " + (reservation.getCheckOutDate() == null ? "-" : reservation.getCheckOutDate().toString())));
         }
         if (!Objects.equals(oldTotalAmount, reservation.getTotalAmount())) {
-            details.add(new OperationLogDetailDTO("订单金额", (oldTotalAmount == null ? "0.00" : oldTotalAmount.toPlainString()) + " → " + (reservation.getTotalAmount() == null ? "0.00" : reservation.getTotalAmount().toPlainString())));
+            details.add(new OperationLogDetailDTO(ApiMessages.get("api.t.d98167d36dbd"), (oldTotalAmount == null ? "0.00" : oldTotalAmount.toPlainString()) + " → " + (reservation.getTotalAmount() == null ? "0.00" : reservation.getTotalAmount().toPlainString())));
         }
 
         if (!details.isEmpty() || !roomChanged) {
             operationLogService.logOperation(
                     reservation.getId(),
                     OperationType.ORDER,
-                    "修改订单",
+                    ApiMessages.get("api.t.89e5b08e91f0"),
                     null,
                     null,
                     details

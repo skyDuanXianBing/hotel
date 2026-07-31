@@ -8,7 +8,7 @@ import java.util.List;
  */
 public class RoomGroupMemberDTO {
 
-    @NotEmpty(message = "房间ID列表不能为空")
+    @NotEmpty(message = "{api.t.6b90cda79caf}")
     private List<Long> roomIds;
 
     // Constructors

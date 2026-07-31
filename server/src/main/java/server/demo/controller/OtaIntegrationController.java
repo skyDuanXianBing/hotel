@@ -12,6 +12,7 @@ import server.demo.dto.ApiResponse;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 /**
  * OTA直连配置控制器
  */
@@ -64,7 +65,7 @@ public class OtaIntegrationController {
             @PathVariable Long id,
             @RequestBody OtaIntegrationDTO dto) {
         OtaIntegrationDTO updated = otaIntegrationService.updateOtaIntegration(id, dto);
-        return ApiResponse.success("更新成功", updated);
+        return ApiResponse.success(ApiMessages.get("api.t.e2cff7737269"), updated);
     }
 
     /**
@@ -75,7 +76,7 @@ public class OtaIntegrationController {
             @PathVariable Long id,
             @RequestBody ConnectOtaRequest request) {
         OtaIntegrationDTO connected = otaIntegrationService.connectOta(id, request.apiKey(), request.apiSecret());
-        return ApiResponse.success("连接成功", connected);
+        return ApiResponse.success(ApiMessages.get("api.t.eb0663587520"), connected);
     }
 
     /**
@@ -84,7 +85,7 @@ public class OtaIntegrationController {
     @PostMapping("/{id}/disconnect")
     public ApiResponse<OtaIntegrationDTO> disconnectOta(@PathVariable Long id) {
         OtaIntegrationDTO disconnected = otaIntegrationService.disconnectOta(id);
-        return ApiResponse.success("断开连接成功", disconnected);
+        return ApiResponse.success(ApiMessages.get("api.t.e07c642a239f"), disconnected);
     }
 
     /**
@@ -95,7 +96,7 @@ public class OtaIntegrationController {
             @PathVariable Long id,
             @RequestBody OtaIntegrationDTO dto) {
         OtaIntegrationDTO updated = otaIntegrationService.updatePriceAdjustment(id, dto);
-        return ApiResponse.success("价格调整更新成功", updated);
+        return ApiResponse.success(ApiMessages.get("api.t.a86f4937d519"), updated);
     }
 
     /**
@@ -111,9 +112,9 @@ public class OtaIntegrationController {
     ) {
         try {
             WidgetTokenResponse response = otaIntegrationService.generateSuWidgetToken(id, syncContent, language);
-            return ApiResponse.success("获取Widget Token成功", response);
+            return ApiResponse.success(ApiMessages.get("api.t.7a18a174f941"), response);
         } catch (RuntimeException e) {
-            return ApiResponse.error("获取Widget Token失败：" + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.2f9fddb1ba47") + e.getMessage());
         }
     }
 
@@ -127,9 +128,9 @@ public class OtaIntegrationController {
     public ApiResponse<Object> syncSuContent(@PathVariable Long id) {
         try {
             Object summary = otaIntegrationService.syncSuContent(id);
-            return ApiResponse.success("渠道房型/价格计划同步成功", summary);
+            return ApiResponse.success(ApiMessages.get("api.t.0cc6de34d17b"), summary);
         } catch (RuntimeException e) {
-            return ApiResponse.error("渠道房型/价格计划同步失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.9ee062fe8d5d") + e.getMessage());
         }
     }
 
@@ -147,10 +148,10 @@ public class OtaIntegrationController {
             logger.info("[OneClickSync] start syncSuRooms. otaIntegrationId={}", id);
             Object summary = otaIntegrationService.syncSuRooms(id);
             logger.info("[OneClickSync] done syncSuRooms. otaIntegrationId={}", id);
-            return ApiResponse.success("渠道房型列表同步成功", summary);
+            return ApiResponse.success(ApiMessages.get("api.t.2b8ef070ee67"), summary);
         } catch (RuntimeException e) {
             logger.error("[OneClickSync] failed syncSuRooms. otaIntegrationId={}", id, e);
-            return ApiResponse.error("渠道房型列表同步失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.913178c370f3") + e.getMessage());
         }
     }
 
@@ -164,10 +165,10 @@ public class OtaIntegrationController {
             logger.info("[OneClickSync] start syncSuRatePlans. otaIntegrationId={}", id);
             Object summary = otaIntegrationService.syncSuRatePlans(id);
             logger.info("[OneClickSync] done syncSuRatePlans. otaIntegrationId={}", id);
-            return ApiResponse.success("渠道价格计划列表同步成功", summary);
+            return ApiResponse.success(ApiMessages.get("api.t.7dd678397509"), summary);
         } catch (RuntimeException e) {
             logger.error("[OneClickSync] failed syncSuRatePlans. otaIntegrationId={}", id, e);
-            return ApiResponse.error("渠道价格计划列表同步失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.adae6e228188") + e.getMessage());
         }
     }
 
@@ -185,10 +186,10 @@ public class OtaIntegrationController {
             logger.info("[OneClickSync] start syncSuAri. otaIntegrationId={}, days={}", id, days);
             Object summary = otaIntegrationService.syncSuAri(id, days);
             logger.info("[OneClickSync] done syncSuAri. otaIntegrationId={}, days={}", id, days);
-            return ApiResponse.success("渠道基础ARI同步成功", summary);
+            return ApiResponse.success(ApiMessages.get("api.t.de243226c6fb"), summary);
         } catch (RuntimeException e) {
             logger.error("[OneClickSync] failed syncSuAri. otaIntegrationId={}, days={}", id, days, e);
-            return ApiResponse.error("渠道基础ARI同步失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.1880b6daf7f0") + e.getMessage());
         }
     }
 
@@ -201,10 +202,10 @@ public class OtaIntegrationController {
             logger.info("[OneClickSync] start syncSuRates. otaIntegrationId={}, days={}", id, days);
             Object summary = otaIntegrationService.syncSuRates(id, days);
             logger.info("[OneClickSync] done syncSuRates. otaIntegrationId={}, days={}", id, days);
-            return ApiResponse.success("渠道房价同步成功", summary);
+            return ApiResponse.success(ApiMessages.get("api.t.0d85640b9df8"), summary);
         } catch (RuntimeException e) {
             logger.error("[OneClickSync] failed syncSuRates. otaIntegrationId={}, days={}", id, days, e);
-            return ApiResponse.error("渠道房价同步失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.fcd26214ece5") + e.getMessage());
         }
     }
 
@@ -217,10 +218,10 @@ public class OtaIntegrationController {
             logger.info("[OneClickSync] start syncSuAvailability. otaIntegrationId={}, days={}", id, days);
             Object summary = otaIntegrationService.syncSuAvailability(id, days);
             logger.info("[OneClickSync] done syncSuAvailability. otaIntegrationId={}, days={}", id, days);
-            return ApiResponse.success("渠道可用性同步成功", summary);
+            return ApiResponse.success(ApiMessages.get("api.t.8bf9b2bb7a10"), summary);
         } catch (RuntimeException e) {
             logger.error("[OneClickSync] failed syncSuAvailability. otaIntegrationId={}, days={}", id, days, e);
-            return ApiResponse.error("渠道可用性同步失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.ca51695d183c") + e.getMessage());
         }
     }
 
@@ -231,9 +232,9 @@ public class OtaIntegrationController {
     ) {
         try {
             JsonNode mappings = otaIntegrationService.getSuMappings(id, channelId);
-            return ApiResponse.success("获取渠道映射成功", mappings);
+            return ApiResponse.success(ApiMessages.get("api.t.74b60803f3e0"), mappings);
         } catch (RuntimeException e) {
-            return ApiResponse.error("获取渠道映射失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.719ad6a092d2") + e.getMessage());
         }
     }
 
@@ -248,9 +249,9 @@ public class OtaIntegrationController {
     ) {
         try {
             OtaIntegrationService.SuMappingStatusSummary status = otaIntegrationService.getSuMappingStatus(id, channelId);
-            return ApiResponse.success("获取映射状态成功", status);
+            return ApiResponse.success(ApiMessages.get("api.t.dcd3f12cfc9d"), status);
         } catch (RuntimeException e) {
-            return ApiResponse.error("获取映射状态失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.0ac3ef37864a") + e.getMessage());
         }
     }
 

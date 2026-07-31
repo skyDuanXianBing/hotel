@@ -15,6 +15,7 @@ import server.demo.service.RoomTypeService;
 import java.util.ArrayList;
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/room-types")
 @StoreScoped
@@ -59,7 +60,7 @@ public class RoomTypeController extends BaseStoreController {
         try {
             return ApiResponse.success(roomTypeService.getAllRoomTypes());
         } catch (Exception e) {
-            return ApiResponse.error("获取房型列表失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.fef375b26e1e") + e.getMessage());
         }
     }
 
@@ -68,7 +69,7 @@ public class RoomTypeController extends BaseStoreController {
         try {
             return ApiResponse.success(roomTypeService.getAllRoomTypesWithRooms());
         } catch (Exception e) {
-            return ApiResponse.error("获取房型及房间列表失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.a3529990bf7b") + e.getMessage());
         }
     }
 
@@ -77,9 +78,9 @@ public class RoomTypeController extends BaseStoreController {
         try {
             return roomTypeService.getRoomTypeById(id)
                     .map(ApiResponse::success)
-                    .orElse(ApiResponse.error("房型不存在"));
+                    .orElse(ApiResponse.error(ApiMessages.get("api.t.0ee42ec64b2f")));
         } catch (Exception e) {
-            return ApiResponse.error("获取房型信息失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.180f95cf4616") + e.getMessage());
         }
     }
 
@@ -114,24 +115,24 @@ public class RoomTypeController extends BaseStoreController {
 
             List<RoomTypeService.RoomInput> roomInputs = resolveRoomInputs(request);
             if (roomInputs.isEmpty()) {
-                return ApiResponse.error("At least one room is required");
+                return ApiResponse.error(ApiMessages.get("api.t.69de290b8fec"));
             }
             RoomType createdRoomType = roomTypeService.createRoomTypeWithRoomInputs(roomType, roomInputs);
-            return ApiResponse.success("房型创建成功", createdRoomType);
+            return ApiResponse.success(ApiMessages.get("api.t.c3b685d65083"), createdRoomType);
         } catch (NeedUpgradeException e) {
             // SaaS 容量超限：交由 SaasEntitlementExceptionHandler 统一返回 402，不能在此吞掉
             throw e;
         } catch (Exception e) {
-            return ApiResponse.error("房型创建失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.5d446f0e7228") + e.getMessage());
         }
     }
 
     @PostMapping("/simple")
     public ApiResponse<RoomType> createSimpleRoomType(@Valid @RequestBody RoomType roomType) {
         try {
-            return ApiResponse.success("房型创建成功", roomTypeService.createRoomType(roomType));
+            return ApiResponse.success(ApiMessages.get("api.t.c3b685d65083"), roomTypeService.createRoomType(roomType));
         } catch (Exception e) {
-            return ApiResponse.error("房型创建失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.5d446f0e7228") + e.getMessage());
         }
     }
 
@@ -168,15 +169,15 @@ public class RoomTypeController extends BaseStoreController {
 
             List<RoomTypeService.RoomInput> roomInputs = resolveRoomInputs(request);
             if (roomInputs.isEmpty()) {
-                return ApiResponse.error("At least one room is required");
+                return ApiResponse.error(ApiMessages.get("api.t.69de290b8fec"));
             }
             RoomType updatedRoomType = roomTypeService.updateRoomTypeWithRoomInputs(id, roomType, roomInputs);
-            return ApiResponse.success("房型更新成功", updatedRoomType);
+            return ApiResponse.success(ApiMessages.get("api.t.ac36ad49e7bb"), updatedRoomType);
         } catch (NeedUpgradeException e) {
             // SaaS 容量超限：交由 SaasEntitlementExceptionHandler 统一返回 402，不能在此吞掉
             throw e;
         } catch (Exception e) {
-            return ApiResponse.error("房型更新失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.dd079b4ceda9") + e.getMessage());
         }
     }
 
@@ -184,15 +185,15 @@ public class RoomTypeController extends BaseStoreController {
     public ApiResponse<?> deleteRoomType(@PathVariable Long id) {
         try {
             roomTypeService.deleteRoomType(id);
-            return ApiResponse.success("房型删除成功");
+            return ApiResponse.success(ApiMessages.get("api.t.096dcec67c78"));
         } catch (server.demo.exception.RoomTypeDeleteBlockedException e) {
             return ApiResponse.error(e.getMessage(), e.getBlockInfo());
         } catch (DataIntegrityViolationException e) {
-            return ApiResponse.error("该房型仍被其他业务数据引用，无法删除。请先解绑关联数据后再重试。");
+            return ApiResponse.error(ApiMessages.get("api.t.c6635172c641"));
         } catch (RuntimeException e) {
             return ApiResponse.error(e.getMessage());
         } catch (Exception e) {
-            return ApiResponse.error("房型删除失败,请稍后重试");
+            return ApiResponse.error(ApiMessages.get("api.t.f0852abdd515"));
         }
     }
 }

@@ -8,13 +8,13 @@ import java.util.List;
 
 public class OpenRoomBlockoutRequest {
 
-    @NotEmpty(message = "roomIds 不能为空")
+    @NotEmpty(message = "{api.t.db75975a148a}")
     private List<Long> roomIds;
 
-    @NotNull(message = "startDate 不能为空")
+    @NotNull(message = "{api.t.14c70c4c09a7}")
     private LocalDate startDate;
 
-    @NotNull(message = "endDate 不能为空")
+    @NotNull(message = "{api.t.4210bb798cc5}")
     private LocalDate endDate;
 
     public List<Long> getRoomIds() {

@@ -29,6 +29,7 @@ import server.demo.util.StoreContextUtils;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/independent-sites")
 @StoreScoped
@@ -63,7 +64,7 @@ public class IndependentSiteController {
     @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.VIEW_CHANNELS)
     public ResponseEntity<ApiResponse<IndependentSiteDtos.StripeSettingsResponse>> getStripeSettings() {
         return ResponseEntity.ok(ApiResponse.success(
-                "获取 Stripe 设置成功",
+                ApiMessages.get("api.t.b7ffffbd11f4"),
                 stripeSettingsService.getSettings(StoreContextUtils.requireStoreId())
         ));
     }
@@ -74,7 +75,7 @@ public class IndependentSiteController {
             @Valid @RequestBody IndependentSiteDtos.StripeSettingsUpdateRequest request
     ) {
         return ResponseEntity.ok(ApiResponse.success(
-                "Stripe 设置已保存",
+                ApiMessages.get("api.t.056a35fed6f4"),
                 stripeSettingsService.updateSettings(StoreContextUtils.requireStoreId(), request)
         ));
     }
@@ -87,7 +88,7 @@ public class IndependentSiteController {
     @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.VIEW_CHANNELS)
     public ResponseEntity<ApiResponse<List<IndependentSiteDtos.SiteSummaryResponse>>> listSites() {
         return ResponseEntity.ok(ApiResponse.success(
-                "获取独立站列表成功",
+                ApiMessages.get("api.t.8b7c059e159d"),
                 managementService.listSites(StoreContextUtils.requireStoreId())
         ));
     }
@@ -99,7 +100,7 @@ public class IndependentSiteController {
     ) {
         IndependentSiteDtos.SiteDetailResponse response =
                 managementService.createSite(StoreContextUtils.requireStoreId(), request);
-        return ResponseEntity.ok(ApiResponse.success("独立站已创建", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.bab267283537"), response));
     }
 
     @GetMapping("/{id}")
@@ -109,7 +110,7 @@ public class IndependentSiteController {
     ) {
         IndependentSiteDtos.SiteDetailResponse response =
                 managementService.getSite(StoreContextUtils.requireStoreId(), id);
-        return ResponseEntity.ok(ApiResponse.success("获取独立站详情成功", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.2eba912284cb"), response));
     }
 
     @PutMapping("/{id}")
@@ -120,14 +121,14 @@ public class IndependentSiteController {
     ) {
         IndependentSiteDtos.SiteDetailResponse response =
                 managementService.updateSite(StoreContextUtils.requireStoreId(), id, request);
-        return ResponseEntity.ok(ApiResponse.success("独立站配置已保存", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.df01dcdd7745"), response));
     }
 
     @DeleteMapping("/{id}")
     @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.MANAGE_CHANNELS)
     public ResponseEntity<ApiResponse<Void>> deleteSite(@PathVariable Long id) {
         managementService.deleteSite(StoreContextUtils.requireStoreId(), id);
-        return ResponseEntity.ok(ApiResponse.success("独立站已删除", null));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.625a041b9526"), null));
     }
 
     // ------------------------------------------------------------------
@@ -140,7 +141,7 @@ public class IndependentSiteController {
             @PathVariable Long id
     ) {
         return ResponseEntity.ok(ApiResponse.success(
-                "获取页面列表成功",
+                ApiMessages.get("api.t.8023392ce338"),
                 managementService.listPages(StoreContextUtils.requireStoreId(), id)
         ));
     }
@@ -153,7 +154,7 @@ public class IndependentSiteController {
     ) {
         IndependentSiteDtos.PageDetailResponse response =
                 managementService.createPage(StoreContextUtils.requireStoreId(), id, request);
-        return ResponseEntity.ok(ApiResponse.success("页面已创建", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.799d1ff5c404"), response));
     }
 
     @GetMapping("/{id}/pages/{pageId}")
@@ -164,7 +165,7 @@ public class IndependentSiteController {
     ) {
         IndependentSiteDtos.PageDetailResponse response =
                 managementService.getPage(StoreContextUtils.requireStoreId(), id, pageId);
-        return ResponseEntity.ok(ApiResponse.success("获取页面详情成功", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.6cd79bee0ad1"), response));
     }
 
     @PutMapping("/{id}/pages/{pageId}")
@@ -176,7 +177,7 @@ public class IndependentSiteController {
     ) {
         IndependentSiteDtos.PageDetailResponse response =
                 managementService.updatePage(StoreContextUtils.requireStoreId(), id, pageId, request);
-        return ResponseEntity.ok(ApiResponse.success("页面已保存", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.c807af363bca"), response));
     }
 
     @DeleteMapping("/{id}/pages/{pageId}")
@@ -186,7 +187,7 @@ public class IndependentSiteController {
             @PathVariable Long pageId
     ) {
         managementService.deletePage(StoreContextUtils.requireStoreId(), id, pageId);
-        return ResponseEntity.ok(ApiResponse.success("页面已删除", null));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.ed52371d4bd1"), null));
     }
 
     @PostMapping("/{id}/pages/generate-room-pages")
@@ -196,7 +197,7 @@ public class IndependentSiteController {
     ) {
         IndependentSiteDtos.GenerateRoomPagesResponse response =
                 managementService.generateRoomTypePages(StoreContextUtils.requireStoreId(), id);
-        return ResponseEntity.ok(ApiResponse.success("房型页面已生成", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.c5d229520b3b"), response));
     }
 
     @PostMapping("/{id}/pages/import-url")
@@ -208,7 +209,7 @@ public class IndependentSiteController {
     ) {
         IndependentSiteDtos.PageDetailResponse response =
                 managementService.importPageFromUrl(StoreContextUtils.requireStoreId(), id, request);
-        return ResponseEntity.ok(ApiResponse.success("页面已从 URL 导入", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.fa6f202d9d32"), response));
     }
 
     @PostMapping("/{id}/pages/{pageId}/publish")
@@ -220,7 +221,7 @@ public class IndependentSiteController {
     ) {
         IndependentSiteDtos.PageDetailResponse response =
                 managementService.publishPage(StoreContextUtils.requireStoreId(), id, pageId, request);
-        return ResponseEntity.ok(ApiResponse.success("页面已发布", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.d632a63e777e"), response));
     }
 
     @PostMapping("/{id}/pages/{pageId}/generate")
@@ -237,7 +238,7 @@ public class IndependentSiteController {
                 pageId,
                 request
         );
-        return ResponseEntity.ok(ApiResponse.success("独立站页面草稿生成成功", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.8119e511a6a7"), response));
     }
 
     @PostMapping("/{id}/pages/{pageId}/ai-edit")
@@ -254,7 +255,7 @@ public class IndependentSiteController {
                 pageId,
                 request.instruction()
         );
-        return ResponseEntity.ok(ApiResponse.success("AI 修改已应用", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.47dff374ab03"), response));
     }
 
     @PostMapping("/{id}/pages/{pageId}/ai-edit/undo")
@@ -265,7 +266,7 @@ public class IndependentSiteController {
     ) {
         IndependentSiteDtos.PageDetailResponse response =
                 managementService.undoAiEdit(StoreContextUtils.requireStoreId(), id, pageId);
-        return ResponseEntity.ok(ApiResponse.success("已撤销最近一次 AI 修改", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.db30ef31e09e"), response));
     }
 
     // ------------------------------------------------------------------
@@ -278,7 +279,7 @@ public class IndependentSiteController {
     public ResponseEntity<ApiResponse<IndependentSiteDtos.ConfigResponse>> getCurrent() {
         IndependentSiteDtos.ConfigResponse response =
                 managementService.getCurrent(StoreContextUtils.requireStoreId());
-        return ResponseEntity.ok(ApiResponse.success("获取独立站配置成功", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.80d9859629ea"), response));
     }
 
     @Deprecated
@@ -289,7 +290,7 @@ public class IndependentSiteController {
     ) {
         IndependentSiteDtos.ConfigResponse response =
                 managementService.updateCurrent(StoreContextUtils.requireStoreId(), request);
-        return ResponseEntity.ok(ApiResponse.success("独立站配置已保存", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.df01dcdd7745"), response));
     }
 
     @Deprecated
@@ -305,7 +306,7 @@ public class IndependentSiteController {
                 id,
                 request
         );
-        return ResponseEntity.ok(ApiResponse.success("独立站页面草稿生成成功", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.8119e511a6a7"), response));
     }
 
     @Deprecated
@@ -318,7 +319,7 @@ public class IndependentSiteController {
                 StoreContextUtils.requireStoreId(),
                 request
         );
-        return ResponseEntity.ok(ApiResponse.success("独立站页面草稿已保存", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.fbbbb9d740a5"), response));
     }
 
     @Deprecated
@@ -331,7 +332,7 @@ public class IndependentSiteController {
                 StoreContextUtils.requireStoreId(),
                 request
         );
-        return ResponseEntity.ok(ApiResponse.success("独立站页面草稿已发布", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.b2bf24bc5ffa"), response));
     }
 
     @Deprecated
@@ -340,13 +341,13 @@ public class IndependentSiteController {
     @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.MANAGE_CHANNELS)
     public ResponseEntity<ApiResponse<IndependentSiteDtos.PaymentAttemptResponse>>
             confirmSimulatedPayment(@PathVariable String paymentAttemptId) {
-        Long storeId = requireChannelManagementStoreId("您没有权限确认模拟支付");
+        Long storeId = requireChannelManagementStoreId(ApiMessages.get("api.t.c8e0ac557286"));
         IndependentSiteDtos.PaymentAttemptResponse response =
                 bookingService.confirmSimulatedPayment(
                         storeId,
                         paymentAttemptId
                 );
-        return ResponseEntity.ok(ApiResponse.success("模拟支付已确认", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.76b8d7c6a0e3"), response));
     }
 
     @Deprecated
@@ -357,13 +358,13 @@ public class IndependentSiteController {
             @PathVariable String slug,
             @Valid @RequestBody IndependentSiteDtos.HoldRequest request
     ) {
-        Long storeId = requireChannelManagementStoreId("您没有权限创建管理预览订单");
+        Long storeId = requireChannelManagementStoreId(ApiMessages.get("api.t.34cadf3701a6"));
         IndependentSiteDtos.PaymentAttemptResponse response = bookingService.createPreviewHold(
                 storeId,
                 slug,
                 request
         );
-        return ResponseEntity.ok(ApiResponse.success("房量已保留，等待受控支付确认", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.a4057feda318"), response));
     }
 
     private Long requireChannelManagementStoreId(String deniedMessage) {

@@ -10,7 +10,7 @@ public class UpdateAccountRequest {
 
     private String name;
 
-    @Email(message = "邮箱格式不正确")
+    @Email(message = "{api.t.4f0599f86e3f}")
     private String email;
 
     private String nickname;

@@ -9,6 +9,7 @@ import server.demo.service.NoteCategoryService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 记一笔分类 Controller（门店级架构）
  */
@@ -27,9 +28,9 @@ public class NoteCategoryController {
     public ApiResponse<List<NoteCategory>> getAllCategories() {
         try {
             List<NoteCategory> categories = noteCategoryService.getAllCategories();
-            return ApiResponse.success("获取分类列表成功", categories);
+            return ApiResponse.success(ApiMessages.get("api.t.6925bad9fe14"), categories);
         } catch (Exception e) {
-            return ApiResponse.error("获取分类列表失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.534df1aa5570") + e.getMessage());
         }
     }
 
@@ -40,9 +41,9 @@ public class NoteCategoryController {
     public ApiResponse<List<NoteCategory>> getCategoriesByType(@PathVariable String type) {
         try {
             List<NoteCategory> categories = noteCategoryService.getCategoriesByType(type);
-            return ApiResponse.success("获取分类列表成功", categories);
+            return ApiResponse.success(ApiMessages.get("api.t.6925bad9fe14"), categories);
         } catch (Exception e) {
-            return ApiResponse.error("获取分类列表失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.534df1aa5570") + e.getMessage());
         }
     }
 
@@ -53,9 +54,9 @@ public class NoteCategoryController {
     public ApiResponse<NoteCategory> createCategory(@RequestBody NoteCategory category) {
         try {
             NoteCategory created = noteCategoryService.createCategory(category);
-            return ApiResponse.success("创建分类成功", created);
+            return ApiResponse.success(ApiMessages.get("api.t.a39f922247b9"), created);
         } catch (Exception e) {
-            return ApiResponse.error("创建分类失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.9b15f08efe77") + e.getMessage());
         }
     }
 
@@ -66,9 +67,9 @@ public class NoteCategoryController {
     public ApiResponse<List<NoteCategory>> createCategories(@RequestBody List<NoteCategory> categories) {
         try {
             List<NoteCategory> created = noteCategoryService.createCategories(categories);
-            return ApiResponse.success("批量创建分类成功", created);
+            return ApiResponse.success(ApiMessages.get("api.t.a9313b20ffce"), created);
         } catch (Exception e) {
-            return ApiResponse.error("批量创建分类失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.7a06ba273872") + e.getMessage());
         }
     }
 
@@ -81,11 +82,11 @@ public class NoteCategoryController {
             @RequestBody NoteCategory category) {
         try {
             NoteCategory updated = noteCategoryService.updateCategory(id, category);
-            return ApiResponse.success("更新分类成功", updated);
+            return ApiResponse.success(ApiMessages.get("api.t.a07c81656f7f"), updated);
         } catch (RuntimeException e) {
             return ApiResponse.error(e.getMessage());
         } catch (Exception e) {
-            return ApiResponse.error("更新分类失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.441bb1711491") + e.getMessage());
         }
     }
 
@@ -96,11 +97,11 @@ public class NoteCategoryController {
     public ApiResponse<Void> deleteCategory(@PathVariable Long id) {
         try {
             noteCategoryService.deleteCategory(id);
-            return ApiResponse.success("删除分类成功", null);
+            return ApiResponse.success(ApiMessages.get("api.t.9abaa4511085"), null);
         } catch (RuntimeException e) {
             return ApiResponse.error(e.getMessage());
         } catch (Exception e) {
-            return ApiResponse.error("删除分类失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.0b1d675dbbf7") + e.getMessage());
         }
     }
 
@@ -111,11 +112,11 @@ public class NoteCategoryController {
     public ApiResponse<List<NoteCategory>> updateCategoriesOrder(@RequestBody List<NoteCategory> categories) {
         try {
             List<NoteCategory> updated = noteCategoryService.updateCategoriesOrder(categories);
-            return ApiResponse.success("更新排序成功", updated);
+            return ApiResponse.success(ApiMessages.get("api.t.a4c955a69e64"), updated);
         } catch (RuntimeException e) {
             return ApiResponse.error(e.getMessage());
         } catch (Exception e) {
-            return ApiResponse.error("更新排序失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.8863b677cc39") + e.getMessage());
         }
     }
 }

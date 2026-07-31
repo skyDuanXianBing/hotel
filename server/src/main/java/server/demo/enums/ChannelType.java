@@ -1,18 +1,20 @@
 package server.demo.enums;
 
+import server.demo.i18n.ApiMessages;
+
 public enum ChannelType {
-    DIRECT("直销"),
-    OTA("在线旅行社"),
-    TRAVEL_AGENCY("旅行社"),
-    CORPORATE("企业客户");
+    DIRECT("api.t.b4451b961899"),
+    OTA("api.t.f2e9e5295329"),
+    TRAVEL_AGENCY("api.t.5b943f50bca8"),
+    CORPORATE("api.t.8035a71757dd");
 
-    private final String description;
+    private final String descriptionKey;
 
-    ChannelType(String description) {
-        this.description = description;
+    ChannelType(String descriptionKey) {
+        this.descriptionKey = descriptionKey;
     }
 
     public String getDescription() {
-        return description;
+        return ApiMessages.get(descriptionKey);
     }
 }

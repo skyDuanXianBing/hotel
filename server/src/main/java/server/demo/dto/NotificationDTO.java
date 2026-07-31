@@ -9,13 +9,13 @@ public class NotificationDTO {
 
     private Long id;
 
-    @NotBlank(message = "通知类型不能为空")
+    @NotBlank(message = "{api.t.531d8f6a5266}")
     private String notificationType;
 
-    @NotBlank(message = "通知标题不能为空")
+    @NotBlank(message = "{api.t.ee41a31c9061}")
     private String title;
 
-    @NotBlank(message = "通知内容不能为空")
+    @NotBlank(message = "{api.t.53f37fa58742}")
     private String content;
 
     private Long relatedId;

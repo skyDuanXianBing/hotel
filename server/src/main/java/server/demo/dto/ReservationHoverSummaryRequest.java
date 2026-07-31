@@ -10,10 +10,10 @@ import java.util.List;
 
 public class ReservationHoverSummaryRequest {
 
-    @NotEmpty(message = "reservationIds 不能为空")
-    @Size(max = 200, message = "reservationIds 最多包含 200 项")
+    @NotEmpty(message = "{api.t.8ccfedc31412}")
+    @Size(max = 200, message = "{api.t.944ea1c7d652}")
     @Valid
-    private List<@NotNull(message = "reservationId 不能为空") @Positive(message = "reservationId 必须为正数") Long> reservationIds;
+    private List<@NotNull(message = "{api.t.55fe1d5495bc}") @Positive(message = "{api.t.b37170977a99}") Long> reservationIds;
 
     public List<Long> getReservationIds() {
         return reservationIds;

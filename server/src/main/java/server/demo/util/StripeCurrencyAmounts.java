@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.util.Locale;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 /**
  * Stripe 最小货币单位换算：JPY/KRW 等零小数货币 ×1，其余 ×100。
  * 零小数清单取自 Stripe 文档的 zero-decimal currencies。
@@ -25,7 +26,7 @@ public final class StripeCurrencyAmounts {
      */
     public static long toMinorUnits(BigDecimal amount, String currencyCode) {
         if (amount == null) {
-            throw new IllegalArgumentException("金额不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.3298f7783509"));
         }
         String currency = currencyCode == null ? "" : currencyCode.trim().toUpperCase(Locale.ROOT);
         BigDecimal minor = ZERO_DECIMAL_CURRENCIES.contains(currency)

@@ -1,5 +1,7 @@
 package server.demo.controller.advice;
 
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -9,9 +11,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import server.demo.controller.billing.BillingController;
 import server.demo.dto.ApiResponse;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 计费接口参数/业务校验异常（限定 BillingController，避免影响其他全局处理）。
  */
+@Order(Ordered.HIGHEST_PRECEDENCE + 40)
 @RestControllerAdvice(assignableTypes = BillingController.class)
 public class BillingExceptionHandler {
 
@@ -36,7 +40,7 @@ public class BillingExceptionHandler {
         String message = e.getBindingResult().getFieldErrors().stream()
                 .findFirst()
                 .map(error -> error.getField() + " " + error.getDefaultMessage())
-                .orElse("请求参数不合法");
+                .orElse(ApiMessages.get("api.t.db9dec64df60"));
         return ResponseEntity.badRequest().body(ApiResponse.error(message));
     }
 }

@@ -20,16 +20,16 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @NotBlank(message = "用户名不能为空")
-    @Size(min = 3, max = 50, message = "用户名长度必须在3-50之间")
+    @NotBlank(message = "{api.t.ecb38cb09941}")
+    @Size(min = 3, max = 50, message = "{api.t.5b973f53ba5f}")
     @Column(unique = true, nullable = false)
     private String username;
 
     @Column(name = "name")
     private String name;
 
-    @NotBlank(message = "邮箱不能为空")
-    @Email(message = "邮箱格式不正确")
+    @NotBlank(message = "{api.t.cfe012352180}")
+    @Email(message = "{api.t.4f0599f86e3f}")
     @Column(unique = true, nullable = false)
     private String email;
 
@@ -37,7 +37,7 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    @Size(max = 100, message = "昵称长度不能超过100")
+    @Size(max = 100, message = "{api.t.1ca0518703d9}")
     @Column
     private String nickname;
 

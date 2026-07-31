@@ -3,7 +3,7 @@ package server.demo.dto;
 import jakarta.validation.constraints.NotBlank;
 
 public class UpsertPaymentMethodRequest {
-    @NotBlank(message = "收款方式名称不能为空")
+    @NotBlank(message = "{api.t.4ec45d56edac}")
     private String name;
 
     private Boolean enabled = true;

@@ -16,6 +16,7 @@ import server.demo.entity.SmartLockPasscodeRecord;
 import server.demo.entity.SmartLockRoomBinding;
 import server.demo.entity.SmartLockTask;
 
+import server.demo.i18n.ApiMessages;
 @Component
 public class SmartLockMapper {
     private final SmartLockDeviceRoleResolver roleResolver;
@@ -156,7 +157,7 @@ public class SmartLockMapper {
         } else {
             dto.setControlProviderLockId(binding.getControlProviderLockId());
             dto.setControlAvailable(false);
-            dto.setControlUnavailableReason("该房间未绑定控制设备");
+            dto.setControlUnavailableReason(ApiMessages.get("api.t.937a7bb8803e"));
         }
         if (passcodeDevice != null) {
             dto.setPasscodeDeviceId(passcodeDevice.getId());
@@ -166,7 +167,7 @@ public class SmartLockMapper {
         } else {
             dto.setPasscodeProviderLockId(binding.getPasscodeProviderLockId());
             dto.setPasscodeAvailable(false);
-            dto.setPasscodeUnavailableReason("该房间未绑定密码设备");
+            dto.setPasscodeUnavailableReason(ApiMessages.get("api.t.f476ec056e84"));
         }
         dto.setProvider(binding.getProvider());
         dto.setProviderLockId(firstText(

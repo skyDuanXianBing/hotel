@@ -18,6 +18,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 平台管理端：套餐模板 / 功能字典 / 套餐权益模板维护。
  * 说明：存量订阅按成交时冻结的权益快照运行，修改模板不影响已售订阅。
@@ -64,7 +65,7 @@ public class AdminPackageService {
     @Transactional
     public SaasPackage updatePackage(Long id, PackageUpsertRequest request) {
         SaasPackage pkg = packageRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("套餐不存在: " + id));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.a9f29406da52") + id));
         rejectSystemFlagGrant(request);
         applyUpsert(pkg, request);
         return packageRepository.save(pkg);
@@ -76,13 +77,13 @@ public class AdminPackageService {
      */
     private void rejectSystemFlagGrant(PackageUpsertRequest request) {
         if (Boolean.TRUE.equals(request.isSystem())) {
-            throw new IllegalArgumentException("系统兜底套餐标记不可通过接口设置");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.3234c10a12b0"));
         }
     }
 
     private void applyUpsert(SaasPackage pkg, PackageUpsertRequest request) {
         if (request.version() == null || request.version() < 1) {
-            throw new IllegalArgumentException("版本号必须为正整数");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.02259e1a1993"));
         }
         pkg.setName(request.name().trim());
         pkg.setVersion(request.version());
@@ -98,9 +99,9 @@ public class AdminPackageService {
     @Transactional
     public SaasPackage updatePackageStatus(Long id, SaasPackageStatus status) {
         SaasPackage pkg = packageRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("套餐不存在: " + id));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.a9f29406da52") + id));
         if (Boolean.TRUE.equals(pkg.getIsSystem()) && status == SaasPackageStatus.ON_SHELF) {
-            throw new IllegalArgumentException("系统兜底套餐不可上架");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.e3aae052243c"));
         }
         pkg.setStatus(status);
         return packageRepository.save(pkg);
@@ -124,13 +125,13 @@ public class AdminPackageService {
     @Transactional
     public SaasFeature updateFeature(Long id, FeatureUpdateRequest request) {
         SaasFeature feature = featureRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("功能不存在: " + id));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.d185eb962894") + id));
         if (request.type() != feature.getType()
                 && packageFeatureRepository.existsByFeatureCode(feature.getFeatureCode())) {
             throw new IllegalArgumentException(
-                    "功能 " + feature.getFeatureCode() + " 已被套餐权益引用，禁止修改类型（" + feature.getType()
-                            + " → " + request.type() + "）；存量订阅按成交时快照类型运行，改类型会导致存量用户被误判。"
-                            + "请先从所有套餐中移除该权益，或新建一个功能项");
+                    ApiMessages.get("api.t.e6a14cff3bb2") + feature.getFeatureCode() + ApiMessages.get("api.t.fd3462f662ba") + feature.getType()
+                            + " → " + request.type() + ApiMessages.get("api.t.a720c3f9bede")
+                            + ApiMessages.get("api.t.5c293b86b093"));
         }
         feature.setName(request.name().trim());
         feature.setType(request.type());
@@ -164,15 +165,15 @@ public class AdminPackageService {
         Set<String> seen = new HashSet<>();
         for (PackageFeatureItem item : items) {
             if (!seen.add(item.featureCode())) {
-                throw new IllegalArgumentException("权益列表存在重复 featureCode: " + item.featureCode());
+                throw new IllegalArgumentException(ApiMessages.get("api.t.41b79f44d745") + item.featureCode());
             }
             SaasFeature feature = featureRepository.findByFeatureCode(item.featureCode())
-                    .orElseThrow(() -> new IllegalArgumentException("功能字典缺失: " + item.featureCode()));
+                    .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.4a8671ebbd4b") + item.featureCode()));
             if (feature.getType() == SaasFeatureType.BOOLEAN && item.quotaLimit() != null) {
-                throw new IllegalArgumentException("BOOLEAN 权益不可设置额度: " + item.featureCode());
+                throw new IllegalArgumentException(ApiMessages.get("api.t.109167916d7d") + item.featureCode());
             }
             if (item.quotaLimit() != null && item.quotaLimit() < 0) {
-                throw new IllegalArgumentException("额度不能为负: " + item.featureCode());
+                throw new IllegalArgumentException(ApiMessages.get("api.t.cb335b5fb6ec") + item.featureCode());
             }
         }
 
@@ -190,6 +191,6 @@ public class AdminPackageService {
 
     private SaasPackage requirePackage(Long packageId) {
         return packageRepository.findById(packageId)
-                .orElseThrow(() -> new IllegalArgumentException("套餐不存在: " + packageId));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.a9f29406da52") + packageId));
     }
 }

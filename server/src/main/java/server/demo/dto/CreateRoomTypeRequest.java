@@ -10,21 +10,21 @@ import java.util.List;
 import java.util.Map;
 
 public class CreateRoomTypeRequest {
-    @NotBlank(message = "房型名称不能为空")
+    @NotBlank(message = "{api.t.b81e3dd1b013}")
     private String name;
 
-    @NotBlank(message = "房型代码不能为空")
+    @NotBlank(message = "{api.t.a5d68ad681d9}")
     private String code;
 
-    @NotNull(message = "房间总数不能为空")
-    @Min(value = 1, message = "房间总数必须大于0")
+    @NotNull(message = "{api.t.c2c401d97003}")
+    @Min(value = 1, message = "{api.t.d5822641bf3f}")
     private Integer totalRooms;
 
-    @NotNull(message = "最大入住人数不能为空")
-    @Min(value = 1, message = "最大入住人数必须大于0")
+    @NotNull(message = "{api.t.aa29dec0ec6d}")
+    @Min(value = 1, message = "{api.t.010360759242}")
     private Integer maxGuests;
 
-    @Min(value = 0, message = "儿童入住人数不能小于0")
+    @Min(value = 0, message = "{api.t.331df5d8df78}")
     private Integer maxChildOccupancy;
 
     private String description;
@@ -46,7 +46,7 @@ public class CreateRoomTypeRequest {
     private BigDecimal saturdayPrice;
     private BigDecimal sundayPrice;
 
-    @Size(min = 1, message = "至少需要一个房间号")
+    @Size(min = 1, message = "{api.t.69de290b8fec}")
     private List<String> roomNumbers;
     private List<RoomInput> rooms;
     private List<FacilityDTO> facilities;
@@ -55,7 +55,7 @@ public class CreateRoomTypeRequest {
     private Map<String, LocalizedContentDTO> localizedContent;
 
     public static class RoomInput {
-        @NotBlank(message = "Room number cannot be blank")
+        @NotBlank(message = "{api.t.d1eaae8bb920}")
         private String roomNumber;
         private String smartlockPasscode;
 

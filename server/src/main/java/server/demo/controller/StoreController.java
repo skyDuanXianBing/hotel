@@ -16,6 +16,7 @@ import server.demo.service.SuPropertyService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 /**
  * Store management controller
  */
@@ -76,14 +77,14 @@ public class StoreController {
             StoreDTO store = storeService.createStore(userId, request);
 
             boolean shouldCreateSuProperty = request.getCreateSuProperty() == null || Boolean.TRUE.equals(request.getCreateSuProperty());
-            String message = "门店创建成功";
+            String message = "{api.t.d6146829a059}";
             if (shouldCreateSuProperty) {
                 SuPropertyService.UpsertResult result = suPropertyService.upsertStoreProperty(store.getId());
                 if (result.success()) {
                     message = message + "；" + result.message() + "（hotelid=" + result.hotelId() + "）";
                 } else {
-                    message = message + "；渠道物业创建失败（hotelid=" + result.hotelId() + "）："
-                            + (result.message() != null ? result.message() : "未知错误");
+                    message = message + ApiMessages.get("api.t.ae567dd07939") + result.hotelId() + "）："
+                            + (result.message() != null ? result.message() : ApiMessages.get("api.t.5f76edc5de7b"));
                 }
             }
 
@@ -152,7 +153,7 @@ public class StoreController {
             Long userId = (Long) httpRequest.getAttribute("userId");
             StoreUserDTO member = storeService.addStoreMember(id, userId, request);
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new ApiResponse<>(true, "添加成员成功", member));
+                    .body(new ApiResponse<>(true, ApiMessages.get("api.t.7fb52ce2bd30"), member));
         } catch (PermissionDeniedException e) {
             throw e;
         } catch (RuntimeException e) {
@@ -174,7 +175,7 @@ public class StoreController {
         try {
             Long operatorUserId = (Long) httpRequest.getAttribute("userId");
             storeService.removeStoreMember(id, operatorUserId, memberId);
-            return ResponseEntity.ok(new ApiResponse<>(true, "移除成员成功", null));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.d7ded63a3d7c"), null));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -189,7 +190,7 @@ public class StoreController {
     public ResponseEntity<ApiResponse<List<StoreUserDTO>>> getStoreMembers(@PathVariable Long id) {
         try {
             List<StoreUserDTO> members = storeService.getStoreMembersDTO(id);
-            return ResponseEntity.ok(new ApiResponse<>(true, "获取门店成员列表成功", members));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.933f106ea628"), members));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -204,7 +205,7 @@ public class StoreController {
         try {
             Long userId = (Long) httpRequest.getAttribute("userId");
             List<PermissionDTO> permissions = storeService.getCurrentUserEffectivePermissions(id, userId);
-            return ResponseEntity.ok(new ApiResponse<>(true, "获取当前成员权限成功", permissions));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.9699ee20e843"), permissions));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -222,7 +223,7 @@ public class StoreController {
     ) {
         try {
             StoreUserDTO member = storeService.getStoreMemberDetail(id, userId);
-            return ResponseEntity.ok(new ApiResponse<>(true, "获取成员详情成功", member));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.df25c564a2d5"), member));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -243,7 +244,7 @@ public class StoreController {
         try {
             Long operatorUserId = (Long) httpRequest.getAttribute("userId");
             StoreUserDTO member = storeService.updateStoreMemberPermission(id, operatorUserId, userId, request);
-            return ResponseEntity.ok(new ApiResponse<>(true, "更新成员权限成功", member));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.146af18f37e8"), member));
         } catch (PermissionDeniedException e) {
             throw e;
         } catch (RuntimeException e) {
@@ -265,7 +266,7 @@ public class StoreController {
         try {
             Long operatorUserId = (Long) httpRequest.getAttribute("userId");
             storeService.transferStoreOwner(id, operatorUserId, request.getTargetUserId());
-            return ResponseEntity.ok(new ApiResponse<>(true, "更换负责人成功", null));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.72ff32073f10"), null));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));

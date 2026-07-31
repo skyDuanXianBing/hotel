@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 批量改价请求DTO
  */
@@ -18,14 +19,14 @@ public class BulkPriceChangeRequest {
     /**
      * 房型ID列表（必填）
      */
-    @NotEmpty(message = "房型ID列表不能为空")
+    @NotEmpty(message = "{api.t.4942906b0e3a}")
     private List<Long> roomTypeIds;
 
     /**
      * 日期范围列表（最多10个）
      */
-    @NotEmpty(message = "日期范围列表不能为空")
-    @Size(max = 10, message = "最多只能添加10个日期范围")
+    @NotEmpty(message = "{api.t.569f7a0b37d1}")
+    @Size(max = 10, message = "{api.t.f5f6adce14a7}")
     private List<DateRangeDTO> dateRanges;
 
     /**
@@ -37,14 +38,14 @@ public class BulkPriceChangeRequest {
     /**
      * 是否区分平日和周末价格
      */
-    @NotNull(message = "是否区分平日周末不能为空")
+    @NotNull(message = "{api.t.5518bae91051}")
     private Boolean weekendDifferentiation;
 
     /**
      * 平日价格（weekendDifferentiation=false时为统一价格）
      */
-    @NotNull(message = "价格不能为空")
-    @DecimalMin(value = "0.0", inclusive = false, message = "价格必须大于0")
+    @NotNull(message = "{api.t.65b3b94588a8}")
+    @DecimalMin(value = "0.0", inclusive = false, message = "{api.t.d866edf26493}")
     private BigDecimal weekdayPrice;
 
     /**
@@ -61,10 +62,10 @@ public class BulkPriceChangeRequest {
      * 日期范围DTO
      */
     public static class DateRangeDTO {
-        @NotNull(message = "开始日期不能为空")
+        @NotNull(message = "{api.t.897f09b95242}")
         private LocalDate startDate;
 
-        @NotNull(message = "结束日期不能为空")
+        @NotNull(message = "{api.t.6ff06603a351}")
         private LocalDate endDate;
 
         public DateRangeDTO() {}
@@ -156,19 +157,19 @@ public class BulkPriceChangeRequest {
      */
     public void validate() {
         if (weekendDifferentiation && weekendPrice == null) {
-            throw new IllegalArgumentException("区分平日周末时，周末价格不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.65b4094c7678"));
         }
 
         for (DateRangeDTO range : dateRanges) {
             if (range.getStartDate().isAfter(range.getEndDate())) {
-                throw new IllegalArgumentException("开始日期不能晚于结束日期");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.43318cbb9f3c"));
             }
         }
 
         if (weekdays != null && !weekdays.isEmpty()) {
             for (Integer weekday : weekdays) {
                 if (weekday < 0 || weekday > 6) {
-                    throw new IllegalArgumentException("星期几的值必须在0-6之间");
+                    throw new IllegalArgumentException(ApiMessages.get("api.t.99af22f65434"));
                 }
             }
         }

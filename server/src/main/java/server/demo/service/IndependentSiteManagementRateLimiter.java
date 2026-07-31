@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 独立站管理端限流器。按 (action, storeId) 维度的内存固定窗口计数，
  * 与 IndependentSitePublicRateLimiter 同一模式，仅作用于管理端高成本操作。
@@ -63,7 +64,7 @@ public class IndependentSiteManagementRateLimiter {
                 || aiEditWindow == null || aiEditWindow.isZero() || aiEditWindow.isNegative()
                 || urlImportLimit < 1
                 || urlImportWindow == null || urlImportWindow.isZero() || urlImportWindow.isNegative()) {
-            throw new IllegalArgumentException("管理端限流配置无效");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.7111e2220203"));
         }
         this.clock = clock;
         this.aiEditLimit = aiEditLimit;
@@ -79,7 +80,7 @@ public class IndependentSiteManagementRateLimiter {
                 aiEditLimit,
                 aiEditWindowMillis,
                 "AI_EDIT_RATE_LIMITED",
-                "AI 修改请求过于频繁，请稍后再试"
+                ApiMessages.get("api.t.f2041011ea67")
         );
     }
 
@@ -90,7 +91,7 @@ public class IndependentSiteManagementRateLimiter {
                 urlImportLimit,
                 urlImportWindowMillis,
                 "URL_IMPORT_RATE_LIMITED",
-                "URL 导入请求过于频繁，请稍后再试"
+                ApiMessages.get("api.t.7f0537d0b1f4")
         );
     }
 

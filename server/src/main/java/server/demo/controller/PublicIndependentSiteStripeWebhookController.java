@@ -11,6 +11,7 @@ import server.demo.service.IndependentSiteStripeWebhookService;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
+import server.demo.i18n.ApiMessages;
 /**
  * Stripe webhook 公开端点。验签（Stripe-Signature 头 + webhook secret）是唯一鉴权，
  * 绝不可加 @StoreScoped / @RequirePermission；必须读取原始请求体字节验签。
@@ -30,6 +31,6 @@ public class PublicIndependentSiteStripeWebhookController {
         byte[] payload = request.getInputStream().readAllBytes();
         String signature = request.getHeader("Stripe-Signature");
         webhookService.handle(new String(payload, StandardCharsets.UTF_8), signature);
-        return ResponseEntity.ok(ApiResponse.success("webhook 已处理", null));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.390a5e613fb6"), null));
     }
 }

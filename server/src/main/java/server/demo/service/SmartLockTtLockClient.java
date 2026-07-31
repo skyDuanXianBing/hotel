@@ -27,6 +27,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class SmartLockTtLockClient implements SmartLockProviderClient {
     private static final String TOKEN_PATH = "/oauth2/token";
@@ -178,13 +179,13 @@ public class SmartLockTtLockClient implements SmartLockProviderClient {
     @Override
     public ProviderTaskResult unlock(SmartLockCredentialData credentials, String providerLockId) {
         JsonNode root = postForm(credentials, UNLOCK_PATH, paramsMap(credentials, providerLockId));
-        return new ProviderTaskResult(SmartLockTaskStatus.SUCCESS, text(root, "taskId"), null, "TTLock 开锁命令已提交");
+        return new ProviderTaskResult(SmartLockTaskStatus.SUCCESS, text(root, "taskId"), null, ApiMessages.get("api.t.49d149c00877"));
     }
 
     @Override
     public ProviderTaskResult lock(SmartLockCredentialData credentials, String providerLockId) {
         JsonNode root = postForm(credentials, LOCK_PATH, paramsMap(credentials, providerLockId));
-        return new ProviderTaskResult(SmartLockTaskStatus.SUCCESS, text(root, "taskId"), null, "TTLock 上锁命令已提交");
+        return new ProviderTaskResult(SmartLockTaskStatus.SUCCESS, text(root, "taskId"), null, ApiMessages.get("api.t.308a6a404c21"));
     }
 
     @Override
@@ -194,14 +195,14 @@ public class SmartLockTtLockClient implements SmartLockProviderClient {
             PasscodeCommand command
     ) {
         if (!hasText(command.passcode())) {
-            throw new IllegalArgumentException("TTLock 自定义密码不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.b659234dfce1"));
         }
         MultiValueMap<String, String> form = paramsMap(credentials, providerLockId);
         form.add("keyboardPwd", command.passcode());
         form.add("keyboardPwdName", command.passcodeName());
         form.add("addType", "2");
         if (command.validFrom() == null || command.validUntil() == null) {
-            throw new IllegalArgumentException("TTLock 密码必须提供 startDate 和 endDate");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.502cc62fc2b4"));
         }
         form.add("startDate", String.valueOf(toEpochMillis(command.validFrom())));
         form.add("endDate", String.valueOf(toEpochMillis(command.validUntil())));
@@ -210,7 +211,7 @@ public class SmartLockTtLockClient implements SmartLockProviderClient {
                 SmartLockTaskStatus.SUCCESS,
                 text(root, "taskId"),
                 firstText(root, "keyboardPwdId", "pwdId"),
-                "TTLock 密码创建命令已提交"
+                ApiMessages.get("api.t.a53193946526")
         );
     }
 
@@ -229,7 +230,7 @@ public class SmartLockTtLockClient implements SmartLockProviderClient {
             String keyboardPwdVersion
     ) {
         if (command.validFrom() == null || command.validUntil() == null) {
-            throw new IllegalArgumentException("TTLock 密码必须提供 startDate 和 endDate");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.502cc62fc2b4"));
         }
         MultiValueMap<String, String> form = paramsMap(credentials, providerLockId);
         form.add("keyboardPwdType", TTLOCK_PERIOD_PASSCODE_TYPE);
@@ -239,12 +240,12 @@ public class SmartLockTtLockClient implements SmartLockProviderClient {
         JsonNode root = postForm(credentials, PASSCODE_GET_PATH, form);
         String passcode = firstText(root, "keyboardPwd", "pwd");
         if (!hasText(passcode)) {
-            throw new RuntimeException("TTLock 自动密码创建成功但未返回 keyboardPwd");
+            throw new RuntimeException(ApiMessages.get("api.t.340ed98dbe20"));
         }
         String providerPasscodeId = firstText(root, "keyboardPwdId", "pwdId");
         String message = hasText(providerPasscodeId)
-                ? "TTLock 自动密码已创建"
-                : "TTLock 自动密码已返回但缺少 keyboardPwdId，请刷新密码列表同步";
+                ? ApiMessages.get("api.t.9ea8f727159f")
+                : ApiMessages.get("api.t.bb47ba016438");
         ProviderTaskResult taskResult = new ProviderTaskResult(
                 SmartLockTaskStatus.SUCCESS,
                 text(root, "taskId"),
@@ -268,7 +269,7 @@ public class SmartLockTtLockClient implements SmartLockProviderClient {
                 SmartLockTaskStatus.SUCCESS,
                 text(root, "taskId"),
                 providerPasscodeId,
-                "TTLock 密码删除命令已提交"
+                ApiMessages.get("api.t.d44030f1e7be")
         );
     }
 
@@ -327,7 +328,7 @@ public class SmartLockTtLockClient implements SmartLockProviderClient {
                 SmartLockTaskStatus.FAILED,
                 providerTaskId,
                 null,
-                "TTLock 未配置可靠远程任务查询 API，请刷新密码列表同步最终状态"
+                ApiMessages.get("api.t.835e42f1ae70")
         );
     }
 
@@ -381,7 +382,7 @@ public class SmartLockTtLockClient implements SmartLockProviderClient {
         try {
             return objectMapper.readTree(body);
         } catch (Exception ex) {
-            throw new RuntimeException("TTLock 返回格式无法解析", ex);
+            throw new RuntimeException(ApiMessages.get("api.t.76dab1ed2a9a"), ex);
         }
     }
 
@@ -390,7 +391,7 @@ public class SmartLockTtLockClient implements SmartLockProviderClient {
         if (errCode.isMissingNode() || errCode.asInt() == 0) {
             return;
         }
-        throw new RuntimeException("TTLock 请求失败: errcode=" + errCode.asText()
+        throw new RuntimeException(ApiMessages.get("api.t.1ec579dcc0f2") + errCode.asText()
                 + " errmsg=" + fallback(firstText(root, "errmsg", "description"), errCode.asText()));
     }
 
@@ -398,7 +399,7 @@ public class SmartLockTtLockClient implements SmartLockProviderClient {
         String errcode = firstText(root, "errcode", "error", "errorCode", "code");
         String errmsg = fallback(
                 firstText(root, "errmsg", "description", "error_description", "message"),
-                "无 access_token"
+                ApiMessages.get("api.t.a2469c99cba3")
         );
         String operation = refreshGrant ? "refresh_token" : "password_grant";
         return new TtLockTokenException(operation, TOKEN_PATH, errcode, errmsg);
@@ -548,9 +549,9 @@ public class SmartLockTtLockClient implements SmartLockProviderClient {
 
         private static String buildMessage(String errcode, String errmsg) {
             if (hasText(errcode)) {
-                return "TTLock token 获取失败: errcode=" + errcode + " errmsg=" + fallback(errmsg, "未知错误");
+                return ApiMessages.get("api.t.85ac92bafee6") + errcode + " errmsg=" + fallback(errmsg, ApiMessages.get("api.t.5f76edc5de7b"));
             }
-            return "TTLock token 获取失败: " + fallback(errmsg, "未知错误");
+            return ApiMessages.get("api.t.02b41c063b76") + fallback(errmsg, ApiMessages.get("api.t.5f76edc5de7b"));
         }
 
         public String getOperation() {

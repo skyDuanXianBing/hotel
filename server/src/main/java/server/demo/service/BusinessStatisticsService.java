@@ -19,6 +19,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class BusinessStatisticsService {
 
@@ -50,7 +51,7 @@ public class BusinessStatisticsService {
     private Long getCurrentStoreId() {
         StoreContext context = StoreContextHolder.getContext();
         if (context == null || context.getStoreId() == null) {
-            throw new RuntimeException("无法获取当前门店信息");
+            throw new RuntimeException(ApiMessages.get("api.t.642b7e97c7d4"));
         }
         return context.getStoreId();
     }
@@ -298,8 +299,8 @@ public class BusinessStatisticsService {
 
         // 计算消费分类分布(饼图数据)
         List<BusinessOverviewDTO.CategoryDistribution> categoryDistribution = new ArrayList<>();
-        addOverviewDistribution(categoryDistribution, "房费", roomFee, accommodationRevenue);
-        addOverviewDistribution(categoryDistribution, "餐食/客房消费", roomServiceFee, accommodationRevenue);
+        addOverviewDistribution(categoryDistribution, ApiMessages.get("api.t.7463d2f41d86"), roomFee, accommodationRevenue);
+        addOverviewDistribution(categoryDistribution, ApiMessages.get("api.t.1c2e582992eb"), roomServiceFee, accommodationRevenue);
         overview.setCategoryDistribution(categoryDistribution);
 
         // 计算每日消费趋势(柱状图数据)
@@ -350,35 +351,35 @@ public class BusinessStatisticsService {
         // 计算住宿消费明细表格数据
         List<BusinessOverviewDTO.ConsumptionDetail> consumptionDetails = new ArrayList<>();
         consumptionDetails.add(buildOverviewDetail(
-                "房费",
+                ApiMessages.get("api.t.7463d2f41d86"),
                 roomFee,
                 roomFeeByDate,
                 startDate,
                 endDate
         ));
         consumptionDetails.add(buildOverviewDetail(
-                "押金收款",
+                ApiMessages.get("api.t.07c29bcb7c86"),
                 deposit,
                 depositByDate,
                 startDate,
                 endDate
         ));
         consumptionDetails.add(buildOverviewDetail(
-                "餐食/客房消费",
+                ApiMessages.get("api.t.1c2e582992eb"),
                 roomServiceFee,
                 roomServiceFeeByDate,
                 startDate,
                 endDate
         ));
         consumptionDetails.add(buildOverviewDetail(
-                "记一笔收入",
+                ApiMessages.get("api.t.1ecca135d105"),
                 notesIncome,
                 notesIncomeByDate,
                 startDate,
                 endDate
         ));
         consumptionDetails.add(buildOverviewDetail(
-                "记一笔支出",
+                ApiMessages.get("api.t.1967c77045d8"),
                 notesExpense,
                 notesExpenseByDate,
                 startDate,
@@ -436,13 +437,13 @@ public class BusinessStatisticsService {
         summary.setPaymentMethodStats(paymentStats);
 
         List<RevenueSummaryDTO.Distribution> incomeDistribution = new ArrayList<>();
-        addDistribution(incomeDistribution, "房费收入（税后）", roomFee, totalIncome);
-        addDistribution(incomeDistribution, "客房消费", roomServiceFee, totalIncome);
+        addDistribution(incomeDistribution, ApiMessages.get("api.t.ecd65aabf99e"), roomFee, totalIncome);
+        addDistribution(incomeDistribution, ApiMessages.get("api.t.4e98a770002d"), roomServiceFee, totalIncome);
         summary.setIncomeDistribution(incomeDistribution);
 
         List<RevenueSummaryDTO.Distribution> expenseDistribution = new ArrayList<>();
-        addDistribution(expenseDistribution, "退款", paymentRefund, totalExpense);
-        addDistribution(expenseDistribution, "记一笔支出", notesExpense, totalExpense);
+        addDistribution(expenseDistribution, ApiMessages.get("api.t.b82ef83b7f00"), paymentRefund, totalExpense);
+        addDistribution(expenseDistribution, ApiMessages.get("api.t.1967c77045d8"), notesExpense, totalExpense);
         summary.setExpenseDistribution(expenseDistribution);
 
         List<RevenueSummaryDTO.CategoryStat> categoryStats = new ArrayList<>();
@@ -450,13 +451,13 @@ public class BusinessStatisticsService {
                 .add(totalExpense)
                 .add(deposit)
                 .add(notesIncome);
-        addCategoryStat(categoryStats, "房费收入（税后）", roomFee, categoryDenominator,
+        addCategoryStat(categoryStats, ApiMessages.get("api.t.ecd65aabf99e"), roomFee, categoryDenominator,
                 allocationResult.totalRoomNights());
-        addCategoryStat(categoryStats, "押金收款", deposit, categoryDenominator, 0);
-        addCategoryStat(categoryStats, "客房消费", roomServiceFee, categoryDenominator, 0);
-        addCategoryStat(categoryStats, "记一笔收入", notesIncome, categoryDenominator, 0);
-        addCategoryStat(categoryStats, "退款/退押金", paymentRefund, categoryDenominator, 0);
-        addCategoryStat(categoryStats, "记一笔支出", notesExpense, categoryDenominator, 0);
+        addCategoryStat(categoryStats, ApiMessages.get("api.t.07c29bcb7c86"), deposit, categoryDenominator, 0);
+        addCategoryStat(categoryStats, ApiMessages.get("api.t.4e98a770002d"), roomServiceFee, categoryDenominator, 0);
+        addCategoryStat(categoryStats, ApiMessages.get("api.t.1ecca135d105"), notesIncome, categoryDenominator, 0);
+        addCategoryStat(categoryStats, ApiMessages.get("api.t.725202313f83"), paymentRefund, categoryDenominator, 0);
+        addCategoryStat(categoryStats, ApiMessages.get("api.t.1967c77045d8"), notesExpense, categoryDenominator, 0);
         summary.setCategoryStats(categoryStats);
 
         // 每日流水明细
@@ -785,7 +786,7 @@ public class BusinessStatisticsService {
                     detail.setOrderNumber(r.getOrderNumber() != null ? r.getOrderNumber() : "");
                     detail.setChannelNumber(r.getChannelOrderNumber() != null ? r.getChannelOrderNumber() : "");
                     detail.setCreatedAt(r.getCreatedAt());
-                    detail.setGuestName(r.getGuestName() != null ? r.getGuestName() : "系统");
+                    detail.setGuestName(r.getGuestName() != null ? r.getGuestName() : ApiMessages.get("api.t.1a1f6dff7826"));
                     detail.setChannelName(r.getChannel() != null ? r.getChannel().getName() : "");
                     detail.setCustomerName(r.getGuestName() != null ? r.getGuestName() : "");
                     detail.setPhone(r.getGuestPhone() != null ? r.getGuestPhone() : "");
@@ -996,7 +997,7 @@ public class BusinessStatisticsService {
             }
 
             // 添加房型小计
-            details.add(new RoomDetailDTO(roomType, "小计", roomTypeTotal, roomTypeLastDay));
+            details.add(new RoomDetailDTO(roomType, ApiMessages.get("api.t.f0f1ebb64309"), roomTypeTotal, roomTypeLastDay));
         }
 
         return details;
@@ -1015,9 +1016,9 @@ public class BusinessStatisticsService {
 
         for (Reservation r : reservations) {
             String roomType = r.getRoom() != null && r.getRoom().getRoomType() != null
-                    ? r.getRoom().getRoomType().getName() : "未知房型";
+                    ? r.getRoom().getRoomType().getName() : ApiMessages.get("api.t.bf9c87e5ff5b");
             String roomNumber = r.getRoom() != null && r.getRoom().getRoomNumber() != null
-                    ? r.getRoom().getRoomNumber() : "未排房";
+                    ? r.getRoom().getRoomNumber() : ApiMessages.get("api.t.4403b513b35e");
 
             roomTypeMap.computeIfAbsent(roomType, k -> new HashMap<>())
                     .computeIfAbsent(roomNumber, k -> new ArrayList<>())
@@ -1058,7 +1059,7 @@ public class BusinessStatisticsService {
             // 添加房型小计
             details.add(new RoomDetailDTO(
                     roomType,
-                    "小计",
+                    ApiMessages.get("api.t.f0f1ebb64309"),
                     new BigDecimal(roomTypeTotal),
                     new BigDecimal(roomTypeLastDay)
             ));
@@ -1333,8 +1334,8 @@ public class BusinessStatisticsService {
                 || channelName.contains("agoda")
                 || channelName.contains("expedia")
                 || channelName.contains("ctrip")
-                || channelName.contains("携程")
-                || channelName.contains("美团");
+                || channelName.contains(ApiMessages.get("api.t.410060171540"))
+                || channelName.contains(ApiMessages.get("api.t.95610c0e9dab"));
     }
 
     private Map<String, Integer> getRoomCountByType(Long storeId) {
@@ -1430,7 +1431,7 @@ public class BusinessStatisticsService {
         if (reservation != null && reservation.getChannel() != null && reservation.getChannel().getName() != null) {
             return reservation.getChannel().getName();
         }
-        return "未知渠道";
+        return ApiMessages.get("api.t.d0f332397a79");
     }
 
     private String getRoomTypeName(Reservation reservation) {
@@ -1440,14 +1441,14 @@ public class BusinessStatisticsService {
                 && reservation.getRoom().getRoomType().getName() != null) {
             return reservation.getRoom().getRoomType().getName();
         }
-        return "未知房型";
+        return ApiMessages.get("api.t.bf9c87e5ff5b");
     }
 
     private String getRoomNumber(Reservation reservation) {
         if (reservation != null && reservation.getRoom() != null && reservation.getRoom().getRoomNumber() != null) {
             return reservation.getRoom().getRoomNumber();
         }
-        return "未排房";
+        return ApiMessages.get("api.t.4403b513b35e");
     }
 
     private static class RevenueAggregation {

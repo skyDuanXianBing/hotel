@@ -16,6 +16,7 @@ import server.demo.util.StoreContextUtils;
 import java.time.LocalDateTime;
 import java.util.*;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class InternalTaskService {
     private final InternalTaskRepository taskRepository;
@@ -36,7 +37,7 @@ public class InternalTaskService {
     public InternalTaskPageDTO getMine(InternalTaskStatus status, int page, int size) {
         StoreContext context = requireActiveContext();
         if (status != InternalTaskStatus.ASSIGNED && status != InternalTaskStatus.COMPLETED) {
-            throw new IllegalArgumentException("个人任务仅支持 ASSIGNED 或 COMPLETED 状态");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.c848e352abe6"));
         }
         Sort sort = status == InternalTaskStatus.COMPLETED
                 ? Sort.by(Sort.Direction.DESC, "completedAt") : Sort.by(Sort.Direction.DESC, "createdAt");
@@ -103,7 +104,7 @@ public class InternalTaskService {
         if (!manager
                 && !Objects.equals(task.getCreatedByUserId(), context.getUserId())
                 && !Objects.equals(task.getAssigneeUserId(), context.getUserId())) {
-            throw new InternalTaskNotFoundException("任务不存在");
+            throw new InternalTaskNotFoundException(ApiMessages.get("api.t.10feec408ee2"));
         }
         return toDto(task, context, manager);
     }
@@ -112,7 +113,7 @@ public class InternalTaskService {
     public InternalTaskDTO create(InternalTaskCreateRequest request) {
         StoreContext context = requireCreateInternalTask();
         String title = request == null || request.getTitle() == null ? "" : request.getTitle().trim();
-        if (title.isEmpty() || title.length() > 160) throw new IllegalArgumentException("任务标题不能为空且不能超过160个字符");
+        if (title.isEmpty() || title.length() > 160) throw new IllegalArgumentException(ApiMessages.get("api.t.c377151da290"));
         User actor = activeUser(context.getUserId());
         InternalTask task = new InternalTask(); task.setStoreId(context.getStoreId()); task.setTitle(title);
         task.setDescription(normalizeDescription(request.getDescription())); task.setCreatedByUserId(actor.getId());
@@ -125,10 +126,10 @@ public class InternalTaskService {
     public InternalTaskDTO assign(Long id, InternalTaskAssignRequest request) {
         StoreContext context = requireManager();
         InternalTask task = scopedTask(id, context.getStoreId());
-        if (task.getArchivedAt() != null) throw new InternalTaskConflictException("任务已归档");
-        if (task.getStatus() == InternalTaskStatus.COMPLETED) throw new InternalTaskConflictException("已完成任务不能改派");
+        if (task.getArchivedAt() != null) throw new InternalTaskConflictException(ApiMessages.get("api.t.4505c267cc62"));
+        if (task.getStatus() == InternalTaskStatus.COMPLETED) throw new InternalTaskConflictException(ApiMessages.get("api.t.023770ea07d7"));
         if (request != null && request.getVersion() != null && !Objects.equals(request.getVersion(), task.getVersion())) {
-            throw new InternalTaskConflictException("任务已被其他人更新，请刷新后重试");
+            throw new InternalTaskConflictException(ApiMessages.get("api.t.22bc9b0297f4"));
         }
         applyAssignee(task, request == null ? null : request.getAssigneeUserId(), context.getStoreId());
         return toDto(taskRepository.save(task), context, true);
@@ -142,9 +143,9 @@ public class InternalTaskService {
                 InternalTaskStatus.ASSIGNED, InternalTaskStatus.COMPLETED);
         InternalTask task = scopedTask(id, context.getStoreId());
         if (changed == 0) {
-            if (!Objects.equals(task.getAssigneeUserId(), context.getUserId())) throw new InternalTaskNotFoundException("任务不存在");
-            if (task.getArchivedAt() != null) throw new InternalTaskConflictException("任务已归档");
-            if (task.getStatus() != InternalTaskStatus.COMPLETED) throw new InternalTaskConflictException("任务当前不可完成");
+            if (!Objects.equals(task.getAssigneeUserId(), context.getUserId())) throw new InternalTaskNotFoundException(ApiMessages.get("api.t.10feec408ee2"));
+            if (task.getArchivedAt() != null) throw new InternalTaskConflictException(ApiMessages.get("api.t.4505c267cc62"));
+            if (task.getStatus() != InternalTaskStatus.COMPLETED) throw new InternalTaskConflictException(ApiMessages.get("api.t.b1fcfabb18e9"));
         }
         return toDto(task, context, isManager(context));
     }
@@ -175,33 +176,33 @@ public class InternalTaskService {
     private Map<Long, Cleaner> validateCleanerIdentities(Long storeId) {
         Map<Long, Cleaner> result = new HashMap<>(); List<String> errors = new ArrayList<>();
         for (Cleaner cleaner : cleanerRepository.findByStoreIdAndIsActiveTrue(storeId)) {
-            if (cleaner.getUserId() == null) { errors.add("cleanerId=" + cleaner.getId() + " 未绑定用户"); continue; }
+            if (cleaner.getUserId() == null) { errors.add("cleanerId=" + cleaner.getId() + ApiMessages.get("api.t.e43a144ae335")); continue; }
             User user = userRepository.findById(cleaner.getUserId()).orElse(null);
             StoreUser membership = storeUserRepository.findByStoreIdAndUserId(storeId, cleaner.getUserId()).orElse(null);
-            if (user == null) errors.add("cleanerId=" + cleaner.getId() + " 绑定用户不存在");
-            else if (!emailEquals(user.getEmail(), cleaner.getEmail())) errors.add("cleanerId=" + cleaner.getId() + " 与用户邮箱不一致");
-            else if (!Boolean.TRUE.equals(user.getIsActive())) errors.add("cleanerId=" + cleaner.getId() + " 绑定用户已停用");
-            else if (membership == null || !Boolean.TRUE.equals(membership.getIsActive())) errors.add("cleanerId=" + cleaner.getId() + " 缺少有效门店成员关系");
-            if (result.putIfAbsent(cleaner.getUserId(), cleaner) != null) errors.add("userId=" + cleaner.getUserId() + " 存在重复保洁身份");
+            if (user == null) errors.add("cleanerId=" + cleaner.getId() + ApiMessages.get("api.t.126dfbe6bd06"));
+            else if (!emailEquals(user.getEmail(), cleaner.getEmail())) errors.add("cleanerId=" + cleaner.getId() + ApiMessages.get("api.t.3564377c64c2"));
+            else if (!Boolean.TRUE.equals(user.getIsActive())) errors.add("cleanerId=" + cleaner.getId() + ApiMessages.get("api.t.36a8976d8a90"));
+            else if (membership == null || !Boolean.TRUE.equals(membership.getIsActive())) errors.add("cleanerId=" + cleaner.getId() + ApiMessages.get("api.t.15cb9c4370fb"));
+            if (result.putIfAbsent(cleaner.getUserId(), cleaner) != null) errors.add("userId=" + cleaner.getUserId() + ApiMessages.get("api.t.b1965cd2c43d"));
         }
-        if (!errors.isEmpty()) throw new InternalTaskConflictException("保洁员身份数据不完整，暂不能分配任务：" + String.join("；", errors));
+        if (!errors.isEmpty()) throw new InternalTaskConflictException(ApiMessages.get("api.t.29ed820fbcf0") + String.join("；", errors));
         return result;
     }
 
     private void applyAssignee(InternalTask task, Long assigneeUserId, Long storeId) {
         if (assigneeUserId == null) { task.setAssigneeUserId(null); task.setAssigneeNameSnapshot(null); task.setStatus(InternalTaskStatus.UNASSIGNED); return; }
         StoreUser membership = storeUserRepository.findByStoreIdAndUserId(storeId, assigneeUserId)
-                .filter(item -> Boolean.TRUE.equals(item.getIsActive())).orElseThrow(() -> new InternalTaskConflictException("执行人不是当前门店有效员工"));
+                .filter(item -> Boolean.TRUE.equals(item.getIsActive())).orElseThrow(() -> new InternalTaskConflictException(ApiMessages.get("api.t.c7a42de8a90c")));
         User user = membership.getUser();
         if (user == null || user.getId() == null || !Boolean.TRUE.equals(user.getIsActive())) {
-            throw new InternalTaskConflictException("执行人不是当前门店有效员工");
+            throw new InternalTaskConflictException(ApiMessages.get("api.t.c7a42de8a90c"));
         }
         List<Cleaner> cleaners = cleanerRepository.findByUserIdAndStoreId(assigneeUserId, storeId);
-        if (cleaners.size() > 1) throw new InternalTaskConflictException("执行人在当前门店存在重复保洁身份");
+        if (cleaners.size() > 1) throw new InternalTaskConflictException(ApiMessages.get("api.t.d21a76e6b989"));
         if (!cleaners.isEmpty()) {
             Cleaner cleaner = cleaners.get(0);
             if (!Boolean.TRUE.equals(cleaner.getIsActive()) || !emailEquals(cleaner.getEmail(), user.getEmail())) {
-                throw new InternalTaskConflictException("执行人的保洁身份无效");
+                throw new InternalTaskConflictException(ApiMessages.get("api.t.77eed852e8b0"));
             }
         }
         task.setAssigneeUserId(membership.getUser().getId()); task.setAssigneeNameSnapshot(displayName(user));
@@ -212,24 +213,24 @@ public class InternalTaskService {
         StoreContext context = StoreContextUtils.requireContext(); activeUser(context.getUserId());
         storeUserRepository.findByStoreIdAndUserId(context.getStoreId(), context.getUserId())
                 .filter(item -> Boolean.TRUE.equals(item.getIsActive()))
-                .orElseThrow(() -> new PermissionDeniedException("当前门店成员关系已停用"));
+                .orElseThrow(() -> new PermissionDeniedException(ApiMessages.get("api.t.dfdb8a63d5de")));
         return context;
     }
-    private StoreContext requireManager() { StoreContext context = requireActiveContext(); if (!isManager(context)) throw new PermissionDeniedException("仅门店所有者或管理员可管理内部任务"); return context; }
+    private StoreContext requireManager() { StoreContext context = requireActiveContext(); if (!isManager(context)) throw new PermissionDeniedException(ApiMessages.get("api.t.4ae0e0e9f8d1")); return context; }
     private StoreContext requireCreateInternalTask() {
         StoreContext context = requireActiveContext();
         if (!permissionService.hasPermission(context.getStoreId(), context.getUserId(),
                 PermissionModule.ACCOMMODATION, PermissionAction.CREATE_INTERNAL_TASK)) {
-            throw new PermissionDeniedException("您没有创建其他任务的权限");
+            throw new PermissionDeniedException(ApiMessages.get("api.t.54d7783621ad"));
         }
         return context;
     }
     private boolean isManager(StoreContext context) { return "owner".equalsIgnoreCase(context.getRole()) || "admin".equalsIgnoreCase(context.getRole()); }
-    private User activeUser(Long id) { return userRepository.findById(id).filter(user -> Boolean.TRUE.equals(user.getIsActive())).orElseThrow(() -> new PermissionDeniedException("用户账号已停用或不存在")); }
-    private InternalTask scopedTask(Long id, Long storeId) { return taskRepository.findByIdAndStoreId(id, storeId).orElseThrow(() -> new InternalTaskNotFoundException("任务不存在")); }
+    private User activeUser(Long id) { return userRepository.findById(id).filter(user -> Boolean.TRUE.equals(user.getIsActive())).orElseThrow(() -> new PermissionDeniedException(ApiMessages.get("api.t.3c9d8579e537"))); }
+    private InternalTask scopedTask(Long id, Long storeId) { return taskRepository.findByIdAndStoreId(id, storeId).orElseThrow(() -> new InternalTaskNotFoundException(ApiMessages.get("api.t.10feec408ee2"))); }
     private InternalTaskDTO toDto(InternalTask task, StoreContext context, boolean manager) { boolean canComplete = task.getArchivedAt() == null && task.getStatus() == InternalTaskStatus.ASSIGNED && Objects.equals(task.getAssigneeUserId(), context.getUserId()); return InternalTaskDTO.from(task, canComplete, manager); }
     private int safePage(int page) { return Math.max(0, page); } private int safeSize(int size) { return Math.max(1, Math.min(size, 100)); }
-    private String normalizeDescription(String value) { if (value == null || value.trim().isEmpty()) return null; String result = value.trim(); if (result.length() > 4000) throw new IllegalArgumentException("任务说明不能超过4000个字符"); return result; }
+    private String normalizeDescription(String value) { if (value == null || value.trim().isEmpty()) return null; String result = value.trim(); if (result.length() > 4000) throw new IllegalArgumentException(ApiMessages.get("api.t.8970a718c336")); return result; }
     private String displayName(User user) { if (user.getNickname() != null && !user.getNickname().isBlank()) return user.getNickname(); if (user.getName() != null && !user.getName().isBlank()) return user.getName(); return user.getEmail(); }
     private boolean emailEquals(String left, String right) { return left != null && right != null && left.trim().equalsIgnoreCase(right.trim()); }
 }

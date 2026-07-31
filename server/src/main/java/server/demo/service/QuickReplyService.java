@@ -11,6 +11,7 @@ import server.demo.repository.QuickReplyRepository;
 import java.util.List;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class QuickReplyService {
 
@@ -23,7 +24,7 @@ public class QuickReplyService {
     private Long getCurrentStoreId() {
         StoreContext context = StoreContextHolder.getContext();
         if (context == null || context.getStoreId() == null) {
-            throw new RuntimeException("无法获取当前门店信息");
+            throw new RuntimeException(ApiMessages.get("api.t.642b7e97c7d4"));
         }
         return context.getStoreId();
     }
@@ -70,14 +71,14 @@ public class QuickReplyService {
 
         Optional<QuickReply> existingReply = quickReplyRepository.findById(id);
         if (existingReply.isEmpty()) {
-            throw new RuntimeException("快捷回复不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.8c2528a4b0b3"));
         }
 
         QuickReply quickReply = existingReply.get();
 
         // 验证快捷回复属于当前门店
         if (!storeId.equals(quickReply.getStoreId())) {
-            throw new RuntimeException("无权限修改此快捷回复");
+            throw new RuntimeException(ApiMessages.get("api.t.b7a2a74d795c"));
         }
 
         quickReply.setTitle(quickReplyDetails.getTitle());
@@ -95,14 +96,14 @@ public class QuickReplyService {
 
         Optional<QuickReply> existingReply = quickReplyRepository.findById(id);
         if (existingReply.isEmpty()) {
-            throw new RuntimeException("快捷回复不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.8c2528a4b0b3"));
         }
 
         QuickReply quickReply = existingReply.get();
 
         // 验证快捷回复属于当前门店
         if (!storeId.equals(quickReply.getStoreId())) {
-            throw new RuntimeException("无权限删除此快捷回复");
+            throw new RuntimeException(ApiMessages.get("api.t.0ef8b4a28363"));
         }
 
         quickReplyRepository.deleteById(id);

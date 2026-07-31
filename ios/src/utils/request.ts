@@ -21,7 +21,7 @@ import {
   getStoredToken,
 } from '@/utils/storage'
 import { API_BASE_URL } from '@/constants/api'
-import { i18n } from '@/locales'
+import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, i18n, resolveLocale } from '@/locales'
 import type { LoginByPasswordRequest, LoginResponse } from '@/types/auth'
 import { showErrorToast, sanitizeUserFacingMessage } from '@/utils/notify'
 
@@ -327,6 +327,13 @@ const buildRequestUrl = (url: string, params?: RequestConfig['params']) => {
   return `${requestUrl}?${queryString}`
 }
 
+const resolveAppLocale = () => {
+  if (typeof localStorage === 'undefined') {
+    return DEFAULT_LOCALE
+  }
+  return resolveLocale(localStorage.getItem(LOCALE_STORAGE_KEY))
+}
+
 const createHeaders = (config: RequestConfig) => {
   const headers = new Headers({
     Accept: 'application/json; charset=UTF-8',
@@ -336,6 +343,10 @@ const createHeaders = (config: RequestConfig) => {
   Object.entries(config.headers ?? {}).forEach(([key, value]) => {
     headers.set(key, value)
   })
+
+  const appLocale = resolveAppLocale()
+  headers.set('Accept-Language', appLocale)
+  headers.set('X-App-Locale', appLocale)
 
   const activeRoutePath = getActiveRoutePath()
   const useCleanerSession = isCleanerPath(activeRoutePath)

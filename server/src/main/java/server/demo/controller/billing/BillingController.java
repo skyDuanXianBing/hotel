@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 /**
  * SaaS 套餐与订阅（/api/v1/billing，@StoreScoped）：
  * 在售套餐查询、我的订阅、直连购买。认证由 /api/v1/** 的 JwtInterceptor + StoreContextInterceptor 覆盖。
@@ -55,7 +56,7 @@ public class BillingController {
         List<SaasDtos.PackageView> packages = billingService.listOnShelfPackages().stream()
                 .map(this::toPackageView)
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(ApiResponse.success("获取套餐列表成功", packages));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.f3c3108d804e"), packages));
     }
 
     /**
@@ -67,7 +68,7 @@ public class BillingController {
         SaasDtos.SubscriptionView view = entitlementService.findActiveSubscription(storeId)
                 .map(subscription -> toSubscriptionView(storeId, subscription))
                 .orElse(null);
-        return ResponseEntity.ok(ApiResponse.success("获取当前订阅成功", view));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.e31d8628421e"), view));
     }
 
     /**
@@ -84,7 +85,7 @@ public class BillingController {
         SaasSubscription subscription = billingGateway.subscribe(
                 storeId, request.packageId(), userId != null ? "user:" + userId : null,
                 request.idempotencyKey());
-        return ResponseEntity.ok(ApiResponse.success("订阅成功", toSubscriptionView(storeId, subscription)));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.e3eb9d00aea1"), toSubscriptionView(storeId, subscription)));
     }
 
     private SaasDtos.PackageView toPackageView(SaasPackage pkg) {

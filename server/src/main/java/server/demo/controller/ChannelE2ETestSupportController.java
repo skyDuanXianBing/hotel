@@ -22,6 +22,7 @@ import server.demo.service.ChannelE2ETestSupportService.SetupLocalResponse;
 import server.demo.service.ChannelE2ETestSupportService.TestSupportAccessException;
 import server.demo.service.ChannelE2ETestSupportService.WebhookEventLookupResponse;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/test-support/channel-e2e")
 public class ChannelE2ETestSupportController extends BaseStoreController {
@@ -40,7 +41,7 @@ public class ChannelE2ETestSupportController extends BaseStoreController {
     ) {
         try {
             SetupLocalResponse response = testSupportService.setupLocal(testSupportKey);
-            return ResponseEntity.ok(ApiResponse.success("本地渠道E2E基础数据已就绪", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.268ad6c5efd4"), response));
         } catch (TestSupportAccessException e) {
             return accessDenied(e);
         } catch (IllegalStateException e) {
@@ -56,7 +57,7 @@ public class ChannelE2ETestSupportController extends BaseStoreController {
         try {
             testSupportService.validateTestSupportAccess(testSupportKey);
             ChannelE2EReadinessResponse response = testSupportService.getReadiness(currentStoreId());
-            return ResponseEntity.ok(ApiResponse.success("获取本地渠道E2E上下文成功", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.b67897b7ecb4"), response));
         } catch (TestSupportAccessException e) {
             return accessDenied(e);
         } catch (IllegalArgumentException e) {
@@ -92,7 +93,7 @@ public class ChannelE2ETestSupportController extends BaseStoreController {
                     externalBookingKey,
                     orderNumber
             );
-            return ResponseEntity.ok(ApiResponse.success("查询本地渠道E2E订单成功", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.a7fd0cf9e063"), response));
         } catch (TestSupportAccessException e) {
             return accessDenied(e);
         }
@@ -118,7 +119,7 @@ public class ChannelE2ETestSupportController extends BaseStoreController {
                     eventType,
                     limit
             );
-            return ResponseEntity.ok(ApiResponse.success("查询本地渠道E2E webhook event成功", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.de14b69d354e"), response));
         } catch (TestSupportAccessException e) {
             return accessDenied(e);
         }
@@ -148,7 +149,7 @@ public class ChannelE2ETestSupportController extends BaseStoreController {
                     limit,
                     messageLimit
             );
-            return ResponseEntity.ok(ApiResponse.success("查询本地渠道E2E messaging threads成功", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.7880ea574bd9"), response));
         } catch (TestSupportAccessException e) {
             return accessDenied(e);
         }
@@ -172,7 +173,7 @@ public class ChannelE2ETestSupportController extends BaseStoreController {
                     success,
                     limit
             );
-            return ResponseEntity.ok(ApiResponse.success("查询本地渠道E2E自动消息发送日志成功", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.b37a7228d755"), response));
         } catch (TestSupportAccessException e) {
             return accessDenied(e);
         }
@@ -186,7 +187,7 @@ public class ChannelE2ETestSupportController extends BaseStoreController {
         try {
             testSupportService.validateTestSupportAccess(testSupportKey);
             AutoMessageDispatchResponse response = testSupportService.dispatchAutoMessages(currentStoreId());
-            return ResponseEntity.ok(ApiResponse.success("本地渠道E2E自动消息派发已触发", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.d9f35b9e18db"), response));
         } catch (TestSupportAccessException e) {
             return accessDenied(e);
         }

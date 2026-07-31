@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class PriceLabsReservationSyncService {
     private static final Logger logger = LoggerFactory.getLogger(PriceLabsReservationSyncService.class);
@@ -58,12 +59,12 @@ public class PriceLabsReservationSyncService {
     @Transactional(readOnly = true)
     public PushSummary pushReservationsForDateRange(Long storeId, LocalDate startDate, LocalDate endDate) {
         if (storeId == null) {
-            throw new IllegalArgumentException("storeId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.d7f09cedd0e8"));
         }
         PriceLabsIntegration integration = integrationRepo.findByStoreId(storeId)
                 .orElseThrow(() -> new RuntimeException("PriceLabs integration not found for store: " + storeId));
         if (!Boolean.TRUE.equals(integration.getIsEnabled())) {
-            throw new RuntimeException("PriceLabs 集成未启用");
+            throw new RuntimeException(ApiMessages.get("api.t.b4c8d68ce538"));
         }
 
         Store store = storeRepo.findById(storeId)
@@ -71,12 +72,12 @@ public class PriceLabsReservationSyncService {
         LocalDate from = startDate != null ? startDate : LocalDate.of(2020, 1, 1);
         LocalDate to = endDate != null ? endDate : currentStoreDate(store).plusDays(365);
         if (to.isBefore(from)) {
-            throw new IllegalArgumentException("endDate 不能早于 startDate");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.9fcad55933f6"));
         }
 
         Map<Long, String> listingIdByRoomTypeId = enabledListingIdByRoomTypeId(storeId);
         if (listingIdByRoomTypeId.isEmpty()) {
-            throw new RuntimeException("没有启用的 PriceLabs 连接，无法推送 reservations");
+            throw new RuntimeException(ApiMessages.get("api.t.ecc8ff0a2b15"));
         }
 
         List<Reservation> reservations = reservationRepo.findByStoreIdOverlappingDateRangeWithRoomType(storeId, from, to);

@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotNull;
 
 public class MoveOutOrderBoxRequest {
 
-    @NotNull(message = "订单盒子项ID不能为空")
+    @NotNull(message = "{api.t.87d6a6dafe1c}")
     private Long orderBoxItemId;
 
     private String notes;

@@ -16,6 +16,7 @@ import server.demo.util.SuRoomIdUtil;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 /**
  * PMS -> Su：同步房型/费率计划清单（供 Su Widget 映射下拉使用）。
  */
@@ -119,7 +120,7 @@ public class SuContentSyncService {
         if (!isRoomAlreadyExists(createErr)) {
             logger.warn("[SuRoomsSync] create failed. storeId={}, hotelId={}, roomId={}, err={}", storeId, hotelId, roomId, createErr);
             pmsPushLogger.warn("[SuRoomsSync] create failed. storeId={}, hotelId={}, roomId={}, err={}", storeId, hotelId, roomId, createErr);
-            return new UpsertOutcome(false, createErr != null ? createErr : "Su 房间创建失败");
+            return new UpsertOutcome(false, createErr != null ? createErr : ApiMessages.get("api.t.449a1badbfe6"));
         }
 
         logger.info("[SuRoomsSync] room already exists, switching to modify. storeId={}, hotelId={}, roomId={}", storeId, hotelId, roomId);
@@ -151,12 +152,12 @@ public class SuContentSyncService {
                 return new UpsertOutcome(true, null);
             }
             String retryErr = suApiClient.extractSuErrorMessage(retryCreateResp);
-            return new UpsertOutcome(false, retryErr != null ? retryErr : "Su 房间创建失败(重试)");
+            return new UpsertOutcome(false, retryErr != null ? retryErr : ApiMessages.get("api.t.25253092f4ca"));
         }
 
         logger.warn("[SuRoomsSync] modify failed. storeId={}, hotelId={}, roomId={}, err={}", storeId, hotelId, roomId, modifyErr);
         pmsPushLogger.warn("[SuRoomsSync] modify failed. storeId={}, hotelId={}, roomId={}, err={}", storeId, hotelId, roomId, modifyErr);
-        return new UpsertOutcome(false, modifyErr != null ? modifyErr : "Su 房间修改失败");
+        return new UpsertOutcome(false, modifyErr != null ? modifyErr : ApiMessages.get("api.t.537474f2a067"));
     }
 
     private static boolean isRoomAlreadyExists(String err) {
@@ -205,7 +206,7 @@ public class SuContentSyncService {
 
         UpsertOutcome outcome = upsertSingleRoomType(storeId, hotelId, roomType);
         if (!outcome.success) {
-            String err = outcome.message != null ? outcome.message : "Su 房型同步失败";
+            String err = outcome.message != null ? outcome.message : ApiMessages.get("api.t.f454ca5ee0ee");
             logger.warn("[SuRoomTypeUpsert] failed. storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomTypeId, err);
             pmsPushLogger.warn("[SuRoomTypeUpsert] failed. storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomTypeId, err);
             throw new RuntimeException(err);
@@ -243,7 +244,7 @@ public class SuContentSyncService {
                         storeId, hotelId, roomTypeId, err);
                 return;
             }
-            String msg = err != null ? err : "Su 删除房型失败";
+            String msg = err != null ? err : ApiMessages.get("api.t.8be24e639cc0");
             logger.warn("[SuRoomTypeDelete] failed. storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomTypeId, msg);
             pmsPushLogger.warn("[SuRoomTypeDelete] failed. storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomTypeId, msg);
             throw new RuntimeException(msg);
@@ -281,7 +282,7 @@ public class SuContentSyncService {
             logger.warn("[SuRoomTypeUpsert] create failed(single). storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomId, createErr);
             pmsPushLogger.warn("[SuRoomTypeUpsert] create failed(single). storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomId, createErr);
             logger.warn("[SuRoomTypeUpsert] create raw response(single). storeId={}, hotelId={}, roomTypeId={}, raw={}", storeId, hotelId, roomId, createResp);
-            return new UpsertOutcome(false, createErr != null ? createErr : "Su 房型创建失败");
+            return new UpsertOutcome(false, createErr != null ? createErr : ApiMessages.get("api.t.65f506e027a3"));
         }
 
         logger.info("[SuRoomTypeUpsert] room type already exists, switching to overlay. storeId={}, hotelId={}, roomTypeId={}", storeId, hotelId, roomId);
@@ -323,13 +324,13 @@ public class SuContentSyncService {
             }
             String retryErr = suApiClient.extractSuErrorMessage(retryCreateResp);
             logger.warn("[SuRoomTypeUpsert] retry-create raw response(single). storeId={}, hotelId={}, roomTypeId={}, raw={}", storeId, hotelId, roomId, retryCreateResp);
-            return new UpsertOutcome(false, retryErr != null ? retryErr : "Su 房型创建失败(重试)");
+            return new UpsertOutcome(false, retryErr != null ? retryErr : ApiMessages.get("api.t.35e192a22a0f"));
         }
 
         logger.warn("[SuRoomTypeUpsert] overlay failed(single). storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomId, overlayErr);
         pmsPushLogger.warn("[SuRoomTypeUpsert] overlay failed(single). storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomId, overlayErr);
         logger.warn("[SuRoomTypeUpsert] overlay raw response(single). storeId={}, hotelId={}, roomTypeId={}, raw={}", storeId, hotelId, roomId, overlayResp);
-        return new UpsertOutcome(false, overlayErr != null ? overlayErr : "Su 房型覆盖失败");
+        return new UpsertOutcome(false, overlayErr != null ? overlayErr : ApiMessages.get("api.t.9ce18b232deb"));
     }
 
     public SuRatePlanSyncSummary syncRatePlansForWidget(Long storeId, String hotelId) {
@@ -403,7 +404,7 @@ public class SuContentSyncService {
 
         UpsertOutcome outcome = upsertSingleRatePlan(storeId, hotelId, plan);
         if (!outcome.success) {
-            String err = outcome.message != null ? outcome.message : "Su 价格计划同步失败";
+            String err = outcome.message != null ? outcome.message : ApiMessages.get("api.t.9f2122dfd6a6");
             logger.warn("[SuRatePlanUpsert] failed. storeId={}, hotelId={}, planId={}, err={}", storeId, hotelId, planId, err);
             pmsPushLogger.warn("[SuRatePlanUpsert] failed. storeId={}, hotelId={}, planId={}, err={}", storeId, hotelId, planId, err);
             throw new RuntimeException(err);
@@ -439,7 +440,7 @@ public class SuContentSyncService {
             logger.warn("[SuRatePlansSync] create failed(single). storeId={}, hotelId={}, planId={}, err={}", storeId, hotelId, planId, createErr);
             pmsPushLogger.warn("[SuRatePlansSync] create failed(single). storeId={}, hotelId={}, planId={}, err={}", storeId, hotelId, planId, createErr);
             logger.warn("[SuRatePlansSync] create raw response(single). storeId={}, hotelId={}, planId={}, raw={}", storeId, hotelId, planId, createResp);
-            return new UpsertOutcome(false, createErr != null ? createErr : "Su 价格计划创建失败");
+            return new UpsertOutcome(false, createErr != null ? createErr : ApiMessages.get("api.t.4dcafc6d23b6"));
         }
 
         logger.info("[SuRatePlansSync] rate plan already exists, switching to overlay. storeId={}, hotelId={}, planId={}", storeId, hotelId, planId);
@@ -479,13 +480,13 @@ public class SuContentSyncService {
             }
             String retryErr = suApiClient.extractSuErrorMessage(retryCreateResp);
             logger.warn("[SuRatePlansSync] retry-create raw response(single). storeId={}, hotelId={}, planId={}, raw={}", storeId, hotelId, planId, retryCreateResp);
-            return new UpsertOutcome(false, retryErr != null ? retryErr : "Su 价格计划创建失败(重试)");
+            return new UpsertOutcome(false, retryErr != null ? retryErr : ApiMessages.get("api.t.4a1e020676c0"));
         }
 
         logger.warn("[SuRatePlansSync] overlay failed(single). storeId={}, hotelId={}, planId={}, err={}", storeId, hotelId, planId, overlayErr);
         pmsPushLogger.warn("[SuRatePlansSync] overlay failed(single). storeId={}, hotelId={}, planId={}, err={}", storeId, hotelId, planId, overlayErr);
         logger.warn("[SuRatePlansSync] overlay raw response(single). storeId={}, hotelId={}, planId={}, raw={}", storeId, hotelId, planId, overlayResp);
-        return new UpsertOutcome(false, overlayErr != null ? overlayErr : "Su 价格计划覆盖失败");
+        return new UpsertOutcome(false, overlayErr != null ? overlayErr : ApiMessages.get("api.t.a530ff6e243d"));
     }
 
     private static boolean isRatePlanAlreadyExists(String err) {
@@ -555,7 +556,7 @@ public class SuContentSyncService {
             try {
                 SuRatePlanSyncSummary summary = syncRatePlansForWidget(storeId, hotelId);
                 if (!summary.ratePlansSynced) {
-                    throw new RuntimeException(summary.ratePlansError != null ? summary.ratePlansError : "Su 价格计划同步失败");
+                    throw new RuntimeException(summary.ratePlansError != null ? summary.ratePlansError : ApiMessages.get("api.t.9f2122dfd6a6"));
                 }
             } catch (RuntimeException e) {
                 ratePlansOk = false;
@@ -565,9 +566,9 @@ public class SuContentSyncService {
         }
 
         if (!roomTypesOk || !ratePlansOk) {
-            throw new RuntimeException("同步渠道房型/价格计划失败: "
-                    + (roomTypesOk ? "" : "房型=" + roomTypesError + "; ")
-                    + (ratePlansOk ? "" : "价格计划=" + ratePlansError));
+            throw new RuntimeException(ApiMessages.get("api.t.1b274a876b44")
+                    + (roomTypesOk ? "" : ApiMessages.get("api.t.66a1ec82b4cc") + roomTypesError + "; ")
+                    + (ratePlansOk ? "" : ApiMessages.get("api.t.1c46639e86ed") + ratePlansError));
         }
 
         return new SuContentSyncSummary(roomTypes.size(), pricePlans.size(), true, true, null, null);

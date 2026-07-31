@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotBlank;
  */
 public class SendMessageRequest {
 
-    @NotBlank(message = "消息内容不能为空")
+    @NotBlank(message = "{api.t.d86594c188e5}")
     private String content;
 
     private String senderName;

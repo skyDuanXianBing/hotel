@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 实时聊天控制器
  */
@@ -44,11 +45,11 @@ public class RealTimeChatController {
             RealTimeChatResponse response = chatService.sendMessage(request);
             logger.info("消息发送成功: messageId={}, roomId={}", response.getMessageId(), response.getRoomId());
             
-            return ResponseEntity.ok(ApiResponse.success("消息发送成功", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.786f98d1c4da"), response));
             
         } catch (Exception e) {
             logger.error("发送消息失败", e);
-            return ResponseEntity.ok(ApiResponse.error("发送消息失败: " + e.getMessage(), null));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.5c00823f5372") + e.getMessage(), null));
         }
     }
     
@@ -63,11 +64,11 @@ public class RealTimeChatController {
         
         try {
             List<RealTimeChatResponse> messages = chatService.getRoomMessages(roomId);
-            return ResponseEntity.ok(ApiResponse.success("获取消息成功", messages));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.2023d9c2ac3a"), messages));
             
         } catch (Exception e) {
             logger.error("获取消息失败", e);
-            return ResponseEntity.ok(ApiResponse.error("获取消息失败: " + e.getMessage(), null));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.e3068035d0f0") + e.getMessage(), null));
         }
     }
     
@@ -99,11 +100,11 @@ public class RealTimeChatController {
                 messages = chatService.getRecentMessages(roomId);
             }
             
-            return ResponseEntity.ok(ApiResponse.success("轮询成功", messages));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.39e78aadf31c"), messages));
             
         } catch (Exception e) {
             logger.error("轮询消息失败", e);
-            return ResponseEntity.ok(ApiResponse.error("轮询失败: " + e.getMessage(), null));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.89d662c4b852") + e.getMessage(), null));
         }
     }
     
@@ -131,11 +132,11 @@ public class RealTimeChatController {
                     })
                     .toList();
             
-            return ResponseEntity.ok(ApiResponse.success("获取聊天室列表成功", roomList));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.bd2e108ba739"), roomList));
             
         } catch (Exception e) {
             logger.error("获取聊天室列表失败", e);
-            return ResponseEntity.ok(ApiResponse.error("获取列表失败: " + e.getMessage(), null));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.cd759d32c28b") + e.getMessage(), null));
         }
     }
     
@@ -159,11 +160,11 @@ public class RealTimeChatController {
             roomInfo.put("status", chatRoom.getStatus());
             roomInfo.put("createdAt", chatRoom.getCreatedAt());
             
-            return ResponseEntity.ok(ApiResponse.success("聊天室创建成功", roomInfo));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.05d252e7cf76"), roomInfo));
             
         } catch (Exception e) {
             logger.error("创建聊天室失败", e);
-            return ResponseEntity.ok(ApiResponse.error("创建聊天室失败: " + e.getMessage(), null));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.560f801ae9c5") + e.getMessage(), null));
         }
     }
     
@@ -177,11 +178,11 @@ public class RealTimeChatController {
         
         try {
             chatService.closeChatRoom(roomId);
-            return ResponseEntity.ok(ApiResponse.success("聊天室已关闭", "success"));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.f38c80598a02"), "success"));
             
         } catch (Exception e) {
             logger.error("关闭聊天室失败", e);
-            return ResponseEntity.ok(ApiResponse.error("关闭聊天室失败: " + e.getMessage(), null));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.ff75d5695777") + e.getMessage(), null));
         }
     }
 }

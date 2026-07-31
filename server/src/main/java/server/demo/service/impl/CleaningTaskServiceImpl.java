@@ -31,6 +31,7 @@ import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 保洁任务Service实现类
  */
@@ -65,7 +66,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     @Transactional
     public CleaningTaskDTO createTask(CleaningTaskCreateDTO createDTO) {
         Room room = roomRepository.findById(createDTO.getRoomId())
-                .orElseThrow(() -> new RuntimeException("房间不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.57ab5ddad6df")));
 
         CleaningTask task = new CleaningTask();
 
@@ -84,7 +85,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
 
         if (createDTO.getCleanerId() != null) {
             Cleaner cleaner = cleanerRepository.findById(createDTO.getCleanerId())
-                    .orElseThrow(() -> new RuntimeException("保洁员不存在"));
+                    .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.bea2ad1fb3f3")));
             task.setCleaner(cleaner);
             task.setStatus("assigned");
         }
@@ -97,14 +98,14 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     @Transactional
     public CleaningTaskDTO updateTask(Long id, CleaningTaskUpdateDTO updateDTO) {
         CleaningTask task = cleaningTaskRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("任务不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.10feec408ee2")));
 
         if (updateDTO.getStatus() != null) {
             task.setStatus(updateDTO.getStatus());
         }
         if (updateDTO.getCleanerId() != null) {
             Cleaner cleaner = cleanerRepository.findById(updateDTO.getCleanerId())
-                    .orElseThrow(() -> new RuntimeException("保洁员不存在"));
+                    .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.bea2ad1fb3f3")));
             task.setCleaner(cleaner);
         }
         if (updateDTO.getEstimatedTime() != null) {
@@ -118,7 +119,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
         }
         if (updateDTO.getApproverId() != null) {
             User approver = userRepository.findById(updateDTO.getApproverId())
-                    .orElseThrow(() -> new RuntimeException("审批人不存在"));
+                    .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.8bba371da3d4")));
             task.setApprover(approver);
         }
         if (updateDTO.getNotes() != null) {
@@ -133,7 +134,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     @Transactional
     public void deleteTask(Long id) {
         if (!cleaningTaskRepository.existsById(id)) {
-            throw new RuntimeException("任务不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.10feec408ee2"));
         }
         cleaningTaskRepository.deleteById(id);
     }
@@ -141,7 +142,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     @Override
     public CleaningTaskDTO getTaskById(Long userId, Long id) {
         CleaningTask task = cleaningTaskRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("任务不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.10feec408ee2")));
         Optional<Cleaner> currentCleaner = findCurrentCleaner(userId);
         if (currentCleaner.isPresent()) {
             ensureCleanerOwnsTask(task, currentCleaner.get());
@@ -227,7 +228,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     private Long getCurrentStoreId() {
         server.demo.context.StoreContext storeContext = server.demo.context.StoreContextHolder.getContext();
         if (storeContext == null || storeContext.getStoreId() == null) {
-            throw new RuntimeException("无法获取当前门店信息");
+            throw new RuntimeException(ApiMessages.get("api.t.642b7e97c7d4"));
         }
         return storeContext.getStoreId();
     }
@@ -286,10 +287,10 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     @Transactional
     public CleaningTaskDTO assignTask(Long taskId, Long cleanerId) {
         CleaningTask task = cleaningTaskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("任务不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.10feec408ee2")));
 
         Cleaner cleaner = cleanerRepository.findById(cleanerId)
-                .orElseThrow(() -> new RuntimeException("保洁员不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.bea2ad1fb3f3")));
 
         task.setCleaner(cleaner);
         task.setStatus("assigned");
@@ -302,14 +303,14 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     @Transactional
     public CleaningTaskDTO acceptTask(Long userId, Long taskId) {
         CleaningTask task = cleaningTaskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("任务不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.10feec408ee2")));
         Optional<Cleaner> currentCleaner = findCurrentCleaner(userId);
         if (currentCleaner.isPresent()) {
             ensureCleanerOwnsTask(task, currentCleaner.get());
         }
 
         if (!"assigned".equals(task.getStatus())) {
-            throw new RuntimeException("只有已分配的任务才能接受");
+            throw new RuntimeException(ApiMessages.get("api.t.3345659d5440"));
         }
 
         task.setStatus("in_progress");
@@ -322,14 +323,14 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     @Transactional
     public CleaningTaskDTO rejectTask(Long userId, Long taskId) {
         CleaningTask task = cleaningTaskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("任务不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.10feec408ee2")));
         Optional<Cleaner> currentCleaner = findCurrentCleaner(userId);
         if (currentCleaner.isPresent()) {
             ensureCleanerOwnsTask(task, currentCleaner.get());
         }
 
         if (!"assigned".equals(task.getStatus())) {
-            throw new RuntimeException("只有已分配的任务才能拒绝");
+            throw new RuntimeException(ApiMessages.get("api.t.0f8082a68f2f"));
         }
 
         // 拒绝后将任务状态改回待分配，并清除保洁员
@@ -344,7 +345,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     @Transactional
     public CleaningTaskDTO startTask(Long userId, Long taskId) {
         CleaningTask task = cleaningTaskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("任务不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.10feec408ee2")));
         Optional<Cleaner> currentCleaner = findCurrentCleaner(userId);
         if (currentCleaner.isPresent()) {
             ensureCleanerOwnsTask(task, currentCleaner.get());
@@ -361,7 +362,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     @Transactional
     public CleaningTaskDTO completeTask(Long userId, Long taskId, Long approverId) {
         CleaningTask task = cleaningTaskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("任务不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.10feec408ee2")));
 
         Optional<Cleaner> currentCleaner = findCurrentCleaner(userId);
         if (currentCleaner.isPresent()) {
@@ -369,11 +370,11 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
             approverId = userId;
         }
         if (approverId == null) {
-            throw new RuntimeException("审批人不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.8bba371da3d4"));
         }
 
         User approver = userRepository.findById(approverId)
-                .orElseThrow(() -> new RuntimeException("审批人不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.8bba371da3d4")));
 
         task.setStatus("completed");
         task.setCompleteTime(LocalDateTime.now());
@@ -390,7 +391,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
 
         for (CleaningTaskCreateDTO createDTO : createDTOs) {
             Room room = roomRepository.findById(createDTO.getRoomId())
-                    .orElseThrow(() -> new RuntimeException("房间不存在"));
+                    .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.57ab5ddad6df")));
 
             CleaningTask task = new CleaningTask();
             // 将字符串日期转换为LocalDate
@@ -405,7 +406,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
 
             if (createDTO.getCleanerId() != null) {
                 Cleaner cleaner = cleanerRepository.findById(createDTO.getCleanerId())
-                        .orElseThrow(() -> new RuntimeException("保洁员不存在"));
+                        .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.bea2ad1fb3f3")));
                 task.setCleaner(cleaner);
                 task.setStatus("assigned");
             }
@@ -455,7 +456,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
 
     private void ensureCleanerOwnsTask(CleaningTask task, Cleaner cleaner) {
         if (task.getCleaner() == null || !Objects.equals(task.getCleaner().getId(), cleaner.getId())) {
-            throw new RuntimeException("只能查看或操作分配给自己的任务");
+            throw new RuntimeException(ApiMessages.get("api.t.74c570104319"));
         }
     }
 

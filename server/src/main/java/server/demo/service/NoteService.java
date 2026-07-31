@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class NoteService {
 
@@ -42,7 +43,7 @@ public class NoteService {
         // 关联房间
         if (request.getRoomId() != null) {
             Room room = roomRepository.findById(request.getRoomId())
-                    .orElseThrow(() -> new RuntimeException("房间不存在"));
+                    .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.57ab5ddad6df")));
             note.setRoom(room);
         }
 
@@ -154,19 +155,19 @@ public class NoteService {
     private String getCategoryDisplayName(String category) {
         Map<String, String> categoryNames = new HashMap<>();
         // 收入项目
-        categoryNames.put("catering", "餐饮美食");
-        categoryNames.put("tobacco_alcohol", "烟酒饮料");
-        categoryNames.put("compensation", "物品赔付");
-        categoryNames.put("ticket", "景点门票");
-        categoryNames.put("souvenir", "特色纪念品");
-        categoryNames.put("other", "其他杂项");
+        categoryNames.put("catering", ApiMessages.get("api.t.647896b2c898"));
+        categoryNames.put("tobacco_alcohol", ApiMessages.get("api.t.51e1d93f89c8"));
+        categoryNames.put("compensation", ApiMessages.get("api.t.28a8136cef8f"));
+        categoryNames.put("ticket", ApiMessages.get("api.t.f3c5df2035b7"));
+        categoryNames.put("souvenir", ApiMessages.get("api.t.58486ddb4c6e"));
+        categoryNames.put("other", ApiMessages.get("api.t.5f1596619d16"));
         // 支出项目
-        categoryNames.put("utilities", "水电燃气");
-        categoryNames.put("rent_property", "房租物业费");
-        categoryNames.put("salary", "支付工资");
-        categoryNames.put("maintenance", "房间维修");
-        categoryNames.put("communication_transport", "通讯交通");
-        categoryNames.put("daily_misc", "日常杂项");
+        categoryNames.put("utilities", ApiMessages.get("api.t.277bf57ca643"));
+        categoryNames.put("rent_property", ApiMessages.get("api.t.c9453407c638"));
+        categoryNames.put("salary", ApiMessages.get("api.t.13f3a58794d2"));
+        categoryNames.put("maintenance", ApiMessages.get("api.t.86f001765057"));
+        categoryNames.put("communication_transport", ApiMessages.get("api.t.9aa1271870b7"));
+        categoryNames.put("daily_misc", ApiMessages.get("api.t.b6d8851f14a0"));
         return categoryNames.getOrDefault(category, category);
     }
 
@@ -175,9 +176,9 @@ public class NoteService {
      */
     private String getPaymentDisplayName(String paymentMethod) {
         Map<String, String> paymentNames = new HashMap<>();
-        paymentNames.put("wechat", "微信");
-        paymentNames.put("alipay", "支付宝");
-        paymentNames.put("cash", "现金");
+        paymentNames.put("wechat", ApiMessages.get("api.t.68406df395e4"));
+        paymentNames.put("alipay", ApiMessages.get("api.t.66f1177d677b"));
+        paymentNames.put("cash", ApiMessages.get("api.t.6548450b8d16"));
         return paymentNames.getOrDefault(paymentMethod, paymentMethod);
     }
 
@@ -186,7 +187,7 @@ public class NoteService {
      */
     public NoteDTO getNoteById(Long id) {
         Note note = noteRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("记账记录不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.70a84c454e2b")));
         return convertToDTO(note);
     }
 

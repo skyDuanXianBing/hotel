@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 订阅到期后的「默认版」自动兜底（P9，业主拍板：到期回退默认版）。
  *
@@ -147,7 +148,7 @@ public class SaasDefaultPackageFallbackService {
         try {
             return objectMapper.writeValueAsString(snapshot);
         } catch (Exception e) {
-            throw new IllegalStateException("兜底订阅权益快照序列化失败", e);
+            throw new IllegalStateException(ApiMessages.get("api.t.7724dbbd3d17"), e);
         }
     }
 }

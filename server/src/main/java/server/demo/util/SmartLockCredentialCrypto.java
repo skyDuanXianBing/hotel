@@ -14,6 +14,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.HexFormat;
 
+import server.demo.i18n.ApiMessages;
 @Component
 public class SmartLockCredentialCrypto {
     private static final String CIPHER_ALGORITHM = "AES/GCM/NoPadding";
@@ -53,7 +54,7 @@ public class SmartLockCredentialCrypto {
             return "v1:" + Base64.getEncoder().encodeToString(nonce)
                     + ":" + Base64.getEncoder().encodeToString(ciphertext);
         } catch (Exception ex) {
-            throw new IllegalStateException("门锁凭证加密失败", ex);
+            throw new IllegalStateException(ApiMessages.get("api.t.6e95de2e7ca4"), ex);
         }
     }
 
@@ -76,7 +77,7 @@ public class SmartLockCredentialCrypto {
             );
             return new String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8);
         } catch (Exception ex) {
-            throw new IllegalStateException("门锁凭证解密失败", ex);
+            throw new IllegalStateException(ApiMessages.get("api.t.4cf6ba8c6380"), ex);
         }
     }
 
@@ -94,7 +95,7 @@ public class SmartLockCredentialCrypto {
             byte[] signature = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(signature);
         } catch (Exception ex) {
-            throw new IllegalStateException("门锁签名生成失败", ex);
+            throw new IllegalStateException(ApiMessages.get("api.t.1e23f1e8bde4"), ex);
         }
     }
 
@@ -103,7 +104,7 @@ public class SmartLockCredentialCrypto {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return digest.digest(value.getBytes(StandardCharsets.UTF_8));
         } catch (Exception ex) {
-            throw new IllegalStateException("SHA-256 不可用", ex);
+            throw new IllegalStateException(ApiMessages.get("api.t.fd1def6efa8e"), ex);
         }
     }
 

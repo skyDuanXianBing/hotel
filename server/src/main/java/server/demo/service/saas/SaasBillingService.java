@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 套餐售卖与订阅激活。当前为 DIRECT 直连支付（点击购买即成功），provider 预留 STRIPE。
  */
@@ -100,9 +101,9 @@ public class SaasBillingService {
     @Transactional
     public SaasSubscription subscribe(Long storeId, Long packageId, String operator, String idempotencyKey) {
         SaasPackage pkg = packageRepository.findById(packageId)
-                .orElseThrow(() -> new IllegalArgumentException("套餐不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.833d614ef3f5")));
         if (pkg.getStatus() != SaasPackageStatus.ON_SHELF) {
-            throw new IllegalArgumentException("套餐已下架，无法购买");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.959a397ffe8b"));
         }
         return activate(storeId, pkg, pkg.getPrice(), operator, idempotencyKey, null, null);
     }
@@ -133,7 +134,7 @@ public class SaasBillingService {
     public SaasSubscription grantByAdmin(Long storeId, Long packageId, String operator, String idempotencyKey,
                                          LocalDateTime endTimeOverride, String orderRemark) {
         SaasPackage pkg = packageRepository.findById(packageId)
-                .orElseThrow(() -> new IllegalArgumentException("套餐不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.833d614ef3f5")));
         return activate(storeId, pkg, BigDecimal.ZERO, operator, idempotencyKey, endTimeOverride, orderRemark);
     }
 
@@ -227,7 +228,7 @@ public class SaasBillingService {
             SaasFeatureType type = featureRepository.findByFeatureCode(packageFeature.getFeatureCode())
                     .map(SaasFeature::getType)
                     .orElseThrow(() -> new IllegalStateException(
-                            "功能字典缺失: " + packageFeature.getFeatureCode()));
+                            ApiMessages.get("api.t.4a8671ebbd4b") + packageFeature.getFeatureCode()));
             entries.add(new EntitlementSnapshot.Entry(
                     packageFeature.getFeatureCode(), type, packageFeature.getQuotaLimit()));
         }
@@ -283,7 +284,7 @@ public class SaasBillingService {
             return null;
         }
         if (key.length() > 64) {
-            throw new IllegalArgumentException("idempotencyKey 长度不能超过 64 字符");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.bd92a62c1a39"));
         }
         return key;
     }

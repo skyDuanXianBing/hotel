@@ -12,6 +12,7 @@ import server.demo.repository.ChannelReviewRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class ChannelReviewActionCoordinator {
 
@@ -46,12 +47,12 @@ public class ChannelReviewActionCoordinator {
             String requestHash
     ) {
         ChannelReview review = reviewRepository.findForUpdateByStoreIdAndId(storeId, reviewId)
-                .orElseThrow(() -> new SuReviewService.ReviewNotFoundException("评价不存在"));
+                .orElseThrow(() -> new SuReviewService.ReviewNotFoundException(ApiMessages.get("api.t.dd59c417cc66")));
         if (expectedHotelId == null
                 || review.getHotelId() == null
                 || !expectedHotelId.equals(review.getHotelId().trim())) {
             throw new SuReviewService.ReviewConflictException(
-                    "评价记录不属于当前门店唯一的 Su hotel_id"
+                    ApiMessages.get("api.t.6822f4e90962")
             );
         }
         try {
@@ -64,7 +65,7 @@ public class ChannelReviewActionCoordinator {
             );
         } catch (SuReviewWebhookMappingValidator.MappingRejectedException e) {
             throw new SuReviewService.ReviewConflictException(
-                    "当前 Review 渠道映射已失效：" + e.getMessage()
+                    ApiMessages.get("api.t.a1a3292a064e") + e.getMessage()
             );
         }
 
@@ -74,7 +75,7 @@ public class ChannelReviewActionCoordinator {
             if (!reviewId.equals(existing.getReviewId())
                     || existing.getActionType() != actionType
                     || !requestHash.equals(existing.getRequestHash())) {
-                throw new SuReviewService.ReviewConflictException("幂等键已用于其他评价请求");
+                throw new SuReviewService.ReviewConflictException(ApiMessages.get("api.t.65cf1348a6b9"));
             }
             return new PreparedAction(review, existing, true);
         }
@@ -85,7 +86,7 @@ public class ChannelReviewActionCoordinator {
         }
         if (actionRepository.existsByStoreIdAndReviewIdAndActionTypeAndStatusIn(
                 storeId, reviewId, actionType, ACTIVE_STATUSES)) {
-            throw new SuReviewService.ReviewConflictException("相同评价动作已在处理中");
+            throw new SuReviewService.ReviewConflictException(ApiMessages.get("api.t.a9054987f694"));
         }
 
         ChannelReviewAction action = new ChannelReviewAction();
@@ -113,10 +114,10 @@ public class ChannelReviewActionCoordinator {
             String ruid
     ) {
         ChannelReview review = reviewRepository.findForUpdateByStoreIdAndId(storeId, reviewId)
-                .orElseThrow(() -> new SuReviewService.ReviewNotFoundException("评价不存在"));
+                .orElseThrow(() -> new SuReviewService.ReviewNotFoundException(ApiMessages.get("api.t.dd59c417cc66")));
         ChannelReviewAction action = actionRepository.findById(actionId)
                 .filter(item -> storeId.equals(item.getStoreId()) && reviewId.equals(item.getReviewId()))
-                .orElseThrow(() -> new SuReviewService.ReviewNotFoundException("评价动作不存在"));
+                .orElseThrow(() -> new SuReviewService.ReviewNotFoundException(ApiMessages.get("api.t.c38e02965651")));
 
         LocalDateTime now = LocalDateTime.now();
         action.setStatus(ReviewActionStatus.SUBMITTED);
@@ -147,10 +148,10 @@ public class ChannelReviewActionCoordinator {
             String ruid
     ) {
         ChannelReview review = reviewRepository.findForUpdateByStoreIdAndId(storeId, reviewId)
-                .orElseThrow(() -> new SuReviewService.ReviewNotFoundException("评价不存在"));
+                .orElseThrow(() -> new SuReviewService.ReviewNotFoundException(ApiMessages.get("api.t.dd59c417cc66")));
         ChannelReviewAction action = actionRepository.findById(actionId)
                 .filter(item -> storeId.equals(item.getStoreId()) && reviewId.equals(item.getReviewId()))
-                .orElseThrow(() -> new SuReviewService.ReviewNotFoundException("评价动作不存在"));
+                .orElseThrow(() -> new SuReviewService.ReviewNotFoundException(ApiMessages.get("api.t.c38e02965651")));
 
         action.setStatus(ReviewActionStatus.FAILED);
         action.setResponseMessage(trim(message, 1000));

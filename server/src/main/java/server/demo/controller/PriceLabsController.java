@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 /**
  * PriceLabs 集成控制器
  * 提供 PriceLabs 集成配置、渠道价格调整、价格查询等 API
@@ -61,10 +62,10 @@ public class PriceLabsController {
     public ResponseEntity<ApiResponse<PriceLabsIntegrationDTO>> getIntegration() {
         try {
             PriceLabsIntegrationDTO integration = priceLabsService.getIntegration();
-            return ResponseEntity.ok(ApiResponse.success("获取集成配置成功", integration));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.18519beec23b"), integration));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("获取集成配置失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.81fbcc25b52b") + e.getMessage()));
         }
     }
 
@@ -77,10 +78,10 @@ public class PriceLabsController {
             @RequestBody PriceLabsIntegrationDTO request) {
         try {
             PriceLabsIntegrationDTO saved = priceLabsService.saveIntegration(request);
-            return ResponseEntity.ok(ApiResponse.success("保存集成配置成功", saved));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.895518a5240f"), saved));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("保存集成配置失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.82ef53d46046") + e.getMessage()));
         }
     }
 
@@ -94,10 +95,10 @@ public class PriceLabsController {
         try {
             Boolean enabled = request.get("enabled");
             PriceLabsIntegrationDTO result = priceLabsService.toggleIntegration(enabled);
-            return ResponseEntity.ok(ApiResponse.success(enabled ? "已启用 PriceLabs 集成" : "已禁用 PriceLabs 集成", result));
+            return ResponseEntity.ok(ApiResponse.success(enabled ? ApiMessages.get("api.t.76c6bca005c2") : ApiMessages.get("api.t.710e57374fcb"), result));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("操作失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.e80d7fcdfcd1") + e.getMessage()));
         }
     }
 
@@ -111,10 +112,10 @@ public class PriceLabsController {
         try {
             String priceLabsEmail = request.get("priceLabsEmail");
             PriceLabsIntegrationDTO result = priceLabsService.updateIntegrationConfig(priceLabsEmail);
-            return ResponseEntity.ok(ApiResponse.success("配置更新成功", result));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.b2a3acbb485d"), result));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("更新配置失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.8c4b7a9ac774") + e.getMessage()));
         }
     }
 
@@ -128,10 +129,10 @@ public class PriceLabsController {
     public ResponseEntity<ApiResponse<List<PriceLabsConnectionDTO>>> getConnections() {
         try {
             List<PriceLabsConnectionDTO> connections = priceLabsService.getConnections();
-            return ResponseEntity.ok(ApiResponse.success("获取连接列表成功", connections));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.0556551518f2"), connections));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("获取连接列表失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.e79bf581a46f") + e.getMessage()));
         }
     }
 
@@ -147,10 +148,10 @@ public class PriceLabsController {
             Long roomTypeId = request.get("roomTypeId");
             Long pricePlanId = request.get("pricePlanId");
             PriceLabsConnectionDTO connection = priceLabsService.createConnection(accountId, roomTypeId, pricePlanId);
-            return ResponseEntity.ok(ApiResponse.success("创建连接成功", connection));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.59def37deba3"), connection));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("创建连接失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.983594df10cc") + e.getMessage()));
         }
     }
 
@@ -165,12 +166,12 @@ public class PriceLabsController {
         try {
             Boolean enabled = request.get("enabled");
             return priceLabsService.updateConnectionStatus(id, enabled)
-                    .map(conn -> ResponseEntity.ok(ApiResponse.success("更新连接状态成功", conn)))
+                    .map(conn -> ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.b12cfe798dcb"), conn)))
                     .orElse(ResponseEntity.status(404)
-                            .body(ApiResponse.error("连接不存在")));
+                            .body(ApiResponse.error(ApiMessages.get("api.t.08d213092378"))));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("更新连接状态失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.38f0a675a592") + e.getMessage()));
         }
     }
 
@@ -182,14 +183,14 @@ public class PriceLabsController {
     public ResponseEntity<ApiResponse<Void>> deleteConnection(@PathVariable Long id) {
         try {
             if (priceLabsService.deleteConnection(id)) {
-                return ResponseEntity.ok(ApiResponse.success("删除连接成功", null));
+                return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.d4e6d47f8ce7"), null));
             } else {
                 return ResponseEntity.status(404)
-                        .body(ApiResponse.error("连接不存在"));
+                        .body(ApiResponse.error(ApiMessages.get("api.t.08d213092378")));
             }
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("删除连接失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.d22c31bfc85e") + e.getMessage()));
         }
     }
 
@@ -203,10 +204,10 @@ public class PriceLabsController {
     public ResponseEntity<ApiResponse<List<ChannelPriceAdjustmentDTO>>> getChannelPriceAdjustments() {
         try {
             List<ChannelPriceAdjustmentDTO> adjustments = priceLabsService.getChannelPriceAdjustments();
-            return ResponseEntity.ok(ApiResponse.success("获取渠道价格调整设置成功", adjustments));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.5551c204dd45"), adjustments));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("获取渠道价格调整设置失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.a2ffb7ae2304") + e.getMessage()));
         }
     }
 
@@ -225,10 +226,10 @@ public class PriceLabsController {
                     request.getAdjustmentType(),
                     request.getAdjustmentValue(),
                     request.getAutoSyncPrice());
-            return ResponseEntity.ok(ApiResponse.success("更新渠道价格调整设置成功", result));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.4e23fae4bfad"), result));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("更新渠道价格调整设置失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.7e69e79eeab2") + e.getMessage()));
         }
     }
 
@@ -242,10 +243,10 @@ public class PriceLabsController {
             @RequestBody List<ChannelPriceAdjustmentDTO> adjustments) {
         try {
             List<ChannelPriceAdjustmentDTO> results = priceLabsService.batchUpdateChannelPriceAdjustments(adjustments);
-            return ResponseEntity.ok(ApiResponse.success("批量更新渠道价格调整设置成功", results));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.987ab447e4b3"), results));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("批量更新渠道价格调整设置失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.4727c7c193d6") + e.getMessage()));
         }
     }
 
@@ -256,10 +257,10 @@ public class PriceLabsController {
         try {
             MappingPriceSettingsResponseDTO result =
                     channelMappingPriceSettingsService.listMappingPriceSettings(channelId);
-            return ResponseEntity.ok(ApiResponse.success("获取映射级价格设置成功", result));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.5e4e1d227583"), result));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("获取映射级价格设置失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.b95cb0097bd9") + e.getMessage()));
         }
     }
 
@@ -272,10 +273,10 @@ public class PriceLabsController {
         try {
             MappingPriceSettingsSaveResponseDTO result =
                     channelMappingPriceSettingsService.saveMappingPriceSettings(channelId, request);
-            return ResponseEntity.ok(ApiResponse.success("保存映射级价格设置完成", result));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.7839cde11908"), result));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("保存映射级价格设置失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.aa087fac5688") + e.getMessage()));
         }
     }
 
@@ -289,10 +290,10 @@ public class PriceLabsController {
         try {
             MappingPriceSettingsSaveResponseDTO result =
                     channelMappingPriceSettingsService.saveMappingPriceSettingRow(channelId, rowKey, request);
-            return ResponseEntity.ok(ApiResponse.success("保存映射行价格设置完成", result));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.dd3bc80144c4"), result));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("保存映射行价格设置失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.360998d5d587") + e.getMessage()));
         }
     }
 
@@ -305,10 +306,10 @@ public class PriceLabsController {
         try {
             MappingPriceSettingsSaveResponseDTO result =
                     channelMappingPriceSettingsService.retryMappingPriceSettings(channelId, request);
-            return ResponseEntity.ok(ApiResponse.success("重试映射级价格设置完成", result));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.d89c2af6d83f"), result));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("重试映射级价格设置失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.b884264d4066") + e.getMessage()));
         }
     }
 
@@ -324,11 +325,11 @@ public class PriceLabsController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
             int count = priceLabsService.recalculateChannelPrices(channelId, startDate, endDate);
-            return ResponseEntity.ok(ApiResponse.success("重新计算渠道价格成功",
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.315a66f57cb4"),
                     Map.of("affectedCount", count)));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("重新计算渠道价格失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.5f4c15a6b640") + e.getMessage()));
         }
     }
 
@@ -346,10 +347,10 @@ public class PriceLabsController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
             List<ChannelPriceDTO> prices = priceLabsService.getChannelPrices(roomTypeId, channelId, startDate, endDate);
-            return ResponseEntity.ok(ApiResponse.success("获取渠道价格成功", prices));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.863dd6ad2b72"), prices));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("获取渠道价格失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.b0c1d5600d06") + e.getMessage()));
         }
     }
 
@@ -362,10 +363,10 @@ public class PriceLabsController {
             @RequestParam(required = false) Long channelId) {
         try {
             List<ChannelPriceDTO> prices = priceLabsService.getUnsyncedPrices(channelId);
-            return ResponseEntity.ok(ApiResponse.success("获取未同步价格成功", prices));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.77187e234d85"), prices));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("获取未同步价格失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.e504e370d10d") + e.getMessage()));
         }
     }
 
@@ -381,10 +382,10 @@ public class PriceLabsController {
             priceLabsSyncService.syncAll();
             // 稳定优先：额外拉取 PriceLabs 推荐价（get_prices），用于“立即同步”兜底刷新
             priceLabsSyncService.pullPricesForNextDaysPullSync(365);
-            return ResponseEntity.ok(ApiResponse.success("同步任务已启动", Map.of("message", "同步成功")));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.1495a9db1464"), Map.of("message", ApiMessages.get("api.t.857139f1e378"))));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("同步失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.107f72dc1623") + e.getMessage()));
         }
     }
 
@@ -402,10 +403,10 @@ public class PriceLabsController {
             // 同一 listing_id 下执行 listing/rate_plan/calendar 全量重推，修复 PriceLabs 侧定价不可见问题。
             priceLabsSyncService.syncListingRatePlanAndCalendarForRoomType(storeId, roomTypeId, days);
             priceLabsSyncService.pullPricesForRoomTypeAsync(storeId, roomTypeId, days);
-            return ResponseEntity.ok(ApiResponse.success("房型价格同步已触发", Map.of("message", "已发起拉取")));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.002df6edbf45"), Map.of("message", ApiMessages.get("api.t.7e37aa195f3c"))));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("房型价格同步失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.3ca832e2c2e5") + e.getMessage()));
         }
     }
 
@@ -435,10 +436,10 @@ public class PriceLabsController {
                     "updated", result.updated(),
                     "skippedNoBasePrice", result.skippedNoBasePrice()
             );
-            return ResponseEntity.ok(ApiResponse.success("本地兜底生成渠道价格完成", payload));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.743f5c6c8ebc"), payload));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("本地兜底生成渠道价格失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.61f5d2161266") + e.getMessage()));
         }
     }
 
@@ -449,10 +450,10 @@ public class PriceLabsController {
             @RequestParam(defaultValue = "20") int size) {
         try {
             Page<PriceLabsSyncLogDTO> logs = priceLabsService.getSyncLogs(page, size);
-            return ResponseEntity.ok(ApiResponse.success("获取同步日志成功", logs));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.989a6f3b6e45"), logs));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("获取同步日志失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.aa5c99028e96") + e.getMessage()));
         }
     }
 
@@ -465,10 +466,10 @@ public class PriceLabsController {
             @RequestParam(defaultValue = "10") int limit) {
         try {
             List<PriceLabsSyncLogDTO> logs = priceLabsService.getRecentSyncLogs(limit);
-            return ResponseEntity.ok(ApiResponse.success("获取最近同步日志成功", logs));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.f1d8cc2f47ab"), logs));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("获取最近同步日志失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.4441b33b1ade") + e.getMessage()));
         }
     }
 
@@ -501,10 +502,10 @@ public class PriceLabsController {
                     "failureCount", summary.failureCount(),
                     "failures", summary.failureMessages()
             );
-            return ResponseEntity.ok(ApiResponse.success("reservations 推送完成", payload));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.c651a7e31346"), payload));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("reservations 推送失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.431b3969a2b4") + e.getMessage()));
         }
     }
 
@@ -562,10 +563,10 @@ public class PriceLabsController {
             Long storeId = StoreContextHolder.getContext().getStoreId();
             List<PriceLabsApiClient.StatusReq> statuses = request != null ? request.getStatuses() : null;
             PriceLabsApiClient.PriceLabsResponse res = priceLabsStatusService.queryStatus(storeId, statuses);
-            return ResponseEntity.ok(ApiResponse.success("status 查询完成", res));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.0b3133b48bd7"), res));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("status 查询失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.752bba7ff2bc") + e.getMessage()));
         }
     }
     /**
@@ -578,7 +579,7 @@ public class PriceLabsController {
     ) {
         try {
             if (request == null) {
-                throw new IllegalArgumentException("request 不能为空");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.13afe3af7bab"));
             }
             Long storeId = StoreContextHolder.getContext().getStoreId();
             PriceLabsApiClient.PriceLabsResponse res = priceLabsStatusService.queryReservationStatusByRoomType(
@@ -587,10 +588,10 @@ public class PriceLabsController {
                     request.getStartDate(),
                     request.getEndDate()
             );
-            return ResponseEntity.ok(ApiResponse.success("status 查询完成", res));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.0b3133b48bd7"), res));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("status 查询失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.752bba7ff2bc") + e.getMessage()));
         }
     }
 

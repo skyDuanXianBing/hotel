@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class PublicRegistrationBookingService {
 
@@ -44,14 +45,14 @@ public class PublicRegistrationBookingService {
     @Transactional
     public PublicRegistrationBookingResponse getBooking(Long storeId, String bookingKey) {
         if (storeId == null || bookingKey == null || bookingKey.isBlank()) {
-            throw new RuntimeException("bookingKey 不能为空");
+            throw new RuntimeException(ApiMessages.get("api.t.fc468e5f83b1"));
         }
 
         String normalizedBookingKey = bookingKey.trim();
         List<Reservation> reservations = reservationBookingKeyResolver.findReservationsByBookingKey(storeId, normalizedBookingKey);
 
         if (reservations.isEmpty()) {
-            throw new RuntimeException("预订不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.21907b69c6a3"));
         }
 
         List<Reservation> sorted = new ArrayList<>(reservations);
@@ -104,12 +105,12 @@ public class PublicRegistrationBookingService {
     @Transactional(readOnly = true)
     public void assertRoomBelongsToBooking(Long storeId, String bookingKey, String orderNumber) {
         if (storeId == null || bookingKey == null || bookingKey.isBlank() || orderNumber == null || orderNumber.isBlank()) {
-            throw new RuntimeException("参数错误");
+            throw new RuntimeException(ApiMessages.get("api.t.3e64edf2ea33"));
         }
 
         Reservation reservation = reservationRepository.findByStoreIdAndOrderNumber(storeId, orderNumber.trim()).orElse(null);
         if (reservation == null) {
-            throw new RuntimeException("订单不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.b8768a4b0d04"));
         }
 
         String key = bookingKey.trim();
@@ -117,7 +118,7 @@ public class PublicRegistrationBookingService {
             return;
         }
 
-        throw new RuntimeException("订单不属于该预订");
+        throw new RuntimeException(ApiMessages.get("api.t.20de2b1ec3c4"));
     }
 
     private String buildRoomRegistrationLink(Long storeId, String orderNumber) {

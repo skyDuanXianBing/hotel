@@ -9,6 +9,7 @@ import server.demo.service.InternalTaskService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/internal-tasks")
 @StoreScoped
@@ -27,8 +28,8 @@ public class InternalTaskController {
     }
     @GetMapping("/assignees") public ApiResponse<List<InternalTaskAssigneeDTO>> assignees() { return ApiResponse.success(service.getAssignees()); }
     @GetMapping("/{id}") public ApiResponse<InternalTaskDTO> detail(@PathVariable Long id) { return ApiResponse.success(service.getById(id)); }
-    @PostMapping public ApiResponse<InternalTaskDTO> create(@RequestBody InternalTaskCreateRequest request) { return ApiResponse.success("创建任务成功", service.create(request)); }
-    @PutMapping("/{id}/assignee") public ApiResponse<InternalTaskDTO> assign(@PathVariable Long id, @RequestBody InternalTaskAssignRequest request) { return ApiResponse.success("分配任务成功", service.assign(id, request)); }
-    @PostMapping("/{id}/complete") public ApiResponse<InternalTaskDTO> complete(@PathVariable Long id) { return ApiResponse.success("任务已完成", service.complete(id)); }
-    @PostMapping("/{id}/archive") public ApiResponse<InternalTaskDTO> archive(@PathVariable Long id) { return ApiResponse.success("任务已归档", service.archive(id)); }
+    @PostMapping public ApiResponse<InternalTaskDTO> create(@RequestBody InternalTaskCreateRequest request) { return ApiResponse.success(ApiMessages.get("api.t.9ed9229d5861"), service.create(request)); }
+    @PutMapping("/{id}/assignee") public ApiResponse<InternalTaskDTO> assign(@PathVariable Long id, @RequestBody InternalTaskAssignRequest request) { return ApiResponse.success(ApiMessages.get("api.t.8882fd1592b4"), service.assign(id, request)); }
+    @PostMapping("/{id}/complete") public ApiResponse<InternalTaskDTO> complete(@PathVariable Long id) { return ApiResponse.success(ApiMessages.get("api.t.f2741315f7aa"), service.complete(id)); }
+    @PostMapping("/{id}/archive") public ApiResponse<InternalTaskDTO> archive(@PathVariable Long id) { return ApiResponse.success(ApiMessages.get("api.t.4505c267cc62"), service.archive(id)); }
 }

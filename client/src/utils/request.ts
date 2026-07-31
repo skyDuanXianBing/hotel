@@ -1,6 +1,6 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
-import { i18n } from '@/locales'
+import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, i18n, resolveLocale } from '@/locales'
 import { pinia } from '@/stores/pinia'
 import {
   CLEANER_STORE_KEY,
@@ -132,8 +132,19 @@ const isCleanerWorkspacePath = (path: string) => {
   return true
 }
 
+const resolveAppLocale = () => {
+  if (typeof localStorage === 'undefined') {
+    return DEFAULT_LOCALE
+  }
+  return resolveLocale(localStorage.getItem(LOCALE_STORAGE_KEY))
+}
+
 request.interceptors.request.use(
   (config) => {
+    const appLocale = resolveAppLocale()
+    config.headers['Accept-Language'] = appLocale
+    config.headers['X-App-Locale'] = appLocale
+
     const isCleanerRoute =
       typeof window !== 'undefined' && isCleanerWorkspacePath(window.location.pathname)
     const token = localStorage.getItem(isCleanerRoute ? CLEANER_TOKEN_KEY : PMS_TOKEN_KEY)

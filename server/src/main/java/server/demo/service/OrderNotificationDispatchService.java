@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class OrderNotificationDispatchService {
 
@@ -105,9 +106,9 @@ public class OrderNotificationDispatchService {
 
     private String buildContent(OrderEventType eventType, Reservation reservation) {
         String channelName = reservation.getChannel() != null
-                ? safeText(reservation.getChannel().getName(), "未知渠道")
-                : "未知渠道";
-        String guestName = safeText(reservation.getGuestName(), "未知客人");
+                ? safeText(reservation.getChannel().getName(), ApiMessages.get("api.t.d0f332397a79"))
+                : ApiMessages.get("api.t.d0f332397a79");
+        String guestName = safeText(reservation.getGuestName(), ApiMessages.get("api.t.d68b39fa381f"));
         String channelOrderNumber = safeText(
                 reservation.getChannelOrderNumber(),
                 safeText(reservation.getOrderNumber(), "-")
@@ -115,19 +116,19 @@ public class OrderNotificationDispatchService {
 
         return switch (eventType) {
             case CREATED -> String.format(
-                    "%s发来了一个新订单，客人姓名：%s，渠道订单号: %s",
+                    ApiMessages.get("api.t.2c2418e78214"),
                     channelName,
                     guestName,
                     channelOrderNumber
             );
             case UPDATED -> String.format(
-                    "%s修改了%s的订单，渠道订单号: %s",
+                    ApiMessages.get("api.t.62907a62c644"),
                     channelName,
                     guestName,
                     channelOrderNumber
             );
             case CANCELLED -> String.format(
-                    "%s取消了%s的订单，渠道订单号: %s",
+                    ApiMessages.get("api.t.6d0473de4212"),
                     channelName,
                     guestName,
                     channelOrderNumber
@@ -182,9 +183,9 @@ public class OrderNotificationDispatchService {
     }
 
     public enum OrderEventType {
-        CREATED("订单创建"),
-        UPDATED("订单修改"),
-        CANCELLED("订单取消");
+        CREATED(ApiMessages.get("api.t.f4b504a9b2bb")),
+        UPDATED(ApiMessages.get("api.t.0b99a0e5a544")),
+        CANCELLED(ApiMessages.get("api.t.24d78a40e64d"));
 
         private final String title;
 

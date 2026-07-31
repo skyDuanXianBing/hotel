@@ -4,6 +4,7 @@ import server.demo.exception.ManagedOperationValidationException;
 
 import java.math.BigDecimal;
 
+import server.demo.i18n.ApiMessages;
 public final class ManagedOperationMoneyRules {
     private ManagedOperationMoneyRules() {}
 
@@ -13,7 +14,7 @@ public final class ManagedOperationMoneyRules {
 
     public static void requireWholeYen(BigDecimal value, String field) {
         if (!isWholeYen(value)) {
-            throw new ManagedOperationValidationException(field + "必须是整日元金额，不能包含非零小数");
+            throw new ManagedOperationValidationException(field + ApiMessages.get("api.t.06723280266a"));
         }
     }
 }

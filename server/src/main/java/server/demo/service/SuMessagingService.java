@@ -59,6 +59,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.LinkedHashSet;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class SuMessagingService {
 
@@ -83,7 +84,7 @@ public class SuMessagingService {
     private static final String STATUS_CHECKED_OUT = "CHECKED_OUT";
     private static final String STATUS_CANCELLED = "CANCELLED";
     private static final long MAX_IMAGE_BYTES = 10L * 1024L * 1024L;
-    private static final String IMAGE_SUMMARY = "[图片]";
+    private static final String IMAGE_SUMMARY_KEY = "api.t.4f622a639dae";
 
     private final SuMessageThreadRepository threadRepository;
     private final SuMessageRepository messageRepository;
@@ -236,7 +237,7 @@ public class SuMessagingService {
         if (thread.getGuestName() == null || thread.getGuestName().isBlank()) {
             thread.setGuestName(readAirbnbGuestFirstName(root));
         }
-        thread.setLastMessage(content != null ? trimToMax(content, 500) : IMAGE_SUMMARY);
+        thread.setLastMessage(content != null ? trimToMax(content, 500) : ApiMessages.get(IMAGE_SUMMARY_KEY));
         thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
 
         thread = threadRepository.save(thread);
@@ -479,7 +480,7 @@ public class SuMessagingService {
     private void requireMatchingStoreContext(Long storeId) {
         Long contextStoreId = StoreContextUtils.requireStoreId();
         if (storeId == null || !storeId.equals(contextStoreId)) {
-            throw new IllegalArgumentException("门店上下文不一致");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.88d06d53243c"));
         }
     }
 
@@ -1131,7 +1132,7 @@ public class SuMessagingService {
         attachment = attachmentRepository.save(attachment);
         msg.setAttachments(List.of(attachment));
 
-        thread.setLastMessage(IMAGE_SUMMARY);
+        thread.setLastMessage(ApiMessages.get(IMAGE_SUMMARY_KEY));
         thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
         threadRepository.save(thread);
 

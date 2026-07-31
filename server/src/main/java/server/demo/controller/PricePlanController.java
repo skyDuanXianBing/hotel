@@ -15,6 +15,7 @@ import server.demo.service.PricePlanService;
 import java.util.List;
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/price-plans")
 @StoreScoped
@@ -26,21 +27,21 @@ public class PricePlanController extends BaseStoreController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<PricePlan>>> getAllPricePlans() {
         List<PricePlan> pricePlans = pricePlanService.getAllPricePlans();
-        return ResponseEntity.ok(ApiResponse.success("获取价格计划列表成功", pricePlans));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.70ce0f26eb05"), pricePlans));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PricePlan>> getPricePlanById(@PathVariable Long id) {
         return pricePlanService.getPricePlanById(id)
-                .map(plan -> ResponseEntity.ok(ApiResponse.success("获取价格计划成功", plan)))
-                .orElse(ResponseEntity.ok(ApiResponse.error("价格计划不存在")));
+                .map(plan -> ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.e4afe664dcd0"), plan)))
+                .orElse(ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.f6d8111d0db9"))));
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<PricePlan>> createPricePlan(@Valid @RequestBody PricePlan pricePlan) {
         try {
             PricePlan created = pricePlanService.createPricePlan(pricePlan);
-            return ResponseEntity.ok(ApiResponse.success("创建价格计划成功", created));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.e4f46377fff0"), created));
         } catch (RuntimeException e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }
@@ -51,7 +52,7 @@ public class PricePlanController extends BaseStoreController {
                                                                   @Valid @RequestBody PricePlan pricePlan) {
         try {
             PricePlan updated = pricePlanService.updatePricePlan(id, pricePlan);
-            return ResponseEntity.ok(ApiResponse.success("更新价格计划成功", updated));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.7bfcdda40388"), updated));
         } catch (RuntimeException e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }
@@ -61,7 +62,7 @@ public class PricePlanController extends BaseStoreController {
     public ResponseEntity<ApiResponse<Void>> deletePricePlan(@PathVariable Long id) {
         try {
             pricePlanService.deletePricePlan(id);
-            return ResponseEntity.ok(ApiResponse.success("删除价格计划成功", null));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.8e430ac2ae90"), null));
         } catch (RuntimeException e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }
@@ -73,7 +74,7 @@ public class PricePlanController extends BaseStoreController {
             @Valid @RequestBody ForceDeleteRequest request) {
         try {
             pricePlanService.forceDeletePricePlan(id, Boolean.TRUE.equals(request.getConfirm()));
-            return ResponseEntity.ok(ApiResponse.success("彻底删除价格计划成功", null));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.6232da6ca865"), null));
         } catch (RuntimeException e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }
@@ -82,13 +83,13 @@ public class PricePlanController extends BaseStoreController {
     @GetMapping("/{id}/room-types")
     public ResponseEntity<ApiResponse<List<RoomTypePricePlan>>> getRoomTypesByPricePlan(@PathVariable Long id) {
         List<RoomTypePricePlan> roomTypes = pricePlanService.getRoomTypesByPricePlan(id);
-        return ResponseEntity.ok(ApiResponse.success("获取房型列表成功", roomTypes));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.b8ec2dcbc5a3"), roomTypes));
     }
 
     @GetMapping("/room-types/{roomTypeId}")
     public ResponseEntity<ApiResponse<List<RoomTypePricePlan>>> getPricePlansByRoomType(@PathVariable Long roomTypeId) {
         List<RoomTypePricePlan> pricePlans = pricePlanService.getPricePlansByRoomType(roomTypeId);
-        return ResponseEntity.ok(ApiResponse.success("获取价格计划列表成功", pricePlans));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.70ce0f26eb05"), pricePlans));
     }
 
     @PostMapping("/room-types/{roomTypeId}/assign/{pricePlanId}")
@@ -98,7 +99,7 @@ public class PricePlanController extends BaseStoreController {
             @Valid @RequestBody AssignRoomTypePricePlanRequest request) {
         try {
             RoomTypePricePlan assigned = pricePlanService.assignPricePlanToRoomType(roomTypeId, pricePlanId, request);
-            return ResponseEntity.ok(ApiResponse.success("分配价格计划成功", assigned));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.3ebe67e749d8"), assigned));
         } catch (RuntimeException e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }
@@ -110,7 +111,7 @@ public class PricePlanController extends BaseStoreController {
             @Valid @RequestBody AssignRoomTypePricePlanRequest request) {
         try {
             RoomTypePricePlan updated = pricePlanService.updateRoomTypePricePlan(id, request);
-            return ResponseEntity.ok(ApiResponse.success("更新房型价格计划成功", updated));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.0af5fdeb2e6d"), updated));
         } catch (RuntimeException e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }
@@ -123,8 +124,8 @@ public class PricePlanController extends BaseStoreController {
         try {
             long clearedOverrides = pricePlanService.deleteRoomTypePricePlan(id, clearOverrides);
             String message = clearOverrides
-                    ? "删除房型价格计划关联成功，已清理 " + clearedOverrides + " 条按日期覆盖价"
-                    : "删除房型价格计划关联成功";
+                    ? ApiMessages.get("api.t.cd5282f0c11e") + clearedOverrides + ApiMessages.get("api.t.932f2a06b1b5")
+                    : ApiMessages.get("api.t.e88e894c9812");
             return ResponseEntity.ok(ApiResponse.success(message, null));
         } catch (RuntimeException e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
@@ -134,7 +135,7 @@ public class PricePlanController extends BaseStoreController {
     @GetMapping("/room-type-counts")
     public ResponseEntity<ApiResponse<Map<Long, Long>>> countRoomTypesByPricePlans() {
         return ResponseEntity.ok(ApiResponse.success(
-                "获取房型数量成功",
+                ApiMessages.get("api.t.22d834c4a325"),
                 pricePlanService.countRoomTypesByPricePlanForCurrentStore()
         ));
     }
@@ -142,6 +143,6 @@ public class PricePlanController extends BaseStoreController {
     @GetMapping("/{id}/room-types/count")
     public ResponseEntity<ApiResponse<Long>> countRoomTypesByPricePlan(@PathVariable Long id) {
         long count = pricePlanService.countRoomTypesByPricePlan(id);
-        return ResponseEntity.ok(ApiResponse.success("获取房型数量成功", count));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.22d834c4a325"), count));
     }
 }

@@ -60,6 +60,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class SmartLockService {
     private static final Logger logger = LoggerFactory.getLogger(SmartLockService.class);
@@ -68,18 +69,12 @@ public class SmartLockService {
     private static final int GENERATED_PASSCODE_BOUND = 900000;
     private static final int MIN_PASSCODE_LENGTH = 6;
     private static final int MAX_PASSCODE_LENGTH = 12;
-    private static final String SWITCHBOT_NO_ID_CREATE_PENDING_MESSAGE =
-            "SwitchBot 已返回 success 但未返回 commandId 或 keyId，等待 keyList 同步";
-    private static final String TTLOCK_NO_ID_CREATE_PENDING_MESSAGE =
-            "TTLock 已返回成功但未返回 keyboardPwdId，请刷新密码列表同步";
-    private static final String TTLOCK_PASSCODE_SYNC_NO_MATCH_MESSAGE =
-            "TTLock 密码列表未找到对应远端密码，已停止等待";
-    private static final String TTLOCK_DELETE_STILL_EXISTS_MESSAGE =
-            "TTLock 远端密码仍存在，删除结果未确认";
-    private static final String TTLOCK_DELETE_IN_PROGRESS_MESSAGE =
-            "TTLock 远端密码正在删除，等待列表同步确认";
-    private static final String TTLOCK_STATUS_REFRESH_FAILED_PREFIX =
-            "命令已提交，状态刷新失败: ";
+    private static final String SWITCHBOT_NO_ID_CREATE_PENDING_MESSAGE_KEY = "api.t.065856f6b3b7";
+    private static final String TTLOCK_NO_ID_CREATE_PENDING_MESSAGE_KEY = "api.t.9bbc264250bd";
+    private static final String TTLOCK_PASSCODE_SYNC_NO_MATCH_MESSAGE_KEY = "api.t.ed3a70ec9a60";
+    private static final String TTLOCK_DELETE_STILL_EXISTS_MESSAGE_KEY = "api.t.f6ec1a7b964a";
+    private static final String TTLOCK_DELETE_IN_PROGRESS_MESSAGE_KEY = "api.t.7812e21c0046";
+    private static final String TTLOCK_STATUS_REFRESH_FAILED_PREFIX_KEY = "api.t.879ef2d82864";
     private static final String PENDING_PASSCODE_MASK = "******";
     private static final String TTLOCK_AUTO_PASSCODE_PENDING_HASH_PREFIX = "TTLOCK_AUTO_PENDING";
     private static final String TTLOCK_DEFAULT_KEYBOARD_PWD_VERSION = "4";
@@ -90,10 +85,8 @@ public class SmartLockService {
     private static final String TTLOCK_PASSCODE_STATUS_ADD_FAILED = "5";
     private static final String TTLOCK_PASSCODE_STATUS_DELETING = "8";
     private static final String TTLOCK_PASSCODE_STATUS_DELETE_FAILED = "9";
-    private static final String LOCAL_NO_REMOTE_PASSCODE_CLEANUP_MESSAGE =
-            "本地密码记录已清理，未调用供应商删除";
-    private static final String MISSING_PROVIDER_PASSCODE_ID_DELETE_MESSAGE =
-            "该门锁密码尚未取得供应商密码 ID，已拒绝远程删除；请等待同步完成后再试";
+    private static final String LOCAL_NO_REMOTE_PASSCODE_CLEANUP_MESSAGE_KEY = "api.t.78d965fd3a24";
+    private static final String MISSING_PROVIDER_PASSCODE_ID_DELETE_MESSAGE_KEY = "api.t.c55762eaf20a";
     private static final String SWITCHBOT_PASSCODE_WRITE_UNAVAILABLE_REASON_CODE =
             "SWITCHBOT_PASSCODE_TEMPORARILY_UNAVAILABLE";
     private static final List<SmartLockPasscodeStatus> BINDING_DELETE_RISKY_PASSCODE_STATUSES = List.of(
@@ -207,13 +200,13 @@ public class SmartLockService {
             integration.setLastTestAt(now);
             integration.setLastError(null);
             integrationRepository.save(integration);
-            return new SmartLockTestResultDTO(true, "连接测试成功");
+            return new SmartLockTestResultDTO(true, ApiMessages.get("api.t.bfbf35fbdce1"));
         } catch (RuntimeException ex) {
             integration.setConnectionStatus(SmartLockIntegrationStatus.ERROR);
             integration.setLastTestAt(now);
             integration.setLastError(safeError(ex));
             integrationRepository.save(integration);
-            return new SmartLockTestResultDTO(false, "连接测试失败: " + safeError(ex));
+            return new SmartLockTestResultDTO(false, ApiMessages.get("api.t.e52f6fc91de6") + safeError(ex));
         }
     }
 
@@ -460,7 +453,7 @@ public class SmartLockService {
         boolean ttLockAutomaticPasscode = passcodeTarget.provider() == SmartLockProvider.TTLOCK
                 && !hasText(requestedPasscode);
         String passcode = ttLockAutomaticPasscode ? null : normalizePasscode(request.getPasscode());
-        String passcodeName = fallback(SmartLockMaskingUtils.trimToNull(request.getPasscodeName()), "门锁密码");
+        String passcodeName = fallback(SmartLockMaskingUtils.trimToNull(request.getPasscodeName()), ApiMessages.get("api.t.f6f071cfc014"));
         String requestHash = credentialCrypto.sha256Hex(
                 "PASSCODE_CREATE|" + storeId + "|" + userId + "|" + roomId + "|" + binding.getId() + "|" + passcodeName
         );
@@ -470,7 +463,7 @@ public class SmartLockService {
             if (existingTask.getPasscodeRecord() != null) {
                 return mapper.toPasscodeDto(existingTask.getPasscodeRecord(), null);
             }
-            throw new IllegalStateException("幂等任务缺少门锁密码记录");
+            throw new IllegalStateException(ApiMessages.get("api.t.b40d3ae97a59"));
         }
 
         SmartLockPasscodeRecord record = new SmartLockPasscodeRecord();
@@ -571,7 +564,7 @@ public class SmartLockService {
                         SmartLockTaskStatus.UNKNOWN,
                         task.getProviderTaskId(),
                         null,
-                        "SwitchBot 创建命令结果待确认"
+                        ApiMessages.get("api.t.ac208e7b9aca")
                 ));
             } else {
                 failTask(task, ex);
@@ -591,7 +584,7 @@ public class SmartLockService {
         Long storeId = StoreContextUtils.requireStoreId();
         Long userId = StoreContextUtils.requireUserId();
         SmartLockPasscodeRecord record = passcodeRepository.findByStoreIdAndId(storeId, recordId)
-                .orElseThrow(() -> new IllegalArgumentException("门锁密码记录不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.c3bc0fdd0c58")));
         requirePasscodeWriteEnabled(record.getProvider());
         if (record.getStatus() == SmartLockPasscodeStatus.DELETED) {
             logPasscodeDeleteLocalPath("alreadyDeleted", record);
@@ -611,7 +604,7 @@ public class SmartLockService {
         }
         if (!hasText(record.getProviderPasscodeId())) {
             logPasscodeDeleteMissingProviderPasscodeId(record, passcodeTarget);
-            throw new IllegalArgumentException(MISSING_PROVIDER_PASSCODE_ID_DELETE_MESSAGE);
+            throw new IllegalArgumentException(ApiMessages.get(MISSING_PROVIDER_PASSCODE_ID_DELETE_MESSAGE_KEY));
         }
         record.setStatus(SmartLockPasscodeStatus.DELETE_PENDING);
         passcodeRepository.save(record);
@@ -650,7 +643,7 @@ public class SmartLockService {
     public SmartLockTaskDTO getTask(Long taskId) {
         Long storeId = StoreContextUtils.requireStoreId();
         SmartLockTask task = taskRepository.findByStoreIdAndId(storeId, taskId)
-                .orElseThrow(() -> new IllegalArgumentException("门锁任务不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.af9c378dbd7e")));
         if (shouldRefreshPendingTask(task)) {
             refreshPendingTask(task);
         }
@@ -928,7 +921,7 @@ public class SmartLockService {
             integration.setCredentialFingerprint(credentials.fingerprint(credentialCrypto));
             integration.setTokenExpiresAt(credentials.getTtLockTokenExpiresAt());
         } catch (Exception ex) {
-            throw new IllegalStateException("门锁凭证序列化失败", ex);
+            throw new IllegalStateException(ApiMessages.get("api.t.274959361d28"), ex);
         }
     }
 
@@ -939,7 +932,7 @@ public class SmartLockService {
             data.setProvider(integration.getProvider());
             return data;
         } catch (Exception ex) {
-            throw new IllegalStateException("门锁凭证读取失败", ex);
+            throw new IllegalStateException(ApiMessages.get("api.t.c184155aaba6"), ex);
         }
     }
 
@@ -962,15 +955,15 @@ public class SmartLockService {
     private SmartLockDevice resolveDevice(Long storeId, SmartLockRequests.CreateBindingRequest request) {
         if (request.getDeviceId() != null) {
             return deviceRepository.findByStoreIdAndId(storeId, request.getDeviceId())
-                    .orElseThrow(() -> new IllegalArgumentException("门锁设备不存在"));
+                    .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.0e234935fb51")));
         }
         SmartLockProvider provider = requireProvider(request.getProvider());
         String providerLockId = SmartLockMaskingUtils.trimToNull(request.getProviderLockId());
         if (!hasText(providerLockId)) {
-            throw new IllegalArgumentException("providerLockId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.37e2b9e6cd0c"));
         }
         return deviceRepository.findByStoreIdAndProviderAndProviderLockId(storeId, provider, providerLockId)
-                .orElseThrow(() -> new IllegalArgumentException("门锁设备不存在，请先同步设备"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.68ea069b0475")));
     }
 
     private BindingRoleSelection resolveBindingRoleSelection(
@@ -982,7 +975,7 @@ public class SmartLockService {
             SmartLockDevice controlDevice = roleResolver.supportsControl(legacyDevice) ? legacyDevice : null;
             SmartLockDevice passcodeDevice = roleResolver.supportsPasscode(legacyDevice) ? legacyDevice : null;
             if (controlDevice == null && passcodeDevice == null) {
-                throw new IllegalArgumentException("所选门锁设备不支持控制或密码能力");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.50e763040b84"));
             }
             return new BindingRoleSelection(controlDevice, passcodeDevice);
         }
@@ -992,17 +985,17 @@ public class SmartLockService {
                 request,
                 request.getControlDeviceId(),
                 request.getControlProviderLockId(),
-                "控制设备"
+                ApiMessages.get("api.t.f2793eec1ceb")
         );
         SmartLockDevice passcodeDevice = resolveRoleDevice(
                 storeId,
                 request,
                 request.getPasscodeDeviceId(),
                 request.getPasscodeProviderLockId(),
-                "密码设备"
+                ApiMessages.get("api.t.7ba8def67123")
         );
         if (controlDevice == null && passcodeDevice == null) {
-            throw new IllegalArgumentException("至少需要绑定控制设备或密码设备");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.788917da1d6d"));
         }
         return new BindingRoleSelection(controlDevice, passcodeDevice);
     }
@@ -1029,18 +1022,18 @@ public class SmartLockService {
         SmartLockDevice device;
         if (deviceId != null) {
             device = deviceRepository.findByStoreIdAndId(storeId, deviceId)
-                    .orElseThrow(() -> new IllegalArgumentException(roleName + "不存在"));
+                    .orElseThrow(() -> new IllegalArgumentException(roleName + ApiMessages.get("api.t.0d864b52e306")));
             if (hasText(providerLockId) && !providerLockId.equals(device.getProviderLockId())) {
-                throw new IllegalArgumentException(roleName + "与 providerLockId 不一致");
+                throw new IllegalArgumentException(roleName + ApiMessages.get("api.t.ddb6fb0a9180"));
             }
         } else {
             SmartLockProvider provider = resolveProviderHint(storeId, request);
             device = deviceRepository.findByStoreIdAndProviderAndProviderLockId(storeId, provider, providerLockId)
-                    .orElseThrow(() -> new IllegalArgumentException(roleName + "不存在，请先同步设备"));
+                    .orElseThrow(() -> new IllegalArgumentException(roleName + ApiMessages.get("api.t.d7326aa71d04")));
         }
 
         if (request.getProvider() != null && request.getProvider() != device.getProvider()) {
-            throw new IllegalArgumentException(roleName + "与指定服务商不一致");
+            throw new IllegalArgumentException(roleName + ApiMessages.get("api.t.fbb618ad06f0"));
         }
         return device;
     }
@@ -1052,7 +1045,7 @@ public class SmartLockService {
         if (request.getIntegrationId() != null) {
             return requireIntegration(storeId, request.getIntegrationId()).getProvider();
         }
-        throw new IllegalArgumentException("provider 不能为空");
+        throw new IllegalArgumentException(ApiMessages.get("api.t.2e4236e0a17f"));
     }
 
     private SmartLockIntegration resolveBindingIntegration(
@@ -1069,17 +1062,17 @@ public class SmartLockService {
             if (integration == null) {
                 integration = passcodeIntegration;
             } else if (passcodeIntegration == null || !integration.getId().equals(passcodeIntegration.getId())) {
-                throw new IllegalArgumentException("控制设备与密码设备不属于同一集成");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.4e288611826e"));
             }
         }
         if (request.getIntegrationId() != null) {
             SmartLockIntegration requestedIntegration = requireIntegration(storeId, request.getIntegrationId());
             if (integration == null || !requestedIntegration.getId().equals(integration.getId())) {
-                throw new IllegalArgumentException("门锁设备不属于指定集成");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.f1fc544da457"));
             }
         }
         if (integration == null) {
-            throw new IllegalArgumentException("门锁集成不存在");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.2091368fecdd"));
         }
         return integration;
     }
@@ -1096,7 +1089,7 @@ public class SmartLockService {
         if (controlDevice != null) {
             validateDeviceConsistency(storeId, controlDevice, integration);
             if (!roleResolver.supportsControl(controlDevice)) {
-                throw new IllegalArgumentException("所选控制设备不支持开关锁或状态能力");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.2d8423627cf0"));
             }
             ensureProviderLockNotBoundElsewhere(
                     storeId,
@@ -1109,7 +1102,7 @@ public class SmartLockService {
         if (passcodeDevice != null) {
             validateDeviceConsistency(storeId, passcodeDevice, integration);
             if (!roleResolver.supportsPasscode(passcodeDevice)) {
-                throw new IllegalArgumentException("所选密码设备不支持门锁密码能力");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.03283a2ae1a8"));
             }
             ensureProviderLockNotBoundElsewhere(
                     storeId,
@@ -1137,8 +1130,8 @@ public class SmartLockService {
         }
 
         throw new IllegalArgumentException(
-                "该房间已绑定 " + providerDisplayName(existingProvider)
-                        + " 门锁，请先解绑后再绑定 " + providerDisplayName(requestedProvider)
+                ApiMessages.get("api.t.f62abea327bf") + providerDisplayName(existingProvider)
+                        + ApiMessages.get("api.t.d5f9a795837d") + providerDisplayName(requestedProvider)
         );
     }
 
@@ -1153,17 +1146,17 @@ public class SmartLockService {
             return;
         }
         if (roleResolver.hasConflictingSwitchBotLinkedControl(passcodeDevice)) {
-            throw new IllegalArgumentException("SwitchBot 密码设备的 lockDeviceId 与辅助设备 ID 不一致，请重新同步设备");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.b3bc13644d54"));
         }
 
         if (roleResolver.isSwitchBotAuthenticationPanel(passcodeDevice)) {
             String linkedControlProviderLockId = roleResolver.linkedControlProviderLockId(passcodeDevice);
             if (controlDevice != null) {
                 if (!hasText(linkedControlProviderLockId)) {
-                    throw new IllegalArgumentException("SwitchBot 密码设备未返回关联的控制门锁，请重新同步设备");
+                    throw new IllegalArgumentException(ApiMessages.get("api.t.fd6442845a4c"));
                 }
                 if (!linkedControlProviderLockId.equals(controlDevice.getProviderLockId())) {
-                    throw new IllegalArgumentException("SwitchBot 密码设备关联的控制门锁与所选控制设备不一致");
+                    throw new IllegalArgumentException(ApiMessages.get("api.t.350e71307893"));
                 }
             } else if (hasText(linkedControlProviderLockId)) {
                 ensureProviderLockNotBoundElsewhere(
@@ -1178,7 +1171,7 @@ public class SmartLockService {
         }
 
         if (controlDevice != null && !passcodeDevice.getProviderLockId().equals(controlDevice.getProviderLockId())) {
-            throw new IllegalArgumentException("SwitchBot 双能力密码设备必须与控制设备一致");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.75bacb262488"));
         }
     }
 
@@ -1201,7 +1194,7 @@ public class SmartLockService {
         );
         for (SmartLockRoomBinding conflict : conflicts) {
             if (conflict.getRoom() == null || !roomId.equals(conflict.getRoom().getId())) {
-                throw new IllegalArgumentException("该门锁设备已绑定其他房间");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.b9b419295cc6"));
             }
         }
     }
@@ -1228,32 +1221,32 @@ public class SmartLockService {
             SmartLockRequests.LockOperationRequest request
     ) {
         if (!Boolean.TRUE.equals(request.getConfirm())) {
-            throw new IllegalArgumentException("远程门锁操作需要二次确认");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.aec3f2a5ff96"));
         }
         String token = SmartLockMaskingUtils.trimToNull(request.getConfirmToken());
         if (!hasText(token)) {
-            throw new IllegalArgumentException("缺少二次确认 token");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.f5721be3cc84"));
         }
         String tokenHash = credentialCrypto.sha256Hex(token);
         SmartLockConfirmation confirmation = confirmationRepository.findByStoreIdAndTokenHash(storeId, tokenHash)
-                .orElseThrow(() -> new IllegalArgumentException("二次确认 token 无效"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.50d74628b50e")));
         if (!userId.equals(confirmation.getCreatedBy())) {
-            throw new IllegalArgumentException("二次确认 token 与当前用户不匹配");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.d2090a3620ee"));
         }
         if (confirmation.getUsedAt() != null) {
-            throw new IllegalArgumentException("二次确认 token 已使用");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.c8f46a569336"));
         }
         if (!confirmation.getExpiresAt().isAfter(now())) {
-            throw new IllegalArgumentException("二次确认 token 已过期");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.87f7c9655591"));
         }
         if (!roomId.equals(confirmation.getRoom().getId())) {
-            throw new IllegalArgumentException("二次确认 token 与房间不匹配");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.1ddc5d843218"));
         }
         if (!binding.getId().equals(confirmation.getBinding().getId())) {
-            throw new IllegalArgumentException("二次确认 token 与门锁绑定不匹配");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.983255ed239f"));
         }
         if (confirmation.getAction() != action) {
-            throw new IllegalArgumentException("二次确认 token 与操作不匹配");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.c044e75b5315"));
         }
         confirmation.setUsedAt(now());
         return confirmationRepository.save(confirmation);
@@ -1270,7 +1263,7 @@ public class SmartLockService {
         }
         String existingHash = existing.get().getRequestHash();
         if (hasText(existingHash) && !existingHash.equals(requestHash)) {
-            throw new IllegalArgumentException("幂等键已用于其他门锁请求");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.f78c3dad32e5"));
         }
         return existing;
     }
@@ -1343,7 +1336,7 @@ public class SmartLockService {
         if (client instanceof SmartLockTtLockClient ttLockClient) {
             return ttLockClient.createPeriodPasscode(credentials, providerLockId, command, keyboardPwdVersion);
         }
-        throw new IllegalStateException("TTLock 自动密码客户端不可用");
+        throw new IllegalStateException(ApiMessages.get("api.t.8fa33190a6dd"));
     }
 
     private String resolveTtLockKeyboardPwdVersion(RoleTarget target) {
@@ -1377,7 +1370,7 @@ public class SmartLockService {
         try {
             refreshControlDeviceStatus(target, now());
         } catch (RuntimeException ex) {
-            String message = TTLOCK_STATUS_REFRESH_FAILED_PREFIX + safeError(ex);
+            String message = ApiMessages.get(TTLOCK_STATUS_REFRESH_FAILED_PREFIX_KEY) + safeError(ex);
             task.setResultMessage(appendTaskResultMessage(task.getResultMessage(), message));
             taskRepository.save(task);
             logger.warn(
@@ -1400,7 +1393,7 @@ public class SmartLockService {
                     SmartLockTaskStatus.PENDING,
                     result.providerTaskId(),
                     null,
-                    TTLOCK_NO_ID_CREATE_PENDING_MESSAGE
+                    ApiMessages.get(TTLOCK_NO_ID_CREATE_PENDING_MESSAGE_KEY)
             );
         }
         if (provider != SmartLockProvider.SWITCHBOT || result.status() != SmartLockTaskStatus.PENDING) {
@@ -1413,7 +1406,7 @@ public class SmartLockService {
                 SmartLockTaskStatus.PENDING,
                 null,
                 null,
-                SWITCHBOT_NO_ID_CREATE_PENDING_MESSAGE
+                ApiMessages.get(SWITCHBOT_NO_ID_CREATE_PENDING_MESSAGE_KEY)
         );
     }
 
@@ -1436,7 +1429,7 @@ public class SmartLockService {
         passcodeReconciliationService.completeMatchingCreateTasksWithoutProviderTaskId(
                 record,
                 SmartLockTaskStatus.FAILED,
-                LOCAL_NO_REMOTE_PASSCODE_CLEANUP_MESSAGE
+                ApiMessages.get(LOCAL_NO_REMOTE_PASSCODE_CLEANUP_MESSAGE_KEY)
         );
         logPasscodeDeleteLocalPath("noRemoteIdLocalCleanup", record);
     }
@@ -1479,7 +1472,7 @@ public class SmartLockService {
             }
 
             if (record.getStatus() == SmartLockPasscodeStatus.PENDING) {
-                failTtLockPendingPasscode(record, TTLOCK_PASSCODE_SYNC_NO_MATCH_MESSAGE);
+                failTtLockPendingPasscode(record, ApiMessages.get(TTLOCK_PASSCODE_SYNC_NO_MATCH_MESSAGE_KEY));
             }
         }
     }
@@ -1578,7 +1571,7 @@ public class SmartLockService {
             record.setDeletedAt(now());
             record.setLastError(null);
         } else if (remoteStatus == SmartLockPasscodeStatus.FAILED) {
-            record.setLastError("TTLock 远端密码状态异常: " + fallback(snapshot.status(), "unknown"));
+            record.setLastError(ApiMessages.get("api.t.5d4329bfe719") + fallback(snapshot.status(), "unknown"));
         } else {
             record.setLastError(null);
         }
@@ -1591,7 +1584,7 @@ public class SmartLockService {
                     SmartLockTaskType.CREATE_PASSCODE,
                     SmartLockTaskStatus.SUCCESS,
                     record.getProviderPasscodeId(),
-                    "TTLock 密码列表已确认创建成功"
+                    ApiMessages.get("api.t.00b41601cf00")
             );
         } else if (previousStatus == SmartLockPasscodeStatus.PENDING
                 && remoteStatus == SmartLockPasscodeStatus.FAILED) {
@@ -1609,7 +1602,7 @@ public class SmartLockService {
                     SmartLockTaskType.CREATE_PASSCODE,
                     SmartLockTaskStatus.FAILED,
                     record.getProviderPasscodeId(),
-                    "TTLock 远端密码已删除，创建结果未确认"
+                    ApiMessages.get("api.t.0c0bbcd6b1f0")
             );
         } else if (previousStatus == SmartLockPasscodeStatus.PENDING
                 && remoteStatus == SmartLockPasscodeStatus.DELETE_PENDING) {
@@ -1618,7 +1611,7 @@ public class SmartLockService {
                     SmartLockTaskType.CREATE_PASSCODE,
                     SmartLockTaskStatus.FAILED,
                     record.getProviderPasscodeId(),
-                    TTLOCK_DELETE_IN_PROGRESS_MESSAGE
+                    ApiMessages.get(TTLOCK_DELETE_IN_PROGRESS_MESSAGE_KEY)
             );
         }
     }
@@ -1640,7 +1633,7 @@ public class SmartLockService {
                     SmartLockTaskType.DELETE_PASSCODE,
                     SmartLockTaskStatus.SUCCESS,
                     record.getProviderPasscodeId(),
-                    "TTLock 密码列表已确认删除成功"
+                    ApiMessages.get("api.t.c06012895456")
             );
             return;
         }
@@ -1648,20 +1641,20 @@ public class SmartLockService {
         if (remoteStatus == SmartLockPasscodeStatus.DELETE_PENDING
                 || remoteStatus == SmartLockPasscodeStatus.PENDING) {
             record.setStatus(SmartLockPasscodeStatus.DELETE_PENDING);
-            record.setLastError(TTLOCK_DELETE_IN_PROGRESS_MESSAGE);
+            record.setLastError(ApiMessages.get(TTLOCK_DELETE_IN_PROGRESS_MESSAGE_KEY));
             passcodeRepository.save(record);
             return;
         }
 
         record.setStatus(SmartLockPasscodeStatus.FAILED);
-        record.setLastError(TTLOCK_DELETE_STILL_EXISTS_MESSAGE);
+        record.setLastError(ApiMessages.get(TTLOCK_DELETE_STILL_EXISTS_MESSAGE_KEY));
         passcodeRepository.save(record);
         completePendingPasscodeTasks(
                 record,
                 SmartLockTaskType.DELETE_PASSCODE,
                 SmartLockTaskStatus.FAILED,
                 record.getProviderPasscodeId(),
-                TTLOCK_DELETE_STILL_EXISTS_MESSAGE
+                ApiMessages.get(TTLOCK_DELETE_STILL_EXISTS_MESSAGE_KEY)
         );
     }
 
@@ -2170,11 +2163,11 @@ public class SmartLockService {
         SmartLockDevice controlDevice = binding.getControlDevice();
         if (controlDevice != null) {
             if (!roleResolver.supportsControl(controlDevice)) {
-                throw new IllegalArgumentException("该房间控制设备不支持门锁状态或开关锁操作");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.c516198cd0e1"));
             }
             String providerLockId = firstText(binding.getControlProviderLockId(), controlDevice.getProviderLockId());
             if (!hasText(providerLockId)) {
-                throw new IllegalArgumentException("该房间控制设备缺少供应商设备 ID");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.0b23224b4294"));
             }
             return new RoleTarget(binding.getIntegration(), binding.getProvider(), controlDevice, providerLockId);
         }
@@ -2202,22 +2195,22 @@ public class SmartLockService {
                             linkedControlProviderLockId
                     );
                 }
-                throw new IllegalArgumentException("SwitchBot Keypad 缺少 lockDeviceId，无法推导控制设备，请重新同步设备");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.1297b07142b3"));
             }
         }
 
-        throw new IllegalArgumentException("该房间未绑定控制设备，无法执行门锁状态或开关锁操作");
+        throw new IllegalArgumentException(ApiMessages.get("api.t.51c47107ffb4"));
     }
 
     private RoleTarget requirePasscodeTarget(SmartLockRoomBinding binding) {
         SmartLockDevice passcodeDevice = binding.getPasscodeDevice();
         if (passcodeDevice != null) {
             if (!roleResolver.supportsPasscode(passcodeDevice)) {
-                throw new IllegalArgumentException("该房间密码设备不支持门锁密码操作");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.988186454749"));
             }
             String providerLockId = firstText(binding.getPasscodeProviderLockId(), passcodeDevice.getProviderLockId());
             if (!hasText(providerLockId)) {
-                throw new IllegalArgumentException("该房间密码设备缺少供应商设备 ID");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.e5413f2ab4ce"));
             }
             return new RoleTarget(binding.getIntegration(), binding.getProvider(), passcodeDevice, providerLockId);
         }
@@ -2235,7 +2228,7 @@ public class SmartLockService {
             );
         }
 
-        throw new IllegalArgumentException("该房间未绑定密码设备，无法执行门锁密码操作");
+        throw new IllegalArgumentException(ApiMessages.get("api.t.26f9d785dbb8"));
     }
 
     private void requirePasscodeWriteEnabled(SmartLockProvider provider) {
@@ -2257,30 +2250,30 @@ public class SmartLockService {
 
     private RoleTarget requirePasscodeSnapshotTarget(Long storeId, SmartLockPasscodeRecord record) {
         if (record.getRoom() == null || record.getRoom().getId() == null) {
-            throw new IllegalArgumentException("门锁密码记录缺少房间快照");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.38a24b117eef"));
         }
         if (!storeId.equals(record.getRoom().getStoreId())) {
-            throw new IllegalArgumentException("门锁密码记录与当前门店不一致");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.6bce1281516f"));
         }
         if (record.getBinding() == null || !storeId.equals(record.getBinding().getStoreId())) {
-            throw new IllegalArgumentException("门锁密码记录缺少绑定快照");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.d4aacfe1851d"));
         }
         SmartLockIntegration integration = record.getIntegration();
         if (integration == null || !storeId.equals(integration.getStoreId())) {
-            throw new IllegalArgumentException("门锁密码记录缺少集成快照");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.8b92190c076b"));
         }
         if (record.getProvider() != integration.getProvider()) {
-            throw new IllegalArgumentException("门锁密码记录与集成服务商不一致，已拒绝删除远程密码");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.5e3ed979ba1b"));
         }
         String providerLockId = firstText(record.getPasscodeProviderLockId(), record.getProviderLockId());
         if (!hasText(providerLockId)) {
-            throw new IllegalArgumentException("门锁密码记录缺少密码设备快照，无法删除远程密码");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.3f5e34cf3432"));
         }
         SmartLockDevice passcodeDevice = record.getPasscodeDevice();
         if (passcodeDevice != null) {
             validateDeviceConsistency(storeId, passcodeDevice, integration);
             if (!providerLockId.equals(passcodeDevice.getProviderLockId())) {
-                throw new IllegalArgumentException("门锁密码记录与密码设备快照不一致，已拒绝删除远程密码");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.caf39e4fe8ff"));
             }
         }
         return new RoleTarget(integration, record.getProvider(), passcodeDevice, providerLockId);
@@ -2373,26 +2366,26 @@ public class SmartLockService {
 
     private SmartLockIntegration requireIntegration(Long storeId, Long integrationId) {
         if (integrationId == null) {
-            throw new IllegalArgumentException("integrationId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.a03d2710918c"));
         }
         return integrationRepository.findByStoreIdAndId(storeId, integrationId)
-                .orElseThrow(() -> new IllegalArgumentException("门锁集成不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.2091368fecdd")));
     }
 
     private Room requireRoom(Long storeId, Long roomId) {
         if (roomId == null) {
-            throw new IllegalArgumentException("roomId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.57c08b5c1084"));
         }
         return roomRepository.findByStoreIdAndId(storeId, roomId)
-                .orElseThrow(() -> new IllegalArgumentException("房间不存在或无权访问"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.36d380d97cb5")));
     }
 
     private SmartLockRoomBinding requireBinding(Long storeId, Long bindingId) {
         if (bindingId == null) {
-            throw new IllegalArgumentException("bindingId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.2e735271b487"));
         }
         return bindingRepository.findByStoreIdAndIdAndStatus(storeId, bindingId, SmartLockBindingStatus.ACTIVE)
-                .orElseThrow(() -> new IllegalArgumentException("门锁绑定不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.7cf1346a8c2f")));
     }
 
     private SmartLockRoomBinding requireBindingForRoom(Long storeId, Long roomId, Long bindingId) {
@@ -2403,32 +2396,32 @@ public class SmartLockService {
                             roomId,
                             SmartLockBindingStatus.ACTIVE
                     )
-                    .orElseThrow(() -> new IllegalArgumentException("该房间未绑定门锁"));
+                    .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.de683e8dffd4")));
         } else {
             binding = requireBinding(storeId, bindingId);
         }
         if (binding.getRoom() == null || !roomId.equals(binding.getRoom().getId())) {
-            throw new IllegalArgumentException("门锁绑定与房间不匹配");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.2d4cdee4df39"));
         }
         return binding;
     }
 
     private void validateBindingConsistency(Long storeId, SmartLockRoomBinding binding) {
         if (binding == null || !storeId.equals(binding.getStoreId())) {
-            throw new IllegalArgumentException("门锁绑定不存在");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.7cf1346a8c2f"));
         }
         if (binding.getStatus() != SmartLockBindingStatus.ACTIVE) {
-            throw new IllegalArgumentException("门锁绑定已解绑");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.c49f8a6500c9"));
         }
         if (binding.getRoom() == null || !storeId.equals(binding.getRoom().getStoreId())) {
-            throw new IllegalArgumentException("门锁绑定与房间门店不一致");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.41e474287408"));
         }
         SmartLockIntegration integration = binding.getIntegration();
         if (integration == null || !storeId.equals(integration.getStoreId())) {
-            throw new IllegalArgumentException("门锁绑定与集成门店不一致");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.72c8b0bfe2a8"));
         }
         if (binding.getProvider() != integration.getProvider()) {
-            throw new IllegalArgumentException("门锁绑定与集成服务商不一致");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.9b9e2d0fb478"));
         }
         if (binding.getControlDevice() != null) {
             validateRoleDeviceConsistency(
@@ -2436,7 +2429,7 @@ public class SmartLockService {
                     binding.getControlDevice(),
                     integration,
                     binding.getControlProviderLockId(),
-                    "控制设备"
+                    ApiMessages.get("api.t.f2793eec1ceb")
             );
         }
         if (binding.getPasscodeDevice() != null) {
@@ -2445,19 +2438,19 @@ public class SmartLockService {
                     binding.getPasscodeDevice(),
                     integration,
                     binding.getPasscodeProviderLockId(),
-                    "密码设备"
+                    ApiMessages.get("api.t.7ba8def67123")
             );
         }
         if (!hasRoleColumns(binding)) {
             validateDeviceConsistency(storeId, binding.getDevice(), integration);
             if (binding.getProvider() != binding.getDevice().getProvider()) {
-                throw new IllegalArgumentException("门锁绑定与设备服务商不一致");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.df6b9d362f73"));
             }
             if (!binding.getProviderLockId().equals(binding.getDevice().getProviderLockId())) {
-                throw new IllegalArgumentException("门锁绑定与设备 ID 不一致");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.1728d536ebfa"));
             }
         } else if (binding.getControlDevice() == null && binding.getPasscodeDevice() == null) {
-            throw new IllegalArgumentException("门锁绑定缺少控制设备和密码设备");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.463f34dd13f1"));
         }
     }
 
@@ -2470,7 +2463,7 @@ public class SmartLockService {
     ) {
         validateDeviceConsistency(storeId, device, integration);
         if (!device.getProviderLockId().equals(providerLockId)) {
-            throw new IllegalArgumentException("门锁绑定" + roleName + "快照与设备 ID 不一致");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.8c6fef49c175") + roleName + ApiMessages.get("api.t.c5e4faa15bc2"));
         }
     }
 
@@ -2481,7 +2474,7 @@ public class SmartLockService {
                 BINDING_DELETE_RISKY_PASSCODE_STATUSES
         );
         if (hasRiskyPasscode) {
-            throw new IllegalArgumentException("该门锁仍有有效或处理中的密码，请先完成清理后再解绑");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.0378b4994dc8"));
         }
         boolean hasPendingTask = taskRepository.existsByBindingAndStatus(
                 storeId,
@@ -2489,7 +2482,7 @@ public class SmartLockService {
                 SmartLockTaskStatus.PENDING
         );
         if (hasPendingTask) {
-            throw new IllegalArgumentException("该门锁仍有未完成任务，请等待任务完成后再解绑");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.e4e2de05415a"));
         }
         boolean hasPendingConfirmation = confirmationRepository.existsUnfinishedForBinding(
                 storeId,
@@ -2497,7 +2490,7 @@ public class SmartLockService {
                 now()
         );
         if (hasPendingConfirmation) {
-            throw new IllegalArgumentException("该门锁仍有未完成的二次确认，请稍后再解绑");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.cfec0b9dd839"));
         }
     }
 
@@ -2507,22 +2500,22 @@ public class SmartLockService {
             SmartLockIntegration integration
     ) {
         if (device == null || !storeId.equals(device.getStoreId())) {
-            throw new IllegalArgumentException("门锁设备不存在");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.0e234935fb51"));
         }
         if (integration == null || !storeId.equals(integration.getStoreId())) {
-            throw new IllegalArgumentException("门锁集成不存在");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.2091368fecdd"));
         }
         if (device.getIntegration() == null || !integration.getId().equals(device.getIntegration().getId())) {
-            throw new IllegalArgumentException("门锁设备与集成不一致");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.a1bc42fe2b92"));
         }
         if (device.getProvider() != integration.getProvider()) {
-            throw new IllegalArgumentException("门锁设备与集成服务商不一致");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.35a89c605a44"));
         }
     }
 
     private SmartLockProvider requireProvider(SmartLockProvider provider) {
         if (provider == null) {
-            throw new IllegalArgumentException("provider 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.2e4236e0a17f"));
         }
         return provider;
     }
@@ -2531,7 +2524,7 @@ public class SmartLockService {
         if (action == SmartLockTaskType.LOCK || action == SmartLockTaskType.UNLOCK) {
             return action;
         }
-        throw new IllegalArgumentException("只支持 LOCK 或 UNLOCK 二次确认");
+        throw new IllegalArgumentException(ApiMessages.get("api.t.bd35b5e40c3b"));
     }
 
     private String normalizePasscode(String requested) {
@@ -2540,20 +2533,20 @@ public class SmartLockService {
             return String.valueOf(GENERATED_PASSCODE_MIN + SECURE_RANDOM.nextInt(GENERATED_PASSCODE_BOUND));
         }
         if (!passcode.matches("\\d{" + MIN_PASSCODE_LENGTH + "," + MAX_PASSCODE_LENGTH + "}")) {
-            throw new IllegalArgumentException("门锁密码必须是 6 到 12 位数字");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.708e1941711b"));
         }
         return passcode;
     }
 
     private void validatePasscodeWindow(LocalDateTime validFrom, LocalDateTime validUntil, ZoneId storeZoneId) {
         if (validFrom == null || validUntil == null) {
-            throw new IllegalArgumentException("门锁密码必须提供有效开始和结束时间");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.f99b4d411e4e"));
         }
         if (!validUntil.isAfter(validFrom)) {
-            throw new IllegalArgumentException("门锁密码结束时间必须晚于开始时间");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.bde6f1a7a9f4"));
         }
         if (!validUntil.isAfter(now(storeZoneId))) {
-            throw new IllegalArgumentException("门锁密码有效期已过期，请选择未来的结束时间");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.6a5e98d2c7b7"));
         }
     }
 
@@ -2572,11 +2565,11 @@ public class SmartLockService {
     private void validateSwitchBotWebhookToken(String token) {
         String expectedToken = config.getSwitchBotWebhookToken();
         if (!hasText(expectedToken)) {
-            throw new IllegalStateException("SwitchBot webhook token 未配置");
+            throw new IllegalStateException(ApiMessages.get("api.t.bd8d0047526c"));
         }
         String actualToken = SmartLockMaskingUtils.trimToNull(token);
         if (!hasText(actualToken) || !constantTimeEquals(expectedToken, actualToken)) {
-            throw new IllegalArgumentException("SwitchBot webhook token 无效");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.71686837197b"));
         }
     }
 
@@ -2797,7 +2790,7 @@ public class SmartLockService {
         if (provider == SmartLockProvider.TTLOCK) {
             return "TTLock";
         }
-        return provider != null ? provider.name() : "其他供应商";
+        return provider != null ? provider.name() : ApiMessages.get("api.t.ec4dfef30233");
     }
 
     private void logTtLockTokenFailure(

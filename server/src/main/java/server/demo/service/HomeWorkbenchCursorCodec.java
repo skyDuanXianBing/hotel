@@ -8,6 +8,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.Base64;
 
+import server.demo.i18n.ApiMessages;
 @Component
 public class HomeWorkbenchCursorCodec {
     private static final int VERSION = 1;
@@ -45,7 +46,7 @@ public class HomeWorkbenchCursorCodec {
             if (!MessageDigest.isEqual(
                     values[1].getBytes(StandardCharsets.UTF_8),
                     contextHash(queryContext).getBytes(StandardCharsets.UTF_8))) {
-                throw new IllegalArgumentException("游标与当前门店或筛选条件不匹配");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.9ae0342668ef"));
             }
             LocalDateTime dueAt = values[4].isBlank() ? null : LocalDateTime.parse(values[4]);
             SortKey key = new SortKey(
@@ -60,7 +61,7 @@ public class HomeWorkbenchCursorCodec {
         } catch (RuntimeException exception) {
             if (exception instanceof IllegalArgumentException illegalArgumentException
                     && exception.getMessage() != null
-                    && exception.getMessage().startsWith("游标")) {
+                    && exception.getMessage().startsWith(ApiMessages.get("api.t.136df78bb47b"))) {
                 throw illegalArgumentException;
             }
             throw invalidCursor();
@@ -85,12 +86,12 @@ public class HomeWorkbenchCursorCodec {
                     .digest(context.getBytes(StandardCharsets.UTF_8));
             return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
         } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("无法初始化工作台游标", exception);
+            throw new IllegalStateException(ApiMessages.get("api.t.6307e659652f"), exception);
         }
     }
 
     private IllegalArgumentException invalidCursor() {
-        return new IllegalArgumentException("无效的工作台游标");
+        return new IllegalArgumentException(ApiMessages.get("api.t.37ac7eb49b2f"));
     }
 
     public record SortKey(

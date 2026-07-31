@@ -10,21 +10,21 @@ import java.util.Map;
  */
 public class CreateStoreRequest {
 
-    @NotBlank(message = "门店名称不能为空")
+    @NotBlank(message = "{api.t.59c67cb2ab51}")
     private String name;
 
     private String phone;
     private String phoneTechType;
 
-    @NotBlank(message = "门店类型不能为空")
+    @NotBlank(message = "{api.t.0682e2ef50ea}")
     private String type;
 
     private String timezone;
 
-    @NotBlank(message = "负责人不能为空")
+    @NotBlank(message = "{api.t.c40a3652ee73}")
     private String manager;
 
-    @NotBlank(message = "国家不能为空")
+    @NotBlank(message = "{api.t.2021b08d6317}")
     private String country;
 
     private String city;

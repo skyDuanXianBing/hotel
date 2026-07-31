@@ -13,14 +13,14 @@ public class ConsumptionItemDTO {
 
     private Long id;
 
-    @NotBlank(message = "分类不能为空")
+    @NotBlank(message = "{api.t.6dede8e88dd6}")
     private String category;
 
-    @NotBlank(message = "消费项名称不能为空")
+    @NotBlank(message = "{api.t.4b1236d2448a}")
     private String name;
 
-    @NotNull(message = "价格不能为空")
-    @Min(value = 0, message = "价格不能为负数")
+    @NotNull(message = "{api.t.65b3b94588a8}")
+    @Min(value = 0, message = "{api.t.140d7771bee8}")
     private BigDecimal price;
 
     private Boolean enabled = true;

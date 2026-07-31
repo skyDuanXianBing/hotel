@@ -34,7 +34,7 @@ public class RoomPrice implements StoreScopedEntity {
     private LocalDate priceDate;
 
     @NotNull
-    @DecimalMin(value = "0.0", inclusive = false, message = "浠锋牸蹇呴』澶т簬0")
+    @DecimalMin(value = "0.0", inclusive = false, message = "{api.t.fb10ccb7b96b}")
     @Column(name = "price", nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
@@ -65,13 +65,13 @@ public class RoomPrice implements StoreScopedEntity {
     @Column(name = "ctd")
     private Boolean ctd;
 
-    @jakarta.validation.constraints.Min(value = 1, message = "鏈€灏忓叆浣忓ぉ鏁板繀椤诲ぇ浜庣瓑浜?")
-    @jakarta.validation.constraints.Max(value = 99, message = "鏈€灏忓叆浣忓ぉ鏁板繀椤诲皬浜庣瓑浜?9")
+    @jakarta.validation.constraints.Min(value = 1, message = "{api.t.658039ea3f50}")
+    @jakarta.validation.constraints.Max(value = 99, message = "{api.t.67d79c287568}")
     @Column(name = "min_stay")
     private Integer minStay;
 
-    @jakarta.validation.constraints.Min(value = 1, message = "鏈€澶у叆浣忓ぉ鏁板繀椤诲ぇ浜庣瓑浜?")
-    @jakarta.validation.constraints.Max(value = 99, message = "鏈€澶у叆浣忓ぉ鏁板繀椤诲皬浜庣瓑浜?9")
+    @jakarta.validation.constraints.Min(value = 1, message = "{api.t.165a0aa4413d}")
+    @jakarta.validation.constraints.Max(value = 99, message = "{api.t.84af64d2ec40}")
     @Column(name = "max_stay")
     private Integer maxStay;
 

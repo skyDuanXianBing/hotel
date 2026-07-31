@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 /**
  * JSON 文本字段与对象之间的转换工具。
  */
@@ -27,7 +28,7 @@ public final class JsonFieldUtils {
         try {
             return OBJECT_MAPPER.readValue(json, new TypeReference<List<String>>() {});
         } catch (Exception e) {
-            throw new IllegalArgumentException("解析字符串列表失败", e);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.837026dd549d"), e);
         }
     }
 
@@ -42,7 +43,7 @@ public final class JsonFieldUtils {
                     .distinct()
                     .toList());
         } catch (Exception e) {
-            throw new IllegalArgumentException("序列化字符串列表失败", e);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.6a1caa2f4ad7"), e);
         }
     }
 
@@ -56,7 +57,7 @@ public final class JsonFieldUtils {
                     new TypeReference<LinkedHashMap<String, LocalizedContentDTO>>() {}
             );
         } catch (Exception e) {
-            throw new IllegalArgumentException("解析多语言内容失败", e);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.e15cee7cb75e"), e);
         }
     }
 
@@ -82,7 +83,7 @@ public final class JsonFieldUtils {
         try {
             return OBJECT_MAPPER.writeValueAsString(sanitized);
         } catch (Exception e) {
-            throw new IllegalArgumentException("序列化多语言内容失败", e);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.1de901774e9f"), e);
         }
     }
 
@@ -93,7 +94,7 @@ public final class JsonFieldUtils {
         try {
             return OBJECT_MAPPER.readValue(json, new TypeReference<List<FacilityDTO>>() {});
         } catch (Exception e) {
-            throw new IllegalArgumentException("解析设施列表失败", e);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.490b8bd83fa3"), e);
         }
     }
 
@@ -119,7 +120,7 @@ public final class JsonFieldUtils {
         try {
             return OBJECT_MAPPER.writeValueAsString(sanitized);
         } catch (Exception e) {
-            throw new IllegalArgumentException("序列化设施列表失败", e);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.fce256c1a770"), e);
         }
     }
 }

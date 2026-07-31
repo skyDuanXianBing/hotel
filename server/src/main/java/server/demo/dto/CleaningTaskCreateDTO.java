@@ -7,13 +7,13 @@ import jakarta.validation.constraints.NotNull;
  */
 public class CleaningTaskCreateDTO {
 
-    @NotNull(message = "任务日期不能为空")
+    @NotNull(message = "{api.t.87579147c59b}")
     private String taskDate;  // 改为String类型,接受 "YYYY-MM-DD" 格式
 
-    @NotNull(message = "房间ID不能为空")
+    @NotNull(message = "{api.t.8c7fdbbf6451}")
     private Long roomId;
 
-    @NotNull(message = "任务类型不能为空")
+    @NotNull(message = "{api.t.65f3bd2d8b40}")
     private String taskType;
 
     private Long cleanerId;

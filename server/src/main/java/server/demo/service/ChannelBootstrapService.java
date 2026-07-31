@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 为指定门店补齐默认渠道（用于渠道配置、价格比例、OTA 同步等）。
  */
@@ -63,13 +64,13 @@ public class ChannelBootstrapService {
         List<ChannelSeed> seeds = new ArrayList<>();
 
         // 固定默认渠道：自来客、独立站、Airbnb、Booking.com
-        seeds.add(new ChannelSeed("自来客", "DIRECT", ChannelType.DIRECT, "#409EFF", "直接预订客户"));
+        seeds.add(new ChannelSeed(ApiMessages.get("api.t.2a0eb4363c3f"), "DIRECT", ChannelType.DIRECT, "#409EFF", ApiMessages.get("api.t.6c72dc29bf39")));
         seeds.add(new ChannelSeed(
-                "独立站",
+                ApiMessages.get("api.t.87a653c73a3a"),
                 "BOOKING_ENGINE",
                 ChannelType.DIRECT,
                 "#7C3AED",
-                "门店独立站公开订房渠道"
+                ApiMessages.get("api.t.a4d835d99f9e")
         ));
         seeds.add(new ChannelSeed("Airbnb", "AIRBNB", ChannelType.OTA, "#FF5A5F", "Airbnb"));
         seeds.add(new ChannelSeed("Booking.com", "BOOKING", ChannelType.OTA, "#003580", "Booking.com"));

@@ -9,32 +9,32 @@ import java.time.LocalDateTime;
 
 public class CreateReservationRequest {
     
-    @NotBlank(message = "客人姓名不能为空")
+    @NotBlank(message = "{api.t.6a47cd0b1ef1}")
     private String guestName;
     
     private String guestPhone;
     
     private String guestIdCard;
     
-    @NotNull(message = "房间ID不能为空")
+    @NotNull(message = "{api.t.8c7fdbbf6451}")
     private Long roomId;
     
-    @NotNull(message = "渠道ID不能为空")
+    @NotNull(message = "{api.t.9aec8345cdb4}")
     private Long channelId;
     
-    @NotNull(message = "入住日期不能为空")
+    @NotNull(message = "{api.t.a36570cba9be}")
     private LocalDate checkInDate;
     
-    @NotNull(message = "离店日期不能为空")
+    @NotNull(message = "{api.t.4c846707302f}")
     private LocalDate checkOutDate;
     
-    @NotNull(message = "成人数量不能为空")
-    @Min(value = 1, message = "成人数量必须大于0")
+    @NotNull(message = "{api.t.e879fb115f34}")
+    @Min(value = 1, message = "{api.t.b92fc1ab6097}")
     private Integer adults = 1;
     
     private Integer children = 0;
     
-    @NotNull(message = "总金额不能为空")
+    @NotNull(message = "{api.t.a0bb9b808bc4}")
     private BigDecimal totalAmount;
     
     private String channelOrderNumber;

@@ -14,6 +14,7 @@ import server.demo.service.RoomTableService;
 
 import java.time.LocalDate;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/room-table")
 @StoreScoped
@@ -36,7 +37,7 @@ public class RoomTableController {
             RoomTableDataDTO roomTableData = roomTableService.getRoomTableStatistics(date);
             return ApiResponse.success(roomTableData);
         } catch (Exception e) {
-            return ApiResponse.error("获取房情表数据失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.857771d8186e") + e.getMessage());
         }
     }
 
@@ -51,7 +52,7 @@ public class RoomTableController {
                     roomTableService.getMonthlyRoomTable(startDate, endDate, roomTypeId);
             return ApiResponse.success(roomTableData);
         } catch (Exception e) {
-            return ApiResponse.error("获取月度房情表数据失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.a11e827d0697") + e.getMessage());
         }
     }
 }

@@ -25,6 +25,7 @@ import server.demo.service.SuMessagingService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 /**
  * PMS 收件箱（Su Messaging）接口。
  * <p>
@@ -55,7 +56,7 @@ public class SuMessagingController {
             Long storeId = StoreContextHolder.getContext().getStoreId();
             return ResponseEntity.ok(ApiResponse.success(suMessagingService.listThreads(storeId)));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("获取会话列表失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.70301e9ce242") + e.getMessage()));
         }
     }
 
@@ -90,7 +91,7 @@ public class SuMessagingController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("获取会话分页失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.f52835933dc4") + e.getMessage()));
         }
     }
 
@@ -103,7 +104,7 @@ public class SuMessagingController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("获取会话失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.e37923d0e4e9") + e.getMessage()));
         }
     }
 
@@ -116,7 +117,7 @@ public class SuMessagingController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("获取消息失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.e3068035d0f0") + e.getMessage()));
         }
     }
 
@@ -143,7 +144,7 @@ public class SuMessagingController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("获取消息分页失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.60d1176545dd") + e.getMessage()));
         }
     }
 
@@ -154,7 +155,7 @@ public class SuMessagingController {
             Long storeId = StoreContextHolder.getContext().getStoreId();
             return ResponseEntity.ok(ApiResponse.success(suMessagingService.getUnreadSummary(storeId)));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("获取未读摘要失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.8bbc1cefdc47") + e.getMessage()));
         }
     }
 
@@ -170,7 +171,7 @@ public class SuMessagingController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("轮询消息失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.1d3a66d26b52") + e.getMessage()));
         }
     }
 
@@ -187,7 +188,7 @@ public class SuMessagingController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("发送消息失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.5c00823f5372") + e.getMessage()));
         }
     }
 
@@ -207,7 +208,7 @@ public class SuMessagingController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("发送图片失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.9d8382247607") + e.getMessage()));
         }
     }
 
@@ -245,11 +246,11 @@ public class SuMessagingController {
         try {
             Long storeId = StoreContextHolder.getContext().getStoreId();
             suMessagingService.markThreadAsRead(storeId, threadId);
-            return ResponseEntity.ok(ApiResponse.success("标记消息已读成功", null));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.08fbf3c13510"), null));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("标记消息已读失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.e3b1b978c40d") + e.getMessage()));
         }
     }
 
@@ -260,11 +261,11 @@ public class SuMessagingController {
         try {
             Long storeId = StoreContextHolder.getContext().getStoreId();
             RegistrationLinkInboxService.BackfillResult result = registrationLinkInboxService.backfillMissingForStore(storeId);
-            return ResponseEntity.ok(ApiResponse.success("回填登记链接收件箱成功", result));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.e7d8f5efe373"), result));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("回填登记链接收件箱失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.ad5d145b6316") + e.getMessage()));
         }
     }
 
@@ -275,7 +276,7 @@ public class SuMessagingController {
             Long storeId = StoreContextHolder.getContext().getStoreId();
             return ResponseEntity.ok(ApiResponse.success(suMessagingAiSettingService.getOrCreate(storeId)));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("获取 AI 自动回复设置失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.7d40945f5e2a") + e.getMessage()));
         }
     }
 
@@ -288,7 +289,7 @@ public class SuMessagingController {
             Long storeId = StoreContextHolder.getContext().getStoreId();
             return ResponseEntity.ok(ApiResponse.success(suMessagingAiSettingService.update(storeId, request)));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("更新 AI 自动回复设置失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.591efa484c25") + e.getMessage()));
         }
     }
 }

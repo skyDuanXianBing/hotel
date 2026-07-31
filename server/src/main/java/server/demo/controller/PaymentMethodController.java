@@ -15,6 +15,7 @@ import server.demo.service.PaymentMethodService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/payment-methods")
 @StoreScoped
@@ -30,9 +31,9 @@ public class PaymentMethodController {
     @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.VIEW_SETTINGS)
     public ResponseEntity<ApiResponse<List<PaymentMethodDTO>>> getAll() {
         try {
-            return ResponseEntity.ok(ApiResponse.success("获取收款方式成功", paymentMethodService.getAll()));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.acb4a61677db"), paymentMethodService.getAll()));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取收款方式失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.584292ea54f8") + e.getMessage()));
         }
     }
 
@@ -40,9 +41,9 @@ public class PaymentMethodController {
     @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.VIEW_SETTINGS)
     public ResponseEntity<ApiResponse<List<PaymentMethodDTO>>> getEnabled() {
         try {
-            return ResponseEntity.ok(ApiResponse.success("获取可用收款方式成功", paymentMethodService.getEnabled()));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.83b7bc5a0752"), paymentMethodService.getEnabled()));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取可用收款方式失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.a3e7733950af") + e.getMessage()));
         }
     }
 
@@ -51,9 +52,9 @@ public class PaymentMethodController {
     public ResponseEntity<ApiResponse<PaymentMethodDTO>> create(
             @Valid @RequestBody UpsertPaymentMethodRequest request) {
         try {
-            return ResponseEntity.ok(ApiResponse.success("创建收款方式成功", paymentMethodService.create(request)));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.09d8d063687e"), paymentMethodService.create(request)));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("创建收款方式失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.71d998480b38") + e.getMessage()));
         }
     }
 
@@ -63,9 +64,9 @@ public class PaymentMethodController {
             @PathVariable Long id,
             @Valid @RequestBody UpsertPaymentMethodRequest request) {
         try {
-            return ResponseEntity.ok(ApiResponse.success("更新收款方式成功", paymentMethodService.update(id, request)));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.2c7dae6b22b9"), paymentMethodService.update(id, request)));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("更新收款方式失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.eb82ac238d96") + e.getMessage()));
         }
     }
 
@@ -75,9 +76,9 @@ public class PaymentMethodController {
             @PathVariable Long id,
             @RequestParam Boolean enabled) {
         try {
-            return ResponseEntity.ok(ApiResponse.success("更新收款方式状态成功", paymentMethodService.updateEnabled(id, enabled)));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.db5fe6a8e243"), paymentMethodService.updateEnabled(id, enabled)));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("更新收款方式状态失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.12655db5c3d4") + e.getMessage()));
         }
     }
 
@@ -86,9 +87,9 @@ public class PaymentMethodController {
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         try {
             paymentMethodService.delete(id);
-            return ResponseEntity.ok(ApiResponse.success("删除收款方式成功", null));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.46e5ad870d1e"), null));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("删除收款方式失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.00ccfff93367") + e.getMessage()));
         }
     }
 
@@ -97,9 +98,9 @@ public class PaymentMethodController {
     public ResponseEntity<ApiResponse<List<PaymentMethodDTO>>> updateOrder(
             @RequestBody List<PaymentMethodOrderRequest> requests) {
         try {
-            return ResponseEntity.ok(ApiResponse.success("更新收款方式排序成功", paymentMethodService.updateOrder(requests)));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.3cfe4df1f003"), paymentMethodService.updateOrder(requests)));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("更新收款方式排序失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.ac6bfb631f39") + e.getMessage()));
         }
     }
 }

@@ -30,16 +30,16 @@ public final class AdminDtos {
     // ------------------------------------------------------------------
 
     public record LoginRequest(
-            @NotBlank(message = "用户名不能为空") String username,
-            @NotBlank(message = "密码不能为空") String password
+            @NotBlank(message = "{api.t.ecb38cb09941}") String username,
+            @NotBlank(message = "{api.t.4d81424b0110}") String password
     ) {}
 
     public record LoginResponse(String token, String username, String role) {}
 
     public record ChangePasswordRequest(
-            @NotBlank(message = "原密码不能为空") String oldPassword,
-            @NotBlank(message = "新密码不能为空")
-            @Size(min = 8, max = 64, message = "新密码长度需 8-64 位") String newPassword
+            @NotBlank(message = "{api.t.f224d0afa6a2}") String oldPassword,
+            @NotBlank(message = "{api.t.689e5a9b3225}")
+            @Size(min = 8, max = 64, message = "{api.t.e66bc11e2f96}") String newPassword
     ) {}
 
     // ------------------------------------------------------------------
@@ -53,16 +53,16 @@ public final class AdminDtos {
      * null/false 不修改现有标记（新建一律 false）。
      */
     public record PackageUpsertRequest(
-            @NotBlank(message = "套餐名称不能为空") String name,
-            @NotNull(message = "版本号不能为空") Integer version,
-            @NotNull(message = "价格不能为空") @DecimalMin(value = "0", message = "价格不能为负") BigDecimal price,
-            @NotNull(message = "计费周期不能为空") SaasPackagePeriod period,
+            @NotBlank(message = "{api.t.be190a411bbe}") String name,
+            @NotNull(message = "{api.t.294d24f83c6a}") Integer version,
+            @NotNull(message = "{api.t.65b3b94588a8}") @DecimalMin(value = "0", message = "{api.t.a1c1f3e89bce}") BigDecimal price,
+            @NotNull(message = "{api.t.e99866430e4a}") SaasPackagePeriod period,
             String description,
             Boolean isSystem
     ) {}
 
     public record PackageStatusRequest(
-            @NotNull(message = "状态不能为空") SaasPackageStatus status
+            @NotNull(message = "{api.t.1318b551d6ba}") SaasPackageStatus status
     ) {}
 
     // ------------------------------------------------------------------
@@ -71,8 +71,8 @@ public final class AdminDtos {
 
     /** feature_code 不可改；名称/类型/单位/默认重置周期/描述可改。 */
     public record FeatureUpdateRequest(
-            @NotBlank(message = "功能名称不能为空") String name,
-            @NotNull(message = "功能类型不能为空") SaasFeatureType type,
+            @NotBlank(message = "{api.t.a389c3a101ec}") String name,
+            @NotNull(message = "{api.t.a1f77aa8b05d}") SaasFeatureType type,
             String unit,
             SaasQuotaResetCycle defaultResetCycle,
             String description
@@ -83,13 +83,13 @@ public final class AdminDtos {
     // ------------------------------------------------------------------
 
     public record PackageFeatureItem(
-            @NotBlank(message = "featureCode 不能为空") String featureCode,
+            @NotBlank(message = "{api.t.74942f485d10}") String featureCode,
             Long quotaLimit
     ) {}
 
     /** 整体替换该套餐的权益列表。 */
     public record ReplacePackageFeaturesRequest(
-            @NotEmpty(message = "权益列表不能为空") @Valid List<PackageFeatureItem> features
+            @NotEmpty(message = "{api.t.50cca27595c7}") @Valid List<PackageFeatureItem> features
     ) {}
 
     // ------------------------------------------------------------------
@@ -103,12 +103,12 @@ public final class AdminDtos {
      * remark：必填（≤500），与操作人一起写入订单 remark 备审计。
      */
     public record SubscriptionGrantRequest(
-            @NotNull(message = "storeId 不能为空") Long storeId,
-            @NotNull(message = "packageId 不能为空") Long packageId,
-            @NotBlank(message = "remark 不能为空") @Size(max = 500, message = "remark 长度不能超过 500") String remark,
+            @NotNull(message = "{api.t.d7f09cedd0e8}") Long storeId,
+            @NotNull(message = "{api.t.942b012cedd1}") Long packageId,
+            @NotBlank(message = "{api.t.42f14a7bfa66}") @Size(max = 500, message = "{api.t.0b0e998b329b}") String remark,
             String idempotencyKey,
-            @Min(value = 1, message = "durationDays 需在 1-36500 之间")
-            @Max(value = 36500, message = "durationDays 需在 1-36500 之间") Integer durationDays,
+            @Min(value = 1, message = "{api.t.5d7af526b112}")
+            @Max(value = 36500, message = "{api.t.5d7af526b112}") Integer durationDays,
             Boolean permanent
     ) {}
 
@@ -145,9 +145,9 @@ public final class AdminDtos {
     // ------------------------------------------------------------------
 
     public record QuotaAdjustRequest(
-            @NotNull(message = "storeId 不能为空") Long storeId,
-            @NotBlank(message = "featureCode 不能为空") String featureCode,
-            @NotNull(message = "调整量不能为空") Long delta,
+            @NotNull(message = "{api.t.d7f09cedd0e8}") Long storeId,
+            @NotBlank(message = "{api.t.74942f485d10}") String featureCode,
+            @NotNull(message = "{api.t.355bfe03f59c}") Long delta,
             String remark
     ) {}
 

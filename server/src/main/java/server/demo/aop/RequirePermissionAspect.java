@@ -18,6 +18,7 @@ import server.demo.service.PermissionService;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 基于 {@link RequirePermission} 的细粒度权限校验切面。
  *
@@ -69,12 +70,12 @@ public class RequirePermissionAspect {
         }
 
         if (storeId == null || userId == null) {
-            throw new PermissionDeniedException("缺少门店上下文，无法进行权限校验");
+            throw new PermissionDeniedException(ApiMessages.get("api.t.df06ecc145a0"));
         }
 
         boolean ok = permissionService.hasPermission(storeId, userId, requirePermission.module(), requirePermission.action());
         if (!ok) {
-            throw new PermissionDeniedException("您没有权限执行此操作");
+            throw new PermissionDeniedException(ApiMessages.get("api.t.f34a99ef4e4e"));
         }
 
         return joinPoint.proceed();

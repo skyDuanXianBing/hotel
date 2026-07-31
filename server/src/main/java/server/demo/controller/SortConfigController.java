@@ -12,6 +12,7 @@ import server.demo.service.SortConfigService;
 import java.util.List;
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/sort-configs")
 public class SortConfigController {
@@ -28,9 +29,9 @@ public class SortConfigController {
             @RequestParam String sortType) {
         try {
             List<SortConfig> configs = sortConfigService.getSortConfigs(userId, sortType);
-            return ResponseEntity.ok(ApiResponse.success("获取排序配置成功", configs));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.08d7080b0753"), configs));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取排序配置失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.414e74074e02") + e.getMessage()));
         }
     }
 
@@ -43,9 +44,9 @@ public class SortConfigController {
             @RequestParam String sortType) {
         try {
             Map<Long, Integer> sortMap = sortConfigService.getSortOrderMap(userId, sortType);
-            return ResponseEntity.ok(ApiResponse.success("获取排序映射成功", sortMap));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.d60bc2b1f93f"), sortMap));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取排序映射失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.599ce40686d5") + e.getMessage()));
         }
     }
 
@@ -58,9 +59,9 @@ public class SortConfigController {
             @Valid @RequestBody SortConfigDTO dto) {
         try {
             sortConfigService.updateSortOrders(userId, dto.getSortType(), dto.getEntityIds());
-            return ResponseEntity.ok(ApiResponse.success("更新排序成功", null));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.a4c955a69e64"), null));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("更新排序失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.8863b677cc39") + e.getMessage()));
         }
     }
 
@@ -73,9 +74,9 @@ public class SortConfigController {
             @RequestParam String sortType) {
         try {
             sortConfigService.deleteSortConfigs(userId, sortType);
-            return ResponseEntity.ok(ApiResponse.success("删除排序配置成功", null));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.c46b2b1019ca"), null));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("删除排序配置失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.84d6459bfd46") + e.getMessage()));
         }
     }
 }

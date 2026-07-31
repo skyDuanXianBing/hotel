@@ -52,6 +52,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class IndependentSiteBookingService {
 
@@ -120,7 +121,7 @@ public class IndependentSiteBookingService {
             IndependentSiteDtos.HoldRequest request
     ) {
         if (storeId == null) {
-            throw new IllegalArgumentException("缺少门店上下文");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.2bfd332b0f72"));
         }
         validateHoldRequest(request);
         String slug = normalizeSlug(rawSlug);
@@ -160,7 +161,7 @@ public class IndependentSiteBookingService {
                     || !Objects.equals(existing.getRequestFingerprint(), fingerprint)) {
                 throw conflict(
                         "IDEMPOTENCY_KEY_REUSED",
-                        "幂等键已用于不同的订房请求"
+                        ApiMessages.get("api.t.369d536bed6f")
                 );
             }
             expireIfDue(existing);
@@ -178,7 +179,7 @@ public class IndependentSiteBookingService {
         Store store = storeRepository.findById(site.getStoreId())
                 .orElseThrow(IndependentSiteBookingService::siteUnavailable);
         User owner = userRepository.findById(store.getUserId())
-                .orElseThrow(() -> new IllegalStateException("门店所有者不存在"));
+                .orElseThrow(() -> new IllegalStateException(ApiMessages.get("api.t.6d3fb1113443")));
 
         String publicReference = UUID.randomUUID().toString();
         String groupOrderNo = "WEB" + UUID.randomUUID().toString().replace("-", "");
@@ -268,7 +269,7 @@ public class IndependentSiteBookingService {
             String publicReference
     ) {
         if (storeId == null) {
-            throw new IllegalArgumentException("缺少门店上下文");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.2bfd332b0f72"));
         }
         // 一店多站：不再假设唯一站点，先定位支付尝试，再锁定其所属站点校验
         PaymentAttempt attempt = paymentAttemptRepository
@@ -323,7 +324,7 @@ public class IndependentSiteBookingService {
             throw new IndependentSiteServiceException(
                     HttpStatus.UNPROCESSABLE_ENTITY,
                     "PAYMENT_PROVIDER_NOT_AVAILABLE",
-                    "该支付尝试不可使用 Stripe 支付"
+                    ApiMessages.get("api.t.addcac05f5c0")
             );
         }
         expireIfDue(attempt);
@@ -443,7 +444,7 @@ public class IndependentSiteBookingService {
             case STRIPE -> throw new IndependentSiteServiceException(
                     HttpStatus.UNPROCESSABLE_ENTITY,
                     "PAYMENT_PROVIDER_NOT_AVAILABLE",
-                    "该站点使用 Stripe 支付，请通过 Stripe 支付流程完成"
+                    ApiMessages.get("api.t.4ad8b052c802")
             );
         };
     }
@@ -482,7 +483,7 @@ public class IndependentSiteBookingService {
                 || attempt.getExpiresAt().isAfter(nowUtc())) {
             return;
         }
-        transition(attempt, PaymentAttemptStatus.EXPIRED, "待支付保留已过期");
+        transition(attempt, PaymentAttemptStatus.EXPIRED, ApiMessages.get("api.t.fa6f0165aa19"));
     }
 
     private List<Room> lockAvailableRooms(
@@ -526,14 +527,14 @@ public class IndependentSiteBookingService {
                 return selected;
             }
         }
-        throw conflict("NO_AVAILABILITY", "房量刚刚发生变化，请重新报价");
+        throw conflict("NO_AVAILABILITY", ApiMessages.get("api.t.d30f9afc5448"));
     }
 
     private void expireIfDue(PaymentAttempt attempt) {
         if (attempt.getStatus() == PaymentAttemptStatus.PENDING
                 && attempt.getExpiresAt() != null
                 && !attempt.getExpiresAt().isAfter(nowUtc())) {
-            transition(attempt, PaymentAttemptStatus.EXPIRED, "待支付保留已过期");
+            transition(attempt, PaymentAttemptStatus.EXPIRED, ApiMessages.get("api.t.fa6f0165aa19"));
         }
     }
 
@@ -564,7 +565,7 @@ public class IndependentSiteBookingService {
                 && attempt.getExpiresAt() != null
                 && !attempt.getExpiresAt().isAfter(nowUtc())) {
             target = PaymentAttemptStatus.EXPIRED;
-            failureReason = "待支付保留已过期";
+            failureReason = ApiMessages.get("api.t.fa6f0165aa19");
         }
 
         List<Reservation> reservations = reservationRepository.findByStoreIdAndGroupOrderNoForUpdate(
@@ -572,19 +573,19 @@ public class IndependentSiteBookingService {
                 attempt.getGroupOrderNo()
         );
         if (reservations.isEmpty()) {
-            throw new IllegalStateException("支付尝试未关联到预订");
+            throw new IllegalStateException(ApiMessages.get("api.t.803729502c1e"));
         }
         verifyReservationAmount(attempt, reservations);
         Store store = storeRepository.findById(attempt.getStoreId())
-                .orElseThrow(() -> new IllegalStateException("支付尝试所属门店不存在"));
+                .orElseThrow(() -> new IllegalStateException(ApiMessages.get("api.t.a4ad2d6034ff")));
 
         if (target == PaymentAttemptStatus.SUCCEEDED) {
             boolean stripe = attempt.getProvider() == IndependentSitePaymentProvider.STRIPE;
             String paymentMethod = stripe ? STRIPE_PAYMENT_METHOD : SIMULATED_PAYMENT_METHOD;
-            String paymentActor = stripe ? "独立站Stripe支付" : "独立站模拟支付";
+            String paymentActor = stripe ? ApiMessages.get("api.t.895df10e79c7") : ApiMessages.get("api.t.573aacdb4ff2");
             for (Reservation reservation : reservations) {
                 if (reservation.getStatus() != ReservationStatus.REQUESTED) {
-                    throw conflict("HOLD_STATE_CONFLICT", "待支付预订状态已变化");
+                    throw conflict("HOLD_STATE_CONFLICT", ApiMessages.get("api.t.71d4e6d207ab"));
                 }
                 Payment payment = new Payment();
                 payment.setReservationId(reservation.getId());
@@ -634,16 +635,16 @@ public class IndependentSiteBookingService {
         for (Reservation reservation : reservations) {
             if (!Objects.equals(attempt.getStoreId(), reservation.getStoreId())
                     || !Objects.equals(attempt.getSite().getId(), reservation.getIndependentSiteId())) {
-                throw new IllegalStateException("支付尝试与预订门店不一致");
+                throw new IllegalStateException(ApiMessages.get("api.t.b3f4b64b13ff"));
             }
             if (reservation.getTotalAmount() == null) {
-                throw new IllegalStateException("预订金额缺失");
+                throw new IllegalStateException(ApiMessages.get("api.t.7350cc32f430"));
             }
             total = total.add(reservation.getTotalAmount()).setScale(2, RoundingMode.HALF_UP);
         }
         if (attempt.getAmount() == null
                 || total.compareTo(attempt.getAmount().setScale(2, RoundingMode.HALF_UP)) != 0) {
-            throw new IllegalStateException("支付尝试金额与服务端预订金额不一致");
+            throw new IllegalStateException(ApiMessages.get("api.t.a66fe121c357"));
         }
     }
 
@@ -690,7 +691,7 @@ public class IndependentSiteBookingService {
                 throw new IndependentSiteServiceException(
                         HttpStatus.UNPROCESSABLE_ENTITY,
                         "PAYMENT_PROVIDER_NOT_AVAILABLE",
-                        "该独立站的 Stripe 支付未完成配置，暂不可下单"
+                        ApiMessages.get("api.t.b0f2b87adc4e")
                 );
             }
             return;
@@ -711,7 +712,7 @@ public class IndependentSiteBookingService {
             throw new IndependentSiteServiceException(
                     HttpStatus.UNPROCESSABLE_ENTITY,
                     "SIMULATED_PAYMENT_DISABLED",
-                    "该独立站当前未开放模拟支付"
+                    ApiMessages.get("api.t.0f901bacfa3c")
             );
         }
     }
@@ -720,7 +721,7 @@ public class IndependentSiteBookingService {
         return new IndependentSiteServiceException(
                 HttpStatus.SERVICE_UNAVAILABLE,
                 "STRIPE_API_FAILED",
-                "Stripe 支付服务暂时不可用，请稍后重试"
+                ApiMessages.get("api.t.391e810ce96b")
         );
     }
 
@@ -740,21 +741,21 @@ public class IndependentSiteBookingService {
 
     private static void validateHoldRequest(IndependentSiteDtos.HoldRequest request) {
         if (request == null || request.guest() == null) {
-            throw badRequest("INVALID_HOLD", "订房资料不能为空");
+            throw badRequest("INVALID_HOLD", ApiMessages.get("api.t.534ddacf8ebb"));
         }
         if (request.idempotencyKey() == null
                 || !request.idempotencyKey().trim().matches("[A-Za-z0-9._:-]{8,100}")) {
-            throw badRequest("INVALID_IDEMPOTENCY_KEY", "幂等键格式不正确");
+            throw badRequest("INVALID_IDEMPOTENCY_KEY", ApiMessages.get("api.t.33c60502dcf1"));
         }
         if (request.guest().name() == null || request.guest().name().trim().isEmpty()
                 || request.guest().name().trim().length() > 100) {
-            throw badRequest("INVALID_GUEST", "客人姓名不能为空或过长");
+            throw badRequest("INVALID_GUEST", ApiMessages.get("api.t.efa674010269"));
         }
         if (request.guest().phone() != null && request.guest().phone().length() > 255
                 || request.guest().email() != null && request.guest().email().length() > 254
                 || request.guest().specialRequests() != null
                 && request.guest().specialRequests().length() > 1000) {
-            throw badRequest("INVALID_GUEST", "客人资料超过长度限制");
+            throw badRequest("INVALID_GUEST", ApiMessages.get("api.t.6106402de88b"));
         }
     }
 
@@ -777,7 +778,7 @@ public class IndependentSiteBookingService {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest(canonical.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
-            throw new IllegalStateException("无法生成幂等指纹", e);
+            throw new IllegalStateException(ApiMessages.get("api.t.e1ca57af325d"), e);
         }
     }
 
@@ -785,7 +786,7 @@ public class IndependentSiteBookingService {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("无法保存服务端报价快照", e);
+            throw new IllegalStateException(ApiMessages.get("api.t.2d1446c1401a"), e);
         }
     }
 
@@ -837,7 +838,7 @@ public class IndependentSiteBookingService {
         return new IndependentSiteServiceException(
                 HttpStatus.NOT_FOUND,
                 "SITE_UNAVAILABLE",
-                "独立站不存在或当前不可用"
+                ApiMessages.get("api.t.f8d8d0982ec5")
         );
     }
 
@@ -845,7 +846,7 @@ public class IndependentSiteBookingService {
         return new IndependentSiteServiceException(
                 HttpStatus.NOT_FOUND,
                 "PAYMENT_ATTEMPT_NOT_FOUND",
-                "支付尝试不存在"
+                ApiMessages.get("api.t.5fb0add5c5a0")
         );
     }
 

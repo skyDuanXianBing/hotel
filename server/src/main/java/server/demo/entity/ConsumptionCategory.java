@@ -30,7 +30,7 @@ public class ConsumptionCategory implements StoreScopedEntity {
     @Column(nullable = true)
     private Long userId;
 
-    @NotBlank(message = "分类名称不能为空")
+    @NotBlank(message = "{api.t.a1a3f6732cb7}")
     @Column(nullable = false, length = 50)
     private String name;
 

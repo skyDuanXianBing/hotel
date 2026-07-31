@@ -3,7 +3,7 @@ package server.demo.dto;
 import jakarta.validation.constraints.NotBlank;
 
 public class SuMessagingTranslationRequest {
-    @NotBlank(message = "目标语言不能为空")
+    @NotBlank(message = "{api.t.460ce9217fb8}")
     private String targetLanguage;
 
     public String getTargetLanguage() {

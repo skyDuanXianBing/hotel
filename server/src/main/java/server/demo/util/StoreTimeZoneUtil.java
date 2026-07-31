@@ -14,6 +14,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
+import server.demo.i18n.ApiMessages;
 public final class StoreTimeZoneUtil {
 
     public static final String DEFAULT_TIMEZONE = "Asia/Tokyo";
@@ -141,7 +142,7 @@ public final class StoreTimeZoneUtil {
         try {
             return ZoneId.of(normalizedTimezone).getId();
         } catch (DateTimeException ex) {
-            throw new IllegalArgumentException("门店时区必须是有效的 IANA 时区: " + normalizedTimezone, ex);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.20986a6b6304") + normalizedTimezone, ex);
         }
     }
 

@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotNull;
 
 public class MoveToOrderBoxRequest {
 
-    @NotNull(message = "预订ID不能为空")
+    @NotNull(message = "{api.t.436e6977b967}")
     private Long reservationId;
 
     private String notes;

@@ -17,19 +17,19 @@ public class SortConfig {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull(message = "用户ID不能为空")
+    @NotNull(message = "{api.t.855ea23e7df8}")
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @NotBlank(message = "排序类型不能为空")
+    @NotBlank(message = "{api.t.e3f02ed5eea3}")
     @Column(name = "sort_type", nullable = false, length = 20)
     private String sortType; // ROOM_TYPE, ROOM, GROUP
 
-    @NotNull(message = "实体ID不能为空")
+    @NotNull(message = "{api.t.0ac49bc4e9a9}")
     @Column(name = "entity_id", nullable = false)
     private Long entityId; // 对应的房型ID、房间ID或分组ID
 
-    @NotNull(message = "排序顺序不能为空")
+    @NotNull(message = "{api.t.135fbcc61d30}")
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder;
 

@@ -10,7 +10,7 @@ public class BatchCreateReservationRequest {
     private String groupOrderNo;
 
     @Valid
-    @NotEmpty(message = "reservations 不能为空")
+    @NotEmpty(message = "{api.t.10a7e0f9210f}")
     private List<CreateReservationRequest> reservations;
 
     public String getGroupOrderNo() {

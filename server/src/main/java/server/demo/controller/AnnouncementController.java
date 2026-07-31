@@ -20,6 +20,7 @@ import server.demo.service.AnnouncementService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/announcements")
 @StoreScoped
@@ -35,9 +36,9 @@ public class AnnouncementController {
     public ResponseEntity<ApiResponse<List<AnnouncementDTO>>> listStoreAnnouncements() {
         try {
             List<AnnouncementDTO> announcements = announcementService.listStoreAnnouncements();
-            return ResponseEntity.ok(ApiResponse.success("获取门店公告成功", announcements));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.1c6ce841ae0c"), announcements));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("获取门店公告失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.92cf0d20f3d5") + e.getMessage()));
         }
     }
 
@@ -48,9 +49,9 @@ public class AnnouncementController {
     ) {
         try {
             List<AnnouncementDTO> announcements = announcementService.listHomeAnnouncements(locale, limit);
-            return ResponseEntity.ok(ApiResponse.success("获取首页公告成功", announcements));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.834fc7fc7dae"), announcements));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("获取首页公告失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.c2d0600bd4a2") + e.getMessage()));
         }
     }
 
@@ -61,11 +62,11 @@ public class AnnouncementController {
     ) {
         try {
             AnnouncementDTO announcement = announcementService.createStoreAnnouncement(request);
-            return ResponseEntity.ok(ApiResponse.success("创建门店公告成功", announcement));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.727ca321702b"), announcement));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("创建门店公告失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.bdef89c33b45") + e.getMessage()));
         }
     }
 
@@ -77,11 +78,11 @@ public class AnnouncementController {
     ) {
         try {
             AnnouncementDTO announcement = announcementService.updateStoreAnnouncement(id, request);
-            return ResponseEntity.ok(ApiResponse.success("更新门店公告成功", announcement));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.bfd1e56bae16"), announcement));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("更新门店公告失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.df54c65e8691") + e.getMessage()));
         }
     }
 
@@ -92,11 +93,11 @@ public class AnnouncementController {
     ) {
         try {
             AnnouncementDTO announcement = announcementService.disableStoreAnnouncement(id);
-            return ResponseEntity.ok(ApiResponse.success("停用门店公告成功", announcement));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.836d1a054792"), announcement));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("停用门店公告失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.a5cc7c8bb159") + e.getMessage()));
         }
     }
 }

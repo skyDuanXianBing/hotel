@@ -77,6 +77,33 @@ Scope: entire repo unless a deeper `AGENTS.md` overrides it.
 - Most backend controllers are under `/api/v1/...`.
 - Public registration endpoints are separate: `/api/public/registration/...` and `/api/public/registration-booking/...`; use `publicRequest.ts` for those flows.
 
+## API / UI Message i18n
+- Supported locales: `zh-CN` (default/fallback), `zh-TW`, `en`, `ja`. Request locale: `X-App-Locale` → `Accept-Language` → `zh-CN` (`zh-TW`/`zh-HK` → `zh-TW`, `zh`/`zh-CN` → `zh-CN`, `ja` → `ja`, `en` → `en`).
+- Clients (web + iOS) must send `Accept-Language` and `X-App-Locale` from the persisted app language (`app_language` / `resolveLocale`), not from an uninitialized `i18n.global.locale` default. Web: `client/src/utils/request.ts`, `publicRequest.ts`, `adminRequest.ts`. iOS: `ios/src/utils/request.ts`, `publicRequest.ts`.
+- Backend user-facing API messages (controllers, services, interceptors, `@RestControllerAdvice`, DTO validation `message`) go through MessageSource / `ApiMessages` under `server/src/main/resources/i18n/`. Do not add new hardcoded user-facing locale strings there.
+- Prefer resolve-at-use-time; for new code prefer `BusinessException` + `ApiResponse.keyedError` / `messageKey` / `messageParams` when practical. Envelope `message` is always the localized display string.
+- **Never** call `ApiMessages.get` in `static` field initializers or static blocks (breaks Patterns and freezes locale).
+- Regexes, sanitizer keywords, prompts, and multi-locale synonym dictionaries are not MessageSource content — keep them as code literals.
+- New keys: add to all four locale property files for the matching basename family; translate from zh-CN. Do not duplicate a key across basenames (MessageSource first-match can hide dupes). Basenames are registered in `I18nConfig.MESSAGE_BASENAMES`:
+  - `messages_*` — shared cross-cutting (`api.common.*`, `api.conflict.*`, `api.permission.*`, `api.validation.*` fallbacks, auth token interceptor keys, plus a few shared permission labels)
+  - `messages_auth_*` — Auth / JWT / AdminAuth / login-register-token
+  - `messages_validation_*` — DTO `@... message="{...}"` keys without a stronger domain owner
+  - `messages_reservation_*` — Reservation / booking / order-box
+  - `messages_room_*` — Room / RoomType / RoomStatus / RoomPrice / FutureRoom / price plans
+  - `messages_channel_*` — Channel / OTA / PriceLabs / Su review-content mapping (not guest chat)
+  - `messages_billing_*` — Billing / SaaS entitlement / subscription / payment-method API errors
+  - `messages_cleaning_*` — Cleaning / Cleaner
+  - `messages_admin_*` — Admin (non-auth) / managed-operation API errors
+  - `messages_registration_*` — Public registration / registration admin
+  - `messages_lock_*` — SmartLock / passcode
+  - `messages_site_*` — Independent site
+  - `messages_message_*` — Messaging / chat / knowledge / AI reply drafts
+  - `messages_notification_*` — Notification / announcement
+  - `messages_store_*` — Store / account / user / role membership
+  - `messages_misc_*` — leftovers that do not fit a domain (statistics, notes, consumption, workbench, media, etc.)
+- Transport errors (timeout/network/5xx without business body): client-local i18n. Business errors: server-localized `message`.
+- Out of scope: email bodies, PDF document content, seed/data-initializer copy, log-only strings never returned in `ApiResponse.message`.
+
 ## Test Notes
 - Server tests already exist in `server/src/test/java/server/demo/{service,util,controller,...}`; add focused tests next to the touched area.
 - `ios/cypress.config.ts` uses `http://localhost:5173` as `baseUrl`; do not run browser automation unless the user explicitly approves the plan.

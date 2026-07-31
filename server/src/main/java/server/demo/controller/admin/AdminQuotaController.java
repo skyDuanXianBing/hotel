@@ -16,6 +16,7 @@ import server.demo.service.saas.EntitlementService;
 import server.demo.service.saas.EntitlementSnapshot;
 import server.demo.service.saas.QuotaUsage;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 平台管理端：配额人工调整（写 ADJUST 流水，operator = 管理员账号）与配额用量只读查询。
  */
@@ -41,11 +42,11 @@ public class AdminQuotaController {
     ) {
         EntitlementSnapshot snapshot = entitlementService.getSnapshot(storeId);
         if (snapshot == null) {
-            return ApiResponse.success("该门店尚无有效订阅，暂无配额用量", null);
+            return ApiResponse.success(ApiMessages.get("api.t.c8e441bed2c5"), null);
         }
         EntitlementSnapshot.Entry entry = snapshot.find(featureCode);
         if (entry == null || entry.type() != SaasFeatureType.QUOTA) {
-            return ApiResponse.success("当前订阅不包含该配额权益，暂无配额用量", null);
+            return ApiResponse.success(ApiMessages.get("api.t.b3b318f98033"), null);
         }
         return ApiResponse.success(entitlementService.getQuotaUsage(storeId, featureCode));
     }
@@ -62,6 +63,6 @@ public class AdminQuotaController {
                 request.delta(),
                 request.remark(),
                 operator);
-        return ApiResponse.success("配额已调整", usage);
+        return ApiResponse.success(ApiMessages.get("api.t.49d3750c12e6"), usage);
     }
 }

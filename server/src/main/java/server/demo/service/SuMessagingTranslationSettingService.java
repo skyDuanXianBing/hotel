@@ -8,6 +8,7 @@ import server.demo.repository.SuMessagingUserSettingRepository;
 
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class SuMessagingTranslationSettingService {
 
@@ -41,22 +42,22 @@ public class SuMessagingTranslationSettingService {
 
     private static void requireUserId(Long userId) {
         if (userId == null) {
-            throw new IllegalArgumentException("用户上下文不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.d82109249329"));
         }
     }
 
     private static void validateRequest(SuMessagingTranslationSettingDTO request) {
         if (request == null) {
-            throw new IllegalArgumentException("翻译设置不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.5e5be3eb3c21"));
         }
         if (request.getEnabled() == null) {
-            throw new IllegalArgumentException("翻译开关不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.21c6d360e510"));
         }
         if (request.getTargetLanguage() == null || request.getTargetLanguage().isBlank()) {
-            throw new IllegalArgumentException("目标语言不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.460ce9217fb8"));
         }
         if (!SUPPORTED_TARGET_LANGUAGES.contains(request.getTargetLanguage())) {
-            throw new IllegalArgumentException("目标语言仅支持 zh-CN、en、ja、ko");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.703096170de5"));
         }
     }
 

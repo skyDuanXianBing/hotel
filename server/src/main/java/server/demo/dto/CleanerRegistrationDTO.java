@@ -9,18 +9,18 @@ import jakarta.validation.constraints.Size;
  */
 public class CleanerRegistrationDTO {
 
-    @NotBlank(message = "邀请token不能为空")
+    @NotBlank(message = "{api.t.0dda7fee4992}")
     private String token;
 
-    @NotBlank(message = "姓名不能为空")
+    @NotBlank(message = "{api.t.b0f8137f7e6b}")
     private String name;
 
-    @NotBlank(message = "邮箱不能为空")
-    @Email(message = "邮箱格式不正确")
+    @NotBlank(message = "{api.t.cfe012352180}")
+    @Email(message = "{api.t.4f0599f86e3f}")
     private String email;
 
-    @NotBlank(message = "密码不能为空")
-    @Size(min = 6, message = "密码长度至少6位")
+    @NotBlank(message = "{api.t.4d81424b0110}")
+    @Size(min = 6, message = "{api.t.3bbd0a841187}")
     private String password;
 
     // Constructors

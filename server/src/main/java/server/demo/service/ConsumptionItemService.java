@@ -9,6 +9,7 @@ import server.demo.repository.ConsumptionItemRepository;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class ConsumptionItemService {
 
@@ -28,7 +29,7 @@ public class ConsumptionItemService {
      */
     public ConsumptionItem getById(Long id) {
         return consumptionItemRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("消费项不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.0713f70e7975")));
     }
 
     /**
@@ -97,7 +98,7 @@ public class ConsumptionItemService {
     @Transactional
     public void delete(Long id) {
         if (!consumptionItemRepository.existsById(id)) {
-            throw new RuntimeException("消费项不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.0713f70e7975"));
         }
         consumptionItemRepository.deleteById(id);
     }

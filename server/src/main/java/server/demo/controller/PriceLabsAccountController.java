@@ -19,6 +19,7 @@ import server.demo.service.PriceLabsService;
 import java.util.List;
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/pricelabs/accounts")
 public class PriceLabsAccountController {
@@ -31,12 +32,12 @@ public class PriceLabsAccountController {
     public ResponseEntity<ApiResponse<List<PriceLabsAccountDTO>>> getAccounts() {
         try {
             return ResponseEntity.ok(ApiResponse.success(
-                    "获取 PriceLabs 账号列表成功",
+                    ApiMessages.get("api.t.210d726078f7"),
                     priceLabsService.getAccounts()
             ));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("获取 PriceLabs 账号列表失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.d75fa208dfd3") + e.getMessage()));
         }
     }
 
@@ -48,10 +49,10 @@ public class PriceLabsAccountController {
                     request.get("accountName"),
                     request.get("priceLabsEmail")
             );
-            return ResponseEntity.ok(ApiResponse.success("创建 PriceLabs 账号成功", account));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.3f2336efce50"), account));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("创建 PriceLabs 账号失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.4158158ba094") + e.getMessage()));
         }
     }
 
@@ -62,11 +63,11 @@ public class PriceLabsAccountController {
             @RequestBody Map<String, String> request) {
         try {
             return priceLabsService.updateAccount(id, request.get("accountName"), request.get("priceLabsEmail"))
-                    .map(account -> ResponseEntity.ok(ApiResponse.success("更新 PriceLabs 账号成功", account)))
-                    .orElse(ResponseEntity.status(404).body(ApiResponse.error("PriceLabs 账号不存在")));
+                    .map(account -> ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.05e93ab84a1e"), account)))
+                    .orElse(ResponseEntity.status(404).body(ApiResponse.error(ApiMessages.get("api.t.a0a401089fec"))));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("更新 PriceLabs 账号失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.6192048a84f0") + e.getMessage()));
         }
     }
 
@@ -77,11 +78,11 @@ public class PriceLabsAccountController {
             @RequestBody Map<String, Boolean> request) {
         try {
             return priceLabsService.updateAccountStatus(id, request.get("enabled"))
-                    .map(account -> ResponseEntity.ok(ApiResponse.success("更新 PriceLabs 账号状态成功", account)))
-                    .orElse(ResponseEntity.status(404).body(ApiResponse.error("PriceLabs 账号不存在")));
+                    .map(account -> ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.7a0a4a07840f"), account)))
+                    .orElse(ResponseEntity.status(404).body(ApiResponse.error(ApiMessages.get("api.t.a0a401089fec"))));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("更新 PriceLabs 账号状态失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.6dc41f767848") + e.getMessage()));
         }
     }
 
@@ -90,12 +91,12 @@ public class PriceLabsAccountController {
     public ResponseEntity<ApiResponse<Void>> deleteAccount(@PathVariable Long id) {
         try {
             if (priceLabsService.deleteAccount(id)) {
-                return ResponseEntity.ok(ApiResponse.success("删除 PriceLabs 账号成功", null));
+                return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.d95798ae35f2"), null));
             }
-            return ResponseEntity.status(404).body(ApiResponse.error("PriceLabs 账号不存在"));
+            return ResponseEntity.status(404).body(ApiResponse.error(ApiMessages.get("api.t.a0a401089fec")));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("删除 PriceLabs 账号失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.356ccccf36c3") + e.getMessage()));
         }
     }
 }

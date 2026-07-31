@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.domain.Page;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/registrations")
 @StoreScoped
@@ -188,13 +189,13 @@ public class RegistrationAdminController {
     public ResponseEntity<byte[]> downloadPdf(@PathVariable Long formId) {
         Long storeId = StoreContextUtils.requireStoreId();
         RegistrationForm form = registrationFormRepository.findById(formId)
-                .orElseThrow(() -> new RuntimeException("登记表不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.5ea3eb2ea267")));
         if (!storeId.equals(form.getStoreId())) {
-            throw new RuntimeException("无权限");
+            throw new RuntimeException(ApiMessages.get("api.permission.denied"));
         }
 
         Reservation reservation = reservationRepository.findById(form.getReservation().getId())
-                .orElseThrow(() -> new RuntimeException("订单不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.b8768a4b0d04")));
         List<RegistrationGuest> guests = registrationGuestRepository.findByFormIdOrderBySortOrderAsc(form.getId());
 
         byte[] pdf = registrationPdfService.render(form, reservation, guests);
@@ -229,7 +230,7 @@ public class RegistrationAdminController {
     public ApiResponse<String> generateLink(@PathVariable String orderNumber) {
         Long storeId = StoreContextUtils.requireStoreId();
         Reservation reservation = reservationRepository.findByStoreIdAndOrderNumber(storeId, orderNumber)
-                .orElseThrow(() -> new RuntimeException("订单不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.b8768a4b0d04")));
         String token = registrationLinkService.generateToken(storeId, orderNumber);
         String base = frontendBaseUrl != null ? frontendBaseUrl.trim() : "";
         if (base.endsWith("/")) {

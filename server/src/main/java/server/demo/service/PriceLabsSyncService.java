@@ -60,6 +60,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class PriceLabsSyncService {
     private static final Logger logger = LoggerFactory.getLogger(PriceLabsSyncService.class);
@@ -189,7 +190,7 @@ public class PriceLabsSyncService {
         PriceLabsApiClient.GetPricesResponse res = apiClient.getPrices(listingIds, startDate, endDate, false);
         if (res == null || !res.isSuccess() || res.getData() == null || res.getData().isEmpty()) {
             String msg = res != null ? res.getMessage() : "no response";
-            throw new RuntimeException("get_prices 拉取失败: " + (msg != null ? msg : "unknown"));
+            throw new RuntimeException(ApiMessages.get("api.t.b1324cc462f7") + (msg != null ? msg : "unknown"));
         }
 
         PriceLabsWebhookRequest webhookRequest = new PriceLabsWebhookRequest();
@@ -519,10 +520,10 @@ public class PriceLabsSyncService {
 
         if (res.getFailure() != null && !res.getFailure().isEmpty()) {
             String summary = summarizeFailures(res.getFailure());
-            PriceLabsSyncLog log = PriceLabsSyncLog.failure(storeId, SyncType.LISTING, SyncDirection.OUTBOUND, "房源推送失败");
+            PriceLabsSyncLog log = PriceLabsSyncLog.failure(storeId, SyncType.LISTING, SyncDirection.OUTBOUND, ApiMessages.get("api.t.1cd1ef57b1b0"));
             log.setResponseData(summary);
             syncLogRepo.save(log);
-            throw new RuntimeException("房源推送失败：" + summary);
+            throw new RuntimeException(ApiMessages.get("api.t.d52d0d811877") + summary);
         }
     }
 
@@ -557,10 +558,10 @@ public class PriceLabsSyncService {
 
         if (res.getFailure() != null && !res.getFailure().isEmpty()) {
             String summary = summarizeFailures(res.getFailure());
-            PriceLabsSyncLog log = PriceLabsSyncLog.failure(storeId, SyncType.RATE_PLAN, SyncDirection.OUTBOUND, "价格计划推送失败");
+            PriceLabsSyncLog log = PriceLabsSyncLog.failure(storeId, SyncType.RATE_PLAN, SyncDirection.OUTBOUND, ApiMessages.get("api.t.322581daf9ec"));
             log.setResponseData(summary);
             syncLogRepo.save(log);
-            throw new RuntimeException("价格计划推送失败：" + summary);
+            throw new RuntimeException(ApiMessages.get("api.t.0b64538f83a6") + summary);
         }
     }
 
@@ -617,11 +618,11 @@ public class PriceLabsSyncService {
 
         if (res.getFailure() != null && !res.getFailure().isEmpty()) {
             String summary = summarizeFailures(res.getFailure());
-            PriceLabsSyncLog log = PriceLabsSyncLog.failure(storeId, SyncType.CALENDAR, SyncDirection.OUTBOUND, "日历推送失败");
+            PriceLabsSyncLog log = PriceLabsSyncLog.failure(storeId, SyncType.CALENDAR, SyncDirection.OUTBOUND, ApiMessages.get("api.t.de354dbb430f"));
             log.setRequestData("{\"start\":\"" + start + "\",\"end\":\"" + end + "\"}");
             log.setResponseData(summary);
             syncLogRepo.save(log);
-            throw new RuntimeException("日历推送失败：" + summary);
+            throw new RuntimeException(ApiMessages.get("api.t.5c7c3230fc2c") + summary);
         }
     }
 
@@ -641,14 +642,14 @@ public class PriceLabsSyncService {
 
         PriceLabsApiClient.PriceLabsResponse listingRes = apiClient.pushListings(List.of(toListing(rt, store, userToken)));
         if (listingRes.getFailure() != null && !listingRes.getFailure().isEmpty()) {
-            throw new RuntimeException("房源推送失败：" + summarizeFailures(listingRes.getFailure()));
+            throw new RuntimeException(ApiMessages.get("api.t.d52d0d811877") + summarizeFailures(listingRes.getFailure()));
         }
 
         List<RoomTypePricePlan> plans = rtppRepo.findByRoomTypeId(rtId);
         if (!plans.isEmpty()) {
             PriceLabsApiClient.PriceLabsResponse ratePlanRes = apiClient.pushRatePlans(plans.stream().map(p -> toRatePlan(rt, p)).collect(Collectors.toList()));
             if (ratePlanRes.getFailure() != null && !ratePlanRes.getFailure().isEmpty()) {
-                throw new RuntimeException("价格计划推送失败：" + summarizeFailures(ratePlanRes.getFailure()));
+                throw new RuntimeException(ApiMessages.get("api.t.0b64538f83a6") + summarizeFailures(ratePlanRes.getFailure()));
             }
         }
 
@@ -716,7 +717,7 @@ public class PriceLabsSyncService {
         String listingId = normalizeListingId(connection, storeId);
         PriceLabsApiClient.PriceLabsResponse listingRes = apiClient.pushListings(List.of(toListing(roomType, store, userToken, listingId)));
         if (listingRes.getFailure() != null && !listingRes.getFailure().isEmpty()) {
-            throw new RuntimeException("房源推送失败：" + summarizeFailures(listingRes.getFailure()));
+            throw new RuntimeException(ApiMessages.get("api.t.d52d0d811877") + summarizeFailures(listingRes.getFailure()));
         }
     }
 
@@ -782,7 +783,7 @@ public class PriceLabsSyncService {
 
         PriceLabsApiClient.PriceLabsResponse listingRes = apiClient.pushListings(listings);
         if (listingRes.getFailure() != null && !listingRes.getFailure().isEmpty()) {
-            throw new RuntimeException("房源推送失败：" + summarizeFailures(listingRes.getFailure()));
+            throw new RuntimeException(ApiMessages.get("api.t.d52d0d811877") + summarizeFailures(listingRes.getFailure()));
         }
     }
 
@@ -867,7 +868,7 @@ public class PriceLabsSyncService {
         d.setListingId(listingId);
         d.setUserToken(userToken);
         if (rt.getName() == null || rt.getName().trim().isEmpty()) {
-            throw new RuntimeException("房型名称不能为空（room_type_id=" + rt.getId() + "）");
+            throw new RuntimeException(ApiMessages.get("api.t.5c06be7fb04b") + rt.getId() + "）");
         }
         d.setName(rt.getName());
         d.setStatus("available");
@@ -879,7 +880,7 @@ public class PriceLabsSyncService {
 
         String countryAlpha3 = PriceLabsCountryUtil.normalizeToAlpha3(s.getCountry());
         if (countryAlpha3 == null) {
-            throw new RuntimeException("请先补全门店地址信息：国家必须为 ISO 三字码（例如 CHN），当前值=" + s.getCountry());
+            throw new RuntimeException(ApiMessages.get("api.t.b2bdb19a3bac") + s.getCountry());
         }
         String geocodeCity = hasRoomTypeAddress ? null : city;
         String geocodeState = hasRoomTypeAddress ? null : s.getState();
@@ -914,7 +915,7 @@ public class PriceLabsSyncService {
             return timezoneFallback;
         }
 
-        throw new RuntimeException("无法通过 Google Geocoding 解析经纬度，请检查房型/门店地址与 Google API Key 配置。"
+        throw new RuntimeException(ApiMessages.get("api.t.1592e0203ef0")
                 + " city=" + city
                 + ", state=" + state
                 + ", address=" + address
@@ -1600,7 +1601,7 @@ public class PriceLabsSyncService {
         }
 
         String summary = String.join("; ", parts);
-        if (failures.size() > limit) summary += " ...(共" + failures.size() + "条)";
+        if (failures.size() > limit) summary += ApiMessages.get("api.t.8e4cb551cde4") + failures.size() + ApiMessages.get("api.t.a676a744f6c5");
         return summary;
     }
 
@@ -1608,12 +1609,12 @@ public class PriceLabsSyncService {
         if (store.getAddress() == null || store.getAddress().trim().isEmpty()
             || store.getCity() == null || store.getCity().trim().isEmpty()
             || store.getCountry() == null || store.getCountry().trim().isEmpty()) {
-            throw new RuntimeException("请先补全门店地址信息（地址/城市/国家为必填）");
+            throw new RuntimeException(ApiMessages.get("api.t.57c003a7df4e"));
         }
 
         String normalizedCountryAlpha3 = PriceLabsCountryUtil.normalizeToAlpha3(store.getCountry());
         if (normalizedCountryAlpha3 == null) {
-            throw new RuntimeException("请先补全门店地址信息：国家必须可转换为 ISO 三字码（例如 China/CHN）");
+            throw new RuntimeException(ApiMessages.get("api.t.b01f88cddb87"));
         }
     }
 

@@ -3,10 +3,10 @@ package server.demo.dto;
 import jakarta.validation.constraints.NotNull;
 
 public class PaymentMethodOrderRequest {
-    @NotNull(message = "收款方式ID不能为空")
+    @NotNull(message = "{api.t.d2f270636ec0}")
     private Long id;
 
-    @NotNull(message = "排序不能为空")
+    @NotNull(message = "{api.t.3218602aa9fb}")
     private Integer displayOrder;
 
     public Long getId() {

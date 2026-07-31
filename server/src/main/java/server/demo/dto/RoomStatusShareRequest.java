@@ -6,19 +6,19 @@ import java.util.List;
 
 public class RoomStatusShareRequest {
     
-    @NotBlank(message = "分享标题不能为空")
+    @NotBlank(message = "{api.t.922e72ab74ac}")
     private String shareTitle;
 
-    @NotNull(message = "查看房间状态设置不能为空")
+    @NotNull(message = "{api.t.c957524597fa}")
     private Boolean viewRoomStatus;
 
-    @NotNull(message = "查询方式不能为空")
+    @NotNull(message = "{api.t.357c9d86b7c1}")
     private Boolean queryMethod;
 
-    @NotBlank(message = "查看类型不能为空")
+    @NotBlank(message = "{api.t.22ed8b8d3d6d}")
     private String viewType;
 
-    @NotBlank(message = "查询模式不能为空")
+    @NotBlank(message = "{api.t.df33384b8031}")
     private String queryMode;
 
     private List<String> filterItems;

@@ -28,6 +28,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 @Transactional
 public class PriceChangeHistoryServiceImpl implements PriceChangeHistoryService {
@@ -59,7 +60,7 @@ public class PriceChangeHistoryServiceImpl implements PriceChangeHistoryService 
     private Long getCurrentStoreId() {
         server.demo.context.StoreContext context = server.demo.context.StoreContextHolder.getContext();
         if (context == null || context.getStoreId() == null) {
-            throw new RuntimeException("无法获取当前门店信息");
+            throw new RuntimeException(ApiMessages.get("api.t.642b7e97c7d4"));
         }
         return context.getStoreId();
     }
@@ -128,12 +129,12 @@ public class PriceChangeHistoryServiceImpl implements PriceChangeHistoryService 
         Long storeId = getCurrentStoreId();
 
         RoomType roomType = roomTypeRepository.findById(roomTypeId)
-                .orElseThrow(() -> new IllegalArgumentException("房型不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.0ee42ec64b2f")));
 
         PricePlan pricePlan = null;
         if (pricePlanId != null) {
             pricePlan = pricePlanRepository.findById(pricePlanId)
-                    .orElseThrow(() -> new IllegalArgumentException("价格计划不存在"));
+                    .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.f6d8111d0db9")));
         }
 
         PriceChangeHistory history = new PriceChangeHistory();
@@ -141,8 +142,8 @@ public class PriceChangeHistoryServiceImpl implements PriceChangeHistoryService 
         history.setPricePlan(pricePlan);
         history.setPriceDateStart(priceDateStart);
         history.setPriceDateEnd(priceDateEnd);
-        history.setApplyWeekdays(applyWeekdays != null ? applyWeekdays : "全部");
-        history.setChangeType("价格");
+        history.setApplyWeekdays(applyWeekdays != null ? applyWeekdays : ApiMessages.get("api.t.778fc8f99453"));
+        history.setChangeType(ApiMessages.get("api.t.b70c2d28a16b"));
         history.setChangeValue(changeValue);
         history.setPreviousValue(previousValue);
         history.setOperator(operator);
@@ -167,11 +168,11 @@ public class PriceChangeHistoryServiceImpl implements PriceChangeHistoryService 
         dto.setPricePlanName(history.getPricePlan() != null ? history.getPricePlan().getName() : "");
 
         // 格式化日期范围
-        String priceDate = DATE_FORMATTER.format(history.getPriceDateStart()) + "至" +
+        String priceDate = DATE_FORMATTER.format(history.getPriceDateStart()) + ApiMessages.get("api.t.43401e739ef4") +
                           DATE_FORMATTER.format(history.getPriceDateEnd());
         dto.setPriceDate(priceDate);
 
-        dto.setApplyDays(history.getApplyWeekdays() != null ? history.getApplyWeekdays() : "全部");
+        dto.setApplyDays(history.getApplyWeekdays() != null ? history.getApplyWeekdays() : ApiMessages.get("api.t.778fc8f99453"));
         dto.setChangeType(history.getChangeType());
         dto.setChangeValue(history.getChangeValue());
         dto.setPreviousValue(history.getPreviousValue());

@@ -16,6 +16,7 @@ import server.demo.repository.StoreUserRepository;
 import java.util.List;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class CleanerService {
 
@@ -53,10 +54,10 @@ public class CleanerService {
     @Transactional
     public Cleaner createCleaner(Cleaner cleaner) {
         if (cleaner.getPassword() == null || cleaner.getPassword().isBlank()) {
-            throw new RuntimeException("保洁员密码不能为空，请通过邀请邮件完成注册");
+            throw new RuntimeException(ApiMessages.get("api.t.5c549b53d999"));
         }
 
-        throw new RuntimeException("请通过保洁员邀请流程创建账号，禁止直接创建不完整身份");
+        throw new RuntimeException(ApiMessages.get("api.t.8604e4b21890"));
     }
 
     @Transactional
@@ -64,12 +65,12 @@ public class CleanerService {
         Optional<Cleaner> existingCleaner = cleanerRepository.findById(id)
                 .filter(existing -> storeId.equals(existing.getStoreId()));
         if (existingCleaner.isEmpty()) {
-            throw new RuntimeException("保洁员不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.bea2ad1fb3f3"));
         }
 
         Cleaner currentCleaner = existingCleaner.get();
         if (cleaner.getEmail() != null && !cleaner.getEmail().trim().equalsIgnoreCase(currentCleaner.getEmail())) {
-            throw new RuntimeException("保洁员邮箱不可直接修改，请重新邀请并完成身份核验");
+            throw new RuntimeException(ApiMessages.get("api.t.0c4f8eba9326"));
         }
         currentCleaner.setName(cleaner.getName());
         Cleaner saved = cleanerRepository.save(currentCleaner);
@@ -79,14 +80,14 @@ public class CleanerService {
     @Transactional
     public void deleteCleaner(Long storeId, Long id) {
         Cleaner cleaner = cleanerRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("保洁员不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.bea2ad1fb3f3")));
 
         if (!storeId.equals(cleaner.getStoreId())) {
-            throw new RuntimeException("保洁员不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.bea2ad1fb3f3"));
         }
 
         if (cleaningTaskRepository.existsByCleanerId(id)) {
-            throw new RuntimeException("该保洁员仍有关联任务，请先处理任务后再删除");
+            throw new RuntimeException(ApiMessages.get("api.t.9b45b85195e0"));
         }
 
         cleaner.setIsActive(false);

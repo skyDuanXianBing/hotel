@@ -16,6 +16,7 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 
+import server.demo.i18n.ApiMessages;
 @Component
 public class SuReviewPayloadMapper {
 
@@ -29,7 +30,7 @@ public class SuReviewPayloadMapper {
 
     public NormalizedReview fromPull(JsonNode reviewNode, String hotelId, LocalDateTime syncedAt) {
         if (reviewNode == null || !reviewNode.isObject()) {
-            throw new IllegalArgumentException("Su Review Pull 返回了无效评价对象");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.031c8be04059"));
         }
         JsonNode guestInfo = objectOrEmpty(reviewNode.get("guest_info"));
         JsonNode replyFlags = objectOrEmpty(reviewNode.get("reply_flags"));
@@ -74,11 +75,11 @@ public class SuReviewPayloadMapper {
 
     public NormalizedReview fromPush(JsonNode reviewNode, String routedHotelId, LocalDateTime syncedAt) {
         if (reviewNode == null || !reviewNode.isObject()) {
-            throw new IllegalArgumentException("Su Review Push 请求包含无效评价对象");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.76a80323bae3"));
         }
         String payloadHotelId = firstText(reviewNode, "hotel_id", "hotelid", "hotelId");
         if (payloadHotelId == null || !payloadHotelId.trim().equalsIgnoreCase(routedHotelId)) {
-            throw new IllegalArgumentException("Review Push 的 hotel_id 与路由门店不一致");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.aebf4a915c0a"));
         }
 
         JsonNode rawScoreNode = reviewNode.get("review_score");
@@ -144,7 +145,7 @@ public class SuReviewPayloadMapper {
             byte[] canonical = objectMapper.writeValueAsBytes(node);
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(canonical));
         } catch (Exception e) {
-            throw new IllegalArgumentException("无法计算 Review 事件摘要", e);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.1c9bed008ff3"), e);
         }
     }
 
@@ -154,14 +155,14 @@ public class SuReviewPayloadMapper {
 
     private static Integer requireChannelId(Integer channelId) {
         if (channelId == null) {
-            throw new IllegalArgumentException("评价缺少 channel_id");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.bd9464382b90"));
         }
         return channelId;
     }
 
     private static String requireText(String value, String field) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("评价缺少 " + field);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.4676e79404ce") + field);
         }
         return value.trim();
     }
@@ -205,7 +206,7 @@ public class SuReviewPayloadMapper {
         try {
             return Integer.valueOf(text);
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("评价字段 " + field + " 不是有效整数");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.bd6fb603b8ee") + field + ApiMessages.get("api.t.be5283e17ea4"));
         }
     }
 

@@ -9,6 +9,7 @@ import server.demo.repository.CleaningConfigRepository;
 import java.util.List;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 保洁配置 Service
  */
@@ -60,7 +61,7 @@ public class CleaningConfigService {
     public CleaningConfig updateConfig(Long id, CleaningConfig config) {
         Optional<CleaningConfig> existingConfig = cleaningConfigRepository.findById(id);
         if (existingConfig.isEmpty()) {
-            throw new RuntimeException("保洁配置不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.3be7a2601f50"));
         }
 
         CleaningConfig cfg = existingConfig.get();

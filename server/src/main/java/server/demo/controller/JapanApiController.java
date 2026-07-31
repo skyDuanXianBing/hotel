@@ -10,6 +10,7 @@ import server.demo.service.AutoMessageTriggerService;
 import server.demo.service.ReservationService;
 import server.demo.service.VirtualMailboxService;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 日本预订平台API控制器
  * 提供与日本预订系统的对接接口
@@ -60,10 +61,10 @@ public class JapanApiController {
             // 4. 创建虚拟邮箱
             // 5. 触发欢迎消息
 
-            return ApiResponse.success("订单接收成功(占位实现)");
+            return ApiResponse.success(ApiMessages.get("api.t.1f4902b2952c"));
         } catch (Exception e) {
             logger.error("接收订单失败: {}", e.getMessage(), e);
-            return ApiResponse.error("订单接收失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.8fe6119a5225") + e.getMessage());
         }
     }
 
@@ -81,10 +82,10 @@ public class JapanApiController {
             // TODO: 实现订单同步逻辑
             // 调用日本系统的API推送订单数据
 
-            return ApiResponse.success("订单同步成功(占位实现)");
+            return ApiResponse.success(ApiMessages.get("api.t.775c1e0a7c20"));
         } catch (Exception e) {
             logger.error("订单同步失败: {}", e.getMessage(), e);
-            return ApiResponse.error("订单同步失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.eebe0565bd09") + e.getMessage());
         }
     }
 
@@ -103,10 +104,10 @@ public class JapanApiController {
             // TODO: 实现价格同步逻辑
             // 调用日本系统的API更新价格
 
-            return ApiResponse.success("价格更新成功(占位实现)");
+            return ApiResponse.success(ApiMessages.get("api.t.256142986a9c"));
         } catch (Exception e) {
             logger.error("价格更新失败: {}", e.getMessage(), e);
-            return ApiResponse.error("价格更新失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.ea70a5e845ad") + e.getMessage());
         }
     }
 
@@ -125,10 +126,10 @@ public class JapanApiController {
             // TODO: 实现库存同步逻辑
             // 调用日本系统的API更新库存
 
-            return ApiResponse.success("库存更新成功(占位实现)");
+            return ApiResponse.success(ApiMessages.get("api.t.f04364c8561a"));
         } catch (Exception e) {
             logger.error("库存更新失败: {}", e.getMessage(), e);
-            return ApiResponse.error("库存更新失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.74dafb2378e5") + e.getMessage());
         }
     }
 

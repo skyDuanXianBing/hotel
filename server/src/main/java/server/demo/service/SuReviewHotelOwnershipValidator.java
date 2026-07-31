@@ -8,6 +8,7 @@ import server.demo.util.SuHotelIdUtil;
 import java.util.List;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 /**
  * Review 功能使用的 Su hotel_id 唯一归属校验。
  * <p>
@@ -43,20 +44,20 @@ public class SuReviewHotelOwnershipValidator {
 
     public String requireUniqueOwnership(Long storeId) {
         if (storeId == null) {
-            throw new IllegalArgumentException("门店不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.56263c9add24"));
         }
         Store currentStore = storeRepository.findById(storeId)
-                .orElseThrow(() -> new SuReviewService.ReviewNotFoundException("门店不存在"));
+                .orElseThrow(() -> new SuReviewService.ReviewNotFoundException(ApiMessages.get("api.t.051df0941ec3")));
         String hotelId = SuHotelIdUtil.normalize(currentStore.getSuHotelId());
         if (hotelId == null) {
-            throw new IllegalStateException("门店尚未配置 Su hotel_id，不能执行评价渠道操作");
+            throw new IllegalStateException(ApiMessages.get("api.t.c99bb8d666f0"));
         }
         Store uniqueOwner = resolveUniqueOwner(hotelId)
                 .orElseThrow(() -> new IllegalStateException(
-                        "Su hotel_id 未唯一归属当前门店，已拒绝评价渠道操作"
+                        ApiMessages.get("api.t.ef50131beb1a")
                 ));
         if (!storeId.equals(uniqueOwner.getId())) {
-            throw new IllegalStateException("Su hotel_id 不属于当前门店，已拒绝评价渠道操作");
+            throw new IllegalStateException(ApiMessages.get("api.t.0271455280e3"));
         }
         return hotelId;
     }

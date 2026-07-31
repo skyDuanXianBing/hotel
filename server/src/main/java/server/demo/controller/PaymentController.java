@@ -13,6 +13,7 @@ import server.demo.service.PaymentService;
 import java.math.BigDecimal;
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/payments")
 @StoreScoped
@@ -29,23 +30,23 @@ public class PaymentController {
     public ApiResponse<PaymentDTO> createPayment(@RequestBody PaymentDTO dto) {
         try {
             if (dto.getReservationId() == null) {
-                return ApiResponse.error("预订ID不能为空");
+                return ApiResponse.error(ApiMessages.get("api.t.436e6977b967"));
             }
             if (dto.getType() == null || dto.getType().isEmpty()) {
-                return ApiResponse.error("收款类型不能为空");
+                return ApiResponse.error(ApiMessages.get("api.t.43eb4bfee277"));
             }
             if (dto.getPaymentMethod() == null || dto.getPaymentMethod().isEmpty()) {
-                return ApiResponse.error("支付方式不能为空");
+                return ApiResponse.error(ApiMessages.get("api.t.82918ab17733"));
             }
             if (dto.getAmount() == null || dto.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-                return ApiResponse.error("收款金额必须大于0");
+                return ApiResponse.error(ApiMessages.get("api.t.68d1ad8a7cb7"));
             }
 
             PaymentDTO result = paymentService.createPayment(dto);
-            return ApiResponse.success("收款记录创建成功", result);
+            return ApiResponse.success(ApiMessages.get("api.t.764764a4d385"), result);
         } catch (Exception e) {
             e.printStackTrace();
-            return ApiResponse.error("创建收款记录失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.ac33d9198946") + e.getMessage());
         }
     }
 
@@ -57,10 +58,10 @@ public class PaymentController {
     public ApiResponse<List<PaymentDTO>> getPaymentsByReservationId(@PathVariable Long reservationId) {
         try {
             List<PaymentDTO> payments = paymentService.getPaymentsByReservationId(reservationId);
-            return ApiResponse.success("获取收款记录成功", payments);
+            return ApiResponse.success(ApiMessages.get("api.t.2c19567cebb1"), payments);
         } catch (Exception e) {
             e.printStackTrace();
-            return ApiResponse.error("获取收款记录失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.7aea0126697e") + e.getMessage());
         }
     }
 
@@ -72,10 +73,10 @@ public class PaymentController {
     public ApiResponse<String> deletePayment(@PathVariable Long id) {
         try {
             paymentService.deletePayment(id);
-            return ApiResponse.success("删除收款记录成功");
+            return ApiResponse.success(ApiMessages.get("api.t.0ba6fc845cdf"));
         } catch (Exception e) {
             e.printStackTrace();
-            return ApiResponse.error("删除收款记录失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.d65e19e746d8") + e.getMessage());
         }
     }
 
@@ -87,10 +88,10 @@ public class PaymentController {
     public ApiResponse<BigDecimal> getTotalPayment(@PathVariable Long reservationId) {
         try {
             BigDecimal total = paymentService.getTotalPaymentByReservationId(reservationId);
-            return ApiResponse.success("获取总收款金额成功", total);
+            return ApiResponse.success(ApiMessages.get("api.t.ddcb73f6d2d8"), total);
         } catch (Exception e) {
             e.printStackTrace();
-            return ApiResponse.error("获取总收款金额失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.1e908da431b1") + e.getMessage());
         }
     }
 }

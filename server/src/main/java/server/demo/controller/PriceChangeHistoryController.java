@@ -13,6 +13,7 @@ import server.demo.service.PriceChangeHistoryService;
 
 import java.time.LocalDate;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 改价历史Controller
  */
@@ -52,10 +53,10 @@ public class PriceChangeHistoryController {
                     pageNum,
                     pageSize
             );
-            return ResponseEntity.ok(ApiResponse.success("获取改价历史成功", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.29ca9ce82264"), response));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("获取改价历史失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.0bd3131b040a") + e.getMessage()));
         }
     }
 }

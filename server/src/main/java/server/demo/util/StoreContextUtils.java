@@ -4,6 +4,7 @@ import server.demo.context.StoreContext;
 import server.demo.context.StoreContextHolder;
 import server.demo.exception.StoreAccessDeniedException;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 统一获取当前请求的门店/用户上下文，避免控制器与服务重复代码。
  */
@@ -14,7 +15,7 @@ public final class StoreContextUtils {
     public static StoreContext requireContext() {
         StoreContext context = StoreContextHolder.getContext();
         if (context == null || context.getStoreId() == null) {
-            throw new StoreAccessDeniedException("未获取到有效的门店上下文");
+            throw new StoreAccessDeniedException(ApiMessages.get("api.t.c7be3c1c6d71"));
         }
         return context;
     }

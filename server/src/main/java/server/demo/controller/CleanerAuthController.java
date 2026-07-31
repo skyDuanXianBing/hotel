@@ -7,6 +7,7 @@ import server.demo.dto.auth.CleanerLoginRequest;
 import server.demo.dto.auth.CleanerLoginResponse;
 import server.demo.service.CleanerAuthService;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 保洁员认证控制器
  */
@@ -24,7 +25,7 @@ public class CleanerAuthController {
     public ApiResponse<CleanerLoginResponse> loginByPassword(@RequestBody CleanerLoginRequest request) {
         try {
             CleanerLoginResponse response = cleanerAuthService.loginByPassword(request);
-            return ApiResponse.success("登录成功", response);
+            return ApiResponse.success(ApiMessages.get("api.t.2991317aba58"), response);
         } catch (RuntimeException e) {
             return ApiResponse.error(e.getMessage());
         }

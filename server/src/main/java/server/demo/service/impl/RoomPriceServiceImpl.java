@@ -48,6 +48,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 @Transactional
 public class RoomPriceServiceImpl implements RoomPriceService {
@@ -59,7 +60,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
     );
     private static final String BINDING_STATE_BOUND = "BOUND";
     private static final String BINDING_STATE_UNBOUND = "UNBOUND";
-    private static final String UNBOUND_PRICE_PLAN_REASON = "当前房型未绑定价格计划，请先绑定价格计划后再修改房价。";
+    private static final String UNBOUND_PRICE_PLAN_REASON_KEY = "api.t.9a2861515aa9";
 
     @Autowired
     private RoomPriceRepository roomPriceRepository;
@@ -187,7 +188,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         // 验证房型存在
         Optional<RoomType> roomTypeOpt = roomTypeRepository.findByStoreIdAndId(storeId, request.getRoomTypeId());
         if (roomTypeOpt.isEmpty()) {
-            throw new IllegalArgumentException("房型不存在: " + request.getRoomTypeId());
+            throw new IllegalArgumentException(ApiMessages.get("api.t.ecc89e57935a") + request.getRoomTypeId());
         }
 
         RoomType roomType = roomTypeOpt.get();
@@ -293,16 +294,16 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         // 获取所有要更新的房型
         List<Long> roomTypeIds = request.getRoomTypeIds();
         if (roomTypeIds == null || roomTypeIds.isEmpty()) {
-            throw new IllegalArgumentException("roomTypeIds 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.20627ed31348"));
         }
         List<RoomType> roomTypes = roomTypeRepository.findAllById(roomTypeIds).stream()
                 .filter(rt -> rt != null && storeId.equals(rt.getStoreId()))
                 .toList();
         if (roomTypes.isEmpty()) {
-            throw new IllegalArgumentException("未找到指定的房型");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.aafadf5a0a9c"));
         }
         if (roomTypes.size() != roomTypeIds.stream().filter(id -> id != null).distinct().count()) {
-            throw new IllegalArgumentException("部分房型不存在或无权限");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.900cf3693da2"));
         }
 
         // 遍历每个房型
@@ -693,17 +694,17 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         Long storeId = currentStoreId();
         // 验证房型和价格计划是否存在
         RoomType roomType = roomTypeRepository.findByStoreIdAndId(storeId, request.getRoomTypeId())
-                .orElseThrow(() -> new IllegalArgumentException("房型不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.0ee42ec64b2f")));
 
         PricePlan pricePlan = pricePlanRepository.findByStoreIdAndId(storeId, request.getPricePlanId())
-                .orElseThrow(() -> new IllegalArgumentException("价格计划不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.f6d8111d0db9")));
 
         // 查找房型价格计划关联
         RoomTypePricePlan roomTypePricePlan = roomTypePricePlanRepository
                 .findByRoomTypeIdAndPricePlanId(request.getRoomTypeId(), request.getPricePlanId())
-                .orElseThrow(() -> new IllegalArgumentException("房型与价格计划未关联"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.7f15e9e52327")));
         if (roomTypePricePlan.getStoreId() == null || !storeId.equals(roomTypePricePlan.getStoreId())) {
-            throw new IllegalArgumentException("房型与价格计划不属于当前门店");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.dced95c24618"));
         }
 
         // 记录旧价格用于历史记录
@@ -895,7 +896,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
         // 只有当价格被修改时才创建价格变更历史记录
         if (request.getPrice() != null) {
-            String applyWeekdays = isWeekdayUpdate ? formatWeekdays(request.getWeekdays()) : "特定日期";
+            String applyWeekdays = isWeekdayUpdate ? formatWeekdays(request.getWeekdays()) : ApiMessages.get("api.t.7c271c443c96");
             priceChangeHistoryService.createPriceChangeHistory(
                     request.getRoomTypeId(),
                     request.getPricePlanId(),
@@ -968,7 +969,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
             case 5 -> DayOfWeek.FRIDAY;
             case 6 -> DayOfWeek.SATURDAY;
             case 7 -> DayOfWeek.SUNDAY;
-            default -> throw new IllegalArgumentException("无效的星期几值: " + weekday);
+            default -> throw new IllegalArgumentException(ApiMessages.get("api.t.185748f0d9bc") + weekday);
         };
     }
 
@@ -1159,7 +1160,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
     private void applyUnboundState(RoomPriceManagementDTO dto) {
         dto.setBindingState(BINDING_STATE_UNBOUND);
         dto.setEditable(false);
-        dto.setUneditableReason(UNBOUND_PRICE_PLAN_REASON);
+        dto.setUneditableReason(ApiMessages.get(UNBOUND_PRICE_PLAN_REASON_KEY));
     }
 
     private void applyChannelSummary(
@@ -1224,10 +1225,10 @@ public class RoomPriceServiceImpl implements RoomPriceService {
      */
     private String formatWeekdays(List<Integer> weekdays) {
         if (weekdays == null || weekdays.isEmpty() || weekdays.contains(0)) {
-            return "全部";
+            return ApiMessages.get("api.t.778fc8f99453");
         }
 
-        String[] dayNames = {"周日", "周一", "周二", "周三", "周四", "周五", "周六", "周日"};
+        String[] dayNames = {ApiMessages.get("api.t.c3405710e02a"), ApiMessages.get("api.t.792c34e70d1f"), ApiMessages.get("api.t.8f03441d4b77"), ApiMessages.get("api.t.254556737b5d"), ApiMessages.get("api.t.18f1fd9e8836"), ApiMessages.get("api.t.4344fc1363f0"), ApiMessages.get("api.t.f0c6199aa0c1"), ApiMessages.get("api.t.c3405710e02a")};
         return weekdays.stream()
                 .sorted()
                 .map(day -> dayNames[day])

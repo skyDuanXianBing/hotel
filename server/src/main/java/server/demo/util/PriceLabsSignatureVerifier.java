@@ -5,6 +5,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
+import server.demo.i18n.ApiMessages;
 /**
  * PriceLabs Webhook 签名验证工具
  */
@@ -64,7 +65,7 @@ public class PriceLabsSignatureVerifier {
             byte[] hash = sha256Hmac.doFinal(requestBody.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(hash);
         } catch (Exception e) {
-            throw new RuntimeException("生成签名失败: " + e.getMessage(), e);
+            throw new RuntimeException(ApiMessages.get("api.t.af6318cceff2") + e.getMessage(), e);
         }
     }
 }

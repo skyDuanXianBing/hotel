@@ -45,21 +45,21 @@ public class RoomType implements StoreScopedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "房型名称不能为空")
+    @NotBlank(message = "{api.t.b81e3dd1b013}")
     @Column(nullable = false, length = 100)
     private String name;
 
-    @NotBlank(message = "房型代码不能为空")
+    @NotBlank(message = "{api.t.a5d68ad681d9}")
     @Column(nullable = false, length = 20)
     private String code;
 
-    @NotNull(message = "房间总数不能为空")
-    @Min(value = 1, message = "房间总数必须大于0")
+    @NotNull(message = "{api.t.c2c401d97003}")
+    @Min(value = 1, message = "{api.t.d5822641bf3f}")
     @Column(nullable = false)
     private Integer totalRooms;
 
-    @NotNull(message = "最大入住人数不能为空")
-    @Min(value = 1, message = "最大入住人数必须大于0")
+    @NotNull(message = "{api.t.aa29dec0ec6d}")
+    @Min(value = 1, message = "{api.t.010360759242}")
     @Column(name = "max_guests", nullable = false)
     private Integer maxGuests = 4;
 

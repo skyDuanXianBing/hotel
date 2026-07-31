@@ -14,6 +14,7 @@ import server.demo.service.admin.AdminPackageService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 平台管理端：功能字典维护。
  */
@@ -38,6 +39,6 @@ public class AdminFeatureController {
             @PathVariable Long id,
             @Valid @RequestBody FeatureUpdateRequest request
     ) {
-        return ApiResponse.success("功能已更新", adminPackageService.updateFeature(id, request));
+        return ApiResponse.success(ApiMessages.get("api.t.450f162556e3"), adminPackageService.updateFeature(id, request));
     }
 }

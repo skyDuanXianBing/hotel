@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class IndependentSitePublicRateLimiter {
 
@@ -76,7 +77,7 @@ public class IndependentSitePublicRateLimiter {
                 || quoteWindow == null || quoteWindow.isZero() || quoteWindow.isNegative()
                 || holdWindow == null || holdWindow.isZero() || holdWindow.isNegative()
                 || intentWindow == null || intentWindow.isZero() || intentWindow.isNegative()) {
-            throw new IllegalArgumentException("公开接口限流配置无效");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.b552361a35e3"));
         }
         this.clock = clock;
         this.quoteLimit = quoteLimit;
@@ -130,9 +131,9 @@ public class IndependentSitePublicRateLimiter {
                     HttpStatus.TOO_MANY_REQUESTS,
                     "PUBLIC_RATE_LIMITED",
                     switch (action) {
-                        case HOLD -> "保留请求过于频繁，请稍后再试";
-                        case INTENT -> "支付请求过于频繁，请稍后再试";
-                        default -> "报价请求过于频繁，请稍后再试";
+                        case HOLD -> ApiMessages.get("api.t.f1263a0bb6f8");
+                        case INTENT -> ApiMessages.get("api.t.cf408bd15e36");
+                        default -> ApiMessages.get("api.t.1d4992b559c9");
                     }
             );
         }

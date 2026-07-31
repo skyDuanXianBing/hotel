@@ -16,6 +16,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class ChannelService {
     private static final Set<String> PROTECTED_CHANNEL_CODES =
@@ -50,7 +51,7 @@ public class ChannelService {
 
         // 检查渠道代码是否已存在（门店级别）
         if (channelRepository.existsByStoreIdAndCode(storeId, request.getCode())) {
-            throw new RuntimeException("渠道代码已存在");
+            throw new RuntimeException(ApiMessages.get("api.t.fc5020486410"));
         }
 
         Channel channel = new Channel();
@@ -74,7 +75,7 @@ public class ChannelService {
                     // 检查新代码是否与其他渠道冲突
                     if (!channel.getCode().equals(request.getCode()) &&
                         channelRepository.existsByStoreIdAndCode(storeId, request.getCode())) {
-                        throw new RuntimeException("渠道代码已存在");
+                        throw new RuntimeException(ApiMessages.get("api.t.fc5020486410"));
                     }
 
                     channel.setName(request.getName());
@@ -97,12 +98,12 @@ public class ChannelService {
             return false;
         }
         if (PROTECTED_CHANNEL_CODES.contains(channel.get().getCode())) {
-            throw new RuntimeException("默认渠道不可删除");
+            throw new RuntimeException(ApiMessages.get("api.t.63bda550e90a"));
         }
 
         long reservationCount = reservationRepository.countByStoreIdAndChannelId(storeId, id);
         if (reservationCount > 0) {
-            throw new RuntimeException("该渠道已被订单引用，无法删除。请先停用渠道。");
+            throw new RuntimeException(ApiMessages.get("api.t.dab984e18105"));
         }
 
         channelPriceRepository.deleteByStoreIdAndChannelId(storeId, id);

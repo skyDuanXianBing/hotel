@@ -19,6 +19,7 @@ import server.demo.config.StripeConfig;
 import server.demo.entity.PaymentAttempt;
 import server.demo.repository.PaymentAttemptRepository;
 
+import server.demo.i18n.ApiMessages;
 /**
  * Stripe webhook 分发（单端点多门店）。验签是唯一鉴权，处理顺序（D4）：
  * 未验签解析 payload 提取 metadata.publicReference（仅只读查找 attempt，绝不做状态变更）
@@ -61,21 +62,21 @@ public class IndependentSiteStripeWebhookService {
         PaymentAttempt attempt = paymentAttemptRepository.findByPublicReference(routingReference)
                 .orElseThrow(() -> badRequest(
                         "STRIPE_REFERENCE_UNKNOWN",
-                        "Stripe webhook 引用的支付尝试不存在"
+                        ApiMessages.get("api.t.a14d9eab6242")
                 ));
         IndependentSiteStripeSettingsService.ResolvedStripeKeys keys = stripeSettingsService
                 .resolveForStore(attempt.getStoreId())
                 .filter(IndependentSiteStripeSettingsService.ResolvedStripeKeys::hasWebhookSecret)
                 .orElseThrow(() -> badRequest(
                         "STRIPE_WEBHOOK_NOT_CONFIGURED",
-                        "该门店未配置 Stripe webhook 密钥"
+                        ApiMessages.get("api.t.1ac03df654a1")
                 ));
 
         Event event;
         try {
             event = Webhook.constructEvent(payload, signatureHeader, keys.webhookSecret());
         } catch (SignatureVerificationException e) {
-            throw badRequest("STRIPE_SIGNATURE_INVALID", "Stripe webhook 验签失败");
+            throw badRequest("STRIPE_SIGNATURE_INVALID", ApiMessages.get("api.t.cb7044fec3cc"));
         }
 
         switch (event.getType()) {
@@ -148,11 +149,11 @@ public class IndependentSiteStripeWebhookService {
         try {
             root = objectMapper.readTree(payload);
         } catch (Exception e) {
-            throw badRequest("STRIPE_PAYLOAD_INVALID", "Stripe webhook 负载无法解析");
+            throw badRequest("STRIPE_PAYLOAD_INVALID", ApiMessages.get("api.t.e29e7de78645"));
         }
         JsonNode reference = root.path("data").path("object").path("metadata").path("publicReference");
         if (!reference.isTextual() || reference.asText().isBlank()) {
-            throw badRequest("STRIPE_REFERENCE_MISSING", "Stripe webhook 缺少支付引用");
+            throw badRequest("STRIPE_REFERENCE_MISSING", ApiMessages.get("api.t.287d1d5ad67b"));
         }
         return reference.asText();
     }
@@ -164,11 +165,11 @@ public class IndependentSiteStripeWebhookService {
             try {
                 return deserializer.deserializeUnsafe();
             } catch (EventDataObjectDeserializationException e) {
-                throw new IllegalStateException("无法解析 Stripe 事件中的 PaymentIntent", e);
+                throw new IllegalStateException(ApiMessages.get("api.t.6cd765fd2071"), e);
             }
         });
         if (!(stripeObject instanceof PaymentIntent paymentIntent)) {
-            throw new IllegalStateException("Stripe 事件负载不是 PaymentIntent");
+            throw new IllegalStateException(ApiMessages.get("api.t.11d609cfc5d4"));
         }
         return paymentIntent;
     }
@@ -185,9 +186,9 @@ public class IndependentSiteStripeWebhookService {
         if (intent.getLastPaymentError() != null
                 && intent.getLastPaymentError().getMessage() != null
                 && !intent.getLastPaymentError().getMessage().isBlank()) {
-            return "Stripe 支付失败：" + intent.getLastPaymentError().getMessage();
+            return ApiMessages.get("api.t.3b76969e772c") + intent.getLastPaymentError().getMessage();
         }
-        return "Stripe 支付失败";
+        return ApiMessages.get("api.t.74d906ff6c38");
     }
 
     private static IndependentSiteServiceException badRequest(String code, String message) {

@@ -14,6 +14,7 @@ import server.demo.util.SuHotelIdUtil;
 
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/su/webhook-config")
 @StoreScoped
@@ -31,7 +32,7 @@ public class SuWebhookConfigController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getReservationNotifUrl() {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new IllegalArgumentException("门店不存在: " + storeId));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.d0dfd856aed3") + storeId));
 
         String hotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
         if (hotelId == null) {
@@ -46,7 +47,7 @@ public class SuWebhookConfigController {
                 "legacyWebhookUrl", suWebhookConfig.getReservationNotifWebhookUrl(hotelId)
         );
 
-        return ResponseEntity.ok(ApiResponse.success("获取渠道Webhook回调地址成功", data));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.b7f06c8249aa"), data));
     }
 }
 

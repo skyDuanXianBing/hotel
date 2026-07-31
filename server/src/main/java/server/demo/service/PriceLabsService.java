@@ -40,6 +40,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 /**
  * PriceLabs 集成服务
  * 处理与 PriceLabs 的所有集成相关业务逻辑
@@ -173,7 +174,7 @@ public class PriceLabsService {
                     SyncDirection.OUTBOUND,
                     0
                 );
-                log.setRequestData("PriceLabs 集成注册");
+                log.setRequestData(ApiMessages.get("api.t.94234160ef64"));
                 syncLogRepository.save(log);
 
             } catch (Exception e) {
@@ -182,10 +183,10 @@ public class PriceLabsService {
                     storeId,
                     SyncType.LISTING,
                     SyncDirection.OUTBOUND,
-                    "集成注册失败: " + e.getMessage()
+                    ApiMessages.get("api.t.f9d4b0534e89") + e.getMessage()
                 );
                 syncLogRepository.save(log);
-                throw new RuntimeException("PriceLabs 集成注册失败: " + e.getMessage(), e);
+                throw new RuntimeException(ApiMessages.get("api.t.44e62e7bd850") + e.getMessage(), e);
             }
         } else {
             // 禁用集成
@@ -227,15 +228,15 @@ public class PriceLabsService {
 
         String normalizedEmail = normalizeEmail(priceLabsEmail);
         if (normalizedEmail == null) {
-            throw new RuntimeException("PriceLabs 账号邮箱不能为空");
+            throw new RuntimeException(ApiMessages.get("api.t.ea0bd7c1713d"));
         }
         if (accountRepository.existsByStoreIdAndPriceLabsEmail(storeId, normalizedEmail)) {
-            throw new RuntimeException("该 PriceLabs 账号已存在");
+            throw new RuntimeException(ApiMessages.get("api.t.39c8615b28f9"));
         }
 
         String normalizedName = normalizeAccountName(accountName, normalizedEmail);
         if (accountRepository.existsByStoreIdAndAccountName(storeId, normalizedName)) {
-            throw new RuntimeException("账号名称已存在，请更换后重试");
+            throw new RuntimeException(ApiMessages.get("api.t.26009e9a5e73"));
         }
 
         PriceLabsAccount account = new PriceLabsAccount();
@@ -255,20 +256,20 @@ public class PriceLabsService {
                 .map(account -> {
                     String normalizedEmail = normalizeEmail(priceLabsEmail);
                     if (normalizedEmail == null) {
-                        throw new RuntimeException("PriceLabs 账号邮箱不能为空");
+                        throw new RuntimeException(ApiMessages.get("api.t.ea0bd7c1713d"));
                     }
                     String normalizedName = normalizeAccountName(accountName, normalizedEmail);
 
                     accountRepository.findByStoreIdAndPriceLabsEmail(storeId, normalizedEmail)
                             .ifPresent(existing -> {
                                 if (!existing.getId().equals(account.getId())) {
-                                    throw new RuntimeException("该 PriceLabs 账号已存在");
+                                    throw new RuntimeException(ApiMessages.get("api.t.39c8615b28f9"));
                                 }
                             });
 
                     if (!normalizedName.equals(account.getAccountName())
                             && accountRepository.existsByStoreIdAndAccountName(storeId, normalizedName)) {
-                        throw new RuntimeException("账号名称已存在，请更换后重试");
+                        throw new RuntimeException(ApiMessages.get("api.t.26009e9a5e73"));
                     }
 
                     account.setAccountName(normalizedName);
@@ -297,7 +298,7 @@ public class PriceLabsService {
         return accountRepository.findByStoreIdAndId(storeId, accountId)
                 .map(account -> {
                     if (connectionRepository.existsByStoreIdAndAccountId(storeId, accountId)) {
-                        throw new RuntimeException("该账号下仍有已绑定房间，请先删除或改绑连接");
+                        throw new RuntimeException(ApiMessages.get("api.t.850f97555440"));
                     }
                     accountRepository.delete(account);
                     return true;
@@ -336,10 +337,10 @@ public class PriceLabsService {
         }
 
         if (roomTypeId == null) {
-            throw new RuntimeException("房型不能为空");
+            throw new RuntimeException(ApiMessages.get("api.t.04e9140efd9c"));
         }
         if (pricePlanId == null) {
-            throw new RuntimeException("价格计划不能为空");
+            throw new RuntimeException(ApiMessages.get("api.t.7e64df832ed1"));
         }
 
         // 稳定优先：同一房型仅允许存在一个“启用”的连接，避免 webhook 推价（缺少 rate_plan_id）产生歧义
@@ -353,9 +354,9 @@ public class PriceLabsService {
                 // ignore lazy load errors for message building
             }
             if (planName == null || planName.isBlank()) {
-                throw new RuntimeException("该房型已存在启用的 PriceLabs 连接，请先禁用或删除后再添加");
+                throw new RuntimeException(ApiMessages.get("api.t.473dfb824f69"));
             }
-            throw new RuntimeException("该房型已绑定价格计划：" + planName + "，请先禁用或删除后再添加");
+            throw new RuntimeException(ApiMessages.get("api.t.80ce1139ea5c") + planName + ApiMessages.get("api.t.a724c332e837"));
         });
 
         connectionRepository.findByStoreIdAndRoomTypeIdAndPricePlanId(storeId, roomTypeId, pricePlanId)
@@ -364,22 +365,22 @@ public class PriceLabsService {
                 });
 
         RoomType roomType = roomTypeRepository.findByStoreIdAndId(storeId, roomTypeId)
-                .orElseThrow(() -> new RuntimeException("房型不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.0ee42ec64b2f")));
         PricePlan pricePlan = pricePlanRepository.findByStoreIdAndId(storeId, pricePlanId)
-                .orElseThrow(() -> new RuntimeException("价格计划不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.f6d8111d0db9")));
 
         Integer totalRooms = roomType.getTotalRooms();
         if (totalRooms == null || totalRooms <= 0) {
-            throw new RuntimeException("房型总房量必须大于 0，请先检查房型设置后再创建连接");
+            throw new RuntimeException(ApiMessages.get("api.t.009e92651747"));
         }
         int roomCount = roomRepository.findByStoreIdAndRoomTypeId(storeId, roomTypeId).size();
         if (roomCount > 0 && totalRooms < roomCount) {
-            throw new RuntimeException("房型总房量小于房间列表数量，请先调整房型总房量后再创建连接");
+            throw new RuntimeException(ApiMessages.get("api.t.0edce4676d2b"));
         }
         boolean isBoundInPricePlanSettings = roomTypePricePlanRepository
                 .existsByStoreIdAndRoomTypeIdAndPricePlanId(storeId, roomTypeId, pricePlanId);
         if (!isBoundInPricePlanSettings) {
-            throw new RuntimeException("请先在价格计划页面完成房型绑定后再创建连接");
+            throw new RuntimeException(ApiMessages.get("api.t.6b9306e64cde"));
         }
         PriceLabsConnection connection = new PriceLabsConnection(roomType, pricePlan);
         connection.setStoreId(storeId);
@@ -422,7 +423,7 @@ public class PriceLabsService {
                 .map(conn -> {
                     if (Boolean.TRUE.equals(enabled)
                             && (conn.getAccount() == null || !Boolean.TRUE.equals(conn.getAccount().getIsEnabled()))) {
-                        throw new RuntimeException("璇峰厛鍚敤杩炴帴鎵€灞炵殑 PriceLabs 璐﹀彿");
+                        throw new RuntimeException(ApiMessages.get("api.t.19557a712aff"));
                     }
                     // 稳定优先：启用连接前，确保同一房型没有其它启用连接
                     if (Boolean.TRUE.equals(enabled) && conn.getRoomType() != null && conn.getRoomType().getId() != null) {
@@ -438,9 +439,9 @@ public class PriceLabsService {
                                             // ignore
                                         }
                                         if (planName == null || planName.isBlank()) {
-                                            throw new RuntimeException("该房型已存在其它启用的 PriceLabs 连接，请先禁用后再启用");
+                                            throw new RuntimeException(ApiMessages.get("api.t.0e367719eb6d"));
                                         }
-                                        throw new RuntimeException("该房型已绑定价格计划：" + planName + "，请先禁用后再启用");
+                                        throw new RuntimeException(ApiMessages.get("api.t.80ce1139ea5c") + planName + ApiMessages.get("api.t.cb22bb0a3e02"));
                                     }
                                 });
                     }
@@ -474,7 +475,7 @@ public class PriceLabsService {
     @Transactional
     public void handleWebhookPriceUpdate(PriceLabsWebhookRequest request) {
         if (request.getData() == null || request.getData().isEmpty()) {
-            throw new RuntimeException("Webhook 数据为空");
+            throw new RuntimeException(ApiMessages.get("api.t.553f829bfbbe"));
         }
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -488,11 +489,11 @@ public class PriceLabsService {
             String ratePlanId = listingData.getRatePlanId();
 
             if (listingId == null || listingId.isBlank()) {
-                throw new RuntimeException("listingId 为空");
+                throw new RuntimeException(ApiMessages.get("api.t.9cc6123c8aba"));
             }
 
             Long roomTypeId = PriceLabsIdUtil.parseRoomTypeId(listingId)
-                    .orElseThrow(() -> new RuntimeException("listingId 格式不正确: " + listingId));
+                    .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.c6e586d2a065") + listingId));
 
             PriceLabsConnection connection = resolveConnectionForWebhook(roomTypeId, listingId, ratePlanId);
 
@@ -557,14 +558,14 @@ public class PriceLabsService {
                         history.setPricePlan(pricePlan);
                         history.setPriceDateStart(priceDate);
                         history.setPriceDateEnd(priceDate);
-                        history.setApplyWeekdays("特定日期");
-                        history.setChangeType("价格");
+                        history.setApplyWeekdays(ApiMessages.get("api.t.7c271c443c96"));
+                        history.setChangeType(ApiMessages.get("api.t.b70c2d28a16b"));
                         history.setChangeValue(effectiveBasePrice);
                         history.setPreviousValue(previousPrice);
-                        history.setOperator("系统");
+                        history.setOperator(ApiMessages.get("api.t.1a1f6dff7826"));
                         history.setStoreId(storeId);
                         history.setOperateTime(LocalDateTime.now());
-                        history.setNotes("PriceLabs同步");
+                        history.setNotes(ApiMessages.get("api.t.7b89c72e0e32"));
                         priceChangeHistoryRepository.save(history);
                     }
 
@@ -683,18 +684,18 @@ public class PriceLabsService {
 
         if (ratePlanId != null && !ratePlanId.isBlank()) {
             Long pricePlanId = PriceLabsIdUtil.parsePricePlanId(ratePlanId)
-                    .orElseThrow(() -> new RuntimeException("ratePlanId 格式不正确: " + ratePlanId));
+                    .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.e00f63c7a601") + ratePlanId));
 
             PriceLabsConnection conn = connectionRepository.findByRoomTypeIdAndPricePlanId(roomTypeId, pricePlanId)
-                    .orElseThrow(() -> new RuntimeException("未找到对应的连接配置: listingId=" + listingId + ", ratePlanId=" + ratePlanId));
+                    .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.839f7f747a84") + listingId + ", ratePlanId=" + ratePlanId));
 
             if (Boolean.FALSE.equals(conn.getIsEnabled())) {
-                throw new RuntimeException("连接已禁用: listingId=" + listingId + ", ratePlanId=" + ratePlanId);
+                throw new RuntimeException(ApiMessages.get("api.t.0a07f24f07ec") + listingId + ", ratePlanId=" + ratePlanId);
             }
 
             parsedStoreIdOpt.ifPresent(parsedStoreId -> {
                 if (!parsedStoreId.equals(conn.getStoreId())) {
-                    throw new RuntimeException("listingId storeId 与连接不匹配: listingId=" + listingId + ", connStoreId=" + conn.getStoreId());
+                    throw new RuntimeException(ApiMessages.get("api.t.fa7f4dac2393") + listingId + ", connStoreId=" + conn.getStoreId());
                 }
             });
 
@@ -707,7 +708,7 @@ public class PriceLabsService {
                 .collect(Collectors.toList());
 
         if (candidates.isEmpty()) {
-            throw new RuntimeException("未找到对应的连接配置: listingId=" + listingId + ", ratePlanId 缺失");
+            throw new RuntimeException(ApiMessages.get("api.t.839f7f747a84") + listingId + ApiMessages.get("api.t.85addcc4ec8f"));
         }
 
         if (candidates.size() == 1) {
@@ -778,7 +779,7 @@ public class PriceLabsService {
 
         Channel channel = channelRepository.findById(channelId)
                 .filter(ch -> ch.getStoreId().equals(storeId))
-                .orElseThrow(() -> new RuntimeException("渠道不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.11e0759cc797")));
 
         channel.setPriceAdjustmentType(adjustmentType);
         channel.setPriceAdjustmentValue(adjustmentValue);
@@ -829,7 +830,7 @@ public class PriceLabsService {
 
         Channel channel = channelRepository.findById(channelId)
                 .filter(ch -> ch.getStoreId().equals(storeId))
-                .orElseThrow(() -> new RuntimeException("渠道不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.11e0759cc797")));
 
         int days = clampDays(startDate, endDate);
         channelPriceFallbackService.generate(storeId, startDate, days, null, List.of(channelId));
@@ -1144,7 +1145,7 @@ public class PriceLabsService {
         String channelCode = channel != null ? channel.getCode() : null;
         ChannelMappingMultiplierSyncSummaryDTO summary = ChannelMappingMultiplierSyncSummaryDTO.skipped(
                 channelCode,
-                "已保存本地价格比例设置；Su 映射级价格设置需在映射级页面逐行保存后同步"
+                ApiMessages.get("api.t.a33c4e25b065")
         );
         if (channel == null) {
             return summary;
@@ -1260,12 +1261,12 @@ public class PriceLabsService {
         if (fallbackEmail != null && !fallbackEmail.isBlank()) {
             return fallbackEmail;
         }
-        throw new RuntimeException("账号名称不能为空");
+        throw new RuntimeException(ApiMessages.get("api.t.0cc73a88af03"));
     }
     private String buildDuplicateConnectionMessage(PriceLabsConnection existing) {
-        String roomTypeName = "当前房型";
-        String pricePlanName = "当前价格计划";
-        String accountLabel = "未知账号";
+        String roomTypeName = ApiMessages.get("api.t.9498689b9972");
+        String pricePlanName = ApiMessages.get("api.t.ffefeb219316");
+        String accountLabel = ApiMessages.get("api.t.c074f9986230");
 
         try {
             if (existing.getRoomType() != null && existing.getRoomType().getName() != null
@@ -1303,7 +1304,7 @@ public class PriceLabsService {
         }
 
         return String.format(
-                "房型“%s”的价格计划“%s”已绑定到 PriceLabs 账号“%s”，请先查看现有连接并删除或调整后再重试",
+                ApiMessages.get("api.t.529a30040565"),
                 roomTypeName,
                 pricePlanName,
                 accountLabel

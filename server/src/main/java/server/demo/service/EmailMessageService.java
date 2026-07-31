@@ -8,6 +8,7 @@ import server.demo.entity.EmailMessage;
 import server.demo.entity.VirtualMailbox;
 import server.demo.enums.EmailSenderType;
 import server.demo.repository.EmailMessageRepository;
+import server.demo.i18n.ApiMessages;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -43,7 +44,7 @@ public class EmailMessageService {
                                         EmailSenderType senderType, String senderName) {
         // 获取虚拟邮箱
         VirtualMailbox mailbox = virtualMailboxService.getMailboxById(mailboxId)
-                .orElseThrow(() -> new RuntimeException("虚拟邮箱不存在: " + mailboxId));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.24389ed4f11f") + mailboxId));
 
         // 构建邮件消息
         EmailMessage message = new EmailMessage();
@@ -69,7 +70,7 @@ public class EmailMessageService {
                 null
             );
         } catch (Exception e) {
-            throw new RuntimeException("邮件发送失败: " + e.getMessage(), e);
+            throw new RuntimeException(ApiMessages.get("api.t.6f08ade5cc87") + e.getMessage(), e);
         }
 
         // 保存到数据库
@@ -122,7 +123,7 @@ public class EmailMessageService {
 
         // 获取虚拟邮箱
         VirtualMailbox mailbox = virtualMailboxService.getMailboxById(mailboxId)
-                .orElseThrow(() -> new RuntimeException("虚拟邮箱不存在: " + mailboxId));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.24389ed4f11f") + mailboxId));
 
         // 创建邮件消息
         EmailMessage message = new EmailMessage();
@@ -150,7 +151,7 @@ public class EmailMessageService {
     @Transactional
     public void markAsRead(Long messageId) {
         EmailMessage message = emailMessageRepository.findById(messageId)
-                .orElseThrow(() -> new RuntimeException("消息不存在: " + messageId));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.f6cef0d3a949") + messageId));
 
         message.setIsRead(true);
         emailMessageRepository.save(message);

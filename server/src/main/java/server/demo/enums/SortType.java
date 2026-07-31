@@ -1,20 +1,22 @@
 package server.demo.enums;
 
+import server.demo.i18n.ApiMessages;
+
 /**
  * 排序类型枚举
  */
 public enum SortType {
-    ROOM_TYPE("房型排序"),
-    ROOM("房间排序"),
-    GROUP("分组排序");
+    ROOM_TYPE("api.t.370ebdd8fd25"),
+    ROOM("api.t.db772e3c32bd"),
+    GROUP("api.t.2fe8d2baa5ba");
 
-    private final String description;
+    private final String descriptionKey;
 
-    SortType(String description) {
-        this.description = description;
+    SortType(String descriptionKey) {
+        this.descriptionKey = descriptionKey;
     }
 
     public String getDescription() {
-        return description;
+        return ApiMessages.get(descriptionKey);
     }
 }

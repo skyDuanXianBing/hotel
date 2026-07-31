@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 为历史数据补齐 store_id，保证门店级数据隔离生效。
  */
@@ -192,8 +193,8 @@ public class StoreScopeDataMigration implements org.springframework.boot.Command
                 // 避免重复渠道影响业务逻辑：默认禁用历史重复数据
                 channel.setEnabled(false);
                 channel.setIsActive(false);
-                if (channel.getName() != null && !channel.getName().contains("历史重复")) {
-                    channel.setName(channel.getName() + "（历史重复）");
+                if (channel.getName() != null && !channel.getName().contains(ApiMessages.get("api.t.5db09eb46ba8"))) {
+                    channel.setName(channel.getName() + ApiMessages.get("api.t.2acba0c674c6"));
                 }
                 key = storeCodeKey(storeId, newCode);
             } else {

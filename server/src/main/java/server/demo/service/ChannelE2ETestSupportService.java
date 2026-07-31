@@ -57,6 +57,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class ChannelE2ETestSupportService {
 
@@ -450,23 +451,23 @@ public class ChannelE2ETestSupportService {
 
     public void validateTestSupportAccess(String providedTestSupportKey) {
         if (!localE2EEnabled) {
-            throw new TestSupportAccessException(403, "本地渠道E2E test-support 未启用");
+            throw new TestSupportAccessException(403, ApiMessages.get("api.t.cf4043c947ad"));
         }
 
         String configuredKey = normalize(testSupportKey);
         if (configuredKey == null) {
-            throw new TestSupportAccessException(403, "本地渠道E2E test-support key 未配置");
+            throw new TestSupportAccessException(403, ApiMessages.get("api.t.c38aaca9dd4f"));
         }
 
         String providedKey = normalize(providedTestSupportKey);
         if (providedKey == null) {
-            throw new TestSupportAccessException(400, "缺少 X-Test-Support-Key");
+            throw new TestSupportAccessException(400, ApiMessages.get("api.t.fdfe93749d3b"));
         }
 
         byte[] configuredBytes = configuredKey.getBytes(StandardCharsets.UTF_8);
         byte[] providedBytes = providedKey.getBytes(StandardCharsets.UTF_8);
         if (!MessageDigest.isEqual(configuredBytes, providedBytes)) {
-            throw new TestSupportAccessException(403, "X-Test-Support-Key 不匹配");
+            throw new TestSupportAccessException(403, ApiMessages.get("api.t.931a8f13b149"));
         }
     }
 
@@ -505,7 +506,7 @@ public class ChannelE2ETestSupportService {
             }
         }
 
-        throw new IllegalStateException("无法生成本地 E2E 测试用户名");
+        throw new IllegalStateException(ApiMessages.get("api.t.8ad2fffc2ee3"));
     }
 
     private Store ensureLocalSetupStore(User user, List<String> created, List<String> reused) {
@@ -582,7 +583,7 @@ public class ChannelE2ETestSupportService {
         User cleanerUser = userRepository.findByEmail(LOCAL_SETUP_CLEANER_EMAIL).orElse(null);
         if (cleanerUser == null) {
             if (userRepository.existsByUsername(LOCAL_SETUP_CLEANER_USERNAME)) {
-                throw localCleanerConflict("保留用户名已被未知账号占用");
+                throw localCleanerConflict(ApiMessages.get("api.t.fa937ecd079a"));
             }
             cleanerUser = new User();
             cleanerUser.setEmail(LOCAL_SETUP_CLEANER_EMAIL);
@@ -607,7 +608,7 @@ public class ChannelE2ETestSupportService {
             created.add("cleanerStoreUser:" + membership.getId());
         } else {
             if (!"member".equalsIgnoreCase(membership.getRole()) || !Boolean.TRUE.equals(membership.getIsActive())) {
-                throw localCleanerConflict("保留账号的门店成员关系不是 active member");
+                throw localCleanerConflict(ApiMessages.get("api.t.07c37bc4b527"));
             }
             reused.add("cleanerStoreUser:" + membership.getId());
         }
@@ -615,18 +616,18 @@ public class ChannelE2ETestSupportService {
         List<Cleaner> storeCleaners = cleanerRepository.findByStoreIdAndEmailIgnoreCase(
                 store.getId(), LOCAL_SETUP_CLEANER_EMAIL);
         if (storeCleaners.size() > 1) {
-            throw localCleanerConflict("当前门店存在重复保洁身份");
+            throw localCleanerConflict(ApiMessages.get("api.t.31c0f186507a"));
         }
         Cleaner cleaner = storeCleaners.isEmpty() ? null : storeCleaners.get(0);
         List<Cleaner> identityCleaners = cleanerRepository.findByUserIdAndStoreId(cleanerUser.getId(), store.getId());
         if (identityCleaners.size() > 1
                 || (!identityCleaners.isEmpty()
                 && (cleaner == null || !identityCleaners.get(0).getId().equals(cleaner.getId())))) {
-            throw localCleanerConflict("保留用户已绑定其他或重复保洁身份");
+            throw localCleanerConflict(ApiMessages.get("api.t.2b5a294644d9"));
         }
         Cleaner globalCleaner = cleanerRepository.findByEmail(LOCAL_SETUP_CLEANER_EMAIL).orElse(null);
         if (globalCleaner != null && (cleaner == null || !globalCleaner.getId().equals(cleaner.getId()))) {
-            throw localCleanerConflict("保留邮箱已绑定其他门店或未知保洁身份");
+            throw localCleanerConflict(ApiMessages.get("api.t.078c94234195"));
         }
         if (cleaner == null) {
             cleaner = new Cleaner();
@@ -655,14 +656,14 @@ public class ChannelE2ETestSupportService {
 
     private void requireSafeLocalCleanerUser(User user, Long storeId) {
         if (!LOCAL_SETUP_CLEANER_USERNAME.equals(user.getUsername())) {
-            throw localCleanerConflict("保留邮箱对应的用户名不匹配");
+            throw localCleanerConflict(ApiMessages.get("api.t.4eab95f609a0"));
         }
         if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw localCleanerConflict("保留测试用户已停用，拒绝自动复活");
+            throw localCleanerConflict(ApiMessages.get("api.t.82e86e1e3fff"));
         }
         for (StoreUser membership : storeUserRepository.findByUserId(user.getId())) {
             if (membership.getStore() == null || !storeId.equals(membership.getStore().getId())) {
-                throw localCleanerConflict("保留测试用户已关联其他门店");
+                throw localCleanerConflict(ApiMessages.get("api.t.03d0acb63b9a"));
             }
         }
     }
@@ -673,12 +674,12 @@ public class ChannelE2ETestSupportService {
                 || !LOCAL_SETUP_CLEANER_EMAIL.equalsIgnoreCase(cleaner.getEmail())
                 || !LOCAL_SETUP_CLEANER_NAME.equals(cleaner.getName())
                 || !Boolean.TRUE.equals(cleaner.getIsActive())) {
-            throw localCleanerConflict("保留保洁身份与本地测试契约不一致");
+            throw localCleanerConflict(ApiMessages.get("api.t.446ab341a789"));
         }
     }
 
     private IllegalStateException localCleanerConflict(String reason) {
-        return new IllegalStateException("本地 E2E 保洁测试身份冲突：" + reason);
+        return new IllegalStateException(ApiMessages.get("api.t.8dbc51dd6d4b") + reason);
     }
 
     private void ensureLocalSetupChannels(Long storeId, List<String> created, List<String> reused) {
@@ -696,7 +697,7 @@ public class ChannelE2ETestSupportService {
 
     private Channel requireLocalSetupChannel(Long storeId, String channelCode) {
         return channelRepository.findByStoreIdAndCode(storeId, channelCode)
-                .orElseThrow(() -> new IllegalStateException("本地 E2E " + channelCode + " 渠道不存在"));
+                .orElseThrow(() -> new IllegalStateException(ApiMessages.get("api.t.105fd0f0054f") + channelCode + ApiMessages.get("api.t.d6b1284a96b3")));
     }
 
     private PricePlan ensureLocalSetupPricePlan(
@@ -1613,7 +1614,7 @@ public class ChannelE2ETestSupportService {
 
     private Store requireStore(Long storeId) {
         return storeRepository.findById(storeId)
-                .orElseThrow(() -> new IllegalArgumentException("门店不存在: " + storeId));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.d0dfd856aed3") + storeId));
     }
 
     private String resolveSuHotelId(Store store) {

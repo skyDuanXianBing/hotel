@@ -9,7 +9,7 @@ public class ConsumptionCategoryDTO {
 
     private Long id;
 
-    @NotBlank(message = "分类名称不能为空")
+    @NotBlank(message = "{api.t.a1a3f6732cb7}")
     private String name;
 
     private String description;

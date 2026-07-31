@@ -9,10 +9,10 @@ import java.util.List;
  */
 public class SortConfigDTO {
 
-    @NotBlank(message = "排序类型不能为空")
+    @NotBlank(message = "{api.t.e3f02ed5eea3}")
     private String sortType;
 
-    @NotEmpty(message = "实体ID列表不能为空")
+    @NotEmpty(message = "{api.t.993422ea335e}")
     private List<Long> entityIds;
 
     // Constructors

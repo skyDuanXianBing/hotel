@@ -1,4 +1,5 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
+import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, resolveLocale } from '@/locales'
 import { classifyRequestFailure, resolveRequestFailureMessage } from '@/utils/request'
 
 function resolvePublicBaseUrl(): string {
@@ -20,6 +21,13 @@ const publicRequest: AxiosInstance = axios.create({
 })
 
 publicRequest.interceptors.request.use((config) => {
+  const appLocale =
+    typeof localStorage === 'undefined'
+      ? DEFAULT_LOCALE
+      : resolveLocale(localStorage.getItem(LOCALE_STORAGE_KEY))
+  config.headers['Accept-Language'] = appLocale
+  config.headers['X-App-Locale'] = appLocale
+
   if (config.data instanceof FormData) {
     if (config.headers) {
       const headersAny = config.headers as any

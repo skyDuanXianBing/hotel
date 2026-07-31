@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 构造 Su Content API（房型/费率计划）请求体。
  * <p>
@@ -282,25 +283,25 @@ public final class SuContentPayloadBuilder {
 
     private static String toSuRoomId(String roomNumber) {
         if (roomNumber == null) {
-            throw new IllegalArgumentException("Su roomid 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.93943ee72979"));
         }
         String trimmed = roomNumber.trim();
         if (trimmed.isBlank()) {
-            throw new IllegalArgumentException("Su roomid 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.93943ee72979"));
         }
         if (trimmed.length() > 20) {
-            throw new IllegalArgumentException("Su roomid 长度不能超过20: " + trimmed);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.0cf6a77861a6") + trimmed);
         }
         return trimmed;
     }
 
     private static String toSuId(Long id) {
         if (id == null) {
-            throw new IllegalArgumentException("Su roomid/rateplanid 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.671d6fd76eec"));
         }
         String value = id.toString();
         if (value.length() > 20) {
-            throw new IllegalArgumentException("Su roomid/rateplanid 长度不能超过20: " + value);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.e0852f969a13") + value);
         }
         return value;
     }
@@ -342,19 +343,19 @@ public final class SuContentPayloadBuilder {
         }
 
         String normalized = name.toLowerCase(Locale.ROOT);
-        if (normalized.contains("king") || normalized.contains("大床")) {
+        if (normalized.contains("king") || normalized.contains(ApiMessages.get("api.t.1ed9f31c4b93"))) {
             return "King";
         }
         if (normalized.contains("queen")) {
             return "Queen";
         }
-        if (normalized.contains("twin") || normalized.contains("双床")) {
+        if (normalized.contains("twin") || normalized.contains(ApiMessages.get("api.t.cb4213b2d0fe"))) {
             return "Twin";
         }
-        if (normalized.contains("single") || normalized.contains("单人")) {
+        if (normalized.contains("single") || normalized.contains(ApiMessages.get("api.t.6504687493f7"))) {
             return "Single";
         }
-        if (normalized.contains("double") || normalized.contains("双人")) {
+        if (normalized.contains("double") || normalized.contains(ApiMessages.get("api.t.1b5fdfd36cee"))) {
             return "Double";
         }
         if (normalized.contains("dorm")) {

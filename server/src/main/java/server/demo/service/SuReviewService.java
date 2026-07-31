@@ -44,6 +44,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class SuReviewService {
 
@@ -121,10 +122,10 @@ public class SuReviewService {
         int normalizedPage = page == null ? 0 : page;
         int normalizedSize = size == null ? DEFAULT_PAGE_SIZE : size;
         if (normalizedPage < 0) {
-            throw new IllegalArgumentException("page 不能小于0");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.7a4e643c766a"));
         }
         if (normalizedSize < 1 || normalizedSize > MAX_PAGE_SIZE) {
-            throw new IllegalArgumentException("size 必须在1到100之间");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.431c0171f0ad"));
         }
 
         String normalizedTab = normalizeTab(tab);
@@ -164,7 +165,7 @@ public class SuReviewService {
     public ReviewDtos.Review getReview(Long storeId, Long userId, Long reviewId) {
         ensurePermission(storeId, userId, PermissionAction.VIEW);
         ChannelReview review = reviewRepository.findByStoreIdAndId(storeId, reviewId)
-                .orElseThrow(() -> new ReviewNotFoundException("评价不存在"));
+                .orElseThrow(() -> new ReviewNotFoundException(ApiMessages.get("api.t.dd59c417cc66")));
         return toDto(review, userId, true);
     }
 
@@ -192,7 +193,7 @@ public class SuReviewService {
                 if (!suApiClient.isSuSuccess(response)) {
                     String message = firstNonBlank(
                             suApiClient.extractSuErrorMessage(response),
-                            "Su Review Pull 返回失败"
+                            ApiMessages.get("api.t.3e4279300085")
                     );
                     return new ReviewDtos.SyncResult(
                             false,
@@ -258,7 +259,7 @@ public class SuReviewService {
                             updated,
                             unlinked,
                             withSkippedSummary(
-                                    "Su Review Pull 返回了重复分页游标，已停止同步",
+                                    ApiMessages.get("api.t.84e197ca749f"),
                                     skipped,
                                     skippedReasons
                             ),
@@ -274,7 +275,7 @@ public class SuReviewService {
                             updated,
                             unlinked,
                             withSkippedSummary(
-                                    "评价数量超过单次同步上限，请稍后继续同步",
+                                    ApiMessages.get("api.t.2fed53519ede"),
                                     skipped,
                                     skippedReasons
                             ),
@@ -288,7 +289,7 @@ public class SuReviewService {
                     created,
                     updated,
                     unlinked,
-                    withSkippedSummary("评价同步完成", skipped, skippedReasons),
+                    withSkippedSummary(ApiMessages.get("api.t.213432d15e4e"), skipped, skippedReasons),
                     syncedAt
             );
         } catch (RuntimeException e) {
@@ -299,7 +300,7 @@ public class SuReviewService {
                     updated,
                     unlinked,
                     withSkippedSummary(
-                            "评价同步失败: " + safeExceptionMessage(e),
+                            ApiMessages.get("api.t.83db3ea4caf5") + safeExceptionMessage(e),
                             skipped,
                             skippedReasons
                     ),
@@ -317,11 +318,11 @@ public class SuReviewService {
         ensurePermission(storeId, userId, PermissionAction.REPLY);
         String hotelId = hotelOwnershipValidator.requireUniqueOwnership(storeId);
         if (request == null) {
-            throw new IllegalArgumentException("回复请求不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.522e6cdce9ff"));
         }
         String reply = trimToNull(request.reviewReply());
         if (reply == null) {
-            throw new IllegalArgumentException("回复内容不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.f5da0888cd26"));
         }
         String idempotencyKey = normalizeIdempotencyKey(request.idempotencyKey());
         String requestHash = hashRequest(Map.of(
@@ -357,7 +358,7 @@ public class SuReviewService {
         ensurePermission(storeId, userId, PermissionAction.REVIEW_GUEST);
         String hotelId = hotelOwnershipValidator.requireUniqueOwnership(storeId);
         if (request == null) {
-            throw new IllegalArgumentException("评价住客请求不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.bbcb32b8e386"));
         }
         List<Map<String, Object>> categoryRatings = guestReviewValidator.validateAndBuild(request);
         String idempotencyKey = normalizeIdempotencyKey(request.idempotencyKey());
@@ -397,14 +398,14 @@ public class SuReviewService {
     @Transactional
     public WebhookResult handleWebhook(Long storeId, String hotelId, JsonNode root) {
         if (storeId == null) {
-            throw new IllegalArgumentException("Review Push 缺少门店");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.e69bf714c7cc"));
         }
         if (hotelId == null || hotelId.isBlank()) {
-            throw new IllegalArgumentException("Review Push 缺少 hotel_id");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.f88c9b04dd5b"));
         }
         List<JsonNode> reviewNodes = SuReviewPayloadMapper.extractPushReviewNodes(root);
         if (reviewNodes.isEmpty()) {
-            throw new IllegalArgumentException("Review Push 缺少评价数据");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.2adc9f382269"));
         }
 
         int created = 0;
@@ -448,7 +449,7 @@ public class SuReviewService {
                     failed,
                     storeId,
                     userId,
-                    "提交 Su 失败: " + safeExceptionMessage(e)
+                    ApiMessages.get("api.t.dd6163c7fa0c") + safeExceptionMessage(e)
             );
             throw new SuWriteFailedException(result.message(), result);
         }
@@ -456,7 +457,7 @@ public class SuReviewService {
         if (!suApiClient.isSuSuccess(response)) {
             String message = firstNonBlank(
                     suApiClient.extractSuErrorMessage(response),
-                    "Su Review Reply 返回失败"
+                    ApiMessages.get("api.t.10bc88c2c8f4")
             );
             String errorCode = suApiClient.extractSuErrorCode(response);
             String ruid = firstText(response, "Ruid", "ruid");
@@ -472,7 +473,7 @@ public class SuReviewService {
             throw new SuWriteFailedException(message, result);
         }
 
-        String message = firstNonBlank(firstText(response, "Message", "message"), "已提交 Su，等待渠道确认");
+        String message = firstNonBlank(firstText(response, "Message", "message"), ApiMessages.get("api.t.d69f951e0f5c"));
         String ruid = firstText(response, "Ruid", "ruid");
         ChannelReviewAction submitted = actionCoordinator.markSubmitted(
                 storeId,
@@ -486,10 +487,10 @@ public class SuReviewService {
 
     private ReviewDtos.ActionResult replayResult(Long storeId, Long userId, PreparedAction prepared) {
         String message = switch (prepared.action().getStatus()) {
-            case PENDING -> "相同请求已记录，等待提交结果";
-            case SUBMITTED -> "相同请求已提交 Su，等待渠道确认";
-            case CONFIRMED -> "相同请求已由渠道确认";
-            case FAILED -> firstNonBlank(prepared.action().getResponseMessage(), "相同请求此前提交失败");
+            case PENDING -> ApiMessages.get("api.t.d544e08d124e");
+            case SUBMITTED -> ApiMessages.get("api.t.e832350106d7");
+            case CONFIRMED -> ApiMessages.get("api.t.ea041a88c513");
+            case FAILED -> firstNonBlank(prepared.action().getResponseMessage(), ApiMessages.get("api.t.f876c2662b3a"));
         };
         ReviewDtos.ActionResult result = actionResult(prepared.action(), storeId, userId, message);
         if (prepared.action().getStatus() == ReviewActionStatus.FAILED) {
@@ -505,7 +506,7 @@ public class SuReviewService {
             String message
     ) {
         ChannelReview review = reviewRepository.findByStoreIdAndId(storeId, action.getReviewId())
-                .orElseThrow(() -> new ReviewNotFoundException("评价不存在"));
+                .orElseThrow(() -> new ReviewNotFoundException(ApiMessages.get("api.t.dd59c417cc66")));
         return new ReviewDtos.ActionResult(
                 action.getId(),
                 action.getActionType().name(),
@@ -611,7 +612,7 @@ public class SuReviewService {
             try {
                 review.setCategoryRatingsJson(objectMapper.writeValueAsString(normalized.categoryRatings()));
             } catch (Exception e) {
-                throw new IllegalArgumentException("评价分类评分无法序列化", e);
+                throw new IllegalArgumentException(ApiMessages.get("api.t.220c27d1ea42"), e);
             }
         }
         review.setReplyText(preferIncoming(normalized.replyText(), review.getReplyText()));
@@ -636,12 +637,12 @@ public class SuReviewService {
     private void resolveAssociation(ChannelReview review) {
         String channelCode = review.getPmsChannelCode();
         if (!"AIRBNB".equals(channelCode) && !"BOOKING".equals(channelCode)) {
-            unlink(review, ReviewAssociationStatus.UNLINKED, "Su channel_id 不在 Airbnb/Booking.com 范围内");
+            unlink(review, ReviewAssociationStatus.UNLINKED, ApiMessages.get("api.t.268b7bd4e2a9"));
             return;
         }
         String bookingKey = trimToNull(review.getChannelBookingId());
         if (bookingKey == null) {
-            unlink(review, ReviewAssociationStatus.UNLINKED, "Su 评价未提供 channel_booking_id/booking_id");
+            unlink(review, ReviewAssociationStatus.UNLINKED, ApiMessages.get("api.t.3ee602047fe6"));
             return;
         }
 
@@ -668,14 +669,14 @@ public class SuReviewService {
             unlink(
                     review,
                     ReviewAssociationStatus.UNLINKED,
-                    "未找到渠道代码与预订号均精确匹配的本地订单"
+                    ApiMessages.get("api.t.a23fd653b0ca")
             );
             return;
         }
         unlink(
                 review,
                 ReviewAssociationStatus.AMBIGUOUS,
-                "存在多个渠道代码与预订号相同的本地订单，禁止自动关联"
+                ApiMessages.get("api.t.eed9759fd237")
         );
     }
 
@@ -705,7 +706,7 @@ public class SuReviewService {
         LocalDateTime now = LocalDateTime.now();
         action.setStatus(ReviewActionStatus.CONFIRMED);
         action.setConfirmedAt(now);
-        action.setResponseMessage("已通过 Su Pull 确认渠道状态");
+        action.setResponseMessage(ApiMessages.get("api.t.c00e376b20f7"));
         actionRepository.save(action);
         review.setLastActionStatus(ReviewActionStatus.CONFIRMED);
         reviewRepository.save(review);
@@ -837,12 +838,12 @@ public class SuReviewService {
                 userId,
                 PermissionModule.REVIEW,
                 action
-        ) ? null : "当前账号没有此评价操作权限";
+        ) ? null : ApiMessages.get("api.t.44b8dbb345f7");
     }
 
     private void ensurePermission(Long storeId, Long userId, PermissionAction action) {
         if (!permissionService.hasPermission(storeId, userId, PermissionModule.REVIEW, action)) {
-            throw new ReviewForbiddenException("当前账号没有此评价操作权限");
+            throw new ReviewForbiddenException(ApiMessages.get("api.t.44b8dbb345f7"));
         }
     }
 
@@ -899,7 +900,7 @@ public class SuReviewService {
                     root.get("associationStatus"),
                     ReviewAssociationStatus.LINKED
             );
-            default -> throw new IllegalArgumentException("不支持的 tab: " + tab);
+            default -> throw new IllegalArgumentException(ApiMessages.get("api.t.26c574bfaf6d") + tab);
         };
     }
 
@@ -916,7 +917,7 @@ public class SuReviewService {
         return switch (normalized.toUpperCase(Locale.ROOT)) {
             case "AIRBNB", "244" -> CHANNEL_AIRBNB;
             case "BOOKING", "BOOKING.COM", "19" -> CHANNEL_BOOKING;
-            default -> throw new IllegalArgumentException("不支持的评价渠道: " + channel);
+            default -> throw new IllegalArgumentException(ApiMessages.get("api.t.ac1a253ea65f") + channel);
         };
     }
 
@@ -967,7 +968,7 @@ public class SuReviewService {
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(canonical);
             return HexFormat.of().formatHex(digest);
         } catch (Exception e) {
-            throw new IllegalArgumentException("无法计算评价请求摘要", e);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.6b5e0b7ae276"), e);
         }
     }
 
@@ -1017,14 +1018,14 @@ public class SuReviewService {
     private static String normalizeIdempotencyKey(String value) {
         String normalized = trimToNull(value);
         if (normalized == null || normalized.length() < 8 || normalized.length() > 120) {
-            throw new IllegalArgumentException("幂等键长度必须为8到120个字符");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.5cd5160b6aac"));
         }
         return normalized;
     }
 
     private static String safeExceptionMessage(Throwable error) {
         if (error == null || trimToNull(error.getMessage()) == null) {
-            return "未知错误";
+            return ApiMessages.get("api.t.5f76edc5de7b");
         }
         String message = error.getMessage().trim();
         return message.length() <= 500 ? message : message.substring(0, 500);
@@ -1039,9 +1040,9 @@ public class SuReviewService {
             return baseMessage;
         }
         StringBuilder summary = new StringBuilder(baseMessage)
-                .append("；安全跳过 ")
+                .append(ApiMessages.get("api.t.b1b7e18e0c0d"))
                 .append(skipped)
-                .append(" 条当前映射无效的评价");
+                .append(ApiMessages.get("api.t.1fca852c1f46"));
         if (skippedReasons != null && !skippedReasons.isEmpty()) {
             summary.append("（");
             boolean first = true;

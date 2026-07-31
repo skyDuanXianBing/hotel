@@ -22,6 +22,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class FutureRoomTableService {
 
@@ -43,7 +44,15 @@ public class FutureRoomTableService {
             ReservationStatus.CHECKED_OUT
     );
 
-    private static final String[] WEEKDAYS = {"星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"};
+    private static final String[] WEEKDAY_KEYS = {
+            "api.t.d9636d4a9056",
+            "api.t.dded7a48901d",
+            "api.t.c80c63617b18",
+            "api.t.584bd4db5650",
+            "api.t.712173f5502c",
+            "api.t.9e51ca47a2e9",
+            "api.t.77bef63c5501"
+    };
 
     private Long currentStoreId() {
         return StoreContextUtils.requireStoreId();
@@ -75,7 +84,7 @@ public class FutureRoomTableService {
         for (int i = 0; i < days; i++) {
             LocalDate currentDate = startDate.plusDays(i);
             String dateStr = currentDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-            String dayOfWeek = WEEKDAYS[currentDate.getDayOfWeek().getValue() % 7];
+            String dayOfWeek = ApiMessages.get(WEEKDAY_KEYS[currentDate.getDayOfWeek().getValue() % 7]);
             
             totalDates.add(new FutureDateRoomData(dateStr, dayOfWeek, 0, 0, 0, 0.0, 0.0, 0.0));
         }
@@ -94,7 +103,7 @@ public class FutureRoomTableService {
             for (int i = 0; i < days; i++) {
                 LocalDate currentDate = startDate.plusDays(i);
                 String dateStr = currentDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                String dayOfWeek = WEEKDAYS[currentDate.getDayOfWeek().getValue() % 7];
+                String dayOfWeek = ApiMessages.get(WEEKDAY_KEYS[currentDate.getDayOfWeek().getValue() % 7]);
                 
                 // 计算当日房型的房间状态
                 int occupiedCount = calculateOccupiedRooms(roomsOfType, currentDate, reservations, storeZoneId);
@@ -134,7 +143,7 @@ public class FutureRoomTableService {
             }
         }
         
-        totalData = new FutureRoomTypeData("合计", totalRoomsCount, totalDates);
+        totalData = new FutureRoomTypeData(ApiMessages.get("api.t.92bcbf71cb7b"), totalRoomsCount, totalDates);
         
         // 生成底部统计数据
         List<FutureRoomStatistics> statistics = generateStatistics(startDate, days, roomTypes, totalDates);
@@ -237,7 +246,7 @@ public class FutureRoomTableService {
         // 获取当前门店ID
         server.demo.context.StoreContext storeContext = server.demo.context.StoreContextHolder.getContext();
         if (storeContext == null || storeContext.getStoreId() == null) {
-            throw new RuntimeException("无法获取当前门店信息");
+            throw new RuntimeException(ApiMessages.get("api.t.642b7e97c7d4"));
         }
         Long currentStoreId = storeContext.getStoreId();
         ZoneId storeZoneId = resolveStoreZoneId(currentStoreId);

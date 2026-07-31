@@ -63,6 +63,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class IndependentSiteQuoteService {
 
@@ -241,11 +242,11 @@ public class IndependentSiteQuoteService {
     /** 公开站点的支付提示文案：STRIPE 站点明示真实收卡；SIMULATED 维持既有模拟语义。 */
     private static String paymentNotice(IndependentSite site) {
         if (site.getPaymentProvider() == IndependentSitePaymentProvider.STRIPE) {
-            return "本站使用 Stripe 安全收款，支付成功后订单自动确认";
+            return ApiMessages.get("api.t.f2d20503fdd1");
         }
         return Boolean.TRUE.equals(site.getSimulatedPaymentEnabled())
-                ? "当前为模拟支付，不会产生真实扣款"
-                : "当前站点未开放在线支付";
+                ? ApiMessages.get("api.t.83caa8ebb0c2")
+                : ApiMessages.get("api.t.3de90ab76d47");
     }
 
     private IndependentSitePage publishedHomePage(IndependentSite site) {
@@ -298,13 +299,13 @@ public class IndependentSiteQuoteService {
 
         PublicationScope scope = loadPublicationScope(site);
         if (!scope.roomTypeIds().contains(request.roomTypeId())) {
-            throw unprocessable("ROOM_TYPE_NOT_PUBLISHED", "所选房型当前不可预订");
+            throw unprocessable("ROOM_TYPE_NOT_PUBLISHED", ApiMessages.get("api.t.250c8e9d48a2"));
         }
         RoomType roomType = roomTypeRepository.findByStoreIdAndId(storeId, request.roomTypeId())
-                .orElseThrow(() -> unprocessable("ROOM_TYPE_NOT_PUBLISHED", "所选房型当前不可预订"));
+                .orElseThrow(() -> unprocessable("ROOM_TYPE_NOT_PUBLISHED", ApiMessages.get("api.t.250c8e9d48a2")));
         RoomTypePricePlan mapping = roomTypePricePlanRepository
                 .findByStoreIdAndRoomTypeIdAndPricePlanId(storeId, roomType.getId(), pricePlan.getId())
-                .orElseThrow(() -> unprocessable("PRICE_PLAN_NOT_AVAILABLE", "所选房型暂无有效价格计划"));
+                .orElseThrow(() -> unprocessable("PRICE_PLAN_NOT_AVAILABLE", ApiMessages.get("api.t.b0efa75fef65")));
 
         int maxGuestsPerRoom = positiveMinimum(mapping.getMaxGuests(), roomType.getMaxGuests(), 1);
         int maxChildrenPerRoom = Math.max(
@@ -354,7 +355,7 @@ public class IndependentSiteQuoteService {
                 inventoryQuota.minimumAvailableRooms()
         );
         if (effectiveAvailable < request.rooms()) {
-            throw conflict("NO_AVAILABILITY", "所选日期房量不足，请调整日期或房间数");
+            throw conflict("NO_AVAILABILITY", ApiMessages.get("api.t.1e31c9711a33"));
         }
 
         List<IndependentSiteDtos.NightlyRate> nightlyRates = new ArrayList<>();
@@ -374,7 +375,7 @@ public class IndependentSiteQuoteService {
             LocalBasePriceResolver.Result resolved =
                     LocalBasePriceResolver.resolve(roomPrice, mapping, roomType, date);
             if (resolved.basePrice() == null || resolved.basePrice().compareTo(BigDecimal.ZERO) <= 0) {
-                throw unprocessable("MISSING_PRICE", "所选日期存在未配置价格");
+                throw unprocessable("MISSING_PRICE", ApiMessages.get("api.t.6ae29ff194c3"));
             }
             BigDecimal baseRoomPrice = resolved.basePrice().setScale(2, RoundingMode.HALF_UP);
             BigDecimal adjustedRoomPrice =
@@ -500,35 +501,35 @@ public class IndependentSiteQuoteService {
                 request.checkOutDate()
         );
         if (inventoryQuota.minimumAvailableRooms() < request.rooms()) {
-            throw conflict("NO_AVAILABILITY", "每日库存配额刚刚发生变化，请重新报价");
+            throw conflict("NO_AVAILABILITY", ApiMessages.get("api.t.ee9b6961043d"));
         }
     }
 
     private void validateRequest(IndependentSite site, IndependentSiteDtos.QuoteRequest request) {
         if (request == null || request.roomTypeId() == null
                 || request.checkInDate() == null || request.checkOutDate() == null) {
-            throw badRequest("INVALID_STAY", "请完整填写房型、入住和退房日期");
+            throw badRequest("INVALID_STAY", ApiMessages.get("api.t.7d9edf5fbd66"));
         }
         if (request.rooms() < 1 || request.rooms() > 10
                 || request.adults() < 1 || request.adults() > 100
                 || request.children() < 0 || request.children() > 100) {
-            throw badRequest("INVALID_OCCUPANCY", "房间数或入住人数不正确");
+            throw badRequest("INVALID_OCCUPANCY", ApiMessages.get("api.t.8c1763ea74c7"));
         }
         if (request.adults() < request.rooms()) {
-            throw badRequest("INVALID_OCCUPANCY", "每间房至少需要一位成人");
+            throw badRequest("INVALID_OCCUPANCY", ApiMessages.get("api.t.17141c7d3356"));
         }
         if (!request.checkOutDate().isAfter(request.checkInDate())) {
-            throw badRequest("INVALID_DATES", "退房日期必须晚于入住日期");
+            throw badRequest("INVALID_DATES", ApiMessages.get("api.t.2d5345b6acd7"));
         }
         long nights = ChronoUnit.DAYS.between(request.checkInDate(), request.checkOutDate());
         if (nights > MAX_STAY_NIGHTS) {
-            throw badRequest("INVALID_DATES", "单次入住不可超过 365 晚");
+            throw badRequest("INVALID_DATES", ApiMessages.get("api.t.0a7b648bfab3"));
         }
         var store = storeRepository.findById(site.getStoreId()).orElseThrow(this::siteUnavailable);
         ZoneId storeZoneId = StoreTimeZoneUtil.resolveZoneId(store);
         LocalDate today = LocalDate.now(clock.withZone(storeZoneId));
         if (request.checkInDate().isBefore(today)) {
-            throw badRequest("INVALID_DATES", "入住日期不可早于今天");
+            throw badRequest("INVALID_DATES", ApiMessages.get("api.t.9c02004b2096"));
         }
     }
 
@@ -540,11 +541,11 @@ public class IndependentSiteQuoteService {
     ) {
         RoomPrice arrival = priceByDate.get(request.checkInDate());
         if (arrival != null && Boolean.TRUE.equals(arrival.getCta())) {
-            throw unprocessable("CLOSED_TO_ARRIVAL", "所选入住日期不可办理入住");
+            throw unprocessable("CLOSED_TO_ARRIVAL", ApiMessages.get("api.t.559cd3d9b263"));
         }
         RoomPrice departure = priceByDate.get(request.checkOutDate());
         if (departure != null && Boolean.TRUE.equals(departure.getCtd())) {
-            throw unprocessable("CLOSED_TO_DEPARTURE", "所选退房日期不可办理退房");
+            throw unprocessable("CLOSED_TO_DEPARTURE", ApiMessages.get("api.t.d888c65df184"));
         }
 
         int effectiveMin = positive(pricePlan.getMinNights(), 1);
@@ -554,7 +555,7 @@ public class IndependentSiteQuoteService {
             RoomPrice roomPrice = priceByDate.get(date);
             if (roomPrice != null) {
                 if (Boolean.TRUE.equals(roomPrice.getCloseRoom())) {
-                    throw unprocessable("STOP_SELL", "所选日期包含停售房晚");
+                    throw unprocessable("STOP_SELL", ApiMessages.get("api.t.17a6ac3ec709"));
                 }
                 if (roomPrice.getMinStay() != null && roomPrice.getMinStay() > 0) {
                     effectiveMin = Math.max(effectiveMin, roomPrice.getMinStay());
@@ -566,10 +567,10 @@ public class IndependentSiteQuoteService {
             date = date.plusDays(1);
         }
         if (nights < effectiveMin) {
-            throw unprocessable("MIN_STAY_NOT_MET", "所选价格计划至少入住 " + effectiveMin + " 晚");
+            throw unprocessable("MIN_STAY_NOT_MET", ApiMessages.get("api.t.63d5d3507fe8") + effectiveMin + ApiMessages.get("api.t.22d58f345ba5"));
         }
         if (nights > effectiveMax) {
-            throw unprocessable("MAX_STAY_EXCEEDED", "所选价格计划最多入住 " + effectiveMax + " 晚");
+            throw unprocessable("MAX_STAY_EXCEEDED", ApiMessages.get("api.t.13e81d82e340") + effectiveMax + ApiMessages.get("api.t.22d58f345ba5"));
         }
     }
 
@@ -752,11 +753,11 @@ public class IndependentSiteQuoteService {
             int maxChildrenPerRoom
     ) {
         if (rooms < 1 || adults < rooms) {
-            throw badRequest("INVALID_OCCUPANCY", "每间房至少需要一位成人");
+            throw badRequest("INVALID_OCCUPANCY", ApiMessages.get("api.t.17141c7d3356"));
         }
         if (adults + children > rooms * maxGuestsPerRoom
                 || children > rooms * maxChildrenPerRoom) {
-            throw unprocessable("OCCUPANCY_EXCEEDED", "入住人数超过所选房型容量");
+            throw unprocessable("OCCUPANCY_EXCEEDED", ApiMessages.get("api.t.3f25221ae804"));
         }
         int[] adultsByRoom = new int[rooms];
         int[] childrenByRoom = new int[rooms];
@@ -871,7 +872,7 @@ public class IndependentSiteQuoteService {
         return new IndependentSiteServiceException(
                 HttpStatus.NOT_FOUND,
                 "SITE_UNAVAILABLE",
-                "独立站不存在或当前不可用"
+                ApiMessages.get("api.t.f8d8d0982ec5")
         );
     }
 

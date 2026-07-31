@@ -8,14 +8,14 @@ import jakarta.validation.constraints.Size;
  */
 public class ChangePasswordRequest {
 
-    @NotBlank(message = "当前密码不能为空")
+    @NotBlank(message = "{api.t.1aa6721287f0}")
     private String currentPassword;
 
-    @NotBlank(message = "新密码不能为空")
-    @Size(min = 6, max = 64, message = "新密码长度需要在6到64个字符之间")
+    @NotBlank(message = "{api.t.689e5a9b3225}")
+    @Size(min = 6, max = 64, message = "{api.t.0a0882df29c8}")
     private String newPassword;
 
-    @NotBlank(message = "确认密码不能为空")
+    @NotBlank(message = "{api.t.ee353d7ad06c}")
     private String confirmPassword;
 
     public String getCurrentPassword() {

@@ -9,6 +9,7 @@ import server.demo.service.AutoMessageService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 自动化消息控制器
  */
@@ -26,7 +27,7 @@ public class AutoMessageController {
     @GetMapping
     public ApiResponse<List<AutoMessage>> getAllAutoMessages() {
         List<AutoMessage> messages = autoMessageService.getAllAutoMessages();
-        return ApiResponse.success("获取自动化消息列表成功", messages);
+        return ApiResponse.success(ApiMessages.get("api.t.7294371549c2"), messages);
     }
 
     /**
@@ -35,7 +36,7 @@ public class AutoMessageController {
     @GetMapping("/user/{userId}")
     public ApiResponse<List<AutoMessage>> getAutoMessagesByUserId(@PathVariable Long userId) {
         List<AutoMessage> messages = autoMessageService.getAutoMessagesByUserId(userId);
-        return ApiResponse.success("获取自动化消息列表成功", messages);
+        return ApiResponse.success(ApiMessages.get("api.t.7294371549c2"), messages);
     }
 
     /**
@@ -44,8 +45,8 @@ public class AutoMessageController {
     @GetMapping("/{id}")
     public ApiResponse<AutoMessage> getAutoMessageById(@PathVariable Long id) {
         return autoMessageService.getAutoMessageById(id)
-                .map(message -> ApiResponse.success("获取自动化消息详情成功", message))
-                .orElse(ApiResponse.error("自动化消息不存在"));
+                .map(message -> ApiResponse.success(ApiMessages.get("api.t.16f672f00711"), message))
+                .orElse(ApiResponse.error(ApiMessages.get("api.t.00af031c25a4")));
     }
 
     /**
@@ -54,7 +55,7 @@ public class AutoMessageController {
     @PostMapping
     public ApiResponse<AutoMessage> createAutoMessage(@RequestBody AutoMessage autoMessage) {
         AutoMessage createdMessage = autoMessageService.createAutoMessage(autoMessage);
-        return ApiResponse.success("创建自动化消息成功", createdMessage);
+        return ApiResponse.success(ApiMessages.get("api.t.35855e12a2f9"), createdMessage);
     }
 
     /**
@@ -66,7 +67,7 @@ public class AutoMessageController {
             @RequestBody AutoMessage autoMessage) {
         try {
             AutoMessage updatedMessage = autoMessageService.updateAutoMessage(id, autoMessage);
-            return ApiResponse.success("更新自动化消息成功", updatedMessage);
+            return ApiResponse.success(ApiMessages.get("api.t.83184af74bd9"), updatedMessage);
         } catch (RuntimeException e) {
             return ApiResponse.error(e.getMessage());
         }
@@ -78,7 +79,7 @@ public class AutoMessageController {
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteAutoMessage(@PathVariable Long id) {
         autoMessageService.deleteAutoMessage(id);
-        return ApiResponse.success("删除自动化消息成功", null);
+        return ApiResponse.success(ApiMessages.get("api.t.2f023edab351"), null);
     }
 
     /**
@@ -88,7 +89,7 @@ public class AutoMessageController {
     public ApiResponse<AutoMessage> toggleAutoMessage(@PathVariable Long id) {
         try {
             AutoMessage message = autoMessageService.toggleAutoMessage(id);
-            return ApiResponse.success("切换状态成功", message);
+            return ApiResponse.success(ApiMessages.get("api.t.d35e917cc1d6"), message);
         } catch (RuntimeException e) {
             return ApiResponse.error(e.getMessage());
         }
@@ -98,10 +99,10 @@ public class AutoMessageController {
     public ApiResponse<Void> replayAutoMessage(@RequestBody ReplayAutoMessageRequest request) {
         try {
             if (request == null) {
-                return ApiResponse.error("请求体不能为空");
+                return ApiResponse.error(ApiMessages.get("api.t.420cd3482ef3"));
             }
             autoMessageService.replayAutoMessage(request.getReservationId(), request.getAutoMessageId());
-            return ApiResponse.success("已触发自动消息重放", null);
+            return ApiResponse.success(ApiMessages.get("api.t.bcfc54303b58"), null);
         } catch (RuntimeException e) {
             return ApiResponse.error(e.getMessage());
         }

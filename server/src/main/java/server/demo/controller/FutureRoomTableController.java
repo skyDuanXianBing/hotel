@@ -14,6 +14,7 @@ import server.demo.service.FutureRoomTableService;
 
 import java.time.LocalDate;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/future-room-table")
 @StoreScoped
@@ -36,9 +37,9 @@ public class FutureRoomTableController {
     ) {
         try {
             FutureRoomTableResponse data = futureRoomTableService.getFutureRoomTableData(startDate, days);
-            return ResponseEntity.ok(ApiResponse.success("获取远期房情表数据成功", data));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.f87dd71dfc03"), data));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取远期房情表数据失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.d822721ffa28") + e.getMessage()));
         }
     }
 }

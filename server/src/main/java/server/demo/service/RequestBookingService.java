@@ -6,6 +6,7 @@ import server.demo.entity.Store;
 import server.demo.repository.StoreRepository;
 import server.demo.util.SuHotelIdUtil;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class RequestBookingService {
 
@@ -28,7 +29,7 @@ public class RequestBookingService {
 
     public JsonNode confirm(Long storeId, String bookingId) {
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new IllegalArgumentException("门店不存在: " + storeId));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.d0dfd856aed3") + storeId));
 
         String hotelId = resolveHotelId(store);
         validateBookingIdBelongsToHotel(bookingId, hotelId);
@@ -46,7 +47,7 @@ public class RequestBookingService {
 
     public JsonNode deny(Long storeId, String bookingId, String declineReason, String messageGuest, String messageAirbnb) {
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new IllegalArgumentException("门店不存在: " + storeId));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.d0dfd856aed3") + storeId));
 
         String hotelId = resolveHotelId(store);
         validateBookingIdBelongsToHotel(bookingId, hotelId);
@@ -64,15 +65,15 @@ public class RequestBookingService {
 
     private static void validateBookingIdBelongsToHotel(String bookingId, String hotelId) {
         if (bookingId == null || bookingId.isBlank()) {
-            throw new IllegalArgumentException("bookingId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.776be73241ef"));
         }
         if (hotelId == null || hotelId.isBlank()) {
-            throw new IllegalArgumentException("hotelId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.5f65d474fa8e"));
         }
         String trimmed = bookingId.trim();
         String suffix = "_" + hotelId.trim();
         if (!trimmed.endsWith(suffix)) {
-            throw new IllegalArgumentException("bookingId 与当前门店不匹配（期望后缀 " + suffix + "）");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.fb2c0d643f90") + suffix + "）");
         }
     }
 

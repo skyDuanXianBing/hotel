@@ -119,7 +119,8 @@ class ManagedOperationPdfServiceTest {
                 server.demo.exception.ManagedOperationValidationException.class,
                 () -> service.export(1L, "invoice", result));
 
-        assertTrue(error.getMessage().contains("已拒绝生成可能乱码的 PDF"));
+        assertTrue(error.getMessage().contains("api.t.248170dae7f4")
+                || error.getMessage().contains("已拒绝生成可能乱码的 PDF"));
     }
 
     private static ManagedOperationSettlementService.CalculationResult fixture() {

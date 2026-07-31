@@ -17,6 +17,7 @@ import java.nio.file.Paths;
 import java.util.Iterator;
 import java.util.UUID;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class ManagedOperationPrivateStampStorage {
     private static final long MAX_BYTES = 2L * 1024 * 1024;
@@ -31,10 +32,10 @@ public class ManagedOperationPrivateStampStorage {
 
     public String store(Long storeId, MultipartFile file) {
         if (storeId == null || file == null || file.isEmpty()) {
-            throw new ManagedOperationValidationException("请上传印章图片");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.13901c3cb687"));
         }
         if (file.getSize() > MAX_BYTES) {
-            throw new ManagedOperationValidationException("印章图片不能超过 2MB");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.b3f763475214"));
         }
         try {
             byte[] bytes = file.getBytes();
@@ -44,7 +45,7 @@ public class ManagedOperationPrivateStampStorage {
             Path storeDir = privateRoot.resolve(String.valueOf(storeId)).normalize();
             Path target = storeDir.resolve(filename).normalize();
             if (!target.startsWith(storeDir)) {
-                throw new ManagedOperationValidationException("非法印章存储路径");
+                throw new ManagedOperationValidationException(ApiMessages.get("api.t.2720bbee5cc2"));
             }
             Files.createDirectories(storeDir);
             Files.write(target, bytes);
@@ -52,26 +53,26 @@ public class ManagedOperationPrivateStampStorage {
         } catch (ManagedOperationValidationException ex) {
             throw ex;
         } catch (IOException ex) {
-            throw new ManagedOperationValidationException("印章图片保存失败", ex);
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.bce8a372025f"), ex);
         }
     }
 
     public StoredStamp load(Long storeId, String storageKey) {
         if (storeId == null || storageKey == null || storageKey.isBlank()
                 || !storageKey.startsWith(storeId + "/")) {
-            throw new ManagedOperationValidationException("印章不存在");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.22a21e210618"));
         }
         Path path = privateRoot.resolve(storageKey).normalize();
         Path storeDir = privateRoot.resolve(String.valueOf(storeId)).normalize();
         if (!path.startsWith(storeDir) || !Files.isRegularFile(path)) {
-            throw new ManagedOperationValidationException("印章不存在");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.22a21e210618"));
         }
         try {
             byte[] bytes = Files.readAllBytes(path);
             String extension = detectExtension(bytes);
             return new StoredStamp(bytes, ".png".equals(extension) ? "image/png" : "image/jpeg");
         } catch (IOException ex) {
-            throw new ManagedOperationValidationException("印章读取失败", ex);
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.4b277b36aed9"), ex);
         }
     }
 
@@ -100,24 +101,24 @@ public class ManagedOperationPrivateStampStorage {
                 && (bytes[0] & 0xff) == 0xff && (bytes[1] & 0xff) == 0xd8 && (bytes[2] & 0xff) == 0xff) {
             return ".jpg";
         }
-        throw new ManagedOperationValidationException("印章仅支持真实的 PNG 或 JPEG 图片");
+        throw new ManagedOperationValidationException(ApiMessages.get("api.t.c418b7730b98"));
     }
 
     private static void validateDecodedImage(byte[] bytes) throws IOException {
         try (ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
-            if (input == null) throw new ManagedOperationValidationException("印章图片无法解码");
+            if (input == null) throw new ManagedOperationValidationException(ApiMessages.get("api.t.c9153d01477c"));
             Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
-            if (!readers.hasNext()) throw new ManagedOperationValidationException("印章图片无法解码");
+            if (!readers.hasNext()) throw new ManagedOperationValidationException(ApiMessages.get("api.t.c9153d01477c"));
             ImageReader reader = readers.next();
             try {
                 reader.setInput(input, true, true);
                 int width = reader.getWidth(0);
                 int height = reader.getHeight(0);
                 if (width < 1 || height < 1 || width > MAX_DIMENSION || height > MAX_DIMENSION) {
-                    throw new ManagedOperationValidationException("印章图片尺寸不能超过 4096×4096");
+                    throw new ManagedOperationValidationException(ApiMessages.get("api.t.786141e60f36"));
                 }
                 BufferedImage decoded = reader.read(0);
-                if (decoded == null) throw new ManagedOperationValidationException("印章图片无法解码");
+                if (decoded == null) throw new ManagedOperationValidationException(ApiMessages.get("api.t.c9153d01477c"));
             } finally {
                 reader.dispose();
             }

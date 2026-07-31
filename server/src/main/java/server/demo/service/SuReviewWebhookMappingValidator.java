@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 /**
  * Review 的当前门店、渠道、渠道物业及 Airbnb listing 映射校验。
  * <p>
@@ -44,12 +45,12 @@ public class SuReviewWebhookMappingValidator {
     public void validate(Long storeId, String routedHotelId, JsonNode root) {
         String normalizedHotelId = SuHotelIdUtil.normalize(routedHotelId);
         if (storeId == null || normalizedHotelId == null) {
-            throw new IllegalArgumentException("Review Push 缺少门店或 hotel_id");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.df682f5f37dc"));
         }
 
         List<JsonNode> reviewNodes = SuReviewPayloadMapper.extractPushReviewNodes(root);
         if (reviewNodes.isEmpty()) {
-            throw new IllegalArgumentException("Review Push 缺少评价数据");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.2adc9f382269"));
         }
 
         CurrentMappingSnapshot snapshot = loadCurrentMappings(storeId, normalizedHotelId);
@@ -64,7 +65,7 @@ public class SuReviewWebhookMappingValidator {
     public CurrentMappingSnapshot loadCurrentMappings(Long storeId, String rawHotelId) {
         String hotelId = SuHotelIdUtil.normalize(rawHotelId);
         if (storeId == null || hotelId == null) {
-            throw new IllegalArgumentException("Review 映射校验缺少门店或 hotel_id");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.68b3dc8f8aa2"));
         }
 
         Map<Long, Channel> channelsById = new HashMap<>();
@@ -140,17 +141,17 @@ public class SuReviewWebhookMappingValidator {
             CurrentMappingSnapshot snapshot
     ) {
         if (reviewNode == null || !reviewNode.isObject()) {
-            throw new IllegalArgumentException("Review Push 请求包含无效评价对象");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.89deb1065ca0"));
         }
 
         String payloadHotelId = normalize(firstText(reviewNode, "hotel_id", "hotelid", "hotelId"));
         if (!routedHotelId.equals(payloadHotelId)) {
-            throw new MappingRejectedException("payload hotel_id 与路由门店不一致");
+            throw new MappingRejectedException(ApiMessages.get("api.t.057a7acb4c38"));
         }
 
         Integer channelId = readInteger(reviewNode, "channel_id");
         if (channelId == null) {
-            throw new IllegalArgumentException("评价缺少 channel_id");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.bd9464382b90"));
         }
         String channelPropertyId = normalize(firstText(
                 reviewNode,
@@ -158,11 +159,11 @@ public class SuReviewWebhookMappingValidator {
                 "channel_hotel_id"
         ));
         if (channelPropertyId == null) {
-            throw new IllegalArgumentException("评价缺少 channel_property_id");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.8cf4bef954c0"));
         }
         String listingId = normalize(firstText(reviewNode, "listing_id"));
         if (channelId == ReviewChannelCodePolicy.CHANNEL_AIRBNB && listingId == null) {
-            throw new IllegalArgumentException("Airbnb 评价缺少 listing_id");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.f8369b63e5c8"));
         }
         snapshot.assertMapped(channelId, channelPropertyId, listingId);
     }
@@ -202,7 +203,7 @@ public class SuReviewWebhookMappingValidator {
         try {
             return Integer.valueOf(text);
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("评价字段 " + field + " 不是有效整数");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.bd6fb603b8ee") + field + ApiMessages.get("api.t.be5283e17ea4"));
         }
     }
 
@@ -264,16 +265,16 @@ public class SuReviewWebhookMappingValidator {
                 String listingId
         ) {
             if (ReviewChannelCodePolicy.canonicalCode(channelId) == null) {
-                throw new MappingRejectedException("Su channel_id 不在 Review 支持范围内");
+                throw new MappingRejectedException(ApiMessages.get("api.t.94492171aede"));
             }
             String normalizedPropertyId = normalize(channelPropertyId);
             if (normalizedPropertyId == null) {
-                throw new MappingRejectedException("评价缺少当前渠道物业映射标识");
+                throw new MappingRejectedException(ApiMessages.get("api.t.67e5c41f7e4c"));
             }
             String normalizedListingId = normalize(listingId);
             if (channelId == ReviewChannelCodePolicy.CHANNEL_AIRBNB
                     && normalizedListingId == null) {
-                throw new MappingRejectedException("Airbnb 评价缺少当前 listing 映射标识");
+                throw new MappingRejectedException(ApiMessages.get("api.t.83e5855a35be"));
             }
 
             Set<Long> matchedChannelIds = matchedChannelIdsByKey.getOrDefault(
@@ -281,10 +282,10 @@ public class SuReviewWebhookMappingValidator {
                     Set.of()
             );
             if (matchedChannelIds.isEmpty()) {
-                throw new MappingRejectedException("找不到当前门店的 Review 渠道物业映射");
+                throw new MappingRejectedException(ApiMessages.get("api.t.ce378998af44"));
             }
             if (matchedChannelIds.size() > 1) {
-                throw new MappingRejectedException("当前门店的 Review 渠道物业映射不唯一");
+                throw new MappingRejectedException(ApiMessages.get("api.t.79a4ff22aa54"));
             }
         }
 

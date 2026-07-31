@@ -13,6 +13,7 @@ import server.demo.util.JwtUtil;
 import java.util.HashMap;
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 平台管理员认证：独立表 + BCrypt 校验 + 独立 JWT（claim 带 aud="admin"）。
  * 复制 CleanerAuthService 的独立认证模式，与门店用户体系完全隔离。
@@ -40,12 +41,12 @@ public class AdminAuthService {
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
         AdminUser user = adminUserRepository.findByUsername(request.username())
-                .orElseThrow(() -> new IllegalArgumentException("用户名或密码错误"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.3ef442ce0947")));
         if (!user.isActive()) {
-            throw new IllegalArgumentException("账号已被禁用，请联系超级管理员");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.049842aa4193"));
         }
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-            throw new IllegalArgumentException("用户名或密码错误");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.3ef442ce0947"));
         }
 
         Map<String, Object> claims = new HashMap<>();
@@ -64,12 +65,12 @@ public class AdminAuthService {
     @Transactional
     public void changePassword(String username, ChangePasswordRequest request) {
         AdminUser user = adminUserRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("账号不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.37f36ca852b6")));
         if (!user.isActive()) {
-            throw new IllegalArgumentException("账号已被禁用，请联系超级管理员");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.049842aa4193"));
         }
         if (!passwordEncoder.matches(request.oldPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("原密码错误");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.aab8905e77bc"));
         }
         user.setPassword(passwordEncoder.encode(request.newPassword()));
         adminUserRepository.save(user);

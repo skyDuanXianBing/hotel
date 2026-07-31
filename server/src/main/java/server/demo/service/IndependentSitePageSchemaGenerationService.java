@@ -34,6 +34,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class IndependentSitePageSchemaGenerationService {
 
@@ -102,7 +103,7 @@ public class IndependentSitePageSchemaGenerationService {
                 .findByStoreIdAndSiteIdAndType(storeId, siteId, IndependentSitePageType.HOME)
                 .stream()
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("站点首页不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.71503be5d39f")));
         return generateForPage(storeId, siteId, home.getId(), request);
     }
 
@@ -114,17 +115,17 @@ public class IndependentSitePageSchemaGenerationService {
             IndependentSiteDtos.PageDraftRequest request
     ) {
         if (request == null) {
-            throw new IllegalArgumentException("生成请求不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.a37851f789c5"));
         }
         IndependentSite site = siteRepository.findByStoreIdAndId(storeId, siteId)
-                .orElseThrow(() -> new IllegalArgumentException("独立站不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.87f7c7d02b26")));
         IndependentSitePage page = pageRepository.findByStoreIdAndSiteIdAndId(storeId, siteId, pageId)
-                .orElseThrow(() -> new IllegalArgumentException("页面不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.55c9e10608ff")));
         if (!aiClient.isConfigured()) {
             throw new IndependentSiteServiceException(
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "OPENAI_CHANNEL_UNAVAILABLE",
-                    "当前无法确认系统 OpenAI 通道可用，未生成可发布草稿"
+                    ApiMessages.get("api.t.0719e2c2c28a")
             );
         }
 
@@ -183,15 +184,15 @@ public class IndependentSitePageSchemaGenerationService {
     ) {
         String normalizedInstruction = normalizeInstruction(instruction);
         IndependentSite site = siteRepository.findByStoreIdAndId(storeId, siteId)
-                .orElseThrow(() -> new IllegalArgumentException("独立站不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.87f7c7d02b26")));
         IndependentSitePage page = pageRepository
                 .findByStoreIdAndSiteIdAndIdForUpdate(storeId, siteId, pageId)
-                .orElseThrow(() -> new IllegalArgumentException("页面不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.55c9e10608ff")));
         if (!aiClient.isConfigured()) {
             throw new IndependentSiteServiceException(
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "OPENAI_CHANNEL_UNAVAILABLE",
-                    "当前无法确认系统 OpenAI 通道可用，未应用 AI 修改"
+                    ApiMessages.get("api.t.bb66792147e4")
             );
         }
         managementRateLimiter.checkAiEdit(storeId);
@@ -226,13 +227,13 @@ public class IndependentSitePageSchemaGenerationService {
             String pagePath
     ) {
         if (content == null) {
-            throw new IllegalArgumentException("抓取内容不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.15c08b13ed45"));
         }
         if (!aiClient.isConfigured()) {
             throw new IndependentSiteServiceException(
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "OPENAI_CHANNEL_UNAVAILABLE",
-                    "当前无法确认系统 OpenAI 通道可用，未生成导入草稿"
+                    ApiMessages.get("api.t.0dbb373ca8c3")
             );
         }
         String initialPrompt = buildUrlImportPrompt(content, pageTitle, pagePath);
@@ -292,12 +293,12 @@ public class IndependentSitePageSchemaGenerationService {
         }
 
         String reason = lastValidationError == null || lastValidationError.getMessage() == null
-                ? "未知原因"
+                ? ApiMessages.get("api.t.b98c9d9d26b0")
                 : lastValidationError.getMessage();
         throw new IndependentSiteServiceException(
                 HttpStatus.UNPROCESSABLE_ENTITY,
                 "INVALID_AI_SCHEMA",
-                "模型输出未通过独立站页面白名单校验：" + reason
+                ApiMessages.get("api.t.80e806b27dbc") + reason
         );
     }
 
@@ -316,11 +317,11 @@ public class IndependentSitePageSchemaGenerationService {
 
     private static String normalizeInstruction(String value) {
         if (value == null) {
-            throw new IllegalArgumentException("修改指令不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.fc7b95266a21"));
         }
         String normalized = value.trim();
         if (normalized.isEmpty() || normalized.length() > MAX_INSTRUCTION_LENGTH) {
-            throw new IllegalArgumentException("修改指令长度必须为 1-2000 字符");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.8ebba81f06ee"));
         }
         return normalized;
     }
@@ -363,7 +364,7 @@ public class IndependentSitePageSchemaGenerationService {
         try {
             return objectMapper.readTree(json);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("已保存的独立站页面配置无效", e);
+            throw new IllegalStateException(ApiMessages.get("api.t.62681428ec01"), e);
         }
     }
 
@@ -371,7 +372,7 @@ public class IndependentSitePageSchemaGenerationService {
         try {
             return objectMapper.writeValueAsString(node);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("独立站页面配置序列化失败", e);
+            throw new IllegalStateException(ApiMessages.get("api.t.59af26623ec1"), e);
         }
     }
 
@@ -385,7 +386,7 @@ public class IndependentSitePageSchemaGenerationService {
         }
         String normalized = value.trim();
         if (!normalized.matches("[A-Za-z]{2,12}(?:-[A-Za-z]{2,12})?")) {
-            throw new IllegalArgumentException("language 格式不正确");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.06dff9e9395b"));
         }
         return normalized;
     }
@@ -396,7 +397,7 @@ public class IndependentSitePageSchemaGenerationService {
         }
         String normalized = value.trim().toUpperCase(Locale.ROOT);
         if (!STYLES.contains(normalized)) {
-            throw new IllegalArgumentException("style 不受支持");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.8965e2aa1c6d"));
         }
         return normalized;
     }

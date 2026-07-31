@@ -10,6 +10,7 @@ import server.demo.service.AccountService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 账号管理控制器
  */
@@ -36,7 +37,7 @@ public class AccountController {
             } else {
                 accounts = accountService.getAllAccounts();
             }
-            return ResponseEntity.ok(new ApiResponse<>(true, "获取账号列表成功", accounts));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.1ebe0f46da66"), accounts));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -50,7 +51,7 @@ public class AccountController {
     public ResponseEntity<ApiResponse<AccountDTO>> getAccountById(@PathVariable Long id) {
         try {
             AccountDTO account = accountService.getAccountById(id);
-            return ResponseEntity.ok(new ApiResponse<>(true, "获取账号详情成功", account));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.940b529fdc6c"), account));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -65,7 +66,7 @@ public class AccountController {
         try {
             AccountDTO account = accountService.createAccount(request);
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new ApiResponse<>(true, "创建账号成功", account));
+                    .body(new ApiResponse<>(true, ApiMessages.get("api.t.bafea8097500"), account));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -82,7 +83,7 @@ public class AccountController {
     ) {
         try {
             AccountDTO account = accountService.updateAccount(id, request);
-            return ResponseEntity.ok(new ApiResponse<>(true, "更新账号成功", account));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.b65f9f524a7a"), account));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -96,7 +97,7 @@ public class AccountController {
     public ResponseEntity<ApiResponse<Void>> deleteAccount(@PathVariable Long id) {
         try {
             accountService.deleteAccount(id);
-            return ResponseEntity.ok(new ApiResponse<>(true, "删除账号成功", null));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.453fc4990037"), null));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -110,7 +111,7 @@ public class AccountController {
     public ResponseEntity<ApiResponse<Void>> batchDeleteAccounts(@RequestBody List<Long> accountIds) {
         try {
             accountService.batchDeleteAccounts(accountIds);
-            return ResponseEntity.ok(new ApiResponse<>(true, "批量删除账号成功", null));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.b384ebbfac59"), null));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -127,7 +128,7 @@ public class AccountController {
     ) {
         try {
             AccountDTO account = accountService.updateAccountStatus(id, isActive);
-            return ResponseEntity.ok(new ApiResponse<>(true, "更新账号状态成功", account));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.5c392638ed12"), account));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -141,7 +142,7 @@ public class AccountController {
     public ResponseEntity<ApiResponse<Void>> batchUpdateStatus(@Valid @RequestBody BatchUpdateStatusRequest request) {
         try {
             accountService.batchUpdateStatus(request);
-            return ResponseEntity.ok(new ApiResponse<>(true, "批量更新账号状态成功", null));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.d5badb40eabe"), null));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -155,7 +156,7 @@ public class AccountController {
     public ResponseEntity<ApiResponse<Void>> batchUpdateRoles(@Valid @RequestBody BatchUpdateRolesRequest request) {
         try {
             accountService.batchUpdateRoles(request);
-            return ResponseEntity.ok(new ApiResponse<>(true, "批量调整角色成功", null));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.d82f1d8ad041"), null));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));

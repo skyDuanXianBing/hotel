@@ -20,6 +20,7 @@ import server.demo.enums.PermissionModule;
 import server.demo.service.MessageKnowledgeManagementService;
 import server.demo.util.StoreContextUtils;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/su-messaging/knowledge-items")
 public class MessageKnowledgeManagementController {
@@ -51,11 +52,11 @@ public class MessageKnowledgeManagementController {
                     scopeType,
                     topicCode
             );
-            return ResponseEntity.ok(ApiResponse.success("知识项列表获取成功", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.b6c8ace462eb"), response));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("知识项列表获取失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.ee3eee322df3") + e.getMessage()));
         }
     }
 
@@ -66,11 +67,11 @@ public class MessageKnowledgeManagementController {
         try {
             Long storeId = StoreContextUtils.requireStoreId();
             MessageKnowledgeEvidenceResponse response = managementService.getEvidence(storeId, id);
-            return ResponseEntity.ok(ApiResponse.success("知识项证据获取成功", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.89656bf1ff98"), response));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("知识项证据获取失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.2644bc311166") + e.getMessage()));
         }
     }
 
@@ -81,11 +82,11 @@ public class MessageKnowledgeManagementController {
         try {
             Long storeId = StoreContextUtils.requireStoreId();
             MessageKnowledgeItemDTO response = managementService.approve(storeId, id);
-            return ResponseEntity.ok(ApiResponse.success("知识项已通过", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.82fc612c939e"), response));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("知识项通过失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.cc5162db952d") + e.getMessage()));
         }
     }
 
@@ -99,11 +100,11 @@ public class MessageKnowledgeManagementController {
         try {
             Long storeId = StoreContextUtils.requireStoreId();
             MessageKnowledgeItemDTO response = managementService.reject(storeId, id, request);
-            return ResponseEntity.ok(ApiResponse.success("知识项已拒绝", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.4ed2311fef78"), response));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("知识项拒绝失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.c46b4bacba8b") + e.getMessage()));
         }
     }
 
@@ -114,11 +115,11 @@ public class MessageKnowledgeManagementController {
         try {
             Long storeId = StoreContextUtils.requireStoreId();
             MessageKnowledgeItemDTO response = managementService.archive(storeId, id);
-            return ResponseEntity.ok(ApiResponse.success("知识项已归档", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.4c1d9445bb98"), response));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("知识项归档失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.c353af23e658") + e.getMessage()));
         }
     }
 }

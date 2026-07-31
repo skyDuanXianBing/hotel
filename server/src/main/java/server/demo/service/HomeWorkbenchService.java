@@ -43,6 +43,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class HomeWorkbenchService {
     private static final Logger logger = LoggerFactory.getLogger(HomeWorkbenchService.class);
@@ -127,7 +128,7 @@ public class HomeWorkbenchService {
         Long storeId = StoreContextUtils.requireStoreId();
         Long userId = StoreContextUtils.requireUserId();
         if (!storeUserRepository.existsByStoreIdAndUserIdAndIsActiveTrue(storeId, userId)) {
-            throw new StoreAccessDeniedException("当前账号未激活或无权访问该门店");
+            throw new StoreAccessDeniedException(ApiMessages.get("api.t.e2295ebc4eb3"));
         }
         LocalDate businessDate = resolveBusinessDate(storeId, requestedDate);
         int limit = normalizeLimit(requestedSize == null ? requestedLimit : requestedSize);
@@ -305,14 +306,14 @@ public class HomeWorkbenchService {
             item.setStatusGroup(resolveCleaningStatusGroup(task.getStatus()));
             item.setPriority(resolveCleaningPriority(task.getStatus()));
             item.setDueAt(resolveCleaningDueAt(task));
-            item.setTitle("房间 " + fallback(task.getRoomNumber(), "未命名") + " 保洁");
+            item.setTitle(ApiMessages.get("api.t.b8b254565b3a") + fallback(task.getRoomNumber(), ApiMessages.get("api.t.35563060dc88")) + ApiMessages.get("api.t.4312bedea504"));
             item.setSubtitle(joinNonBlank(resolveCleaningTaskTypeLabel(task.getTaskType()), task.getRoomType()));
             item.setAssigneeId(task.getCleanerId());
             item.setAssigneeName(task.getCleanerName());
-            addMeta(item, "房间", task.getRoomNumber());
-            addMeta(item, "房型", task.getRoomType());
-            addMeta(item, "类型", resolveCleaningTaskTypeLabel(task.getTaskType()));
-            addMeta(item, "状态", resolveCleaningStatusLabel(task.getStatus()));
+            addMeta(item, ApiMessages.get("api.t.dab2ced9277b"), task.getRoomNumber());
+            addMeta(item, ApiMessages.get("api.t.ad9e95e81c53"), task.getRoomType());
+            addMeta(item, ApiMessages.get("api.t.e4e46c7235d1"), resolveCleaningTaskTypeLabel(task.getTaskType()));
+            addMeta(item, ApiMessages.get("api.t.62e951a692ff"), resolveCleaningStatusLabel(task.getStatus()));
             item.setTarget(target(
                     "cleaning_task",
                     "/cleaning-tasks",
@@ -383,21 +384,21 @@ public class HomeWorkbenchService {
         item.setDueAt(completed
                 ? firstNonNull(form.getApprovedAt(), form.getUpdatedAt())
                 : firstNonNull(form.getSubmittedAt(), form.getUpdatedAt()));
-        item.setTitle(fallback(form.getGuestName(), "住客") + " 的登记审核");
+        item.setTitle(fallback(form.getGuestName(), ApiMessages.get("api.t.2d505c05d710")) + ApiMessages.get("api.t.832b5f51123a"));
         item.setSubtitle(joinNonBlank(form.getOrderNumber(), form.getChannelName()));
-        addMeta(item, "订单", form.getOrderNumber());
-        addMeta(item, "渠道", form.getChannelName());
-        addMeta(item, "入住", formatDateRange(form.getCheckInDate(), form.getCheckOutDate()));
-        addMeta(item, "状态", completed ? "已完成" : "待审核");
+        addMeta(item, ApiMessages.get("api.t.81b3798bebc6"), form.getOrderNumber());
+        addMeta(item, ApiMessages.get("api.t.c152be9f5040"), form.getChannelName());
+        addMeta(item, ApiMessages.get("api.t.8729a688a7c8"), formatDateRange(form.getCheckInDate(), form.getCheckOutDate()));
+        addMeta(item, ApiMessages.get("api.t.62e951a692ff"), completed ? ApiMessages.get("api.t.e99b48a29bdf") : ApiMessages.get("api.t.f53b68002dbf"));
         if (completed && form.getApprovedAt() != null) {
-            addMeta(item, "完成时间", form.getApprovedAt().toString());
+            addMeta(item, ApiMessages.get("api.t.754a8a2e2dba"), form.getApprovedAt().toString());
         }
         item.setTarget(target(
                 "registration_form",
                 "/registrations",
                 Map.of("formId", asString(form.getFormId()))
         ));
-        item.setActions(List.of(new HomeWorkbenchActionDTO("view", "查看登记", "default")));
+        item.setActions(List.of(new HomeWorkbenchActionDTO("view", ApiMessages.get("api.t.44789493babd"), "default")));
         return item;
     }
 
@@ -431,11 +432,11 @@ public class HomeWorkbenchService {
             item.setDueAt(reservation.getCheckInDate() == null ? null : reservation.getCheckInDate().atStartOfDay());
             item.setTitle(resolveOrderTitle(reservation, sourceStatus));
             item.setSubtitle(joinNonBlank(reservation.getOrderNumber(), resolveReservationChannelName(reservation)));
-            addMeta(item, "客人", reservation.getGuestName());
-            addMeta(item, "订单", reservation.getOrderNumber());
-            addMeta(item, "渠道", resolveReservationChannelName(reservation));
-            addMeta(item, "入住", formatDateRange(reservation.getCheckInDate(), reservation.getCheckOutDate()));
-            addMeta(item, "房间", resolveReservationRoomNumber(reservation));
+            addMeta(item, ApiMessages.get("api.t.8fe92a4bb133"), reservation.getGuestName());
+            addMeta(item, ApiMessages.get("api.t.81b3798bebc6"), reservation.getOrderNumber());
+            addMeta(item, ApiMessages.get("api.t.c152be9f5040"), resolveReservationChannelName(reservation));
+            addMeta(item, ApiMessages.get("api.t.8729a688a7c8"), formatDateRange(reservation.getCheckInDate(), reservation.getCheckOutDate()));
+            addMeta(item, ApiMessages.get("api.t.dab2ced9277b"), resolveReservationRoomNumber(reservation));
             item.setTarget(target(
                     "reservation",
                     "/order",
@@ -466,14 +467,14 @@ public class HomeWorkbenchService {
             item.setStatusGroup(STATUS_AWAITING_REPLY);
             item.setPriority(PRIORITY_MEDIUM);
             item.setDueAt(thread.getLastActivity() == null ? null : thread.getLastActivity().toLocalDateTime());
-            item.setTitle(fallback(thread.getGuestName(), "客人") + " 的待回复消息");
+            item.setTitle(fallback(thread.getGuestName(), ApiMessages.get("api.t.8fe92a4bb133")) + ApiMessages.get("api.t.e9fd1d98f8c6"));
             item.setSubtitle(thread.getLastMessage());
             item.setUnreadCount(thread.getUnreadCount());
-            addMeta(item, "渠道", thread.getChannelName());
-            addMeta(item, "订单", thread.getBookingId());
-            addMeta(item, "状态", "待回复");
+            addMeta(item, ApiMessages.get("api.t.c152be9f5040"), thread.getChannelName());
+            addMeta(item, ApiMessages.get("api.t.81b3798bebc6"), thread.getBookingId());
+            addMeta(item, ApiMessages.get("api.t.62e951a692ff"), ApiMessages.get("api.t.4b8ee8c5596c"));
             if (thread.getUnreadCount() > 0) {
-                addMeta(item, "未读", String.valueOf(thread.getUnreadCount()));
+                addMeta(item, ApiMessages.get("api.t.1e230aa2012d"), String.valueOf(thread.getUnreadCount()));
             }
 
             Map<String, String> query = new LinkedHashMap<>();
@@ -483,8 +484,8 @@ public class HomeWorkbenchService {
             }
             item.setTarget(target("su_message_thread", "/messages", query));
             item.setActions(List.of(
-                    new HomeWorkbenchActionDTO("view", "查看消息", "default"),
-                    new HomeWorkbenchActionDTO("reply", "回复", "primary")
+                    new HomeWorkbenchActionDTO("view", ApiMessages.get("api.t.8774d48dc167"), "default"),
+                    new HomeWorkbenchActionDTO("reply", ApiMessages.get("api.t.ffc7850925e7"), "primary")
             ));
             items.add(item);
         }
@@ -537,18 +538,18 @@ public class HomeWorkbenchService {
         item.setSubtitle(task.getDescription());
         item.setAssigneeId(task.getAssigneeUserId());
         item.setAssigneeName(task.getAssigneeName());
-        addMeta(item, "创建人", task.getCreatedByName());
-        addMeta(item, "执行人", task.getAssigneeName());
-        addMeta(item, "状态", resolveInternalTaskStatusLabel(task.getStatus()));
+        addMeta(item, ApiMessages.get("api.t.787ad1deae49"), task.getCreatedByName());
+        addMeta(item, ApiMessages.get("api.t.b1c91cd6580f"), task.getAssigneeName());
+        addMeta(item, ApiMessages.get("api.t.62e951a692ff"), resolveInternalTaskStatusLabel(task.getStatus()));
         item.setTarget(target(
                 "internal_task",
                 "/internal-tasks",
                 Map.of("taskId", asString(task.getId()))
         ));
         List<HomeWorkbenchActionDTO> actions = new ArrayList<>();
-        actions.add(new HomeWorkbenchActionDTO("view", "查看任务", "default"));
+        actions.add(new HomeWorkbenchActionDTO("view", ApiMessages.get("api.t.ec20beb2c455"), "default"));
         if (task.isCanComplete()) {
-            actions.add(new HomeWorkbenchActionDTO("complete", "完成", "primary"));
+            actions.add(new HomeWorkbenchActionDTO("complete", ApiMessages.get("api.t.33246f6a5e5b"), "primary"));
         }
         item.setActions(actions);
         return item;
@@ -750,23 +751,23 @@ public class HomeWorkbenchService {
 
     private static List<HomeWorkbenchActionDTO> buildCleaningActions(String status) {
         List<HomeWorkbenchActionDTO> actions = new ArrayList<>();
-        actions.add(new HomeWorkbenchActionDTO("view", "查看任务", "default"));
+        actions.add(new HomeWorkbenchActionDTO("view", ApiMessages.get("api.t.ec20beb2c455"), "default"));
         if ("pending".equalsIgnoreCase(status)) {
-            actions.add(new HomeWorkbenchActionDTO("assign_cleaner", "分配保洁", "primary"));
+            actions.add(new HomeWorkbenchActionDTO("assign_cleaner", ApiMessages.get("api.t.0c503faa0f03"), "primary"));
         }
         if ("assigned".equalsIgnoreCase(status) || "in_progress".equalsIgnoreCase(status)) {
-            actions.add(new HomeWorkbenchActionDTO("complete", "完成", "primary"));
+            actions.add(new HomeWorkbenchActionDTO("complete", ApiMessages.get("api.t.33246f6a5e5b"), "primary"));
         }
         return actions;
     }
 
     private static List<HomeWorkbenchActionDTO> buildOrderActions(String sourceStatus) {
         List<HomeWorkbenchActionDTO> actions = new ArrayList<>();
-        actions.add(new HomeWorkbenchActionDTO("view", "查看订单", "default"));
+        actions.add(new HomeWorkbenchActionDTO("view", ApiMessages.get("api.t.86940ce545a0"), "default"));
         if ("UNASSIGNED".equals(sourceStatus)) {
-            actions.add(new HomeWorkbenchActionDTO("assign_room", "排房", "primary"));
+            actions.add(new HomeWorkbenchActionDTO("assign_room", ApiMessages.get("api.t.18c4a8fd501e"), "primary"));
         } else {
-            actions.add(new HomeWorkbenchActionDTO("check_in", "办理入住", "primary"));
+            actions.add(new HomeWorkbenchActionDTO("check_in", ApiMessages.get("api.t.ca95e5af8c7e"), "primary"));
         }
         return actions;
     }
@@ -786,11 +787,11 @@ public class HomeWorkbenchService {
     }
 
     private static String resolveOrderTitle(Reservation reservation, String sourceStatus) {
-        String guestName = fallback(reservation.getGuestName(), "住客");
+        String guestName = fallback(reservation.getGuestName(), ApiMessages.get("api.t.2d505c05d710"));
         if ("UNASSIGNED".equals(sourceStatus)) {
-            return "未排房订单 - " + guestName;
+            return ApiMessages.get("api.t.8678a153184a") + guestName;
         }
-        return "待入住订单 - " + guestName;
+        return ApiMessages.get("api.t.936a4b9346d5") + guestName;
     }
 
     private static String resolveReservationChannelName(Reservation reservation) {
@@ -853,7 +854,7 @@ public class HomeWorkbenchService {
         if (TYPE_OTHER.equals(lowerCaseType)) {
             return TYPE_OTHER;
         }
-        throw new IllegalArgumentException("不支持的工作台类型: " + normalizedType);
+        throw new IllegalArgumentException(ApiMessages.get("api.t.5355bc28d619") + normalizedType);
     }
 
     private static String normalizeStatusFilter(String status) {
@@ -870,7 +871,7 @@ public class HomeWorkbenchService {
                 || STATUS_COMPLETED.equals(value)) {
             return value;
         }
-        throw new IllegalArgumentException("不支持的工作台状态: " + normalizedStatus);
+        throw new IllegalArgumentException(ApiMessages.get("api.t.d3a459a682b7") + normalizedStatus);
     }
 
     private static void validateTypeStatus(String type, String status) {
@@ -886,7 +887,7 @@ public class HomeWorkbenchService {
             default -> false;
         };
         if (!valid) {
-            throw new IllegalArgumentException("工作台类型与状态不匹配");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.da3dab3ed903"));
         }
     }
 
@@ -917,14 +918,14 @@ public class HomeWorkbenchService {
         try {
             return Long.parseLong(sourceId);
         } catch (RuntimeException exception) {
-            throw new IllegalStateException("工作台数据缺少稳定数值主键: " + sourceId, exception);
+            throw new IllegalStateException(ApiMessages.get("api.t.787855e8ab73") + sourceId, exception);
         }
     }
 
     private static String resolveInternalTaskStatusLabel(InternalTaskStatus status) {
-        if (status == InternalTaskStatus.UNASSIGNED) return "待分配";
-        if (status == InternalTaskStatus.COMPLETED) return "已完成";
-        return "待完成";
+        if (status == InternalTaskStatus.UNASSIGNED) return ApiMessages.get("api.t.cb0b7f6d57d7");
+        if (status == InternalTaskStatus.COMPLETED) return ApiMessages.get("api.t.e99b48a29bdf");
+        return ApiMessages.get("api.t.f9ddfd643456");
     }
 
     private static int priorityRank(String priority) {
@@ -960,29 +961,29 @@ public class HomeWorkbenchService {
 
     private static String resolveCleaningTaskTypeLabel(String taskType) {
         if ("checkout".equalsIgnoreCase(taskType)) {
-            return "退房清洁";
+            return ApiMessages.get("api.t.2819849e081d");
         }
         if ("daily".equalsIgnoreCase(taskType)) {
-            return "日常清洁";
+            return ApiMessages.get("api.t.d8bbb3d25cd9");
         }
         if ("deep".equalsIgnoreCase(taskType)) {
-            return "深度清洁";
+            return ApiMessages.get("api.t.831f4196be16");
         }
         return taskType;
     }
 
     private static String resolveCleaningStatusLabel(String status) {
         if ("pending".equalsIgnoreCase(status)) {
-            return "待分配";
+            return ApiMessages.get("api.t.cb0b7f6d57d7");
         }
         if ("assigned".equalsIgnoreCase(status)) {
-            return "待清洁";
+            return ApiMessages.get("api.t.0de40cd5da4f");
         }
         if ("in_progress".equalsIgnoreCase(status)) {
-            return "清洁中";
+            return ApiMessages.get("api.t.9e265b0ff0a8");
         }
         if ("expired".equalsIgnoreCase(status)) {
-            return "已过期";
+            return ApiMessages.get("api.t.1354374f768e");
         }
         return status;
     }
@@ -995,7 +996,7 @@ public class HomeWorkbenchService {
             return startDate == null ? null : startDate.toString();
         }
         return fallback(startDate == null ? null : startDate.toString(), "?")
-                + " 至 "
+                + ApiMessages.get("api.t.9f96f7e891cd")
                 + fallback(endDate == null ? null : endDate.toString(), "?");
     }
 

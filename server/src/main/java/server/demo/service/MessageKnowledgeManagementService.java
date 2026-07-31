@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class MessageKnowledgeManagementService {
     private static final int DEFAULT_PAGE = 0;
@@ -131,10 +132,10 @@ public class MessageKnowledgeManagementService {
     private MessageKnowledgeItem loadItem(Long storeId, Long itemId) {
         requireStoreId(storeId);
         if (itemId == null) {
-            throw new IllegalArgumentException("知识项 ID 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.fc1383e9675e"));
         }
         return itemRepository.findByStoreIdAndId(storeId, itemId)
-                .orElseThrow(() -> new IllegalArgumentException("知识项不存在或不属于当前门店"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.7c8c705dba29")));
     }
 
     private MessageKnowledgeItemDTO toItemDTO(MessageKnowledgeItem item) {
@@ -270,7 +271,7 @@ public class MessageKnowledgeManagementService {
             return null;
         }
         if (!ALLOWED_STATUS_FILTERS.contains(normalized)) {
-            throw new IllegalArgumentException("不支持的知识状态筛选: " + status);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.53e22b81397c") + status);
         }
         if (STATUS_CONFLICTED.equals(normalized)) {
             return STATUS_CONFLICT;
@@ -287,7 +288,7 @@ public class MessageKnowledgeManagementService {
 
     private static void ensureNotArchived(MessageKnowledgeItem item) {
         if (item != null && STATUS_ARCHIVED.equalsIgnoreCase(nullToEmpty(item.getStatus()))) {
-            throw new IllegalStateException("已归档知识项不能再次变更为通过或拒绝");
+            throw new IllegalStateException(ApiMessages.get("api.t.b5c561847128"));
         }
     }
 
@@ -304,26 +305,26 @@ public class MessageKnowledgeManagementService {
         if (normalizedQuestion != null) {
             return normalizedQuestion;
         }
-        return "知识项";
+        return ApiMessages.get("api.t.95d42b0ccb58");
     }
 
     private static String buildScopeName(String scopeType, String roomNumber, String roomTypeName) {
         if (SuMessagingThreadContext.SCOPE_ROOM.equals(scopeType)) {
             String room = normalizeBlankToNull(roomNumber);
             if (room != null) {
-                return "房间 " + room;
+                return ApiMessages.get("api.t.b8b254565b3a") + room;
             }
-            return "房间";
+            return ApiMessages.get("api.t.dab2ced9277b");
         }
         if (SuMessagingThreadContext.SCOPE_ROOM_TYPE.equals(scopeType)) {
             String roomType = normalizeBlankToNull(roomTypeName);
             if (roomType != null) {
                 return roomType;
             }
-            return "房型";
+            return ApiMessages.get("api.t.ad9e95e81c53");
         }
         if (SuMessagingThreadContext.SCOPE_STORE.equals(scopeType)) {
-            return "门店通用";
+            return ApiMessages.get("api.t.57b6e2ad014b");
         }
         return normalizeBlankToNull(scopeType);
     }
@@ -332,7 +333,7 @@ public class MessageKnowledgeManagementService {
         String channelName = resolveChannelName(evidence.getChannelId());
         String scopeName = buildScopeName(evidence.getScopeType(), evidence.getRoomNumber(), evidence.getRoomTypeName());
         boolean threadEvidence = MessageKnowledgeEvidence.SOURCE_KIND_THREAD_CONVERSATION.equals(resolveSourceKind(evidence));
-        String suffix = threadEvidence ? "会话证据" : null;
+        String suffix = threadEvidence ? ApiMessages.get("api.t.dffeb2fbbba9") : null;
         if (channelName != null && scopeName != null) {
             return appendTitleSuffix(channelName + " - " + scopeName, suffix);
         }
@@ -345,7 +346,7 @@ public class MessageKnowledgeManagementService {
         if (suffix != null) {
             return suffix;
         }
-        return "消息证据";
+        return ApiMessages.get("api.t.4bca836b6b44");
     }
 
     private static String appendTitleSuffix(String title, String suffix) {
@@ -463,7 +464,7 @@ public class MessageKnowledgeManagementService {
     private static String humanizeTopic(String topic) {
         String normalized = normalizeBlankToNull(topic);
         if (normalized == null) {
-            return "未分类";
+            return ApiMessages.get("api.t.b28f13ea3e5c");
         }
         String[] parts = normalized.replace('-', '_').split("_|:");
         StringBuilder builder = new StringBuilder();

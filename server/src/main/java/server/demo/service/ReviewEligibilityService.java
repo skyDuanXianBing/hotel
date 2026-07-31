@@ -6,63 +6,64 @@ import server.demo.enums.ReviewActionStatus;
 import server.demo.enums.ReviewActionType;
 import server.demo.enums.ReviewAssociationStatus;
 
+import server.demo.i18n.ApiMessages;
 @Component
 public class ReviewEligibilityService {
 
     public String unavailableReason(ChannelReview review, ReviewActionType actionType) {
         if (review == null) {
-            return "评价不存在";
+            return ApiMessages.get("api.t.dd59c417cc66");
         }
         if (review.getAssociationStatus() != ReviewAssociationStatus.LINKED || review.getReservationId() == null) {
-            return firstNonBlank(review.getAssociationReason(), "评价尚未与本地订单建立确定关联");
+            return firstNonBlank(review.getAssociationReason(), ApiMessages.get("api.t.15a57c558b1b"));
         }
         if (review.getSuChannelId() == null
                 || (review.getSuChannelId() != SuReviewService.CHANNEL_AIRBNB
                 && review.getSuChannelId() != SuReviewService.CHANNEL_BOOKING)) {
-            return "当前渠道不在本期评价能力范围内";
+            return ApiMessages.get("api.t.2cd143ef3fb3");
         }
         if (!"guest_to_host".equalsIgnoreCase(review.getReviewType())) {
-            return "只有住客对房源的评价可执行此操作";
+            return ApiMessages.get("api.t.6576b5d65233");
         }
         if (isActive(review.getLastActionStatus())) {
-            return "该评价已有渠道写操作处理中，请等待同步结果";
+            return ApiMessages.get("api.t.1571783d3660");
         }
         if (isBlank(review.getHotelId())
                 || isBlank(review.getChannelPropertyId())
                 || isBlank(review.getChannelReviewId())) {
-            return "评价缺少 Su 渠道写入标识";
+            return ApiMessages.get("api.t.7ae744b9abf6");
         }
         if (review.getSuChannelId() == SuReviewService.CHANNEL_AIRBNB && isBlank(review.getListingId())) {
-            return "Airbnb 评价缺少 listing_id";
+            return ApiMessages.get("api.t.f8369b63e5c8");
         }
 
         if (actionType == ReviewActionType.REPLY) {
             if (!Boolean.TRUE.equals(review.getCanReply())) {
-                return "Su 未授予当前评价回复资格";
+                return ApiMessages.get("api.t.4929c26741aa");
             }
             if (!isBlank(review.getReplyText())) {
-                return "该评价已有回复";
+                return ApiMessages.get("api.t.f5cee0b15c13");
             }
             if (review.getSuChannelId() == SuReviewService.CHANNEL_BOOKING
                     && isBlank(review.getReviewText())
                     && isBlank(review.getNegativeReviewText())
                     && isBlank(review.getReviewTitle())) {
-                return "Booking.com 无正文评价不可回复";
+                return ApiMessages.get("api.t.8615d95b5e46");
             }
             return null;
         }
 
         if (actionType == ReviewActionType.GUEST_REVIEW) {
             if (review.getSuChannelId() != SuReviewService.CHANNEL_AIRBNB) {
-                return "只有 Airbnb 支持评价住客";
+                return ApiMessages.get("api.t.358aebb298fd");
             }
             if (!Boolean.TRUE.equals(review.getCanReviewGuest())) {
-                return "Su 未授予当前订单评价住客资格";
+                return ApiMessages.get("api.t.8fea5f7bef2c");
             }
             return null;
         }
 
-        return "不支持的评价动作";
+        return ApiMessages.get("api.t.95bddbb88a9a");
     }
 
     private static boolean isActive(ReviewActionStatus status) {

@@ -11,6 +11,7 @@ import server.demo.service.ChatService;
 
 import java.util.UUID;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class ChatServiceImpl implements ChatService {
 
@@ -103,8 +104,8 @@ public class ChatServiceImpl implements ChatService {
     private static String buildLocalizedFallbackMessage(String userMessage) {
         String language = detectLanguageCode(userMessage);
         return switch (language) {
-            case "zh" -> "抱歉，我暂时无法处理这个请求。请稍后再试，或联系人工客服。";
-            case "ja" -> "申し訳ありません。現在このリクエストを処理できません。しばらくしてから再試行するか、スタッフにお問い合わせください。";
+            case "zh" -> ApiMessages.get("api.t.3c190a1a8ace");
+            case "ja" -> ApiMessages.get("api.t.8266b5ac40d7");
             case "ko" -> "죄송합니다. 지금은 요청을 처리할 수 없습니다. 잠시 후 다시 시도하시거나 직원에게 문의해 주세요.";
             case "ar" -> "عذرًا، لا يمكنني معالجة هذا الطلب الآن. يُرجى المحاولة لاحقًا أو التواصل مع موظفي الفندق.";
             case "ru" -> "Извините, сейчас я не могу обработать этот запрос. Попробуйте позже или свяжитесь с персоналом.";

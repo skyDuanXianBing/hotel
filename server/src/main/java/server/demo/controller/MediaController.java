@@ -16,6 +16,7 @@ import server.demo.dto.MediaUploadResponseDTO;
 import server.demo.service.MediaStorageService;
 import server.demo.util.StoreContextUtils;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 媒体上传与公开访问接口。
  */
@@ -35,7 +36,7 @@ public class MediaController {
             @RequestParam("file") MultipartFile file
     ) {
         Long storeId = StoreContextUtils.requireStoreId();
-        return ApiResponse.success("上传成功", mediaStorageService.upload(storeId, scope, file));
+        return ApiResponse.success(ApiMessages.get("api.t.ea9f91791fd5"), mediaStorageService.upload(storeId, scope, file));
     }
 
     @GetMapping("/media/{storeId}/{scope}/{filename:.+}")

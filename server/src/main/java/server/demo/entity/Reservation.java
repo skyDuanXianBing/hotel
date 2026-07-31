@@ -29,12 +29,12 @@ public class Reservation implements StoreScopedEntity {
     @JoinColumn(name = "room_id", nullable = true)
     private Room room;
 
-    @NotNull(message = "渠道不能为空")
+    @NotNull(message = "{api.t.aae668783adc}")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "channel_id", nullable = false)
     private Channel channel;
 
-    @NotBlank(message = "客人姓名不能为空")
+    @NotBlank(message = "{api.t.6a47cd0b1ef1}")
     @Column(name = "guest_name", nullable = false, length = 100)
     private String guestName;
 
@@ -47,11 +47,11 @@ public class Reservation implements StoreScopedEntity {
     @Column(name = "guest_id_card", length = 50)
     private String guestIdCard;
 
-    @NotNull(message = "入住日期不能为空")
+    @NotNull(message = "{api.t.a36570cba9be}")
     @Column(name = "check_in_date", nullable = false)
     private LocalDate checkInDate;
 
-    @NotNull(message = "退房日期不能为空")
+    @NotNull(message = "{api.t.7eeecfd562eb}")
     @Column(name = "check_out_date", nullable = false)
     private LocalDate checkOutDate;
 
@@ -61,13 +61,13 @@ public class Reservation implements StoreScopedEntity {
     @Column(name = "actual_check_out")
     private LocalDateTime actualCheckOut;
 
-    @NotNull(message = "成人数量不能为空")
-    @Min(value = 1, message = "成人数量必须大于0")
+    @NotNull(message = "{api.t.e879fb115f34}")
+    @Min(value = 1, message = "{api.t.b92fc1ab6097}")
     private Integer adults;
 
     private Integer children = 0;
 
-    @NotNull(message = "总金额不能为空")
+    @NotNull(message = "{api.t.a0bb9b808bc4}")
     @Column(name = "total_amount", precision = 10, scale = 2)
     private BigDecimal totalAmount;
 

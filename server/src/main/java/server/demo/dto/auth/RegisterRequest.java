@@ -9,16 +9,16 @@ import jakarta.validation.constraints.Size;
  */
 public class RegisterRequest {
 
-    @NotBlank(message = "邮箱不能为空")
-    @Email(message = "邮箱格式不正确")
+    @NotBlank(message = "{api.t.cfe012352180}")
+    @Email(message = "{api.t.4f0599f86e3f}")
     private String email;
 
-    @NotBlank(message = "验证码不能为空")
-    @Size(min = 6, max = 6, message = "验证码必须为6位")
+    @NotBlank(message = "{api.t.5831be51274d}")
+    @Size(min = 6, max = 6, message = "{api.t.5fead779f17c}")
     private String verificationCode;
 
-    @NotBlank(message = "密码不能为空")
-    @Size(min = 6, max = 20, message = "密码长度必须在6-20位之间")
+    @NotBlank(message = "{api.t.4d81424b0110}")
+    @Size(min = 6, max = 20, message = "{api.t.688f6a69e225}")
     private String password;
 
     public RegisterRequest() {

@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 自动化消息 Service
  */
@@ -47,7 +48,7 @@ public class AutoMessageService {
     private Long getCurrentStoreId() {
         StoreContext context = StoreContextHolder.getContext();
         if (context == null || context.getStoreId() == null) {
-            throw new RuntimeException("无法获取当前门店信息");
+            throw new RuntimeException(ApiMessages.get("api.t.642b7e97c7d4"));
         }
         return context.getStoreId();
     }
@@ -101,14 +102,14 @@ public class AutoMessageService {
 
         Optional<AutoMessage> existingMessage = autoMessageRepository.findById(id);
         if (existingMessage.isEmpty()) {
-            throw new RuntimeException("自动化消息不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.00af031c25a4"));
         }
 
         AutoMessage message = existingMessage.get();
 
         // 验证消息属于当前门店
         if (!storeId.equals(message.getStoreId())) {
-            throw new RuntimeException("无权限修改此自动化消息");
+            throw new RuntimeException(ApiMessages.get("api.t.de5f80a873e8"));
         }
 
         message.setTitle(autoMessage.getTitle());
@@ -136,14 +137,14 @@ public class AutoMessageService {
 
         Optional<AutoMessage> existingMessage = autoMessageRepository.findById(id);
         if (existingMessage.isEmpty()) {
-            throw new RuntimeException("自动化消息不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.00af031c25a4"));
         }
 
         AutoMessage message = existingMessage.get();
 
         // 验证消息属于当前门店
         if (!storeId.equals(message.getStoreId())) {
-            throw new RuntimeException("无权限删除此自动化消息");
+            throw new RuntimeException(ApiMessages.get("api.t.739ab23d12f3"));
         }
 
         autoMessageRepository.deleteById(id);
@@ -158,14 +159,14 @@ public class AutoMessageService {
 
         Optional<AutoMessage> existingMessage = autoMessageRepository.findById(id);
         if (existingMessage.isEmpty()) {
-            throw new RuntimeException("自动化消息不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.00af031c25a4"));
         }
 
         AutoMessage message = existingMessage.get();
 
         // 验证消息属于当前门店
         if (!storeId.equals(message.getStoreId())) {
-            throw new RuntimeException("无权限修改此自动化消息");
+            throw new RuntimeException(ApiMessages.get("api.t.de5f80a873e8"));
         }
 
         message.setEnabled(!message.getEnabled());
@@ -183,20 +184,20 @@ public class AutoMessageService {
      */
     public void replayAutoMessage(Long reservationId, Long autoMessageId) {
         if (reservationId == null) {
-            throw new RuntimeException("缺少 reservationId");
+            throw new RuntimeException(ApiMessages.get("api.t.968b4a819a1b"));
         }
         if (autoMessageId == null) {
-            throw new RuntimeException("缺少 autoMessageId");
+            throw new RuntimeException(ApiMessages.get("api.t.b385ed2f33fe"));
         }
 
         Long storeId = getCurrentStoreId();
         Reservation reservation = reservationRepository.findByStoreIdAndIdWithRoomType(storeId, reservationId)
-                .orElseThrow(() -> new RuntimeException("订单不存在或无权限"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.f1c4f061fbfc")));
         AutoMessage template = autoMessageRepository.findById(autoMessageId)
-                .orElseThrow(() -> new RuntimeException("自动化消息模板不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.bc6f629a29e7")));
 
         if (!storeId.equals(template.getStoreId())) {
-            throw new RuntimeException("无权限重放该自动化消息模板");
+            throw new RuntimeException(ApiMessages.get("api.t.3c79d3cab473"));
         }
 
         autoMessageSendLogClaimService.resetForResend(

@@ -9,10 +9,10 @@ import java.util.List;
  */
 public class BatchUpdateStatusRequest {
 
-    @NotEmpty(message = "账号ID列表不能为空")
+    @NotEmpty(message = "{api.t.f3594450f917}")
     private List<Long> accountIds;
 
-    @NotNull(message = "状态不能为空")
+    @NotNull(message = "{api.t.1318b551d6ba}")
     private Boolean isActive;
 
     public BatchUpdateStatusRequest() {}

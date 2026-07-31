@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 /**
  * Su 图片同步服务。
  */
@@ -44,10 +45,10 @@ public class SuImageSyncService {
 
     public void syncStoreImagesStrict(Long storeId) {
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new RuntimeException("门店不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.051df0941ec3")));
         String hotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
         if (hotelId == null || hotelId.isBlank()) {
-            throw new RuntimeException("Su hotelId 未配置，无法同步门店图片");
+            throw new RuntimeException(ApiMessages.get("api.t.3bd54a473557"));
         }
         List<ImageItem> images = buildStoreImages(store);
         if (images.isEmpty()) {
@@ -62,10 +63,10 @@ public class SuImageSyncService {
             return;
         }
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new RuntimeException("门店不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.051df0941ec3")));
         String hotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
         if (hotelId == null || hotelId.isBlank()) {
-            throw new RuntimeException("Su hotelId 未配置，无法同步房型图片");
+            throw new RuntimeException(ApiMessages.get("api.t.2d040e684232"));
         }
         List<ImageItem> images = buildRoomTypeImages(roomType);
         if (images.isEmpty()) {
@@ -84,10 +85,10 @@ public class SuImageSyncService {
 
     public JsonNode retrieveImages(Long storeId) {
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new RuntimeException("门店不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.051df0941ec3")));
         String hotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
         if (hotelId == null || hotelId.isBlank()) {
-            throw new RuntimeException("Su hotelId 未配置，无法查询图片");
+            throw new RuntimeException(ApiMessages.get("api.t.979d7d8d39f3"));
         }
         return suAccessTokenService.executeWithTokenRetry(
                 token -> suApiClient.retrieveImages(token, Map.of("hotelid", hotelId)),
@@ -120,7 +121,7 @@ public class SuImageSyncService {
         );
         if (!suApiClient.isSuSuccess(createResp)) {
             String err = suApiClient.extractSuErrorMessage(createResp);
-            throw new RuntimeException("Su 图片创建失败: " + (err != null ? err : createResp.toString()));
+            throw new RuntimeException(ApiMessages.get("api.t.615a9d768e07") + (err != null ? err : createResp.toString()));
         }
 
         List<Map<String, Object>> associationImages = images.stream()
@@ -138,7 +139,7 @@ public class SuImageSyncService {
         );
         if (!suApiClient.isSuSuccess(associationResp)) {
             String err = suApiClient.extractSuErrorMessage(associationResp);
-            throw new RuntimeException("Su 图片关联失败: " + (err != null ? err : associationResp.toString()));
+            throw new RuntimeException(ApiMessages.get("api.t.9f2ef0f7fc9c") + (err != null ? err : associationResp.toString()));
         }
         logger.info("[SuImageSync] success. hotelId={}, roomId={}, {}", hotelId, roomId, logContext);
     }
@@ -194,7 +195,7 @@ public class SuImageSyncService {
      */
     String toSuImageUrl(String rawUrl) {
         if (rawUrl == null || rawUrl.isBlank()) {
-            throw new RuntimeException("图片地址不能为空");
+            throw new RuntimeException(ApiMessages.get("api.t.0d96b9dfda80"));
         }
 
         String normalizedUrl = rawUrl.trim();
@@ -204,14 +205,14 @@ public class SuImageSyncService {
                 resolvedUri = URI.create(normalizedUrl);
             } else if (normalizedUrl.startsWith("/")) {
                 if (serverBaseUrl == null || serverBaseUrl.isBlank()) {
-                    throw new RuntimeException("SERVER_BASE_URL 未配置，无法生成图片公网地址");
+                    throw new RuntimeException(ApiMessages.get("api.t.c968cafcd125"));
                 }
                 resolvedUri = URI.create(normalizeBaseUrl(serverBaseUrl)).resolve(normalizedUrl);
             } else {
-                throw new RuntimeException("图片地址格式不正确: " + normalizedUrl);
+                throw new RuntimeException(ApiMessages.get("api.t.5c0e6b4febd9") + normalizedUrl);
             }
         } catch (IllegalArgumentException ex) {
-            throw new RuntimeException("图片地址格式不正确: " + normalizedUrl, ex);
+            throw new RuntimeException(ApiMessages.get("api.t.5c0e6b4febd9") + normalizedUrl, ex);
         }
 
         validateResolvableImageUrl(resolvedUri);
@@ -226,17 +227,17 @@ public class SuImageSyncService {
     private static void validateResolvableImageUrl(URI uri) {
         String scheme = uri.getScheme();
         if (scheme == null || (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))) {
-            throw new RuntimeException("图片地址必须为 http 或 https: " + uri);
+            throw new RuntimeException(ApiMessages.get("api.t.6eb1c8749147") + uri);
         }
 
         String host = uri.getHost();
         if (host == null || host.isBlank()) {
-            throw new RuntimeException("图片地址缺少可访问域名: " + uri);
+            throw new RuntimeException(ApiMessages.get("api.t.270a10a5de97") + uri);
         }
 
         String normalizedHost = host.trim().toLowerCase();
         if ("localhost".equals(normalizedHost) || "127.0.0.1".equals(normalizedHost) || "::1".equals(normalizedHost)) {
-            throw new RuntimeException("图片地址不能使用本地回环地址，请使用可公网访问的后端域名: " + uri);
+            throw new RuntimeException(ApiMessages.get("api.t.f0026010981d") + uri);
         }
     }
 

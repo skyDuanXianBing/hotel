@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import server.demo.dto.ManagedOperationDtos;
 import server.demo.entity.ManagedOperationSettings;
 import server.demo.exception.ManagedOperationValidationException;
+import server.demo.i18n.ApiMessages;
 
 import java.awt.Font;
 import java.io.ByteArrayOutputStream;
@@ -45,7 +46,7 @@ public class ManagedOperationPdfService {
 
     public ExportFile export(Long storeId, String documentType, ManagedOperationSettlementService.CalculationResult result) {
         if (!result.preview().exportAllowed()) {
-            throw new ManagedOperationValidationException("当前预览存在阻断问题，不能导出");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.ca0d4c5b8848"));
         }
         String base = safeFilename(result.settings().getPropertyName());
         if (base.isBlank()) base = "managed-operation";
@@ -57,7 +58,7 @@ public class ManagedOperationPdfService {
             case "invoice" -> new ExportFile(render(invoiceHtml(storeId, result, false)), "application/pdf", base + "-請求書.pdf");
             case "receipt" -> new ExportFile(render(invoiceHtml(storeId, result, true)), "application/pdf", base + "-領収書.pdf");
             case "all" -> new ExportFile(zip(storeId, result, base), "application/zip", base + "-documents.zip");
-            default -> throw new ManagedOperationValidationException("不支持的文档类型");
+            default -> throw new ManagedOperationValidationException(ApiMessages.get("api.t.7eedf1f9f31d"));
         };
     }
 
@@ -69,7 +70,7 @@ public class ManagedOperationPdfService {
             zip.finish();
             return output.toByteArray();
         } catch (Exception ex) {
-            throw new ManagedOperationValidationException("ZIP 生成失败", ex);
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.9768dc7378fc"), ex);
         }
     }
 
@@ -84,8 +85,7 @@ public class ManagedOperationPdfService {
     private byte[] render(String html) {
         Path font = resolveCjkFont(html);
         if (font == null) {
-            throw new ManagedOperationValidationException(
-                    "服务器未配置可用的 CJK 字体，已拒绝生成可能乱码的 PDF");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.248170dae7f4"));
         }
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             PdfRendererBuilder builder = new PdfRendererBuilder();
@@ -96,13 +96,13 @@ public class ManagedOperationPdfService {
             builder.run();
             byte[] bytes = output.toByteArray();
             if (bytes.length < 5 || bytes[0] != '%' || bytes[1] != 'P' || bytes[2] != 'D' || bytes[3] != 'F') {
-                throw new ManagedOperationValidationException("PDF 渲染结果无效");
+                throw new ManagedOperationValidationException(ApiMessages.get("api.t.28f4746d7b56"));
             }
             return bytes;
         } catch (ManagedOperationValidationException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new ManagedOperationValidationException("PDF 生成失败: " + ex.getMessage(), ex);
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.ec8450f09396") + ex.getMessage(), ex);
         }
     }
 
@@ -301,7 +301,7 @@ public class ManagedOperationPdfService {
                 }
             }, true);
         } catch (IOException ex) {
-            throw new IllegalStateException("HTML 可见文本解析失败", ex);
+            throw new IllegalStateException(ApiMessages.get("api.t.c54cbf6c5ddb"), ex);
         }
 
         StringBuilder requiredCharacters = new StringBuilder();
@@ -371,16 +371,16 @@ public class ManagedOperationPdfService {
 
     private static void validateDocumentFields(String type, ManagedOperationDtos.RunRequest request) {
         if (!("settlement".equals(type) || "invoice".equals(type) || "receipt".equals(type) || "all".equals(type))) {
-            throw new ManagedOperationValidationException("不支持的文档类型");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.7eedf1f9f31d"));
         }
         if ("invoice".equals(type) || "all".equals(type)) {
             if (request.invoiceDate() == null || request.invoiceNumber() == null || request.invoiceNumber().isBlank()) {
-                throw new ManagedOperationValidationException("导出请款书前必须填写请款日期和编号");
+                throw new ManagedOperationValidationException(ApiMessages.get("api.t.9028dd3e84dc"));
             }
         }
         if ("receipt".equals(type) || "all".equals(type)) {
             if (request.receiptDate() == null || request.receiptNumber() == null || request.receiptNumber().isBlank()) {
-                throw new ManagedOperationValidationException("导出收据前必须填写收据日期和编号");
+                throw new ManagedOperationValidationException(ApiMessages.get("api.t.1b6991259d01"));
             }
         }
     }

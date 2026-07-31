@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class ManagedOperationSettlementService {
     private final ManagedOperationSettingsService settingsService;
@@ -98,19 +99,19 @@ public class ManagedOperationSettlementService {
         for (ManagedOperationDtos.PreviewLine line : lines) counts.merge(line.status(), 1, Integer::sum);
         List<String> blockingReasons = new ArrayList<>();
         if (counts.get(ManagedOperationDtos.LineStatus.UNMATCHED) > 0) {
-            blockingReasons.add("存在未匹配或关键资料冲突的本月订单");
+            blockingReasons.add(ApiMessages.get("api.t.3d3475643542"));
         }
         if (counts.get(ManagedOperationDtos.LineStatus.AMBIGUOUS) > 0) {
-            blockingReasons.add("存在重复预约号、歧义匹配或同一本地订单重复计入");
+            blockingReasons.add(ApiMessages.get("api.t.a7688fff0fbb"));
         }
         if (summary.includedReservationCount() == 0) {
-            blockingReasons.add("没有可纳入结算的订单");
+            blockingReasons.add(ApiMessages.get("api.t.19057091b1bf"));
         }
         if (summary.settlementSubtotal().signum() < 0) {
-            blockingReasons.add("精算小计为负数，不能生成汇款单据");
+            blockingReasons.add(ApiMessages.get("api.t.d11a76a58370"));
         }
         if (summary.finalTransfer().signum() < 0) {
-            blockingReasons.add("最终汇款金额为负数，不能生成汇款单据");
+            blockingReasons.add(ApiMessages.get("api.t.f3f0ffd04610"));
         }
         ManagedOperationDtos.PreviewResponse response = new ManagedOperationDtos.PreviewResponse(
                 lines,
@@ -133,39 +134,39 @@ public class ManagedOperationSettlementService {
         List<String> warnings = new ArrayList<>();
         if (!YearMonth.from(row.checkOutDate()).equals(month)) {
             return excluded(row, null, "", cleaningFeeNet, ManagedOperationDtos.LineStatus.PERIOD_EXCLUDED,
-                    "退房日期不属于结算月份");
+                    ApiMessages.get("api.t.247e1414e189"));
         }
         if (relevantKeyCounts.getOrDefault(row.platform() + ":" + row.bookingKey(), 0L) > 1) {
             return excluded(row, null, "", cleaningFeeNet, ManagedOperationDtos.LineStatus.AMBIGUOUS,
-                    "上传文件内预约号重复");
+                    ApiMessages.get("api.t.af8d9ddef234"));
         }
         List<Reservation> exact = byKey.getOrDefault(row.bookingKey(), List.of()).stream()
                 .filter(reservation -> isPlatform(reservation.getChannel(), row.platform()))
                 .toList();
         if (exact.isEmpty()) {
-            String reason = byKey.containsKey(row.bookingKey()) ? "本地订单渠道与上传平台不一致" : "未找到预约号完全一致的本地订单";
+            String reason = byKey.containsKey(row.bookingKey()) ? ApiMessages.get("api.t.ac1bd52fa75d") : ApiMessages.get("api.t.428abacf8652");
             return excluded(row, null, "", cleaningFeeNet, ManagedOperationDtos.LineStatus.UNMATCHED, reason);
         }
         if (exact.size() > 1) {
             return excluded(row, null, "", cleaningFeeNet, ManagedOperationDtos.LineStatus.AMBIGUOUS,
-                    "预约号匹配到多个本地订单");
+                    ApiMessages.get("api.t.6d365e9e64cd"));
         }
         Reservation reservation = exact.get(0);
         if (reservation.getCurrencyCode() != null && !reservation.getCurrencyCode().isBlank()
                 && !"JPY".equalsIgnoreCase(reservation.getCurrencyCode().strip())) {
             return excluded(row, reservation.getId(), roomNumber(reservation), cleaningFeeNet,
-                    ManagedOperationDtos.LineStatus.UNMATCHED, "本地订单币种不是 JPY");
+                    ManagedOperationDtos.LineStatus.UNMATCHED, ApiMessages.get("api.t.988b5117a39c"));
         }
         if (!row.checkInDate().equals(reservation.getCheckInDate()) || !row.checkOutDate().equals(reservation.getCheckOutDate())) {
             return excluded(row, reservation.getId(), roomNumber(reservation), cleaningFeeNet,
-                    ManagedOperationDtos.LineStatus.UNMATCHED, "上传日期与本地订单日期不一致");
+                    ManagedOperationDtos.LineStatus.UNMATCHED, ApiMessages.get("api.t.fae321668c12"));
         }
         if (!normalizeGuest(row.guestName()).equals(normalizeGuest(reservation.getGuestName()))) {
-            warnings.add("上传客人姓名与本地订单不一致");
+            warnings.add(ApiMessages.get("api.t.d2c8ec2c3467"));
         }
         if (reservation.getStatus() == ReservationStatus.CANCELLED || reservation.getStatus() == ReservationStatus.NO_SHOW) {
             return excluded(row, reservation.getId(), roomNumber(reservation), cleaningFeeNet,
-                    ManagedOperationDtos.LineStatus.CANCELLED, "本地订单已取消或未到店", warnings);
+                    ManagedOperationDtos.LineStatus.CANCELLED, ApiMessages.get("api.t.2f3622cc37b7"), warnings);
         }
 
         String resolvedRoomNumber;
@@ -173,19 +174,19 @@ public class ManagedOperationSettlementService {
             resolvedRoomNumber = reservation.getRoom().getRoomNumber();
             if (!selectedRoomIds.containsKey(reservation.getRoom().getId())) {
                 return excluded(row, reservation.getId(), resolvedRoomNumber, cleaningFeeNet,
-                        ManagedOperationDtos.LineStatus.ROOM_EXCLUDED, "订单不属于所选代运营房间", warnings);
+                        ManagedOperationDtos.LineStatus.ROOM_EXCLUDED, ApiMessages.get("api.t.de8020133742"), warnings);
             }
         } else {
             String otaRoomNumber = normalizeRoomNumber(reservation.getOtaRoomNumber());
             List<Room> mapped = selectedByNumber.getOrDefault(otaRoomNumber, List.of());
             if (otaRoomNumber.isBlank()) {
                 return excluded(row, reservation.getId(), "", cleaningFeeNet,
-                        ManagedOperationDtos.LineStatus.UNMATCHED, "本地订单尚未分配房间且没有 OTA 房间号", warnings);
+                        ManagedOperationDtos.LineStatus.UNMATCHED, ApiMessages.get("api.t.14ce900772bc"), warnings);
             }
             if (mapped.size() != 1) {
                 return excluded(row, reservation.getId(), reservation.getOtaRoomNumber(), cleaningFeeNet,
                         mapped.size() > 1 ? ManagedOperationDtos.LineStatus.AMBIGUOUS : ManagedOperationDtos.LineStatus.ROOM_EXCLUDED,
-                        mapped.size() > 1 ? "OTA 房间号无法唯一映射" : "OTA 房间号不属于所选代运营房间", warnings);
+                        mapped.size() > 1 ? ApiMessages.get("api.t.aac343415e5e") : ApiMessages.get("api.t.e0223e385850"), warnings);
             }
             resolvedRoomNumber = mapped.get(0).getRoomNumber();
         }
@@ -204,7 +205,7 @@ public class ManagedOperationSettlementService {
             EvaluatedLine item = evaluated.get(i);
             if (item.reservationId() != null && counts.getOrDefault(item.reservationId(), 0L) > 1) {
                 List<String> warnings = new ArrayList<>(item.line().warnings());
-                warnings.add("同一本地订单在上传数据中出现多次");
+                warnings.add(ApiMessages.get("api.t.bc312853a20e"));
                 evaluated.set(i, new EvaluatedLine(withStatus(item.line(), ManagedOperationDtos.LineStatus.AMBIGUOUS, warnings),
                         item.reservationId(), null));
             }
@@ -274,24 +275,24 @@ public class ManagedOperationSettlementService {
 
     private static YearMonth validateRunRequest(ManagedOperationDtos.RunRequest request) {
         if (request == null || request.settlementMonth() == null) {
-            throw new ManagedOperationValidationException("请选择结算月份");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.7e604be81e55"));
         }
         try {
             YearMonth month = YearMonth.parse(request.settlementMonth());
             if (request.deductions() != null && request.deductions().size() > 100) {
-                throw new ManagedOperationValidationException("其他扣款项目不能超过 100 项");
+                throw new ManagedOperationValidationException(ApiMessages.get("api.t.04e6bbd990ff"));
             }
             if (request.note() != null && request.note().length() > 1000) {
-                throw new ManagedOperationValidationException("备注不能超过 1000 字符");
+                throw new ManagedOperationValidationException(ApiMessages.get("api.t.aa5c0fd385c7"));
             }
             for (String value : List.of(
                     request.invoiceNumber() == null ? "" : request.invoiceNumber(),
                     request.receiptNumber() == null ? "" : request.receiptNumber())) {
-                if (value.length() > 100) throw new ManagedOperationValidationException("单据编号不能超过 100 字符");
+                if (value.length() > 100) throw new ManagedOperationValidationException(ApiMessages.get("api.t.2cd27799cc05"));
             }
             return month;
         } catch (DateTimeParseException ex) {
-            throw new ManagedOperationValidationException("结算月份格式必须为 YYYY-MM");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.19b040f67f48"));
         }
     }
 

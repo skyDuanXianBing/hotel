@@ -13,6 +13,7 @@ import server.demo.service.BusinessStatisticsService;
 import java.time.LocalDate;
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/statistics/business")
 @StoreScoped
@@ -36,14 +37,14 @@ public class BusinessStatisticsController {
 
         try {
             if (startDate.isAfter(endDate)) {
-                return ApiResponse.error("开始日期不能晚于结束日期");
+                return ApiResponse.error(ApiMessages.get("api.t.43318cbb9f3c"));
             }
 
             BusinessSummaryDTO summary = businessStatisticsService.getBusinessSummary(startDate, endDate);
-            return ApiResponse.success("获取营业汇总成功", summary);
+            return ApiResponse.success(ApiMessages.get("api.t.d2829f11cc88"), summary);
         } catch (Exception e) {
             e.printStackTrace();
-            return ApiResponse.error("获取营业汇总失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.f9230ddda680") + e.getMessage());
         }
     }
 
@@ -62,14 +63,14 @@ public class BusinessStatisticsController {
 
         try {
             if (startDate.isAfter(endDate)) {
-                return ApiResponse.error("开始日期不能晚于结束日期");
+                return ApiResponse.error(ApiMessages.get("api.t.43318cbb9f3c"));
             }
 
             List<DailyOccupancyDTO> occupancyList = businessStatisticsService.getDailyOccupancy(startDate, endDate);
-            return ApiResponse.success("获取每日入住率成功", occupancyList);
+            return ApiResponse.success(ApiMessages.get("api.t.7dbc0836a7cc"), occupancyList);
         } catch (Exception e) {
             e.printStackTrace();
-            return ApiResponse.error("获取每日入住率失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.799508da3449") + e.getMessage());
         }
     }
 
@@ -88,14 +89,14 @@ public class BusinessStatisticsController {
 
         try {
             if (startDate.isAfter(endDate)) {
-                return ApiResponse.error("开始日期不能晚于结束日期");
+                return ApiResponse.error(ApiMessages.get("api.t.43318cbb9f3c"));
             }
 
             BusinessOverviewDTO overview = businessStatisticsService.getBusinessOverview(startDate, endDate);
-            return ApiResponse.success("获取营业概况成功", overview);
+            return ApiResponse.success(ApiMessages.get("api.t.f3f3caccea46"), overview);
         } catch (Exception e) {
             e.printStackTrace();
-            return ApiResponse.error("获取营业概况失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.65942cd490d2") + e.getMessage());
         }
     }
 
@@ -114,14 +115,14 @@ public class BusinessStatisticsController {
 
         try {
             if (startDate.isAfter(endDate)) {
-                return ApiResponse.error("开始日期不能晚于结束日期");
+                return ApiResponse.error(ApiMessages.get("api.t.43318cbb9f3c"));
             }
 
             RevenueSummaryDTO summary = businessStatisticsService.getRevenueSummary(startDate, endDate);
-            return ApiResponse.success("获取流水汇总成功", summary);
+            return ApiResponse.success(ApiMessages.get("api.t.c8815cc66065"), summary);
         } catch (Exception e) {
             e.printStackTrace();
-            return ApiResponse.error("获取流水汇总失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.dce08a71201e") + e.getMessage());
         }
     }
 
@@ -140,14 +141,14 @@ public class BusinessStatisticsController {
 
         try {
             if (startDate.isAfter(endDate)) {
-                return ApiResponse.error("开始日期不能晚于结束日期");
+                return ApiResponse.error(ApiMessages.get("api.t.43318cbb9f3c"));
             }
 
             ChannelSummaryDTO summary = businessStatisticsService.getChannelSummary(startDate, endDate);
-            return ApiResponse.success("获取渠道汇总成功", summary);
+            return ApiResponse.success(ApiMessages.get("api.t.213137f8e90a"), summary);
         } catch (Exception e) {
             e.printStackTrace();
-            return ApiResponse.error("获取渠道汇总失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.6c62aec9745c") + e.getMessage());
         }
     }
 
@@ -173,7 +174,7 @@ public class BusinessStatisticsController {
 
         try {
             if (startDate.isAfter(endDate)) {
-                return ApiResponse.error("开始日期不能晚于结束日期");
+                return ApiResponse.error(ApiMessages.get("api.t.43318cbb9f3c"));
             }
 
             SalesSummaryDTO summary = businessStatisticsService.getSalesSummary(
@@ -185,10 +186,10 @@ public class BusinessStatisticsController {
                     page,
                     pageSize
             );
-            return ApiResponse.success("获取销售汇总成功", summary);
+            return ApiResponse.success(ApiMessages.get("api.t.1791c9c317bf"), summary);
         } catch (Exception e) {
             e.printStackTrace();
-            return ApiResponse.error("获取销售汇总失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.335e955d3a27") + e.getMessage());
         }
     }
 
@@ -207,14 +208,14 @@ public class BusinessStatisticsController {
 
         try {
             if (startDate.isAfter(endDate)) {
-                return ApiResponse.error("开始日期不能晚于结束日期");
+                return ApiResponse.error(ApiMessages.get("api.t.43318cbb9f3c"));
             }
 
             OperationalMetricsDTO metrics = businessStatisticsService.getOperationalMetrics(startDate, endDate);
-            return ApiResponse.success("获取经营指标成功", metrics);
+            return ApiResponse.success(ApiMessages.get("api.t.7687b19c35c1"), metrics);
         } catch (Exception e) {
             e.printStackTrace();
-            return ApiResponse.error("获取经营指标失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.2f09485e6105") + e.getMessage());
         }
     }
 }

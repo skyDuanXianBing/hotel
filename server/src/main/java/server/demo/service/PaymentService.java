@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class PaymentService {
 
@@ -88,13 +89,13 @@ public class PaymentService {
 
     private Reservation loadReservationInStore(Long reservationId) {
         if (reservationId == null) {
-            throw new RuntimeException("\u8ba2\u5355ID\u4e0d\u80fd\u4e3a\u7a7a");
+            throw new RuntimeException(ApiMessages.get("api.t.71af9c71ecf6"));
         }
         Long storeId = StoreContextUtils.requireStoreId();
         Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new RuntimeException("\u8ba2\u5355\u4e0d\u5b58\u5728"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.b8768a4b0d04")));
         if (!Objects.equals(storeId, reservation.getStoreId())) {
-            throw new RuntimeException("\u65e0\u6743\u9650\u64cd\u4f5c\u8be5\u8ba2\u5355");
+            throw new RuntimeException(ApiMessages.get("api.t.546ee30881d4"));
         }
         return reservation;
     }

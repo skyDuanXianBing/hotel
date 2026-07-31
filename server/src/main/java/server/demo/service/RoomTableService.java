@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 @Service
 @Transactional
 public class RoomTableService {
@@ -46,7 +47,7 @@ public class RoomTableService {
     private static final String DISPLAY_STATUS_AVAILABLE_MANY = "AVAILABLE_MANY";
     private static final String STATUS_BLOCKED = "BLOCKED";
     private static final String STATUS_UNKNOWN = "UNKNOWN";
-    private static final String UNKNOWN_ROOM_TYPE_NAME = "未知房型";
+    private static final String UNKNOWN_ROOM_TYPE_NAME_KEY = "api.t.bf9c87e5ff5b";
     private static final String BLOCKED_REASON_RESERVATION = "RESERVATION";
     private static final String BLOCKED_REASON_BLOCKOUT = "BLOCKOUT";
     private static final String BLOCKED_REASON_STATIC_STATUS = "STATIC_STATUS";
@@ -88,7 +89,7 @@ public class RoomTableService {
             // 获取当前门店ID
             server.demo.context.StoreContext storeContext = server.demo.context.StoreContextHolder.getContext();
             if (storeContext == null || storeContext.getStoreId() == null) {
-                throw new RuntimeException("无法获取当前门店信息");
+                throw new RuntimeException(ApiMessages.get("api.t.642b7e97c7d4"));
             }
             Long currentStoreId = storeContext.getStoreId();
 
@@ -96,7 +97,7 @@ public class RoomTableService {
             List<RoomType> roomTypes = roomTypeRepository.findByStoreId(currentStoreId);
 
             List<RoomTableStatisticsDTO> statisticsList = new ArrayList<>();
-            RoomTableStatisticsDTO totalStatistics = new RoomTableStatisticsDTO("合计", 0);
+            RoomTableStatisticsDTO totalStatistics = new RoomTableStatisticsDTO(ApiMessages.get("api.t.92bcbf71cb7b"), 0);
 
             for (RoomType roomType : roomTypes) {
                 RoomTableStatisticsDTO statistics = calculateRoomTypeStatistics(roomType, date, currentStoreId);
@@ -114,9 +115,9 @@ public class RoomTableService {
 
             return new RoomTableDataDTO(date, statisticsList, totalStatistics);
         } catch (Exception e) {
-            System.err.println("获取房情表数据失败: " + e.getMessage());
+            System.err.println(ApiMessages.get("api.t.857771d8186e") + e.getMessage());
             e.printStackTrace();
-            throw new RuntimeException("获取房情表数据失败: " + e.getMessage(), e);
+            throw new RuntimeException(ApiMessages.get("api.t.857771d8186e") + e.getMessage(), e);
         }
     }
 
@@ -209,7 +210,7 @@ public class RoomTableService {
         for (Room room : rooms) {
             RoomType roomType = room.getRoomType();
             Long currentRoomTypeId = roomType != null ? roomType.getId() : null;
-            String roomTypeName = roomType != null ? roomType.getName() : UNKNOWN_ROOM_TYPE_NAME;
+            String roomTypeName = roomType != null ? roomType.getName() : ApiMessages.get(UNKNOWN_ROOM_TYPE_NAME_KEY);
             List<RoomTableMonthlyResponse.MonthlyDailyStatusDTO> dailyStatuses = new ArrayList<>();
             for (LocalDate date : dates) {
                 RoomTypeDateCalculation calculation = calculationByTypeDate.get(
@@ -239,14 +240,14 @@ public class RoomTableService {
 
     private void validateMonthlyDateRange(LocalDate startDate, LocalDate endDate) {
         if (startDate == null || endDate == null) {
-            throw new IllegalArgumentException("开始日期和结束日期不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.4804f72f220f"));
         }
         if (endDate.isBefore(startDate)) {
-            throw new IllegalArgumentException("结束日期不能早于开始日期");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.4abaf147f640"));
         }
         long days = ChronoUnit.DAYS.between(startDate, endDate) + 1;
         if (days > MAX_MONTHLY_DAYS) {
-            throw new IllegalArgumentException("月度房情查询范围不能超过 " + MAX_MONTHLY_DAYS + " 天");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.4cc2d471c5c0") + MAX_MONTHLY_DAYS + ApiMessages.get("api.t.f8bb0516cc5b"));
         }
     }
 
@@ -792,7 +793,7 @@ public class RoomTableService {
         } catch (Exception e) {
             System.err.println("计算房型 " + roomType.getName() + " 统计数据失败: " + e.getMessage());
             e.printStackTrace();
-            throw new RuntimeException("计算房型统计数据失败: " + e.getMessage(), e);
+            throw new RuntimeException(ApiMessages.get("api.t.daf30b99922d") + e.getMessage(), e);
         }
     }
 
@@ -825,9 +826,9 @@ public class RoomTableService {
             statistics.setDailyCancelledRooms(todayCancelledReservations.size());
             System.out.println("当日取消: " + todayCancelledReservations.size());
         } catch (Exception e) {
-            System.err.println("计算预订统计数据失败: " + e.getMessage());
+            System.err.println(ApiMessages.get("api.t.69d40e214e68") + e.getMessage());
             e.printStackTrace();
-            throw new RuntimeException("计算预订统计数据失败: " + e.getMessage(), e);
+            throw new RuntimeException(ApiMessages.get("api.t.69d40e214e68") + e.getMessage(), e);
         }
     }
 

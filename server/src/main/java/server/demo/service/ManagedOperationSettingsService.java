@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class ManagedOperationSettingsService {
     private final ManagedOperationSettingsRepository settingsRepository;
@@ -53,24 +54,24 @@ public class ManagedOperationSettingsService {
     @Transactional
     public ManagedOperationDtos.SettingsResponse saveSettings(Long storeId, ManagedOperationDtos.SettingsRequest request) {
         if (request == null) {
-            throw new ManagedOperationValidationException("配置不能为空");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.26f60647de6f"));
         }
-        requireText(request.propertyName(), "物业/方案名称");
-        requireText(request.ownerCompanyName(), "房东公司");
-        requireText(request.issuerCompanyName(), "开票方公司");
-        validateRate(request.managementFeeRate(), "管理费率");
-        validateRate(request.taxRate(), "消费税率");
-        validateMoney(request.cleaningFeeGross(), "含税清洁费");
-        validateMoney(request.registrationFeeNet(), "名簿制作费");
+        requireText(request.propertyName(), ApiMessages.get("api.t.0d86438422da"));
+        requireText(request.ownerCompanyName(), ApiMessages.get("api.t.1e81fa8e9c37"));
+        requireText(request.issuerCompanyName(), ApiMessages.get("api.t.ad9f84bcbe1a"));
+        validateRate(request.managementFeeRate(), ApiMessages.get("api.t.b457f2525d4d"));
+        validateRate(request.taxRate(), ApiMessages.get("api.t.49afb4e7bdf8"));
+        validateMoney(request.cleaningFeeGross(), ApiMessages.get("api.t.ca2708ecfc3b"));
+        validateMoney(request.registrationFeeNet(), ApiMessages.get("api.t.1fda0430b730"));
 
         List<Long> roomIds = request.selectedRoomIds() == null ? List.of()
                 : new ArrayList<>(new LinkedHashSet<>(request.selectedRoomIds()));
         if (roomIds.stream().anyMatch(id -> id == null || id <= 0)) {
-            throw new ManagedOperationValidationException("房间选择包含非法值");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.865927e11455"));
         }
         List<Room> rooms = roomIds.isEmpty() ? List.of() : roomRepository.findByStoreIdAndIdIn(storeId, roomIds);
         if (rooms.size() != roomIds.size()) {
-            throw new ManagedOperationValidationException("部分房间不存在或不属于当前门店");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.a3269b668450"));
         }
 
         ManagedOperationSettings settings = settingsRepository.findByStoreId(storeId)
@@ -97,7 +98,7 @@ public class ManagedOperationSettingsService {
         String oldKey = settings.getStampStorageKey();
         String newKey = stampStorage.store(storeId, file);
         if (newKey == null || !newKey.startsWith(storeId + "/")) {
-            throw new ManagedOperationValidationException("印章存储路径与当前门店不一致");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.03597afc7bf4"));
         }
         try {
             registerStampSwapSynchronization(storeId, oldKey, newKey);
@@ -147,24 +148,24 @@ public class ManagedOperationSettingsService {
         List<Room> rooms = managedRoomRepository.findByStoreIdAndSettingsIdWithRoom(storeId, settings.getId())
                 .stream().map(ManagedOperationRoom::getRoom).toList();
         if (rooms.isEmpty()) {
-            throw new ManagedOperationValidationException("请先选择至少一个代运营房间");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.1c11f3ccce67"));
         }
         return new SettingsSnapshot(settings, rooms);
     }
 
     static void validateSnapshotSettings(ManagedOperationSettings settings) {
-        requireText(settings.getPropertyName(), "物业/方案名称");
-        requireText(settings.getOwnerCompanyName(), "房东公司");
-        requireText(settings.getIssuerCompanyName(), "开票方公司");
-        validateRate(settings.getManagementFeeRate(), "管理费率");
-        validateRate(settings.getTaxRate(), "消费税率");
-        validateMoney(settings.getCleaningFeeGross(), "含税清洁费");
-        validateMoney(settings.getRegistrationFeeNet(), "名簿制作费");
+        requireText(settings.getPropertyName(), ApiMessages.get("api.t.0d86438422da"));
+        requireText(settings.getOwnerCompanyName(), ApiMessages.get("api.t.1e81fa8e9c37"));
+        requireText(settings.getIssuerCompanyName(), ApiMessages.get("api.t.ad9f84bcbe1a"));
+        validateRate(settings.getManagementFeeRate(), ApiMessages.get("api.t.b457f2525d4d"));
+        validateRate(settings.getTaxRate(), ApiMessages.get("api.t.49afb4e7bdf8"));
+        validateMoney(settings.getCleaningFeeGross(), ApiMessages.get("api.t.ca2708ecfc3b"));
+        validateMoney(settings.getRegistrationFeeNet(), ApiMessages.get("api.t.1fda0430b730"));
     }
 
     private ManagedOperationSettings requirePersistedSettings(Long storeId) {
         return settingsRepository.findByStoreId(storeId)
-                .orElseThrow(() -> new ManagedOperationValidationException("请先保存代运营结算配置"));
+                .orElseThrow(() -> new ManagedOperationValidationException(ApiMessages.get("api.t.3767788d9e41")));
     }
 
     private List<ManagedOperationDtos.RoomOption> availableRooms(Long storeId) {
@@ -217,26 +218,26 @@ public class ManagedOperationSettingsService {
     private static String text(String value, int maxLength) {
         String normalized = value == null ? "" : value.trim();
         if (normalized.length() > maxLength) {
-            throw new ManagedOperationValidationException("配置文字长度超过限制");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.24c862ea003b"));
         }
         return normalized;
     }
 
     private static void requireText(String value, String field) {
         if (value == null || value.isBlank()) {
-            throw new ManagedOperationValidationException(field + "不能为空");
+            throw new ManagedOperationValidationException(field + ApiMessages.get("api.t.44fa2a2c698d"));
         }
     }
 
     private static void validateRate(BigDecimal rate, String field) {
         if (rate == null || rate.signum() < 0 || rate.compareTo(BigDecimal.ONE) > 0) {
-            throw new ManagedOperationValidationException(field + "必须在 0 到 1 之间");
+            throw new ManagedOperationValidationException(field + ApiMessages.get("api.t.b1d5d5a3a6dc"));
         }
     }
 
     private static void validateMoney(BigDecimal amount, String field) {
         if (amount == null || amount.signum() < 0 || amount.compareTo(new BigDecimal("1000000000")) > 0) {
-            throw new ManagedOperationValidationException(field + "金额不合法");
+            throw new ManagedOperationValidationException(field + ApiMessages.get("api.t.b8be414d90f8"));
         }
         ManagedOperationMoneyRules.requireWholeYen(amount, field);
     }

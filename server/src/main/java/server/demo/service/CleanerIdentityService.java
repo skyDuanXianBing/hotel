@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class CleanerIdentityService {
 
@@ -55,7 +56,7 @@ public class CleanerIdentityService {
             Long invitedByUserId
     ) {
         if (userRepository.findByEmail(email).isPresent()) {
-            throw new RuntimeException("该邮箱已存在系统账号，请更换邮箱后再注册保洁员");
+            throw new RuntimeException(ApiMessages.get("api.t.0afdcd6c012f"));
         }
 
         return saveCleanerUserAccount(
@@ -79,7 +80,7 @@ public class CleanerIdentityService {
     ) {
         User existingUser = userRepository.findByEmail(email).orElse(null);
         if (existingUser != null && !Boolean.TRUE.equals(existingUser.getIsActive())) {
-            throw new RuntimeException("该邮箱对应的系统账号已停用，请先由管理员恢复账号");
+            throw new RuntimeException(ApiMessages.get("api.t.f3a6dedb1a33"));
         }
         return saveCleanerUserAccount(
                 existingUser,
@@ -99,7 +100,7 @@ public class CleanerIdentityService {
 
     private Cleaner ensureCleanerIdentity(Cleaner cleaner, boolean allowMembershipActivation) {
         if (cleaner == null) {
-            throw new RuntimeException("保洁员信息不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.dfe1c28c2223"));
         }
 
         Store store = loadStore(cleaner.getStoreId());
@@ -126,7 +127,7 @@ public class CleanerIdentityService {
             return Optional.empty();
         }
         if (cleaners.size() > 1) {
-            throw new RuntimeException("同一门店下存在重复的保洁员身份，请联系管理员检查数据");
+            throw new RuntimeException(ApiMessages.get("api.t.f0cc9c6c87d4"));
         }
         return Optional.of(cleaners.get(0));
     }
@@ -134,13 +135,13 @@ public class CleanerIdentityService {
     @Transactional
     public Cleaner ensureCleanerIdentityByEmail(String email) {
         Cleaner cleaner = cleanerRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("该邮箱未注册保洁员账号"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.fb039f84b5a2")));
         return ensureCleanerIdentity(cleaner, false);
     }
 
     public Cleaner getRequiredCleanerByUserIdAndStoreId(Long userId, Long storeId) {
         return findCleanerByUserIdAndStoreId(userId, storeId)
-                .orElseThrow(() -> new RuntimeException("当前账号未绑定保洁员身份"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.b1eb9357cc3e")));
     }
 
     @Transactional(readOnly = true)
@@ -149,26 +150,26 @@ public class CleanerIdentityService {
         HashSet<Long> seenUserIds = new HashSet<>();
         for (Cleaner cleaner : cleanerRepository.findByStoreIdAndIsActiveTrue(storeId)) {
             if (cleaner.getUserId() == null) {
-                issues.add("cleanerId=" + cleaner.getId() + " 未绑定系统用户");
+                issues.add("cleanerId=" + cleaner.getId() + ApiMessages.get("api.t.67d49d3d6412"));
                 continue;
             }
             if (!seenUserIds.add(cleaner.getUserId())) {
-                issues.add("userId=" + cleaner.getUserId() + " 在当前门店存在重复保洁身份");
+                issues.add("userId=" + cleaner.getUserId() + ApiMessages.get("api.t.0b3d8b33847e"));
             }
             User user = userRepository.findById(cleaner.getUserId()).orElse(null);
             if (user == null) {
-                issues.add("cleanerId=" + cleaner.getId() + " 绑定的系统用户不存在");
+                issues.add("cleanerId=" + cleaner.getId() + ApiMessages.get("api.t.3b7523a98d66"));
                 continue;
             }
             if (!emailEquals(user.getEmail(), cleaner.getEmail())) {
-                issues.add("cleanerId=" + cleaner.getId() + " 与系统用户邮箱不一致");
+                issues.add("cleanerId=" + cleaner.getId() + ApiMessages.get("api.t.01d0d078db3e"));
             }
             if (!Boolean.TRUE.equals(user.getIsActive())) {
-                issues.add("cleanerId=" + cleaner.getId() + " 绑定的系统用户已停用");
+                issues.add("cleanerId=" + cleaner.getId() + ApiMessages.get("api.t.7c788e077be7"));
             }
             StoreUser membership = storeUserRepository.findByStoreIdAndUserId(storeId, cleaner.getUserId()).orElse(null);
             if (membership == null || !Boolean.TRUE.equals(membership.getIsActive())) {
-                issues.add("cleanerId=" + cleaner.getId() + " 缺少有效门店成员关系");
+                issues.add("cleanerId=" + cleaner.getId() + ApiMessages.get("api.t.15cb9c4370fb"));
             }
         }
         return issues;
@@ -178,7 +179,7 @@ public class CleanerIdentityService {
     public Cleaner reconcileIdentity(Long storeId, Long cleanerId) {
         Cleaner cleaner = cleanerRepository.findById(cleanerId)
                 .filter(item -> Objects.equals(storeId, item.getStoreId()))
-                .orElseThrow(() -> new RuntimeException("保洁员不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.bea2ad1fb3f3")));
         return ensureCleanerIdentity(cleaner, true);
     }
 
@@ -234,7 +235,7 @@ public class CleanerIdentityService {
 
     private void syncUserProfile(User user, Cleaner cleaner) {
         if (user.getId() != null && !Boolean.TRUE.equals(user.getIsActive())) {
-            throw new RuntimeException("保洁员绑定的系统账号已停用，请先由管理员恢复账号");
+            throw new RuntimeException(ApiMessages.get("api.t.439df9683551"));
         }
         user.setEmail(cleaner.getEmail());
         user.setName(cleaner.getName());
@@ -300,7 +301,7 @@ public class CleanerIdentityService {
 
     private Store loadStore(Long storeId) {
         return storeRepository.findById(storeId)
-                .orElseThrow(() -> new RuntimeException("门店不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.051df0941ec3")));
     }
 
     private String generateUniqueUsername(String email) {

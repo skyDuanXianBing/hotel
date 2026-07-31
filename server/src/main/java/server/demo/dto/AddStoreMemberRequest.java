@@ -10,11 +10,11 @@ import java.util.List;
  */
 public class AddStoreMemberRequest {
 
-    @NotBlank(message = "邮箱不能为空")
-    @Email(message = "邮箱格式不正确")
+    @NotBlank(message = "{api.t.cfe012352180}")
+    @Email(message = "{api.t.4f0599f86e3f}")
     private String email;
 
-    @NotBlank(message = "基础角色不能为空")
+    @NotBlank(message = "{api.t.c71d11e1c81f}")
     private String role; // 基础角色: owner, admin, member
 
     private List<Long> roleIds; // 权限角色ID列表（可选）

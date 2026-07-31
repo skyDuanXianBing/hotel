@@ -8,10 +8,10 @@ import server.demo.entity.RealTimeChatMessage;
  */
 public class RealTimeChatRequest {
     
-    @NotBlank(message = "聊天室ID不能为空")
+    @NotBlank(message = "{api.t.c4423086f7ce}")
     private String roomId;
     
-    @NotBlank(message = "消息内容不能为空")
+    @NotBlank(message = "{api.t.d86594c188e5}")
     private String message;
     
     private RealTimeChatMessage.SenderType senderType = RealTimeChatMessage.SenderType.GUEST;

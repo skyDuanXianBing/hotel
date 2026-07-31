@@ -17,6 +17,7 @@ import server.demo.service.IndependentSitePublicRateLimiter;
 import server.demo.service.IndependentSiteQuoteService;
 import server.demo.service.saas.EntitlementService;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/public/independent-sites")
 public class PublicIndependentSiteController {
@@ -48,7 +49,7 @@ public class PublicIndependentSiteController {
         if (entitlementService.storeHasFeature(storeId, SaasFeatureCodes.INDEPENDENT_WEBSITE)) {
             return null;
         }
-        return ResponseEntity.status(403).body(ApiResponse.error("该店铺暂停接单"));
+        return ResponseEntity.status(403).body(ApiResponse.error(ApiMessages.get("api.t.8b117e857598")));
     }
 
     @GetMapping("/{slug}")
@@ -56,7 +57,7 @@ public class PublicIndependentSiteController {
             @PathVariable String slug
     ) {
         return ResponseEntity.ok(ApiResponse.success(
-                "获取独立站成功",
+                ApiMessages.get("api.t.3be446956424"),
                 quoteService.getPublicSite(slug)
         ));
     }
@@ -71,7 +72,7 @@ public class PublicIndependentSiteController {
         int markerIndex = uri.indexOf(marker);
         String tail = markerIndex >= 0 ? uri.substring(markerIndex + marker.length()) : "";
         return ResponseEntity.ok(ApiResponse.success(
-                "获取独立站页面成功",
+                ApiMessages.get("api.t.546ca15b4030"),
                 quoteService.getPublicPage(slug, "/" + tail)
         ));
     }
@@ -88,7 +89,7 @@ public class PublicIndependentSiteController {
         }
         rateLimiter.checkQuote(slug, httpRequest.getRemoteAddr());
         return ResponseEntity.ok(ApiResponse.success(
-                "报价成功",
+                ApiMessages.get("api.t.7fa7fc9c34e8"),
                 quoteService.quote(slug, request)
         ));
     }
@@ -105,7 +106,7 @@ public class PublicIndependentSiteController {
         }
         rateLimiter.checkHold(slug, httpRequest.getRemoteAddr());
         return ResponseEntity.ok(ApiResponse.success(
-                "订房保留已创建",
+                ApiMessages.get("api.t.405c3fbfcae6"),
                 bookingService.createPublicHold(slug, request)
         ));
     }
@@ -120,7 +121,7 @@ public class PublicIndependentSiteController {
             return closed;
         }
         return ResponseEntity.ok(ApiResponse.success(
-                "支付确认成功",
+                ApiMessages.get("api.t.2a8466d47517"),
                 bookingService.confirmPublicPayment(slug, paymentAttemptId)
         ));
     }
@@ -137,7 +138,7 @@ public class PublicIndependentSiteController {
         }
         rateLimiter.checkIntent(slug, httpRequest.getRemoteAddr());
         return ResponseEntity.ok(ApiResponse.success(
-                "支付意图已就绪",
+                ApiMessages.get("api.t.c3e4943b3793"),
                 bookingService.createStripeIntent(slug, paymentAttemptId)
         ));
     }
@@ -148,7 +149,7 @@ public class PublicIndependentSiteController {
             @PathVariable String paymentAttemptId
     ) {
         return ResponseEntity.ok(ApiResponse.success(
-                "获取支付状态成功",
+                ApiMessages.get("api.t.62ff16741df8"),
                 bookingService.getPaymentStatus(slug, paymentAttemptId)
         ));
     }

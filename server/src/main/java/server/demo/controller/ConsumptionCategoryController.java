@@ -12,6 +12,7 @@ import server.demo.service.ConsumptionCategoryService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/consumption-categories")
 @StoreScoped
@@ -27,9 +28,9 @@ public class ConsumptionCategoryController {
     public ResponseEntity<ApiResponse<List<ConsumptionCategory>>> getAll() {
         try {
             List<ConsumptionCategory> categories = categoryService.getAll();
-            return ResponseEntity.ok(ApiResponse.success("获取分类列表成功", categories));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.6925bad9fe14"), categories));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取分类列表失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.534df1aa5570") + e.getMessage()));
         }
     }
 
@@ -40,9 +41,9 @@ public class ConsumptionCategoryController {
     public ResponseEntity<ApiResponse<ConsumptionCategory>> getById(@PathVariable Long id) {
         try {
             ConsumptionCategory category = categoryService.getById(id);
-            return ResponseEntity.ok(ApiResponse.success("获取分类成功", category));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.c467a2d7f0de"), category));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取分类失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.59145fedbdd0") + e.getMessage()));
         }
     }
 
@@ -57,9 +58,9 @@ public class ConsumptionCategoryController {
             category.setName(dto.getName());
             category.setDescription(dto.getDescription());
             ConsumptionCategory created = categoryService.create(category);
-            return ResponseEntity.ok(ApiResponse.success("创建分类成功", created));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.a39f922247b9"), created));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("创建分类失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.9b15f08efe77") + e.getMessage()));
         }
     }
 
@@ -75,9 +76,9 @@ public class ConsumptionCategoryController {
             updates.setName(dto.getName());
             updates.setDescription(dto.getDescription());
             ConsumptionCategory updated = categoryService.update(id, updates);
-            return ResponseEntity.ok(ApiResponse.success("更新分类成功", updated));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.a07c81656f7f"), updated));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("更新分类失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.441bb1711491") + e.getMessage()));
         }
     }
 
@@ -88,9 +89,9 @@ public class ConsumptionCategoryController {
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         try {
             categoryService.delete(id);
-            return ResponseEntity.ok(ApiResponse.success("删除分类成功", null));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.9abaa4511085"), null));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("删除分类失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.0b1d675dbbf7") + e.getMessage()));
         }
     }
 }

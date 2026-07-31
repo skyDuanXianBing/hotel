@@ -21,19 +21,19 @@ public class Notification {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull(message = "用户ID不能为空")
+    @NotNull(message = "{api.t.855ea23e7df8}")
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @NotBlank(message = "通知类型不能为空")
+    @NotBlank(message = "{api.t.531d8f6a5266}")
     @Column(name = "notification_type", nullable = false, length = 50)
     private String notificationType; // SYSTEM, ORDER, CLEANING, TASK
 
-    @NotBlank(message = "通知标题不能为空")
+    @NotBlank(message = "{api.t.ee41a31c9061}")
     @Column(name = "title", nullable = false, length = 200)
     private String title;
 
-    @NotBlank(message = "通知内容不能为空")
+    @NotBlank(message = "{api.t.53f37fa58742}")
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
 

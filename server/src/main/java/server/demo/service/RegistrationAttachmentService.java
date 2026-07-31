@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.HexFormat;
 import java.util.UUID;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class RegistrationAttachmentService {
 
@@ -46,24 +47,24 @@ public class RegistrationAttachmentService {
     @Transactional
     public PublicRegistrationAttachmentDTO uploadPassport(Long storeId, String orderNumber, Long guestId, MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new RuntimeException("请上传文件");
+            throw new RuntimeException(ApiMessages.get("api.t.c7de0f24a299"));
         }
 
         if (file.getSize() > 10 * 1024 * 1024) {
-            throw new RuntimeException("文件过大(最大10MB)");
+            throw new RuntimeException(ApiMessages.get("api.t.90aa1bcea605"));
         }
         String contentType = file.getContentType();
         if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
-            throw new RuntimeException("仅支持图片文件");
+            throw new RuntimeException(ApiMessages.get("api.t.284338940052"));
         }
 
         RegistrationForm form = formRepository.findByStoreIdAndOrderNumber(storeId, orderNumber)
-                .orElseThrow(() -> new RuntimeException("登记表不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.5ea3eb2ea267")));
 
         RegistrationGuest guest = guestRepository.findById(guestId)
-                .orElseThrow(() -> new RuntimeException("人员不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.5a523dd8ceff")));
         if (guest.getForm() == null || !guest.getForm().getId().equals(form.getId())) {
-            throw new RuntimeException("人员不属于该登记表");
+            throw new RuntimeException(ApiMessages.get("api.t.2a1af2703e88"));
         }
 
         // Only keep one passport image per guest: replace existing ones (best-effort physical cleanup)
@@ -86,7 +87,7 @@ public class RegistrationAttachmentService {
         String originalName = file.getOriginalFilename();
         String ext = safeExt(originalName);
         if (!ext.isBlank() && !(ext.equals("jpg") || ext.equals("jpeg") || ext.equals("png") || ext.equals("webp"))) {
-            throw new RuntimeException("仅支持 jpg/jpeg/png/webp");
+            throw new RuntimeException(ApiMessages.get("api.t.b10c315f34a6"));
         }
         String filename = UUID.randomUUID() + (ext.isBlank() ? "" : ("." + ext));
 
@@ -124,20 +125,20 @@ public class RegistrationAttachmentService {
             dto.setOriginalName(att.getOriginalName());
             return dto;
         } catch (Exception e) {
-            throw new RuntimeException("上传失败: " + e.getMessage(), e);
+            throw new RuntimeException(ApiMessages.get("api.t.c4d6ae1edbcb") + e.getMessage(), e);
         }
     }
 
     @Transactional(readOnly = true)
     public RegistrationAttachment requireAttachmentForPublicDownload(Long storeId, String orderNumber, Long attachmentId) {
         RegistrationForm form = formRepository.findByStoreIdAndOrderNumber(storeId, orderNumber)
-                .orElseThrow(() -> new RuntimeException("登记表不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.5ea3eb2ea267")));
 
         RegistrationAttachment att = attachmentRepository.findById(attachmentId)
-                .orElseThrow(() -> new RuntimeException("附件不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.814a0436397f")));
 
         if (att.getForm() == null || !att.getForm().getId().equals(form.getId())) {
-            throw new RuntimeException("附件不属于该登记表");
+            throw new RuntimeException(ApiMessages.get("api.t.2f9269f36a37"));
         }
         return att;
     }
@@ -145,15 +146,15 @@ public class RegistrationAttachmentService {
     @Transactional(readOnly = true)
     public RegistrationAttachment requireAttachmentForAdminDownload(Long storeId, Long formId, Long attachmentId) {
         RegistrationForm form = formRepository.findById(formId)
-                .orElseThrow(() -> new RuntimeException("登记表不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.5ea3eb2ea267")));
         if (!storeId.equals(form.getStoreId())) {
-            throw new RuntimeException("无权限");
+            throw new RuntimeException(ApiMessages.get("api.permission.denied"));
         }
 
         RegistrationAttachment att = attachmentRepository.findById(attachmentId)
-                .orElseThrow(() -> new RuntimeException("附件不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.814a0436397f")));
         if (att.getForm() == null || !att.getForm().getId().equals(form.getId())) {
-            throw new RuntimeException("附件不属于该登记表");
+            throw new RuntimeException(ApiMessages.get("api.t.2f9269f36a37"));
         }
         return att;
     }
@@ -169,7 +170,7 @@ public class RegistrationAttachmentService {
             }
             return p;
         } catch (Exception e) {
-            throw new RuntimeException("文件不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.ffcf0a1eb083"));
         }
     }
 

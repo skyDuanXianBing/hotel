@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class RoomGroupService {
 
@@ -60,13 +61,13 @@ public class RoomGroupService {
 
     public RoomGroup getById(Long id) {
         return roomGroupRepository.findByStoreIdAndId(currentStoreId(), id)
-                .orElseThrow(() -> new RuntimeException("分组不存在或无访问权限"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.33e263ea07cc")));
     }
 
     public RoomGroup create(RoomGroup roomGroup) {
         Long storeId = currentStoreId();
         if (roomGroupRepository.existsByStoreIdAndName(storeId, roomGroup.getName())) {
-            throw new RuntimeException("分组名称已存在");
+            throw new RuntimeException(ApiMessages.get("api.t.94524e3c8162"));
         }
         roomGroup.setStoreId(storeId);
         roomGroup.setUserId(currentUserId());
@@ -77,7 +78,7 @@ public class RoomGroupService {
         RoomGroup existing = getById(id);
         if (updates.getName() != null && !updates.getName().equals(existing.getName())) {
             if (roomGroupRepository.existsByStoreIdAndName(currentStoreId(), updates.getName())) {
-                throw new RuntimeException("分组名称已存在");
+                throw new RuntimeException(ApiMessages.get("api.t.94524e3c8162"));
             }
             existing.setName(updates.getName());
         }
@@ -103,10 +104,10 @@ public class RoomGroupService {
     public RoomGroupMember addRoomToGroup(Long groupId, Long roomId) {
         RoomGroup group = getById(groupId);
         Room room = roomRepository.findByStoreIdAndId(currentStoreId(), roomId)
-                .orElseThrow(() -> new RuntimeException("房间不存在或无访问权限"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.53260ac77002")));
 
         if (roomGroupMemberRepository.existsByStoreIdAndRoomId(currentStoreId(), room.getId())) {
-            throw new RuntimeException("房间已在其他分组中");
+            throw new RuntimeException(ApiMessages.get("api.t.4573a1c0c337"));
         }
 
         RoomGroupMember member = new RoomGroupMember(group.getId(), room.getId(), currentStoreId());
@@ -122,7 +123,7 @@ public class RoomGroupService {
             boolean exists = roomGroupMemberRepository.existsByStoreIdAndRoomId(storeId, roomId);
             if (!exists) {
                 Room room = roomRepository.findByStoreIdAndId(storeId, roomId)
-                        .orElseThrow(() -> new RuntimeException("房间不存在或无访问权限"));
+                        .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.53260ac77002")));
                 RoomGroupMember member = new RoomGroupMember(group.getId(), room.getId(), storeId);
                 roomGroupMemberRepository.save(member);
             }

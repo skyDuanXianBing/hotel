@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class RegistrationLinkService {
 
@@ -51,11 +52,11 @@ public class RegistrationLinkService {
 
     public Claims verifyToken(String orderNumber, String token) {
         if (token == null || token.isBlank()) {
-            throw new IllegalArgumentException("缺少token");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.585b0643de77"));
         }
         String[] parts = token.split("\\.");
         if (parts.length != 3) {
-            throw new IllegalArgumentException("token格式错误");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.a8d9f504a8d6"));
         }
         Long storeId;
         long exp;
@@ -63,13 +64,13 @@ public class RegistrationLinkService {
             storeId = Long.parseLong(parts[0]);
             exp = Long.parseLong(parts[1]);
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("token格式错误");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.a8d9f504a8d6"));
         }
 
         // exp remains part of the signed legacy token payload, but no longer authorizes access.
         String expectedSig = hmacSha256Hex(payload(storeId, orderNumber, exp));
         if (!constantTimeEquals(expectedSig, parts[2])) {
-            throw new IllegalArgumentException("token无效");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.2afacdb44bbb"));
         }
 
         return new Claims(storeId, exp);
@@ -105,7 +106,7 @@ public class RegistrationLinkService {
             byte[] raw = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
             return toHex(raw);
         } catch (Exception e) {
-            throw new IllegalStateException("HMAC计算失败", e);
+            throw new IllegalStateException(ApiMessages.get("api.t.3df6cea3268c"), e);
         }
     }
 

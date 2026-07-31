@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/notes")
 @StoreScoped
@@ -33,9 +34,9 @@ public class NoteController {
     public ApiResponse<NoteDTO> createNote(@Valid @RequestBody CreateNoteRequest request) {
         try {
             NoteDTO note = noteService.createNote(request);
-            return ApiResponse.success("创建成功", note);
+            return ApiResponse.success(ApiMessages.get("api.t.7fd87d1fa1dd"), note);
         } catch (Exception e) {
-            return ApiResponse.error("创建失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.3acc59fba4c8") + e.getMessage());
         }
     }
 
@@ -58,7 +59,7 @@ public class NoteController {
             List<NoteDTO> notes = noteService.getNotesList(start, endExclusive, type, category, paymentMethod, roomId);
             return ApiResponse.success(notes);
         } catch (Exception e) {
-            return ApiResponse.error("获取列表失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.cd759d32c28b") + e.getMessage());
         }
     }
 
@@ -78,7 +79,7 @@ public class NoteController {
             NotesStatisticsDTO statistics = noteService.getNotesStatistics(start, endExclusive);
             return ApiResponse.success(statistics);
         } catch (Exception e) {
-            return ApiResponse.error("获取统计数据失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.9bde0b59ef4c") + e.getMessage());
         }
     }
 
@@ -91,7 +92,7 @@ public class NoteController {
             NoteDTO note = noteService.getNoteById(id);
             return ApiResponse.success(note);
         } catch (Exception e) {
-            return ApiResponse.error("获取详情失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.d080ed2b0edb") + e.getMessage());
         }
     }
 
@@ -102,9 +103,9 @@ public class NoteController {
     public ApiResponse<String> deleteNote(@PathVariable Long id) {
         try {
             noteService.deleteNote(id);
-            return ApiResponse.success("删除成功", "删除成功");
+            return ApiResponse.success(ApiMessages.get("api.t.86e8d12a79b3"), ApiMessages.get("api.t.86e8d12a79b3"));
         } catch (Exception e) {
-            return ApiResponse.error("删除失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.5a5a8a09ccea") + e.getMessage());
         }
     }
 }

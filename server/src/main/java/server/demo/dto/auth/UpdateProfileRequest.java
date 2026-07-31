@@ -7,12 +7,12 @@ import jakarta.validation.constraints.Size;
  */
 public class UpdateProfileRequest {
 
-    @Size(max = 100, message = "昵称长度不能超过100个字符")
+    @Size(max = 100, message = "{api.t.fee26a401920}")
     private String nickname;
 
     private String gender;
 
-    @Size(max = 255, message = "头像地址长度不能超过255个字符")
+    @Size(max = 255, message = "{api.t.620a4a2b30ef}")
     private String avatar;
 
     public String getNickname() {

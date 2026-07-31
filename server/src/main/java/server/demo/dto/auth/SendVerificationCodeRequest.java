@@ -9,12 +9,12 @@ import jakarta.validation.constraints.Pattern;
  */
 public class SendVerificationCodeRequest {
 
-    @NotBlank(message = "邮箱不能为空")
-    @Email(message = "邮箱格式不正确")
+    @NotBlank(message = "{api.t.cfe012352180}")
+    @Email(message = "{api.t.4f0599f86e3f}")
     private String email;
 
-    @NotBlank(message = "类型不能为空")
-    @Pattern(regexp = "^(login|register|reset_password)$", message = "验证码类型不正确")
+    @NotBlank(message = "{api.t.f0a2b4248e97}")
+    @Pattern(regexp = "^(login|register|reset_password)$", message = "{api.t.1ffc1fb679a0}")
     private String type; // login, register, reset_password
 
     public SendVerificationCodeRequest() {

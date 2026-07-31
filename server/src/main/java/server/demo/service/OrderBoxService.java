@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 @Transactional
 public class OrderBoxService {
@@ -48,16 +49,16 @@ public class OrderBoxService {
 
         // 检查订单是否存在
         Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new RuntimeException("订单不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.b8768a4b0d04")));
 
         // 检查订单状态
         if (reservation.getStatus() != ReservationStatus.CONFIRMED) {
-            throw new RuntimeException("只有已确认的预订可以移入订单盒子");
+            throw new RuntimeException(ApiMessages.get("api.t.dc3992403f31"));
         }
 
         // 检查是否已在订单盒子中
         if (orderBoxRepository.existsByReservationId(reservationId)) {
-            throw new RuntimeException("该订单已在订单盒子中");
+            throw new RuntimeException(ApiMessages.get("api.t.628a124fbaea"));
         }
 
         // 创建订单盒子记录
@@ -82,7 +83,7 @@ public class OrderBoxService {
 
         // 检查订单盒子项是否存在
         OrderBox orderBox = orderBoxRepository.findById(orderBoxItemId)
-                .orElseThrow(() -> new RuntimeException("订单盒子记录不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.3fb69e4a828f")));
 
         // 删除订单盒子记录
         orderBoxRepository.delete(orderBox);
@@ -119,21 +120,21 @@ public class OrderBoxService {
 
         if (reservation == null) {
             result.put("canMove", false);
-            result.put("reason", "订单不存在");
+            result.put("reason", ApiMessages.get("api.t.b8768a4b0d04"));
             return result;
         }
 
         // 检查是否已在订单盒子中
         if (orderBoxRepository.existsByReservationId(reservationId)) {
             result.put("canMove", false);
-            result.put("reason", "该订单已在订单盒子中");
+            result.put("reason", ApiMessages.get("api.t.628a124fbaea"));
             return result;
         }
 
         // 检查订单状态
         if (reservation.getStatus() != ReservationStatus.CONFIRMED) {
             result.put("canMove", false);
-            result.put("reason", "只有已确认的预订可以移入订单盒子");
+            result.put("reason", ApiMessages.get("api.t.dc3992403f31"));
             return result;
         }
 

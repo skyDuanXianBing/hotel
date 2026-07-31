@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.nio.charset.StandardCharsets;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class RegistrationMessageService {
 
@@ -102,47 +103,47 @@ public class RegistrationMessageService {
     @Transactional
     public RegistrationMessageLogDTO sendMessage(Long storeId, Long operatorUserId, Long formId, RegistrationSendMessageRequest req) {
         if (storeId == null) {
-            throw new RuntimeException("缺少 storeId");
+            throw new RuntimeException(ApiMessages.get("api.t.ce4d4cfcfc6d"));
         }
         if (req == null || req.getType() == null) {
-            throw new RuntimeException("请选择消息类型");
+            throw new RuntimeException(ApiMessages.get("api.t.48d631c6f957"));
         }
         String template = req.getContent() != null ? req.getContent().trim() : null;
         if (template == null || template.isBlank()) {
-            throw new RuntimeException("消息内容不能为空");
+            throw new RuntimeException(ApiMessages.get("api.t.d86594c188e5"));
         }
 
         RegistrationForm form = formRepository.findById(formId)
-                .orElseThrow(() -> new RuntimeException("登记表不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.5ea3eb2ea267")));
         if (!storeId.equals(form.getStoreId())) {
-            throw new RuntimeException("无权限");
+            throw new RuntimeException(ApiMessages.get("api.permission.denied"));
         }
 
         Reservation reservation = reservationRepository.findById(form.getReservation().getId())
-                .orElseThrow(() -> new RuntimeException("订单不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.b8768a4b0d04")));
 
         Store store = storeRepository.findById(storeId).orElse(null);
 
         Map<String, String> vars = buildVariables(store, reservation);
         String rendered = AutoMessageTemplateRenderer.render(template, vars);
         if (rendered == null || rendered.isBlank()) {
-            throw new RuntimeException("渲染后消息为空");
+            throw new RuntimeException(ApiMessages.get("api.t.9de67993485e"));
         }
 
         Integer suChannelId = toSuChannelId(reservation);
         if (suChannelId == null) {
-            return saveLog(form, req.getType(), "SU", null, rendered, RegistrationSendStatus.FAILED, "不支持的渠道(仅 Booking/Airbnb)");
+            return saveLog(form, req.getType(), "SU", null, rendered, RegistrationSendStatus.FAILED, ApiMessages.get("api.t.e31a55ed94e3"));
         }
 
         SuMessageThread thread = resolveThreadForReservation(storeId, suChannelId, reservation);
         if (thread == null) {
             return saveLog(form, req.getType(), "SU", null, rendered, RegistrationSendStatus.WAITING_THREAD,
-                    "未找到对应会话，可能是 booking key 未关联到线程，请检查 reservation/thread 数据");
+                    ApiMessages.get("api.t.ff556b970f38"));
         }
 
         if (thread.getListingId() == null || thread.getListingId().isBlank()) {
             return saveLog(form, req.getType(), "SU", thread.getThreadKey(), rendered, RegistrationSendStatus.WAITING_LISTINGID,
-                    "会话缺少 listingid，暂不可发送；等待 webhook 补齐后重试");
+                    ApiMessages.get("api.t.10ff3f42e190"));
         }
 
         AiTranslationResult translationResult = translateIfRequested(form.getId(), rendered, req);
@@ -154,11 +155,11 @@ public class RegistrationMessageService {
         try {
             SuMessagingSendRequest send = new SuMessagingSendRequest();
             send.setContent(finalContent.trim());
-            send.setSenderName(req.getSenderName() != null && !req.getSenderName().isBlank() ? req.getSenderName().trim() : "前台");
+            send.setSenderName(req.getSenderName() != null && !req.getSenderName().isBlank() ? req.getSenderName().trim() : ApiMessages.get("api.t.89408f6d5a95"));
             suMessagingService.sendMessage(storeId, thread.getId(), send);
             return saveLog(form, req.getType(), "SU", thread.getThreadKey(), finalContent, RegistrationSendStatus.SENT, null, translationResult);
         } catch (Exception e) {
-            String err = e.getMessage() != null ? e.getMessage() : "发送失败";
+            String err = e.getMessage() != null ? e.getMessage() : ApiMessages.get("api.t.e767d34c7847");
             if (isPropertyAccessError(err)) {
                 return saveLog(form, req.getType(), "SU", thread.getThreadKey(), finalContent,
                         RegistrationSendStatus.WAITING_PROPERTY_ACCESS, err, translationResult);

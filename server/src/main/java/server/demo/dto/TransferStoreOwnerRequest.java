@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
  */
 public class TransferStoreOwnerRequest {
 
-    @NotNull(message = "新负责人不能为空")
+    @NotNull(message = "{api.t.3823a21a1ddf}")
     private Long targetUserId;
 
     public Long getTargetUserId() {

@@ -9,6 +9,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
+import server.demo.i18n.ApiMessages;
 /**
  * Shared database lock for every reservation path that can consume room-type inventory.
  *
@@ -26,13 +27,13 @@ public class RoomTypeInventoryLockService {
 
     public Set<Long> lockRoomTypes(Long storeId, Collection<Long> roomTypeIds) {
         if (storeId == null) {
-            throw new IllegalArgumentException("缺少门店上下文");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.2bfd332b0f72"));
         }
         TreeSet<Long> sortedIds = new TreeSet<>();
         if (roomTypeIds != null) {
             for (Long roomTypeId : roomTypeIds) {
                 if (roomTypeId == null || roomTypeId <= 0) {
-                    throw new IllegalArgumentException("房型 ID 无效");
+                    throw new IllegalArgumentException(ApiMessages.get("api.t.3f34209fa2c0"));
                 }
                 sortedIds.add(roomTypeId);
             }
@@ -42,7 +43,7 @@ public class RoomTypeInventoryLockService {
         for (Long roomTypeId : sortedIds) {
             RoomType locked = roomTypeRepository.findByStoreIdAndIdForUpdate(storeId, roomTypeId)
                     .orElseThrow(() -> new IllegalArgumentException(
-                            "房型不存在或不属于当前门店，roomTypeId=" + roomTypeId
+                            ApiMessages.get("api.t.386d40a76013") + roomTypeId
                     ));
             lockedIds.add(locked.getId());
         }

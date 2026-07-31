@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.function.Function;
 
+import server.demo.i18n.ApiMessages;
 /**
  * Su Access Token 管理（缓存复用 + 401 自动刷新重试）。
  * <p>
@@ -81,9 +82,9 @@ public class SuAccessTokenService {
     }
 
     private CachedToken requestNewToken() {
-        String baseUrl = requireNonBlankTrimmed(suApiConfig.getBaseUrl(), "缺少 su.api.base-url / SU_API_BASE_URL");
-        String clientId = requireNonBlankTrimmed(suApiConfig.getClientId(), "缺少 su.api.client-id / SU_CLIENT_ID");
-        String clientSecret = requireNonBlankTrimmed(suApiConfig.getClientSecret(), "缺少 su.api.client-secret / SU_CLIENT_SECRET");
+        String baseUrl = requireNonBlankTrimmed(suApiConfig.getBaseUrl(), ApiMessages.get("api.t.bb7a42ad59ae"));
+        String clientId = requireNonBlankTrimmed(suApiConfig.getClientId(), ApiMessages.get("api.t.c3a2a183d27c"));
+        String clientSecret = requireNonBlankTrimmed(suApiConfig.getClientSecret(), ApiMessages.get("api.t.92a93afcec24"));
 
         String url = baseUrl + "/SUAPI/jservice/auth/generate-access-token";
 
@@ -100,12 +101,12 @@ public class SuAccessTokenService {
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
             String body = response.getBody();
             if (body == null || body.isBlank()) {
-                throw new RuntimeException("Su access token 返回空响应");
+                throw new RuntimeException(ApiMessages.get("api.t.b07263f4619c"));
             }
 
             JsonNode json = objectMapper.readTree(body);
             if (!isSuSuccess(json)) {
-                throw new RuntimeException(buildSuErrorMessage("生成 Su access token 失败", json));
+                throw new RuntimeException(buildSuErrorMessage(ApiMessages.get("api.t.bbb986c25b49"), json));
             }
 
             String token = readText(json, "/data/token");
@@ -113,7 +114,7 @@ public class SuAccessTokenService {
                 token = readText(json, "/Data/token");
             }
             if (token == null || token.isBlank()) {
-                throw new RuntimeException("生成 Su access token 失败：响应缺少 data.token");
+                throw new RuntimeException(ApiMessages.get("api.t.da5d4675a602"));
             }
 
             Duration ttl = parseExpireIn(json);
@@ -125,16 +126,16 @@ public class SuAccessTokenService {
             if (body != null && !body.isBlank()) {
                 try {
                     JsonNode json = objectMapper.readTree(body);
-                    throw new RuntimeException(buildSuErrorMessage("生成 Su access token 失败", json), e);
+                    throw new RuntimeException(buildSuErrorMessage(ApiMessages.get("api.t.bbb986c25b49"), json), e);
                 } catch (RuntimeException re) {
                     throw re;
                 } catch (Exception ignore) {
                     // fallthrough
                 }
             }
-            throw new RuntimeException("生成 Su access token 失败：" + e.getStatusCode(), e);
+            throw new RuntimeException(ApiMessages.get("api.t.81afd1b08b1f") + e.getStatusCode(), e);
         } catch (Exception e) {
-            throw new RuntimeException("生成 Su access token 失败：" + e.getMessage(), e);
+            throw new RuntimeException(ApiMessages.get("api.t.81afd1b08b1f") + e.getMessage(), e);
         }
     }
 
@@ -227,7 +228,7 @@ public class SuAccessTokenService {
             sb.append("：").append(status);
         }
         if ("548".equals(code) || (shortText != null && shortText.toLowerCase().contains("limit"))) {
-            sb.append("（Su 侧触发限流，请稍后再试，并避免短时间重复点击/定时任务频繁触发）");
+            sb.append(ApiMessages.get("api.t.510bc7a55761"));
         }
         return sb.toString();
     }

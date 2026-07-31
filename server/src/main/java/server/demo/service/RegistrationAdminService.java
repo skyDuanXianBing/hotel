@@ -20,13 +20,14 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class RegistrationAdminService {
     private static final String ROOM_NUMBER_FILTER_SENTINEL = "__REGISTRATION_ADMIN_EMPTY_ROOM_NUMBER_FILTER__";
-    private static final String REVIEW_CANCELLED_RESERVATION_MESSAGE = "已取消订单不能审核登记表";
-    private static final String REVIEW_SUBMITTED_ONLY_MESSAGE = "只有已提交的登记表可以审核";
-    private static final String REVIEW_ALREADY_REVIEWED_MESSAGE = "该登记表已审核";
-    private static final String REVIEW_STATE_CHANGED_MESSAGE = "登记表状态已变更，请刷新后重试";
+    private static final String REVIEW_CANCELLED_RESERVATION_MESSAGE_KEY = "api.t.7c4e979dd124";
+    private static final String REVIEW_SUBMITTED_ONLY_MESSAGE_KEY = "api.t.3746916d6064";
+    private static final String REVIEW_ALREADY_REVIEWED_MESSAGE_KEY = "api.t.dea5b1096466";
+    private static final String REVIEW_STATE_CHANGED_MESSAGE_KEY = "api.t.39f12d8f52ea";
 
     @Autowired
     private RegistrationFormRepository registrationFormRepository;
@@ -177,7 +178,7 @@ public class RegistrationAdminService {
     @Transactional(readOnly = true)
     public List<AdminRegistrationListItemDTO> listRecentApprovedForHome(LocalDateTime approvedSince) {
         if (approvedSince == null) {
-            throw new IllegalArgumentException("approvedSince 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.31424aee660d"));
         }
         Long storeId = StoreContextUtils.requireStoreId();
         return registrationFormRepository.findRecentApprovedForHome(storeId, approvedSince).stream()
@@ -240,13 +241,13 @@ public class RegistrationAdminService {
     public AdminRegistrationDetailDTO detail(Long formId) {
         Long storeId = StoreContextUtils.requireStoreId();
         RegistrationForm form = registrationFormRepository.findById(formId)
-                .orElseThrow(() -> new RuntimeException("登记表不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.5ea3eb2ea267")));
         if (!storeId.equals(form.getStoreId())) {
-            throw new RuntimeException("无权限");
+            throw new RuntimeException(ApiMessages.get("api.permission.denied"));
         }
 
         Reservation reservation = reservationRepository.findById(form.getReservation().getId())
-                .orElseThrow(() -> new RuntimeException("订单不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.b8768a4b0d04")));
 
         AdminRegistrationDetailDTO dto = new AdminRegistrationDetailDTO();
         dto.setFormId(form.getId());
@@ -412,9 +413,9 @@ public class RegistrationAdminService {
         Long userId = StoreContextUtils.requireUserId();
 
         RegistrationForm form = registrationFormRepository.findById(formId)
-                .orElseThrow(() -> new RuntimeException("登记表不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.5ea3eb2ea267")));
         if (!storeId.equals(form.getStoreId())) {
-            throw new RuntimeException("无权限");
+            throw new RuntimeException(ApiMessages.get("api.permission.denied"));
         }
 
         Reservation reservation = requireReservation(form);
@@ -423,7 +424,7 @@ public class RegistrationAdminService {
         String note = req != null ? req.getNote() : null;
         int updated = registrationFormRepository.approveSubmitted(storeId, formId, note, LocalDateTime.now());
         if (updated != 1) {
-            throw new RegistrationReviewConflictException(REVIEW_STATE_CHANGED_MESSAGE);
+            throw new RegistrationReviewConflictException(ApiMessages.get(REVIEW_STATE_CHANGED_MESSAGE_KEY));
         }
 
         RegistrationReviewLog log = new RegistrationReviewLog();
@@ -450,9 +451,9 @@ public class RegistrationAdminService {
         Long userId = StoreContextUtils.requireUserId();
 
         RegistrationForm form = registrationFormRepository.findById(formId)
-                .orElseThrow(() -> new RuntimeException("登记表不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.5ea3eb2ea267")));
         if (!storeId.equals(form.getStoreId())) {
-            throw new RuntimeException("无权限");
+            throw new RuntimeException(ApiMessages.get("api.permission.denied"));
         }
 
         Reservation reservation = requireReservation(form);
@@ -461,7 +462,7 @@ public class RegistrationAdminService {
         String note = req != null ? req.getNote() : null;
         int updated = registrationFormRepository.rejectSubmitted(storeId, formId, note, LocalDateTime.now());
         if (updated != 1) {
-            throw new RegistrationReviewConflictException(REVIEW_STATE_CHANGED_MESSAGE);
+            throw new RegistrationReviewConflictException(ApiMessages.get(REVIEW_STATE_CHANGED_MESSAGE_KEY));
         }
 
         RegistrationReviewLog log = new RegistrationReviewLog();
@@ -497,7 +498,7 @@ public class RegistrationAdminService {
 
         response.setMessageAttempted(true);
         if (registrationMessageService == null) {
-            response.setMessageError("消息服务不可用");
+            response.setMessageError(ApiMessages.get("api.t.569f6d8d296d"));
             return response;
         }
 
@@ -510,7 +511,7 @@ public class RegistrationAdminService {
         try {
             response.setMessageLog(registrationMessageService.sendMessage(storeId, userId, formId, messageRequest));
         } catch (Exception ex) {
-            String message = ex.getMessage() == null ? "消息发送失败" : ex.getMessage();
+            String message = ex.getMessage() == null ? ApiMessages.get("api.t.f8b613c0fd7e") : ex.getMessage();
             response.setMessageError(message);
         }
         return response;
@@ -527,21 +528,21 @@ public class RegistrationAdminService {
 
     private Reservation requireReservation(RegistrationForm form) {
         if (form.getReservation() == null || form.getReservation().getId() == null) {
-            throw new RuntimeException("订单不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.b8768a4b0d04"));
         }
         return reservationRepository.findById(form.getReservation().getId())
-                .orElseThrow(() -> new RuntimeException("订单不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.b8768a4b0d04")));
     }
 
     private static void validateReviewAllowed(RegistrationForm form, Reservation reservation) {
         if (reservation.getStatus() == ReservationStatus.CANCELLED) {
-            throw new RegistrationReviewConflictException(REVIEW_CANCELLED_RESERVATION_MESSAGE);
+            throw new RegistrationReviewConflictException(ApiMessages.get(REVIEW_CANCELLED_RESERVATION_MESSAGE_KEY));
         }
         if (form.getStatus() != RegistrationFormStatus.SUBMITTED) {
             String message = form.getStatus() == RegistrationFormStatus.APPROVED
                     || form.getStatus() == RegistrationFormStatus.REJECTED
-                    ? REVIEW_ALREADY_REVIEWED_MESSAGE
-                    : REVIEW_SUBMITTED_ONLY_MESSAGE;
+                    ? ApiMessages.get(REVIEW_ALREADY_REVIEWED_MESSAGE_KEY)
+                    : ApiMessages.get(REVIEW_SUBMITTED_ONLY_MESSAGE_KEY);
             throw new RegistrationReviewConflictException(message);
         }
     }

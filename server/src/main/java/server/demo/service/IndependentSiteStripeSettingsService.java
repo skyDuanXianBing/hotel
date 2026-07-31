@@ -13,6 +13,7 @@ import server.demo.util.AesGcmCrypto;
 
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 门店级 Stripe 密钥配置：一店一套，该店所有独立站共享。
  * sk/whsec 经 AES-GCM 加密落库（密钥来自 env INDEPENDENT_SITE_STRIPE_ENCRYPTION_KEY），
@@ -96,7 +97,7 @@ public class IndependentSiteStripeSettingsService {
             throw new IndependentSiteServiceException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     "STRIPE_ENCRYPTION_NOT_CONFIGURED",
-                    "服务端未配置独立站 Stripe 密钥加密密钥（INDEPENDENT_SITE_STRIPE_ENCRYPTION_KEY），无法保存密钥"
+                    ApiMessages.get("api.t.f1b8b94ffa99")
             );
         }
 
@@ -190,7 +191,7 @@ public class IndependentSiteStripeSettingsService {
             throw new IndependentSiteServiceException(
                     HttpStatus.BAD_REQUEST,
                     "INVALID_STRIPE_KEY",
-                    field + " 必须以 " + prefix + " 开头"
+                    field + ApiMessages.get("api.t.b7a522f5cc3e") + prefix + ApiMessages.get("api.t.d3e4493ddb82")
             );
         }
     }

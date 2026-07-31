@@ -12,12 +12,13 @@ import server.demo.context.StoreContext;
 import server.demo.context.StoreContextHolder;
 import server.demo.entity.StoreUser;
 import server.demo.exception.StoreAccessDeniedException;
+import server.demo.i18n.ApiMessages;
 import server.demo.repository.StoreUserRepository;
 import server.demo.service.ChannelPriceWarmupService;
+import server.demo.util.ApiResponseHttpWriter;
 
 import java.io.IOException;
 import java.util.Optional;
-
 /**
  * 根据请求头 X-Store-Id 建立门店上下文并做权限校验。
  */
@@ -49,14 +50,14 @@ public class StoreContextInterceptor implements HandlerInterceptor {
 
         Object userIdAttr = request.getAttribute("userId");
         if (userIdAttr == null) {
-            return writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "未获取到用户信息");
+            return writeError(response, HttpServletResponse.SC_UNAUTHORIZED, ApiMessages.get("api.t.5281710ea42f"));
         }
         Long userId = (Long) userIdAttr;
 
         String storeIdHeader = request.getHeader("X-Store-Id");
         if ((storeIdHeader == null || storeIdHeader.isBlank())) {
             if (storeScoped.required()) {
-                return writeError(response, HttpServletResponse.SC_BAD_REQUEST, "缺少门店标识");
+                return writeError(response, HttpServletResponse.SC_BAD_REQUEST, ApiMessages.get("api.t.882b4c2d2cda"));
             }
             return true;
         }
@@ -65,11 +66,11 @@ public class StoreContextInterceptor implements HandlerInterceptor {
         try {
             storeId = Long.parseLong(storeIdHeader);
         } catch (NumberFormatException ex) {
-            return writeError(response, HttpServletResponse.SC_BAD_REQUEST, "门店标识格式错误");
+            return writeError(response, HttpServletResponse.SC_BAD_REQUEST, ApiMessages.get("api.t.fabe3b0e03d6"));
         }
 
         Optional<StoreUser> storeUserOpt = storeUserRepository.findByStoreIdAndUserId(storeId, userId);
-        StoreUser storeUser = storeUserOpt.orElseThrow(() -> new StoreAccessDeniedException("无权访问该门店"));
+        StoreUser storeUser = storeUserOpt.orElseThrow(() -> new StoreAccessDeniedException(ApiMessages.get("api.t.88e8878306ae")));
 
         StoreContextHolder.setContext(new StoreContext(userId, storeId, storeUser.getRole()));
         request.setAttribute("storeId", storeId);
@@ -100,9 +101,7 @@ public class StoreContextInterceptor implements HandlerInterceptor {
     }
 
     private boolean writeError(HttpServletResponse response, int status, String message) throws IOException {
-        response.setStatus(status);
-        response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write("{\"success\":false,\"message\":\"" + message + "\",\"data\":null}");
+        ApiResponseHttpWriter.writeError(response, status, message);
         return false;
     }
 }

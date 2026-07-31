@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class SuPropertyService {
 
@@ -107,7 +108,7 @@ public class SuPropertyService {
 
         String hotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
         if (hotelId == null || hotelId.isBlank()) {
-            return new RemoveResult(false, false, null, null, "Su hotelId 未配置，无法删除 Su Property");
+            return new RemoveResult(false, false, null, null, ApiMessages.get("api.t.7c8c03898dec"));
         }
 
         try {
@@ -117,11 +118,11 @@ public class SuPropertyService {
             );
             boolean ok = suApiClient.isSuSuccess(response);
             if (ok) {
-                return new RemoveResult(true, true, hotelId, null, "Su Property 删除成功");
+                return new RemoveResult(true, true, hotelId, null, ApiMessages.get("api.t.def717f8e1fe"));
             }
             String err = suApiClient.extractSuErrorMessage(response);
             String code = suApiClient.extractSuErrorCode(response);
-            String msg = err != null && !err.isBlank() ? err : "Su Property 删除失败";
+            String msg = err != null && !err.isBlank() ? err : ApiMessages.get("api.t.908375d41355");
             return new RemoveResult(true, false, hotelId, code, msg);
         } catch (Exception e) {
             return new RemoveResult(true, false, hotelId, null, e.getMessage());
@@ -161,12 +162,12 @@ public class SuPropertyService {
                         true,
                         false,
                         hotelId,
-                        "渠道物业创建失败：该酒店ID可能已被占用或不归属当前账号，请更换后重试。原始错误："
+                        ApiMessages.get("api.t.f042953410e4")
                                 + (errorMessage != null ? errorMessage : "unknown")
                 );
             }
 
-            return new UpsertResult(true, false, hotelId, errorMessage != null ? errorMessage : "Su Property 同步失败");
+            return new UpsertResult(true, false, hotelId, errorMessage != null ? errorMessage : ApiMessages.get("api.t.4b28d3b49bef"));
         } catch (Exception e) {
             return new UpsertResult(true, false, hotelId, e.getMessage());
         }
@@ -379,7 +380,7 @@ public class SuPropertyService {
                 return candidate;
             }
         }
-        throw new RuntimeException("渠道酒店ID生成失败，请手动填写");
+        throw new RuntimeException(ApiMessages.get("api.t.5be3bd19792a"));
     }
 
     private static String normalizePhone(String raw) {

@@ -10,6 +10,7 @@ import server.demo.dto.NotificationDTO;
 import server.demo.entity.Notification;
 import server.demo.service.NotificationService;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/notifications")
 public class NotificationController {
@@ -27,9 +28,9 @@ public class NotificationController {
             @RequestParam(defaultValue = "25") int size) {
         try {
             Page<Notification> notifications = notificationService.getNotifications(userId, page, size);
-            return ResponseEntity.ok(ApiResponse.success("获取通知列表成功", notifications));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.8968506af714"), notifications));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取通知列表失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.ef888e1ab229") + e.getMessage()));
         }
     }
 
@@ -53,9 +54,9 @@ public class NotificationController {
                     page,
                     size
             );
-            return ResponseEntity.ok(ApiResponse.success("获取通知列表成功", notifications));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.8968506af714"), notifications));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取通知列表失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.ef888e1ab229") + e.getMessage()));
         }
     }
 
@@ -77,9 +78,9 @@ public class NotificationController {
                     page,
                     size
             );
-            return ResponseEntity.ok(ApiResponse.success("获取系统消息列表成功", notifications));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.696c90ae6612"), notifications));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取系统消息列表失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.42a76b232ab9") + e.getMessage()));
         }
     }
 
@@ -90,9 +91,9 @@ public class NotificationController {
     public ResponseEntity<ApiResponse<Long>> getUnreadCount(@RequestParam Long userId) {
         try {
             Long count = notificationService.getUnreadCount(userId);
-            return ResponseEntity.ok(ApiResponse.success("获取未读数量成功", count));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.3d1e1a863976"), count));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取未读数量失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.4ff1d556167c") + e.getMessage()));
         }
     }
 
@@ -105,9 +106,9 @@ public class NotificationController {
             @RequestParam Long userId) {
         try {
             Long count = notificationService.getUnreadCountByType(userId, type);
-            return ResponseEntity.ok(ApiResponse.success("获取未读数量成功", count));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.3d1e1a863976"), count));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取未读数量失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.4ff1d556167c") + e.getMessage()));
         }
     }
 
@@ -118,9 +119,9 @@ public class NotificationController {
     public ResponseEntity<ApiResponse<Long>> getSystemGroupUnreadCount(@RequestParam Long userId) {
         try {
             Long count = notificationService.getSystemGroupUnreadCount(userId);
-            return ResponseEntity.ok(ApiResponse.success("获取系统消息未读数量成功", count));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.009adf275c7b"), count));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取系统消息未读数量失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.59d39492a8bb") + e.getMessage()));
         }
     }
 
@@ -135,9 +136,9 @@ public class NotificationController {
             Notification notification = new Notification(userId, dto.getNotificationType(), dto.getTitle(), dto.getContent());
             notification.setRelatedId(dto.getRelatedId());
             Notification created = notificationService.createNotification(notification);
-            return ResponseEntity.ok(ApiResponse.success("创建通知成功", created));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.baca6ac438df"), created));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("创建通知失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.5f2d29100c82") + e.getMessage()));
         }
     }
 
@@ -148,9 +149,9 @@ public class NotificationController {
     public ResponseEntity<ApiResponse<Notification>> markAsRead(@PathVariable Long id) {
         try {
             Notification notification = notificationService.markAsRead(id);
-            return ResponseEntity.ok(ApiResponse.success("标记已读成功", notification));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.81645692675d"), notification));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("标记已读失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.f02982f77e49") + e.getMessage()));
         }
     }
 
@@ -161,9 +162,9 @@ public class NotificationController {
     public ResponseEntity<ApiResponse<Integer>> markAllAsRead(@RequestParam Long userId) {
         try {
             int count = notificationService.markAllAsRead(userId);
-            return ResponseEntity.ok(ApiResponse.success("标记全部已读成功", count));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.791cfbd98033"), count));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("标记全部已读失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.5782b962ea84") + e.getMessage()));
         }
     }
 
@@ -176,9 +177,9 @@ public class NotificationController {
             @RequestParam Long userId) {
         try {
             int count = notificationService.markAllAsReadByType(userId, type);
-            return ResponseEntity.ok(ApiResponse.success("标记全部已读成功", count));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.791cfbd98033"), count));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("标记全部已读失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.5782b962ea84") + e.getMessage()));
         }
     }
 
@@ -189,9 +190,9 @@ public class NotificationController {
     public ResponseEntity<ApiResponse<Integer>> markSystemGroupAsRead(@RequestParam Long userId) {
         try {
             int count = notificationService.markSystemGroupAsRead(userId);
-            return ResponseEntity.ok(ApiResponse.success("标记系统消息全部已读成功", count));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.26a499fc8f65"), count));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("标记系统消息全部已读失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.06af62218d86") + e.getMessage()));
         }
     }
 
@@ -202,9 +203,9 @@ public class NotificationController {
     public ResponseEntity<ApiResponse<Void>> deleteNotification(@PathVariable Long id) {
         try {
             notificationService.deleteNotification(id);
-            return ResponseEntity.ok(ApiResponse.success("删除通知成功", null));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.b1578ebfe9e7"), null));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("删除通知失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.4d319b470365") + e.getMessage()));
         }
     }
 }

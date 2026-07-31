@@ -10,6 +10,7 @@ import server.demo.repository.saas.SaasSubscriptionRepository;
 
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 幂等重放解析：按 (store_id, idempotency_key) 命中已成交订单时，解析应重放给调用方的订阅。
  *
@@ -52,7 +53,7 @@ public class SaasBillingReplayService {
                         .findFirstByStoreIdAndStatusOrderByEndTimeDesc(storeId, SaasSubscriptionStatus.ACTIVE)
                         .orElseGet(() -> subscriptionRepository.findFirstByStoreIdOrderByIdDesc(storeId)
                                 .orElseThrow(() -> new IllegalStateException(
-                                        "幂等订单存在但订阅缺失: orderId=" + order.getId()))));
+                                        ApiMessages.get("api.t.ef176c1bb276") + order.getId()))));
     }
 
     /**

@@ -19,6 +19,7 @@ import server.demo.service.StatisticsReportExportService;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/statistics/reports")
 @StoreScoped
@@ -43,11 +44,11 @@ public class StatisticsReportController {
         if (startDate.isAfter(endDate)) {
             return ResponseEntity.badRequest()
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(ApiResponse.error("开始日期不能晚于结束日期"));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.43318cbb9f3c")));
         }
         if (!reportExportService.isSupported(type)) {
-            String message = "不支持的报表类型: " + type
-                    + "；当前支持: " + String.join(", ", reportExportService.supportedTypes());
+            String message = "{api.t.4f07e7903fe6}" + type
+                    + ApiMessages.get("api.t.d52910477152") + String.join(", ", reportExportService.supportedTypes());
             return ResponseEntity.badRequest()
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(ApiResponse.error(message));

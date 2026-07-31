@@ -7,6 +7,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 @Component
 public class SmartLockProviderClientRegistry {
     private final Map<SmartLockProvider, SmartLockProviderClient> clients;
@@ -21,7 +22,7 @@ public class SmartLockProviderClientRegistry {
     public SmartLockProviderClient getClient(SmartLockProvider provider) {
         SmartLockProviderClient client = clients.get(provider);
         if (client == null) {
-            throw new IllegalArgumentException("不支持的门锁服务商: " + provider);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.3c20c7dc39b6") + provider);
         }
         return client;
     }

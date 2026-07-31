@@ -6,10 +6,10 @@ import java.time.LocalDate;
 
 public class UpdateRoomStatusRequest {
     
-    @NotNull(message = "日期不能为空")
+    @NotNull(message = "{api.t.c31a93c03e37}")
     private LocalDate date;
     
-    @NotNull(message = "房间状态不能为空")
+    @NotNull(message = "{api.t.333a358d21ca}")
     private RoomStatus status;
     
     private String reason;

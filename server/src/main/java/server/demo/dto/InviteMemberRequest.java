@@ -9,12 +9,12 @@ import jakarta.validation.constraints.Pattern;
  */
 public class InviteMemberRequest {
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
+    @NotBlank(message = "{api.t.cfe012352180}")
+    @Email(message = "{api.t.4f0599f86e3f}")
     private String email;
 
-    @NotBlank(message = "Role is required")
-    @Pattern(regexp = "^(admin|member)$", message = "Role must be admin or member")
+    @NotBlank(message = "{api.t.f4d7a9c76e6e}")
+    @Pattern(regexp = "^(admin|member)$", message = "{api.t.95e040f355e7}")
     private String role;
 
     // Getters and Setters

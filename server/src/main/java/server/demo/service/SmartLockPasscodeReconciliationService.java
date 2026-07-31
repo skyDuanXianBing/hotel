@@ -29,15 +29,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class SmartLockPasscodeReconciliationService {
     private static final Logger logger =
             LoggerFactory.getLogger(SmartLockPasscodeReconciliationService.class);
     private static final int PASSCODE_RECONCILE_MAX_BATCH_SIZE = 100;
-    private static final String SWITCHBOT_KEYLIST_SYNCED_MESSAGE =
-            "SwitchBot keyList 已同步门锁密码";
-    private static final String SWITCHBOT_KEYLIST_DELETE_SYNCED_MESSAGE =
-            "SwitchBot keyList 已确认远端密码删除";
+    private static final String SWITCHBOT_KEYLIST_SYNCED_MESSAGE_KEY = "api.t.58b72019cfa0";
+    private static final String SWITCHBOT_KEYLIST_DELETE_SYNCED_MESSAGE_KEY = "api.t.ca9c3ae5db68";
 
     private final SmartLockPasscodeRecordRepository passcodeRepository;
     private final SmartLockTaskRepository taskRepository;
@@ -175,7 +174,7 @@ public class SmartLockPasscodeReconciliationService {
                     null,
                     null,
                     "api_exception",
-                    "SwitchBot keyList 对账异常：" + safeError(ex),
+                    ApiMessages.get("api.t.1fa64ad6361a") + safeError(ex),
                     0,
                     0,
                     timeoutMinutes,
@@ -210,7 +209,7 @@ public class SmartLockPasscodeReconciliationService {
                     target,
                     inspection,
                     "no_device",
-                    "SwitchBot devices 响应中未找到密码设备，无法读取 keyList，请检查设备同步、Hub 与 Keypad 连接",
+                    ApiMessages.get("api.t.57b79d2d63f9"),
                     0,
                     keyCount(inspection),
                     timeoutMinutes,
@@ -223,7 +222,7 @@ public class SmartLockPasscodeReconciliationService {
                     target,
                     inspection,
                     "keylist_unreadable",
-                    "SwitchBot 密码设备未返回可读取的 keyList，请检查 Hub 在线、蓝牙范围和设备同步",
+                    ApiMessages.get("api.t.4df5683a6c84"),
                     0,
                     keyCount(inspection),
                     timeoutMinutes,
@@ -237,13 +236,13 @@ public class SmartLockPasscodeReconciliationService {
         }
 
         String reasonCode = "no_match";
-        String message = "SwitchBot keyList 尚未发现唯一匹配的临时密码，可能设备未同步或名称不匹配";
+        String message = "{api.t.db235ba9a4f6}";
         if (match.status() == SwitchBotPasscodeMatchStatus.AMBIGUOUS) {
             reasonCode = "ambiguous_match";
-            message = "SwitchBot keyList 中存在多条同名临时密码，已拒绝自动匹配以避免误绑定远端 ID";
+            message = "{api.t.09443f5e7e2b}";
         } else if (match.status() == SwitchBotPasscodeMatchStatus.CANDIDATE_MISSING_ID) {
             reasonCode = "candidate_missing_id";
-            message = "SwitchBot keyList 找到同名临时密码但缺少远端 ID，暂不能用于后续删除";
+            message = "{api.t.7762b3f89ce5}";
         }
         return applySwitchBotReconciliationReason(
                 record,
@@ -303,7 +302,7 @@ public class SmartLockPasscodeReconciliationService {
                     target,
                     inspection,
                     "no_device",
-                    "SwitchBot devices 响应中未找到密码设备，无法确认远端密码是否删除",
+                    ApiMessages.get("api.t.6a80eb29100f"),
                     0,
                     keyCount(inspection),
                     timeoutMinutes,
@@ -316,7 +315,7 @@ public class SmartLockPasscodeReconciliationService {
                     target,
                     inspection,
                     "keylist_unreadable",
-                    "SwitchBot 密码设备未返回可读取的 keyList，无法确认远端密码是否删除",
+                    ApiMessages.get("api.t.2d864a45a660"),
                     0,
                     keyCount(inspection),
                     timeoutMinutes,
@@ -332,7 +331,7 @@ public class SmartLockPasscodeReconciliationService {
             record.setDeletedAt(now());
             record.setLastError(null);
             passcodeRepository.save(record);
-            markMatchingDeleteTaskTerminal(record, SmartLockTaskStatus.SUCCESS, SWITCHBOT_KEYLIST_DELETE_SYNCED_MESSAGE);
+            markMatchingDeleteTaskTerminal(record, SmartLockTaskStatus.SUCCESS, ApiMessages.get(SWITCHBOT_KEYLIST_DELETE_SYNCED_MESSAGE_KEY));
             logger.info(
                     "SmartLock SwitchBot passcode reconciliation succeeded action=delete recordId={} storeId={} "
                             + "provider={} passcodeDeviceDbId={} passcodeDeviceIdSuffix={} "
@@ -354,10 +353,10 @@ public class SmartLockPasscodeReconciliationService {
         }
 
         String reasonCode = "delete_still_exists";
-        String message = "SwitchBot keyList 仍显示远端密码存在，等待设备删除同步";
+        String message = "{api.t.532ba9844370}";
         if (match.status() == SwitchBotDeletePasscodeStatus.KEYS_MISSING_ID) {
             reasonCode = "key_missing_id";
-            message = "SwitchBot keyList 条目缺少远端 ID，无法确认目标密码是否已删除";
+            message = "{api.t.9655f39516bd}";
         }
         return applySwitchBotReconciliationReason(
                 record,
@@ -393,9 +392,9 @@ public class SmartLockPasscodeReconciliationService {
         boolean outcomeUnknown = timedOut || timing.clockAnomaly();
         String finalMessage = message;
         if (timedOut) {
-            finalMessage = message + "；已超过后台对账超时 " + timeoutMinutes + " 分钟";
+            finalMessage = message + ApiMessages.get("api.t.095e4e2bc1cd") + timeoutMinutes + ApiMessages.get("api.t.5b0acd185d4a");
         } else if (timing.clockAnomaly()) {
-            finalMessage = message + "；检测到本地提交时间漂移，结果待确认";
+            finalMessage = message + ApiMessages.get("api.t.7e3bcea24c3f");
         }
         String safeFinalMessage = safeProviderMessage(finalMessage);
         boolean terminal = statusBefore == SmartLockPasscodeStatus.UNKNOWN;
@@ -535,7 +534,7 @@ public class SmartLockPasscodeReconciliationService {
             completeMatchingCreateTasksWithoutProviderTaskId(
                     record,
                     SmartLockTaskStatus.SUCCESS,
-                    SWITCHBOT_KEYLIST_SYNCED_MESSAGE
+                    ApiMessages.get(SWITCHBOT_KEYLIST_SYNCED_MESSAGE_KEY)
             );
             return;
         }
@@ -554,7 +553,7 @@ public class SmartLockPasscodeReconciliationService {
                             SmartLockTaskStatus.SUCCESS,
                             record.getProviderTaskId(),
                             record.getProviderPasscodeId(),
-                            SWITCHBOT_KEYLIST_SYNCED_MESSAGE
+                            ApiMessages.get(SWITCHBOT_KEYLIST_SYNCED_MESSAGE_KEY)
                     );
             completeTask(task, result);
         }
@@ -706,30 +705,30 @@ public class SmartLockPasscodeReconciliationService {
 
     private RoleTarget requirePasscodeSnapshotTarget(Long storeId, SmartLockPasscodeRecord record) {
         if (record.getRoom() == null || record.getRoom().getId() == null) {
-            throw new IllegalArgumentException("门锁密码记录缺少房间快照");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.38a24b117eef"));
         }
         if (!storeId.equals(record.getRoom().getStoreId())) {
-            throw new IllegalArgumentException("门锁密码记录与当前门店不一致");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.6bce1281516f"));
         }
         if (record.getBinding() == null || !storeId.equals(record.getBinding().getStoreId())) {
-            throw new IllegalArgumentException("门锁密码记录缺少绑定快照");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.d4aacfe1851d"));
         }
         SmartLockIntegration integration = record.getIntegration();
         if (integration == null || !storeId.equals(integration.getStoreId())) {
-            throw new IllegalArgumentException("门锁密码记录缺少集成快照");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.8b92190c076b"));
         }
         if (record.getProvider() != integration.getProvider()) {
-            throw new IllegalArgumentException("门锁密码记录与集成服务商不一致，已拒绝删除远程密码");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.5e3ed979ba1b"));
         }
         String providerLockId = firstText(record.getPasscodeProviderLockId(), record.getProviderLockId());
         if (!hasText(providerLockId)) {
-            throw new IllegalArgumentException("门锁密码记录缺少密码设备快照，无法删除远程密码");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.3f5e34cf3432"));
         }
         SmartLockDevice passcodeDevice = record.getPasscodeDevice();
         if (passcodeDevice != null) {
             validateDeviceConsistency(storeId, passcodeDevice, integration);
             if (!providerLockId.equals(passcodeDevice.getProviderLockId())) {
-                throw new IllegalArgumentException("门锁密码记录与密码设备快照不一致，已拒绝删除远程密码");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.caf39e4fe8ff"));
             }
         }
         return new RoleTarget(integration, record.getProvider(), passcodeDevice, providerLockId);
@@ -741,16 +740,16 @@ public class SmartLockPasscodeReconciliationService {
             SmartLockIntegration integration
     ) {
         if (device == null || !storeId.equals(device.getStoreId())) {
-            throw new IllegalArgumentException("门锁设备不存在");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.0e234935fb51"));
         }
         if (integration == null || !storeId.equals(integration.getStoreId())) {
-            throw new IllegalArgumentException("门锁集成不存在");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.2091368fecdd"));
         }
         if (device.getIntegration() == null || !integration.getId().equals(device.getIntegration().getId())) {
-            throw new IllegalArgumentException("门锁设备与集成不一致");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.a1bc42fe2b92"));
         }
         if (device.getProvider() != integration.getProvider()) {
-            throw new IllegalArgumentException("门锁设备与集成服务商不一致");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.35a89c605a44"));
         }
     }
 
@@ -761,7 +760,7 @@ public class SmartLockPasscodeReconciliationService {
             data.setProvider(integration.getProvider());
             return data;
         } catch (Exception ex) {
-            throw new IllegalStateException("门锁凭证读取失败", ex);
+            throw new IllegalStateException(ApiMessages.get("api.t.c184155aaba6"), ex);
         }
     }
 

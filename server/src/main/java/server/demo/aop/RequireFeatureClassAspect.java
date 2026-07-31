@@ -13,6 +13,7 @@ import server.demo.repository.saas.SaasFeatureRepository;
 import server.demo.service.saas.EntitlementService;
 import server.demo.util.StoreContextUtils;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 类级 {@link RequireFeature} 模块门禁切面（BOOLEAN）。
  *
@@ -51,10 +52,10 @@ public class RequireFeatureClassAspect {
 
         SaasFeatureType type = featureRepository.findByFeatureCode(featureCode)
                 .map(SaasFeature::getType)
-                .orElseThrow(() -> new IllegalStateException("功能字典缺失: " + featureCode));
+                .orElseThrow(() -> new IllegalStateException(ApiMessages.get("api.t.4a8671ebbd4b") + featureCode));
 
         if (type != SaasFeatureType.BOOLEAN) {
-            throw new IllegalStateException("类级 @RequireFeature 仅支持 BOOLEAN 模块门禁: " + featureCode);
+            throw new IllegalStateException(ApiMessages.get("api.t.8aecb8037226") + featureCode);
         }
         entitlementService.requireBooleanFeature(storeId, featureCode);
         return joinPoint.proceed();

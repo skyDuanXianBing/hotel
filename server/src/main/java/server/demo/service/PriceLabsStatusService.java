@@ -14,6 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class PriceLabsStatusService {
 
@@ -24,10 +25,10 @@ public class PriceLabsStatusService {
     @Transactional(readOnly = true)
     public PriceLabsApiClient.PriceLabsResponse queryStatus(Long storeId, List<PriceLabsApiClient.StatusReq> statuses) {
         if (storeId == null) {
-            throw new IllegalArgumentException("storeId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.d7f09cedd0e8"));
         }
         if (statuses == null || statuses.isEmpty()) {
-            throw new IllegalArgumentException("statuses 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.300fe5295d2b"));
         }
         ensureIntegrationEnabled(storeId);
         return apiClient.queryStatus(statuses);
@@ -41,16 +42,16 @@ public class PriceLabsStatusService {
             LocalDate endDate
     ) {
         if (storeId == null) {
-            throw new IllegalArgumentException("storeId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.d7f09cedd0e8"));
         }
         if (roomTypeId == null) {
-            throw new IllegalArgumentException("roomTypeId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.205932254d65"));
         }
         if (startDate == null || endDate == null) {
-            throw new IllegalArgumentException("startDate/endDate 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.1308fe0b7e65"));
         }
         if (endDate.isBefore(startDate)) {
-            throw new IllegalArgumentException("endDate 不能早于 startDate");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.9fcad55933f6"));
         }
 
         ensureIntegrationEnabled(storeId);
@@ -91,7 +92,7 @@ public class PriceLabsStatusService {
         PriceLabsIntegration integration = integrationRepo.findByStoreId(storeId)
                 .orElseThrow(() -> new RuntimeException("PriceLabs integration not found for store: " + storeId));
         if (!Boolean.TRUE.equals(integration.getIsEnabled())) {
-            throw new RuntimeException("PriceLabs 集成未启用");
+            throw new RuntimeException(ApiMessages.get("api.t.b4c8d68ce538"));
         }
         return integration;
     }

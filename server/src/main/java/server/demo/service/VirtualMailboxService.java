@@ -15,6 +15,7 @@ import server.demo.repository.VirtualMailboxRepository;
 import java.util.List;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 虚拟邮箱服务
  * 负责创建和管理虚拟邮箱
@@ -48,7 +49,7 @@ public class VirtualMailboxService {
 
         // 获取订单信息
         Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new RuntimeException("订单不存在: " + reservationId));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.e30807ae1e98") + reservationId));
 
         // 生成虚拟邮箱地址
         String emailAddress = generateVirtualEmail(reservation);
@@ -96,7 +97,7 @@ public class VirtualMailboxService {
      * @return 显示名称
      */
     private String generateDisplayName(Reservation reservation) {
-        return "订单 " + reservation.getOrderNumber();
+        return ApiMessages.get("api.t.0697b2d71c22") + reservation.getOrderNumber();
     }
 
     /**
@@ -137,7 +138,7 @@ public class VirtualMailboxService {
     @Transactional
     public void closeMailbox(Long mailboxId) {
         VirtualMailbox mailbox = virtualMailboxRepository.findById(mailboxId)
-                .orElseThrow(() -> new RuntimeException("虚拟邮箱不存在: " + mailboxId));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.24389ed4f11f") + mailboxId));
 
         mailbox.setStatus(MailboxStatus.CLOSED);
         virtualMailboxRepository.save(mailbox);
@@ -151,7 +152,7 @@ public class VirtualMailboxService {
     @Transactional
     public void reopenMailbox(Long mailboxId) {
         VirtualMailbox mailbox = virtualMailboxRepository.findById(mailboxId)
-                .orElseThrow(() -> new RuntimeException("虚拟邮箱不存在: " + mailboxId));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.24389ed4f11f") + mailboxId));
 
         mailbox.setStatus(MailboxStatus.ACTIVE);
         virtualMailboxRepository.save(mailbox);

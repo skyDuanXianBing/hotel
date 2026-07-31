@@ -15,8 +15,8 @@ public class AssignRoomTypePricePlanRequest {
     private BigDecimal saturdayPrice;
     private BigDecimal sundayPrice;
 
-    @NotNull(message = "最大入住人数不能为空")
-    @Min(value = 1, message = "最大入住人数必须大于0")
+    @NotNull(message = "{api.t.aa29dec0ec6d}")
+    @Min(value = 1, message = "{api.t.010360759242}")
     private Integer maxGuests;
 
     private Integer includedGuests;

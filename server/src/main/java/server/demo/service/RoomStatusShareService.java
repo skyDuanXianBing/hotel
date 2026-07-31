@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class RoomStatusShareService {
 
@@ -71,7 +72,7 @@ public class RoomStatusShareService {
 
         // 检查标题是否重复
         if (shareRepository.existsByStoreIdAndShareTitle(storeId, request.getShareTitle())) {
-            throw new RuntimeException("分享标题已存在");
+            throw new RuntimeException(ApiMessages.get("api.t.e0ac09f833ce"));
         }
 
         // 生成唯一的分享token
@@ -110,11 +111,11 @@ public class RoomStatusShareService {
     public RoomStatusShare updateShare(Long id, RoomStatusShareRequest request) {
         Long storeId = StoreContextUtils.requireStoreId();
         RoomStatusShare share = shareRepository.findByStoreIdAndId(storeId, id)
-                .orElseThrow(() -> new RuntimeException("分享记录不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.faad19b6fdac")));
 
         // 检查标题是否重复（排除当前记录）
         if (shareRepository.existsByStoreIdAndShareTitleAndIdNot(storeId, request.getShareTitle(), id)) {
-            throw new RuntimeException("分享标题已存在");
+            throw new RuntimeException(ApiMessages.get("api.t.e0ac09f833ce"));
         }
 
         // 更新字段
@@ -145,7 +146,7 @@ public class RoomStatusShareService {
     public void deleteShare(Long id) {
         Long storeId = StoreContextUtils.requireStoreId();
         RoomStatusShare share = shareRepository.findByStoreIdAndId(storeId, id)
-                .orElseThrow(() -> new RuntimeException("分享记录不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.faad19b6fdac")));
         
         share.setIsActive(false);
         shareRepository.save(share);
@@ -157,7 +158,7 @@ public class RoomStatusShareService {
     public RoomStatusShare getShareByToken(String shareToken) {
         return shareRepository.findByShareToken(shareToken)
                 .filter(RoomStatusShare::getIsActive)
-                .orElseThrow(() -> new RuntimeException("分享链接不存在或已失效"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.bef5b8f44958")));
     }
 
     /**
@@ -220,7 +221,7 @@ public class RoomStatusShareService {
                 roomCount = rooms.size();
             } catch (Exception e) {
                 // 处理数据格式错误
-                roomNumbers = "数据错误";
+                roomNumbers = ApiMessages.get("api.t.e1282878c96b");
                 roomCount = 0;
             }
         }
@@ -287,7 +288,7 @@ public class RoomStatusShareService {
                 .map(Room::getId)
                 .collect(Collectors.toSet());
         if (foundRoomIds.size() != normalizedRoomIds.size()) {
-            throw new RuntimeException("部分关联房间不存在或无权限");
+            throw new RuntimeException(ApiMessages.get("api.t.cc695bcbed17"));
         }
 
         return normalizedRoomIds.stream()

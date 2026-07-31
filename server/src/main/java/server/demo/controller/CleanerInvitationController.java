@@ -12,6 +12,7 @@ import server.demo.entity.Cleaner;
 import server.demo.entity.CleanerInvitation;
 import server.demo.service.CleanerInvitationService;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 保洁员邀请Controller
  */
@@ -36,7 +37,7 @@ public class CleanerInvitationController {
             server.demo.context.StoreContext storeContext = server.demo.context.StoreContextHolder.getContext();
 
             if (storeContext == null || storeContext.getStoreId() == null) {
-                return ApiResponse.error("无法获取当前门店信息");
+                return ApiResponse.error(ApiMessages.get("api.t.642b7e97c7d4"));
             }
 
             // 设置userId和storeId
@@ -44,9 +45,9 @@ public class CleanerInvitationController {
             invitationDTO.setStoreId(storeContext.getStoreId());
 
             invitationService.sendInvitation(invitationDTO);
-            return ApiResponse.success("邀请邮件已发送");
+            return ApiResponse.success(ApiMessages.get("api.t.0ebd4acf6773"));
         } catch (Exception e) {
-            return ApiResponse.error("发送邀请失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.be3a3dc89a95") + e.getMessage());
         }
     }
 
@@ -57,9 +58,9 @@ public class CleanerInvitationController {
     public ApiResponse<CleanerInvitation> validateToken(@PathVariable String token) {
         try {
             CleanerInvitation invitation = invitationService.validateToken(token);
-            return ApiResponse.success("验证成功", invitation);
+            return ApiResponse.success(ApiMessages.get("api.t.b421f63de13d"), invitation);
         } catch (Exception e) {
-            return ApiResponse.error("验证失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.c7f2a93923f3") + e.getMessage());
         }
     }
 
@@ -70,9 +71,9 @@ public class CleanerInvitationController {
     public ApiResponse<Cleaner> registerCleaner(@Valid @RequestBody CleanerRegistrationDTO registrationDTO) {
         try {
             Cleaner cleaner = invitationService.registerCleaner(registrationDTO);
-            return ApiResponse.success("注册成功", cleaner);
+            return ApiResponse.success(ApiMessages.get("api.t.4a1935bccfd3"), cleaner);
         } catch (Exception e) {
-            return ApiResponse.error("注册失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.7a4004595000") + e.getMessage());
         }
     }
 }

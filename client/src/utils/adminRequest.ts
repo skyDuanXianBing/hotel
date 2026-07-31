@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
-import { i18n } from '@/locales'
+import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, i18n, resolveLocale } from '@/locales'
 import {
   ADMIN_LOGIN_PATH,
   clearAdminSession,
@@ -29,6 +29,13 @@ const adminRequest: AxiosInstance = axios.create({
 })
 
 adminRequest.interceptors.request.use((config) => {
+  const appLocale =
+    typeof localStorage === 'undefined'
+      ? DEFAULT_LOCALE
+      : resolveLocale(localStorage.getItem(LOCALE_STORAGE_KEY))
+  config.headers['Accept-Language'] = appLocale
+  config.headers['X-App-Locale'] = appLocale
+
   const token = getAdminToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`

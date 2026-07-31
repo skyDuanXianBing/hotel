@@ -8,6 +8,7 @@ import java.math.RoundingMode;
 import java.util.Collection;
 import java.util.Objects;
 
+import server.demo.i18n.ApiMessages;
 public final class IndependentSitePricePolicy {
 
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
@@ -17,13 +18,13 @@ public final class IndependentSitePricePolicy {
 
     public static BigDecimal calculateNightPrice(Long storeId, Channel channel, BigDecimal basePrice) {
         if (storeId == null || channel == null || !Objects.equals(storeId, channel.getStoreId())) {
-            throw new IllegalArgumentException("独立站渠道不属于当前门店");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.f3fd577e458f"));
         }
         if (channel.getPriceAdjustmentType() != PriceAdjustmentType.PERCENTAGE) {
-            throw new IllegalArgumentException("独立站渠道仅支持 PERCENTAGE 价格调整");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.c7a99fe68d2e"));
         }
         if (basePrice == null || basePrice.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("基础房价必须大于 0");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.99ac6fb7e5e5"));
         }
         BigDecimal adjustment = channel.getPriceAdjustmentValue() == null
                 ? BigDecimal.ZERO
@@ -31,7 +32,7 @@ public final class IndependentSitePricePolicy {
         BigDecimal multiplier = BigDecimal.ONE.add(adjustment.divide(ONE_HUNDRED));
         BigDecimal result = basePrice.multiply(multiplier).setScale(2, RoundingMode.HALF_UP);
         if (result.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("独立站渠道调整后的房价必须大于 0");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.fb87985bb81e"));
         }
         return result;
     }
@@ -43,7 +44,7 @@ public final class IndependentSitePricePolicy {
         }
         for (BigDecimal nightlyPrice : nightlyPrices) {
             if (nightlyPrice == null) {
-                throw new IllegalArgumentException("逐晚价格不能为空");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.e42d915eef7f"));
             }
             total = total.add(nightlyPrice.setScale(2, RoundingMode.HALF_UP));
         }

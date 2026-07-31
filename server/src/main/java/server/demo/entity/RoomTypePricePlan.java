@@ -22,12 +22,12 @@ public class RoomTypePricePlan implements StoreScopedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull(message = "房型不能为空")
+    @NotNull(message = "{api.t.04e9140efd9c}")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_type_id", nullable = false)
     private RoomType roomType;
 
-    @NotNull(message = "价格计划不能为空")
+    @NotNull(message = "{api.t.7e64df832ed1}")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "price_plan_id", nullable = false)
     private PricePlan pricePlan;
@@ -54,8 +54,8 @@ public class RoomTypePricePlan implements StoreScopedEntity {
     @Column(name = "sunday_price", precision = 10, scale = 2)
     private BigDecimal sundayPrice;
 
-    @NotNull(message = "最大入住人数不能为空")
-    @Min(value = 1, message = "最大入住人数必须大于0")
+    @NotNull(message = "{api.t.aa29dec0ec6d}")
+    @Min(value = 1, message = "{api.t.010360759242}")
     @Column(name = "max_guests", nullable = false)
     private Integer maxGuests = 4;
 

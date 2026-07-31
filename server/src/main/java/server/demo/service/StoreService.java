@@ -16,6 +16,7 @@ import server.demo.util.StoreTimeZoneUtil;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class StoreService {
 
@@ -96,7 +97,7 @@ public class StoreService {
         String requestedHotelId = SuHotelIdUtil.normalize(request.getSuHotelId());
         String suHotelId = requestedHotelId != null ? requestedHotelId : generateUniqueRandomSuHotelId();
         if (!SuHotelIdUtil.isValid(suHotelId)) {
-            throw new RuntimeException("渠道酒店ID仅支持 A-Z/0-9，长度<=15");
+            throw new RuntimeException(ApiMessages.get("api.t.4411894a6352"));
         }
         savedStore.setSuHotelId(suHotelId);
         savedStore = storeRepository.save(savedStore);
@@ -120,7 +121,7 @@ public class StoreService {
         StoreUser storeUser = storeUserRepository.findByStoreIdAndUserId(storeId, userId)
                 .orElseThrow(() -> new RuntimeException("No permission"));
         if (!Boolean.TRUE.equals(storeUser.getIsActive())) {
-            throw new PermissionDeniedException("当前门店成员关系已停用");
+            throw new PermissionDeniedException(ApiMessages.get("api.t.dfdb8a63d5de"));
         }
 
         if ("owner".equals(storeUser.getRole())) {
@@ -181,7 +182,7 @@ public class StoreService {
         if (request.getSuHotelId() != null) {
             String normalized = SuHotelIdUtil.normalize(request.getSuHotelId());
             if (normalized != null && !SuHotelIdUtil.isValid(normalized)) {
-                throw new RuntimeException("渠道酒店ID仅支持 A-Z/0-9，长度<=15");
+                throw new RuntimeException(ApiMessages.get("api.t.4411894a6352"));
             }
             store.setSuHotelId(normalized);
         }
@@ -280,18 +281,18 @@ public class StoreService {
     @Transactional
     public StoreUserDTO addStoreMember(Long storeId, Long operatorUserId, AddStoreMemberRequest request) {
         StoreUser operator = storeUserRepository.findByStoreIdAndUserId(storeId, operatorUserId)
-                .orElseThrow(() -> new RuntimeException("无权限"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.permission.denied")));
 
         if (!"owner".equals(operator.getRole()) && !"admin".equals(operator.getRole())) {
-            throw new RuntimeException("只有管理员可以添加成员");
+            throw new RuntimeException(ApiMessages.get("api.t.9df6086a2d50"));
         }
         validateAssignableBaseRole(request.getRole());
         if (!"owner".equals(operator.getRole()) && containsCreateInternalTask(request.getExtraPermissions())) {
-            throw new PermissionDeniedException("只有门店所有者可授予创建其他任务权限");
+            throw new PermissionDeniedException(ApiMessages.get("api.t.2fd6e7565ba4"));
         }
 
         User invitedUser = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("用户不存在，请先让该用户注册账号"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.61bad2e189d9")));
 
         Optional<StoreUser> existingStoreUser = storeUserRepository.findByStoreIdAndUserId(storeId, invitedUser.getId());
         if (existingStoreUser.isPresent() && !Boolean.TRUE.equals(existingStoreUser.get().getIsActive())) {
@@ -326,7 +327,7 @@ public class StoreService {
         }
 
         if (storeUserRepository.existsByStoreIdAndUserId(storeId, invitedUser.getId())) {
-            throw new RuntimeException("该用户已是门店成员");
+            throw new RuntimeException(ApiMessages.get("api.t.d08b5507ce8d"));
         }
 
         StoreUser storeUser = new StoreUser(operator.getStore(), invitedUser, request.getRole());
@@ -336,10 +337,10 @@ public class StoreService {
             Set<Role> roles = new HashSet<>();
             for (Long roleId : request.getRoleIds()) {
                 Role role = roleRepository.findById(roleId)
-                        .orElseThrow(() -> new RuntimeException("角色不存在: " + roleId));
+                        .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.36656d205acd") + roleId));
 
                 if (!storeId.equals(role.getStoreId())) {
-                    throw new RuntimeException("角色不属于当前门店");
+                    throw new RuntimeException(ApiMessages.get("api.t.22845ca6787e"));
                 }
 
                 roles.add(role);
@@ -366,17 +367,17 @@ public class StoreService {
     public StoreUserDTO updateStoreMemberPermission(Long storeId, Long operatorUserId, Long targetUserId,
                                                      UpdateStoreMemberPermissionRequest request) {
         StoreUser operator = storeUserRepository.findByStoreIdAndUserId(storeId, operatorUserId)
-                .orElseThrow(() -> new RuntimeException("无权限"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.permission.denied")));
 
         if (!"owner".equals(operator.getRole()) && !"admin".equals(operator.getRole())) {
-            throw new RuntimeException("只有管理员可以修改成员权限");
+            throw new RuntimeException(ApiMessages.get("api.t.f3af8aa04c22"));
         }
 
         StoreUser target = storeUserRepository.findByStoreIdAndUserId(storeId, targetUserId)
-                .orElseThrow(() -> new RuntimeException("目标用户不是门店成员"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.e691dab5b1f6")));
 
         if ("owner".equals(target.getRole()) && !"owner".equals(operator.getRole())) {
-            throw new RuntimeException("只有所有者可以修改所有者权限");
+            throw new RuntimeException(ApiMessages.get("api.t.a3ed54b86518"));
         }
 
         if (request.getRole() != null && !"owner".equals(target.getRole()) && "owner".equals(request.getRole())) {
@@ -400,7 +401,7 @@ public class StoreService {
             boolean existingProtected = containsCreateInternalTaskEntities(existingPermissions);
             boolean requestedProtected = containsCreateInternalTask(requestedExtraPermissions);
             if (requestedProtected && !existingProtected) {
-                throw new PermissionDeniedException("只有门店所有者可授予创建其他任务权限");
+                throw new PermissionDeniedException(ApiMessages.get("api.t.2fd6e7565ba4"));
             }
             if (existingProtected && !requestedProtected) {
                 requestedExtraPermissions = new ArrayList<>(requestedExtraPermissions);
@@ -414,7 +415,7 @@ public class StoreService {
         if (request.getName() != null) {
             String normalizedName = request.getName().trim();
             if (normalizedName.isEmpty()) {
-                throw new RuntimeException("员工姓名不能为空");
+                throw new RuntimeException(ApiMessages.get("api.t.fb45634dbd6e"));
             }
             target.getUser().setName(normalizedName);
             userRepository.save(target.getUser());
@@ -428,10 +429,10 @@ public class StoreService {
             Set<Role> roles = new HashSet<>();
             for (Long roleId : request.getRoleIds()) {
                 Role role = roleRepository.findById(roleId)
-                        .orElseThrow(() -> new RuntimeException("角色不存在: " + roleId));
+                        .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.36656d205acd") + roleId));
 
                 if (!storeId.equals(role.getStoreId())) {
-                    throw new RuntimeException("角色不属于当前门店");
+                    throw new RuntimeException(ApiMessages.get("api.t.22845ca6787e"));
                 }
 
                 roles.add(role);
@@ -500,7 +501,7 @@ public class StoreService {
      */
     public StoreUserDTO getStoreMemberDetail(Long storeId, Long userId) {
         StoreUser storeUser = storeUserRepository.findByStoreIdAndUserId(storeId, userId)
-                .orElseThrow(() -> new RuntimeException("成员不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.b3b97ad25361")));
         List<StoreUserPermission> extraPermissions = loadStoreUserExtraPermissions(storeUser.getId());
         return convertToStoreUserDTO(storeUser, extraPermissions);
     }
@@ -609,7 +610,7 @@ public class StoreService {
                 return candidate;
             }
         }
-        throw new RuntimeException("渠道酒店ID生成失败，请手动填写");
+        throw new RuntimeException(ApiMessages.get("api.t.5be3bd19792a"));
     }
 
     private StoreDTO convertToDTO(Store store, String userRole) {
@@ -675,7 +676,7 @@ public class StoreService {
         }
         SuPropertyService.UpsertResult propertyResult = suPropertyService.updateStoreProperty(store.getId());
         if (!propertyResult.success()) {
-            throw new RuntimeException(propertyResult.message() != null ? propertyResult.message() : "Su 门店同步失败");
+            throw new RuntimeException(propertyResult.message() != null ? propertyResult.message() : ApiMessages.get("api.t.fe0c5230ee27"));
         }
         suImageSyncService.syncStoreImagesStrict(store.getId());
     }
@@ -1107,7 +1108,7 @@ public class StoreService {
 
     private static void validateAssignableBaseRole(String role) {
         if (!"member".equals(role) && !"admin".equals(role)) {
-            throw new PermissionDeniedException("门店所有者只能通过负责人转移接口变更");
+            throw new PermissionDeniedException(ApiMessages.get("api.t.4bbfbc33fd67"));
         }
     }
 }

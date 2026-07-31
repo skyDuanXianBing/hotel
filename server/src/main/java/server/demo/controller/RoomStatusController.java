@@ -19,6 +19,7 @@ import server.demo.service.RoomStatusService;
 
 import java.time.LocalDate;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/room-status")
 @StoreScoped
@@ -35,7 +36,7 @@ public class RoomStatusController extends BaseStoreController {
         try {
             return ApiResponse.success(roomStatusService.getRoomStatusCalendar(startDate, endDate));
         } catch (Exception e) {
-            return ApiResponse.error("获取房态日历数据失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.5e2febc662bc") + e.getMessage());
         }
     }
 
@@ -46,9 +47,9 @@ public class RoomStatusController extends BaseStoreController {
             @Valid @RequestBody UpdateRoomStatusRequest request) {
         try {
             roomStatusService.updateRoomStatus(roomId, request.getDate(), request.getStatus(), request.getReason());
-            return ApiResponse.success("房间状态更新成功");
+            return ApiResponse.success(ApiMessages.get("api.t.b478a9660b3f"));
         } catch (Exception e) {
-            return ApiResponse.error("房间状态更新失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.d4101749fa94") + e.getMessage());
         }
     }
 
@@ -58,7 +59,7 @@ public class RoomStatusController extends BaseStoreController {
         try {
             return ApiResponse.success(roomStatusService.closeRooms(request));
         } catch (Exception e) {
-            return ApiResponse.error("关房失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.4ed8b06c3c24") + e.getMessage());
         }
     }
 
@@ -68,7 +69,7 @@ public class RoomStatusController extends BaseStoreController {
         try {
             return ApiResponse.success(roomStatusService.openRooms(request));
         } catch (Exception e) {
-            return ApiResponse.error("开房失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.ee25eefd21ee") + e.getMessage());
         }
     }
 
@@ -79,7 +80,7 @@ public class RoomStatusController extends BaseStoreController {
         try {
             return ApiResponse.success(roomStatusService.getRoomStatusStatistics(date));
         } catch (Exception e) {
-            return ApiResponse.error("获取房态统计数据失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.0cf79290dc22") + e.getMessage());
         }
     }
 }

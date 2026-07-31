@@ -26,11 +26,11 @@ public class Channel implements StoreScopedEntity {
     @Column(name = "store_id")
     private Long storeId;
 
-    @NotBlank(message = "渠道名称不能为空")
+    @NotBlank(message = "{api.t.2487468540f0}")
     @Column(nullable = false, length = 100)
     private String name;
 
-    @NotBlank(message = "渠道代码不能为空")
+    @NotBlank(message = "{api.t.89bbffb3b5d3}")
     @Column(nullable = false, length = 20)
     private String code;
 

@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 record MessageKnowledgeThreadConversation(
         Long storeId,
         Long threadId,
@@ -33,9 +34,9 @@ record MessageKnowledgeThreadConversationMessage(
 ) {
     String roleLabel() {
         if (senderType == SuMessagingSenderType.STAFF) {
-            return "员工";
+            return ApiMessages.get("api.t.9834f85de584");
         }
-        return "用户";
+        return ApiMessages.get("api.t.9ba763ea3423");
     }
 }
 

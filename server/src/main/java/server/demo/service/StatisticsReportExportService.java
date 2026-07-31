@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class StatisticsReportExportService {
 
@@ -48,7 +49,7 @@ public class StatisticsReportExportService {
         if (REPORT_DAILY.equals(reportType)) {
             return exportDaily(startDate, endDate);
         }
-        throw new IllegalArgumentException("不支持的报表类型: " + reportType);
+        throw new IllegalArgumentException(ApiMessages.get("api.t.4f07e7903fe6") + reportType);
     }
 
     private String exportRoomFees(
@@ -60,17 +61,17 @@ public class StatisticsReportExportService {
     ) {
         StringBuilder csv = new StringBuilder();
         appendRow(csv, List.of(
-                "订单号",
-                "渠道订单号",
-                "渠道",
-                "客户",
-                "手机号",
-                "房型",
-                "入住日期",
-                "退房日期",
-                "房费收入（税后）",
-                "订单总金额",
-                "间夜数"
+                ApiMessages.get("api.t.459868e5cb99"),
+                ApiMessages.get("api.t.0c195543e2e2"),
+                ApiMessages.get("api.t.c152be9f5040"),
+                ApiMessages.get("api.t.f20687060126"),
+                ApiMessages.get("api.t.5a9cc5e89148"),
+                ApiMessages.get("api.t.ad9e95e81c53"),
+                ApiMessages.get("api.t.0b47d70496d9"),
+                ApiMessages.get("api.t.0ee8509fbe56"),
+                ApiMessages.get("api.t.ecd65aabf99e"),
+                ApiMessages.get("api.t.b3bf359fc58a"),
+                ApiMessages.get("api.t.81d2ef5e0f7b")
         ));
 
         int page = 1;
@@ -118,21 +119,21 @@ public class StatisticsReportExportService {
     private String exportTransactionSummary(LocalDate startDate, LocalDate endDate) {
         RevenueSummaryDTO summary = businessStatisticsService.getRevenueSummary(startDate, endDate);
         StringBuilder csv = new StringBuilder();
-        appendRow(csv, List.of("项目", "金额"));
-        appendMetric(csv, "住宿营业额", summary.getTotalIncome());
-        appendMetric(csv, "支出合计", summary.getTotalExpense());
-        appendMetric(csv, "收支净额", summary.getNetIncome());
-        appendMetric(csv, "房费收入（税后）", summary.getRoomFee());
-        appendMetric(csv, "OTA代收款", summary.getSplitAccount());
-        appendMetric(csv, "直接收款", summary.getActualReceived());
-        appendMetric(csv, "押金收款", summary.getDeposit());
-        appendMetric(csv, "客房消费", summary.getRoomServiceFee());
-        appendMetric(csv, "记一笔收入", summary.getNotesIncome());
-        appendMetric(csv, "退款/退押金", summary.getPaymentRefund());
-        appendMetric(csv, "记一笔支出", summary.getNotesExpense());
+        appendRow(csv, List.of(ApiMessages.get("api.t.22336e6b892f"), ApiMessages.get("api.t.34943c40c9af")));
+        appendMetric(csv, ApiMessages.get("api.t.1991cc37e575"), summary.getTotalIncome());
+        appendMetric(csv, ApiMessages.get("api.t.be4351de8b3b"), summary.getTotalExpense());
+        appendMetric(csv, ApiMessages.get("api.t.7fc777e5e4fe"), summary.getNetIncome());
+        appendMetric(csv, ApiMessages.get("api.t.ecd65aabf99e"), summary.getRoomFee());
+        appendMetric(csv, ApiMessages.get("api.t.28b409749796"), summary.getSplitAccount());
+        appendMetric(csv, ApiMessages.get("api.t.85bc71828473"), summary.getActualReceived());
+        appendMetric(csv, ApiMessages.get("api.t.07c29bcb7c86"), summary.getDeposit());
+        appendMetric(csv, ApiMessages.get("api.t.4e98a770002d"), summary.getRoomServiceFee());
+        appendMetric(csv, ApiMessages.get("api.t.1ecca135d105"), summary.getNotesIncome());
+        appendMetric(csv, ApiMessages.get("api.t.725202313f83"), summary.getPaymentRefund());
+        appendMetric(csv, ApiMessages.get("api.t.1967c77045d8"), summary.getNotesExpense());
 
         appendRow(csv, List.of(""));
-        appendRow(csv, List.of("支付方式", "金额", "占比", "交易笔数"));
+        appendRow(csv, List.of(ApiMessages.get("api.t.a870784d0b6e"), ApiMessages.get("api.t.34943c40c9af"), ApiMessages.get("api.t.380a2fed3ffe"), ApiMessages.get("api.t.f860b90c3016")));
         List<RevenueSummaryDTO.PaymentMethodStat> paymentStats = summary.getPaymentMethodStats();
         if (paymentStats != null) {
             for (RevenueSummaryDTO.PaymentMethodStat stat : paymentStats) {
@@ -151,20 +152,20 @@ public class StatisticsReportExportService {
         RevenueSummaryDTO summary = businessStatisticsService.getRevenueSummary(startDate, endDate);
         StringBuilder csv = new StringBuilder();
         appendRow(csv, List.of(
-                "日期",
-                "房费收入（税后）",
-                "OTA代收款",
-                "直接收款",
-                "押金收款",
-                "客房消费",
-                "记一笔收入",
-                "记一笔支出",
-                "退款/退押金",
-                "住宿营业额",
-                "支出合计",
-                "收支净额",
-                "订单数",
-                "交易笔数"
+                ApiMessages.get("api.t.b6fed9af8313"),
+                ApiMessages.get("api.t.ecd65aabf99e"),
+                ApiMessages.get("api.t.28b409749796"),
+                ApiMessages.get("api.t.85bc71828473"),
+                ApiMessages.get("api.t.07c29bcb7c86"),
+                ApiMessages.get("api.t.4e98a770002d"),
+                ApiMessages.get("api.t.1ecca135d105"),
+                ApiMessages.get("api.t.1967c77045d8"),
+                ApiMessages.get("api.t.725202313f83"),
+                ApiMessages.get("api.t.1991cc37e575"),
+                ApiMessages.get("api.t.be4351de8b3b"),
+                ApiMessages.get("api.t.7fc777e5e4fe"),
+                ApiMessages.get("api.t.084389cc97c4"),
+                ApiMessages.get("api.t.f860b90c3016")
         ));
         List<RevenueSummaryDTO.DailyRevenue> dailyRevenues = summary.getDailyRevenues();
         if (dailyRevenues == null) {

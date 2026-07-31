@@ -11,6 +11,7 @@ import server.demo.repository.CleaningSupplyRepository;
 import java.util.List;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 保洁易耗品 Service
  */
@@ -26,7 +27,7 @@ public class CleaningSupplyService {
     private Long getCurrentStoreId() {
         StoreContext context = StoreContextHolder.getContext();
         if (context == null || context.getStoreId() == null) {
-            throw new RuntimeException("无法获取当前门店信息");
+            throw new RuntimeException(ApiMessages.get("api.t.642b7e97c7d4"));
         }
         return context.getStoreId();
     }
@@ -73,14 +74,14 @@ public class CleaningSupplyService {
 
         Optional<CleaningSupply> existingSupply = cleaningSupplyRepository.findById(id);
         if (existingSupply.isEmpty()) {
-            throw new RuntimeException("易耗品不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.b9b31a4ffc83"));
         }
 
         CleaningSupply s = existingSupply.get();
 
         // 验证易耗品属于当前门店
         if (!storeId.equals(s.getStoreId())) {
-            throw new RuntimeException("无权限修改此易耗品");
+            throw new RuntimeException(ApiMessages.get("api.t.26f79695b7de"));
         }
 
         s.setRoomType(supply.getRoomType());
@@ -98,14 +99,14 @@ public class CleaningSupplyService {
 
         Optional<CleaningSupply> existingSupply = cleaningSupplyRepository.findById(id);
         if (existingSupply.isEmpty()) {
-            throw new RuntimeException("易耗品不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.b9b31a4ffc83"));
         }
 
         CleaningSupply s = existingSupply.get();
 
         // 验证易耗品属于当前门店
         if (!storeId.equals(s.getStoreId())) {
-            throw new RuntimeException("无权限删除此易耗品");
+            throw new RuntimeException(ApiMessages.get("api.t.2a25e25cb338"));
         }
 
         cleaningSupplyRepository.deleteById(id);
@@ -120,14 +121,14 @@ public class CleaningSupplyService {
 
         Optional<CleaningSupply> existingSupply = cleaningSupplyRepository.findById(id);
         if (existingSupply.isEmpty()) {
-            throw new RuntimeException("易耗品不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.b9b31a4ffc83"));
         }
 
         CleaningSupply s = existingSupply.get();
 
         // 验证易耗品属于当前门店
         if (!storeId.equals(s.getStoreId())) {
-            throw new RuntimeException("无权限修改此易耗品");
+            throw new RuntimeException(ApiMessages.get("api.t.26f79695b7de"));
         }
 
         s.setSupplies("-");

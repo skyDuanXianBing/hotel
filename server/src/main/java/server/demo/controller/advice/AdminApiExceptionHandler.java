@@ -1,5 +1,7 @@
 package server.demo.controller.advice;
 
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,10 +18,12 @@ import server.demo.controller.admin.AdminStoreController;
 import server.demo.controller.admin.AdminSubscriptionController;
 import server.demo.dto.ApiResponse;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 平台管理端（/api/admin/**）参数/业务校验异常统一处理，
  * 限定 admin 控制器，避免影响其他全局处理。
  */
+@Order(Ordered.HIGHEST_PRECEDENCE + 40)
 @RestControllerAdvice(assignableTypes = {
         AdminAuthController.class,
         AdminPackageController.class,
@@ -52,12 +56,12 @@ public class AdminApiExceptionHandler {
         String message = e.getBindingResult().getFieldErrors().stream()
                 .findFirst()
                 .map(error -> error.getField() + " " + error.getDefaultMessage())
-                .orElse("请求参数不合法");
+                .orElse(ApiMessages.get("api.t.db9dec64df60"));
         return ResponseEntity.badRequest().body(ApiResponse.error(message));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiResponse<Object>> handleNotReadable(HttpMessageNotReadableException e) {
-        return ResponseEntity.badRequest().body(ApiResponse.error("请求体格式错误或枚举值不合法"));
+        return ResponseEntity.badRequest().body(ApiResponse.error(ApiMessages.get("api.t.18e8b7db0150")));
     }
 }

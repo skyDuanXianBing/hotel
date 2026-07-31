@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class PublicRegistrationService {
 
@@ -56,7 +57,7 @@ public class PublicRegistrationService {
     @Transactional
     public PublicRegistrationResponse getOrCreate(Long storeId, String orderNumber) {
         Reservation reservation = reservationRepository.findByStoreIdAndOrderNumber(storeId, orderNumber)
-                .orElseThrow(() -> new RuntimeException("订单不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.b8768a4b0d04")));
 
         RegistrationForm form = registrationFormRepository.findByStoreIdAndReservation_Id(storeId, reservation.getId())
                 .orElseGet(() -> {
@@ -83,13 +84,13 @@ public class PublicRegistrationService {
     @Transactional
     public PublicRegistrationResponse saveDraft(Long storeId, String orderNumber, PublicRegistrationSaveRequest req) {
         Reservation reservation = reservationRepository.findByStoreIdAndOrderNumber(storeId, orderNumber)
-                .orElseThrow(() -> new RuntimeException("订单不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.b8768a4b0d04")));
 
         RegistrationForm form = registrationFormRepository.findByStoreIdAndReservation_Id(storeId, reservation.getId())
-                .orElseThrow(() -> new RuntimeException("登记表不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.5ea3eb2ea267")));
 
         if (form.getStatus() != RegistrationFormStatus.DRAFT && form.getStatus() != RegistrationFormStatus.REJECTED) {
-            throw new RuntimeException("当前状态不可修改");
+            throw new RuntimeException(ApiMessages.get("api.t.f0e12dad1e0e"));
         }
 
         int maxGuests = resolveMaxGuests(storeId, reservation);
@@ -115,13 +116,13 @@ public class PublicRegistrationService {
     @Transactional
     public PublicRegistrationResponse submit(Long storeId, String orderNumber) {
         Reservation reservation = reservationRepository.findByStoreIdAndOrderNumber(storeId, orderNumber)
-                .orElseThrow(() -> new RuntimeException("订单不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.b8768a4b0d04")));
 
         RegistrationForm form = registrationFormRepository.findByStoreIdAndReservation_Id(storeId, reservation.getId())
-                .orElseThrow(() -> new RuntimeException("登记表不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.5ea3eb2ea267")));
 
         if (form.getStatus() != RegistrationFormStatus.DRAFT && form.getStatus() != RegistrationFormStatus.REJECTED) {
-            throw new RuntimeException("当前状态不可提交");
+            throw new RuntimeException(ApiMessages.get("api.t.e8251fd0cfef"));
         }
 
         List<RegistrationGuest> guests = registrationGuestRepository.findByFormIdOrderBySortOrderAsc(form.getId());
@@ -137,48 +138,48 @@ public class PublicRegistrationService {
 
     private void validateForSubmit(List<RegistrationGuest> guests) {
         if (guests == null || guests.isEmpty()) {
-            throw new RuntimeException("请填写入住人员信息");
+            throw new RuntimeException(ApiMessages.get("api.t.33f78417f92c"));
         }
 
         for (RegistrationGuest guest : guests) {
             if (isBlank(guest.getLastName()) || isBlank(guest.getFirstName())) {
-                throw new RuntimeException("姓名必填");
+                throw new RuntimeException(ApiMessages.get("api.t.dc5c18a3d516"));
             }
             if (isBlank(guest.getPhone())) {
-                throw new RuntimeException("电话必填");
+                throw new RuntimeException(ApiMessages.get("api.t.c8c7935857b4"));
             }
             if (guest.getBirthday() == null) {
-                throw new RuntimeException("生日必填");
+                throw new RuntimeException(ApiMessages.get("api.t.63fa87ebd397"));
             }
             if (guest.getResidenceType() == null) {
-                throw new RuntimeException("请选择居住地");
+                throw new RuntimeException(ApiMessages.get("api.t.7449cb1f4c64"));
             }
 
             if (guest.getResidenceType() == ResidenceType.JAPAN) {
                 if (isBlank(guest.getAddress()) || guest.getAddress().trim().length() < 5) {
-                    throw new RuntimeException("住所（地址）必填");
+                    throw new RuntimeException(ApiMessages.get("api.t.75ff7fcc2d12"));
                 }
                 continue;
             }
 
             if (guest.getResidenceType() == ResidenceType.OTHER) {
                 if (isBlank(guest.getNationality())) {
-                    throw new RuntimeException("国籍必填");
+                    throw new RuntimeException(ApiMessages.get("api.t.b9de551d67dc"));
                 }
                 if (isBlank(guest.getCountry())) {
-                    throw new RuntimeException("国家必填");
+                    throw new RuntimeException(ApiMessages.get("api.t.c01ae9ac757b"));
                 }
                 if (isBlank(guest.getAddress1())) {
-                    throw new RuntimeException("Address1 必填");
+                    throw new RuntimeException(ApiMessages.get("api.t.7710fefbfe7e"));
                 }
                 if (isBlank(guest.getCity())) {
-                    throw new RuntimeException("City 必填");
+                    throw new RuntimeException(ApiMessages.get("api.t.ef4b7a7898c6"));
                 }
                 if (isBlank(guest.getPassportNumber())) {
-                    throw new RuntimeException("海外住客必须填写 Passport number");
+                    throw new RuntimeException(ApiMessages.get("api.t.0af3c2f17214"));
                 }
                 if (guest.getId() == null || !registrationAttachmentRepository.existsByGuestIdAndType(guest.getId(), RegistrationAttachmentType.PASSPORT)) {
-                    throw new RuntimeException("海外住客必须上传护照照片");
+                    throw new RuntimeException(ApiMessages.get("api.t.5bcae42a7421"));
                 }
             }
         }

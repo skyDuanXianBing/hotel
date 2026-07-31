@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 @Service
 @Transactional
 public class PricePlanService {
@@ -109,7 +110,7 @@ public class PricePlanService {
         Long storeId = currentStoreId();
         String hotelId = resolveOrInitSuHotelId(storeId);
         if (hotelId == null || hotelId.isBlank()) {
-            String msg = "Su hotelId 未配置，无法同步价格计划到 SU（stores.su_hotel_id）。";
+            String msg = ApiMessages.get("api.t.e6fbc71702cd");
             if (suRatePlanAutoSyncStrict) {
                 throw new RuntimeException(msg);
             }
@@ -163,11 +164,11 @@ public class PricePlanService {
     public PricePlan createPricePlan(PricePlan pricePlan) {
         Long storeId = currentStoreId();
         if (pricePlanRepository.existsByStoreIdAndName(storeId, pricePlan.getName())) {
-            throw new RuntimeException("价格计划名称已存在");
+            throw new RuntimeException(ApiMessages.get("api.t.60d2bc2e8fed"));
         }
 
         User user = userRepository.findById(currentUserId())
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1b2a3e6bd117")));
 
         pricePlan.setStoreId(storeId);
         pricePlan.setUser(user);
@@ -179,11 +180,11 @@ public class PricePlanService {
     public PricePlan updatePricePlan(Long id, PricePlan pricePlan) {
         Long storeId = currentStoreId();
         PricePlan existingPlan = pricePlanRepository.findByStoreIdAndId(storeId, id)
-                .orElseThrow(() -> new RuntimeException("价格计划不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.f6d8111d0db9")));
 
         if (!existingPlan.getName().equals(pricePlan.getName()) &&
                 pricePlanRepository.existsByStoreIdAndNameAndIdNot(storeId, pricePlan.getName(), id)) {
-            throw new RuntimeException("价格计划名称已存在");
+            throw new RuntimeException(ApiMessages.get("api.t.60d2bc2e8fed"));
         }
 
         existingPlan.setName(pricePlan.getName());
@@ -207,7 +208,7 @@ public class PricePlanService {
     public void deletePricePlan(Long id) {
         Long storeId = currentStoreId();
         PricePlan pricePlan = pricePlanRepository.findByStoreIdAndId(storeId, id)
-                .orElseThrow(() -> new RuntimeException("价格计划不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.f6d8111d0db9")));
 
         // If this rate plan has been used to generate any derived/overridden data, do not allow deleting it,
         // otherwise foreign keys or downstream integrations (PriceLabs etc.) may break.
@@ -216,22 +217,22 @@ public class PricePlanService {
         boolean hasPriceChangeHistory = priceChangeHistoryRepository.existsByStoreIdAndPricePlanId(storeId, id);
         boolean hasPriceLabsConnections = priceLabsConnectionRepository.existsByStoreIdAndPricePlanId(storeId, id);
         if (hasRoomPrices || hasChannelPrices || hasPriceChangeHistory || hasPriceLabsConnections) {
-            StringBuilder msg = new StringBuilder("该价格计划已被使用，无法删除：");
+            StringBuilder msg = new StringBuilder(ApiMessages.get("api.t.777c5776b809"));
             boolean first = true;
             if (hasRoomPrices) {
-                msg.append(first ? "" : "、").append("房价覆盖记录");
+                msg.append(first ? "" : "、").append(ApiMessages.get("api.t.e7abc72dbee3"));
                 first = false;
             }
             if (hasChannelPrices) {
-                msg.append(first ? "" : "、").append("渠道价格记录");
+                msg.append(first ? "" : "、").append(ApiMessages.get("api.t.2c3ad7fcdbd5"));
                 first = false;
             }
             if (hasPriceChangeHistory) {
-                msg.append(first ? "" : "、").append("改价历史");
+                msg.append(first ? "" : "、").append(ApiMessages.get("api.t.b68e102f96ae"));
                 first = false;
             }
             if (hasPriceLabsConnections) {
-                msg.append(first ? "" : "、").append("PriceLabs 连接");
+                msg.append(first ? "" : "、").append(ApiMessages.get("api.t.a9e95bc7652e"));
             }
             throw new RuntimeException(msg.toString());
         }
@@ -246,12 +247,12 @@ public class PricePlanService {
      */
     public void forceDeletePricePlan(Long id, boolean confirm) {
         if (!confirm) {
-            throw new RuntimeException("请二次确认后再执行彻底删除");
+            throw new RuntimeException(ApiMessages.get("api.t.4dfb8ad450d3"));
         }
 
         Long storeId = currentStoreId();
         pricePlanRepository.findByStoreIdAndId(storeId, id)
-                .orElseThrow(() -> new RuntimeException("价格计划不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.f6d8111d0db9")));
 
         channelPriceRepository.deleteByStoreIdAndPricePlanId(storeId, id);
         deletePricePlan(id);
@@ -269,9 +270,9 @@ public class PricePlanService {
     public RoomTypePricePlan assignPricePlanToRoomType(Long roomTypeId, Long pricePlanId, AssignRoomTypePricePlanRequest request) {
         Long storeId = currentStoreId();
         RoomType roomType = roomTypeRepository.findByStoreIdAndId(storeId, roomTypeId)
-                .orElseThrow(() -> new RuntimeException("房型不存在或无权限"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.096c97de3f0c")));
         PricePlan pricePlan = pricePlanRepository.findByStoreIdAndId(storeId, pricePlanId)
-                .orElseThrow(() -> new RuntimeException("价格计划不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.f6d8111d0db9")));
 
         Optional<RoomTypePricePlan> existing = roomTypePricePlanRepository.findByRoomTypeIdAndPricePlanId(roomTypeId, pricePlanId);
         RoomTypePricePlan savedPlan;
@@ -295,9 +296,9 @@ public class PricePlanService {
 
     public RoomTypePricePlan updateRoomTypePricePlan(Long id, AssignRoomTypePricePlanRequest request) {
         RoomTypePricePlan existing = roomTypePricePlanRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("房型价格计划不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.5542f364d3dc")));
         if (!currentStoreId().equals(existing.getStoreId())) {
-            throw new RuntimeException("无权限操作");
+            throw new RuntimeException(ApiMessages.get("api.t.cf4b1857f665"));
         }
 
         boolean weeklyPriceChanged = hasWeeklyPriceChanged(existing, request);
@@ -349,9 +350,9 @@ public class PricePlanService {
     public long deleteRoomTypePricePlan(Long id, boolean clearOverrides) {
         Long storeId = currentStoreId();
         RoomTypePricePlan roomTypePricePlan = roomTypePricePlanRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("房型价格计划不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.5542f364d3dc")));
         if (!storeId.equals(roomTypePricePlan.getStoreId())) {
-            throw new RuntimeException("无权限操作");
+            throw new RuntimeException(ApiMessages.get("api.t.cf4b1857f665"));
         }
 
         long clearedOverrideCount = 0;

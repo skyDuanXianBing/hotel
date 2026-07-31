@@ -6,11 +6,11 @@ import jakarta.validation.constraints.Pattern;
 
 public class SuMessagingTranslationSettingDTO {
 
-    @NotNull(message = "翻译开关不能为空")
+    @NotNull(message = "{api.t.21c6d360e510}")
     private Boolean enabled;
 
-    @NotNull(message = "目标语言不能为空")
-    @Pattern(regexp = "^(zh-CN|en|ja|ko)$", message = "目标语言仅支持 zh-CN、en、ja、ko")
+    @NotNull(message = "{api.t.460ce9217fb8}")
+    @Pattern(regexp = "^(zh-CN|en|ja|ko)$", message = "{api.t.703096170de5}")
     private String targetLanguage;
 
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)

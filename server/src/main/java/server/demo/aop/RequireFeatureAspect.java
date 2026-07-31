@@ -15,6 +15,7 @@ import server.demo.repository.saas.SaasFeatureRepository;
 import server.demo.service.saas.EntitlementService;
 import server.demo.util.StoreContextUtils;
 
+import server.demo.i18n.ApiMessages;
 /**
  * {@link RequireFeature} 权益校验切面。模式参考 RequirePermissionAspect，
  * 但无条件生效（不依赖 permission.enforcement.enabled）。
@@ -44,7 +45,7 @@ public class RequireFeatureAspect {
 
         SaasFeatureType type = featureRepository.findByFeatureCode(featureCode)
                 .map(SaasFeature::getType)
-                .orElseThrow(() -> new IllegalStateException("功能字典缺失: " + featureCode));
+                .orElseThrow(() -> new IllegalStateException(ApiMessages.get("api.t.4a8671ebbd4b") + featureCode));
 
         switch (type) {
             case BOOLEAN -> {
@@ -68,7 +69,7 @@ public class RequireFeatureAspect {
                 }
             }
             default -> throw new IllegalStateException(
-                    "@RequireFeature 不适用于 CAPACITY 权益，请在新增入口显式调用 checkCapacity: " + featureCode);
+                    ApiMessages.get("api.t.d43917ff41c8") + featureCode);
         }
     }
 }

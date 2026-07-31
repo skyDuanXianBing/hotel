@@ -15,6 +15,7 @@ import server.demo.service.RoomGroupService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/room-groups")
 @StoreScoped
@@ -26,9 +27,9 @@ public class RoomGroupController extends BaseStoreController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<RoomGroup>>> getAll() {
         try {
-            return ResponseEntity.ok(ApiResponse.success("获取分组列表成功", roomGroupService.getAllForCurrentStore()));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.1cd85afc1204"), roomGroupService.getAllForCurrentStore()));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取分组列表失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.fe70c4153364") + e.getMessage()));
         }
     }
 
@@ -36,11 +37,11 @@ public class RoomGroupController extends BaseStoreController {
     public ResponseEntity<ApiResponse<List<RoomGroupWithMembersDTO>>> getAllWithMembers() {
         try {
             return ResponseEntity.ok(ApiResponse.success(
-                    "获取分组及成员成功",
+                    ApiMessages.get("api.t.6419fbfbcbdd"),
                     roomGroupService.getAllWithMembersForCurrentStore()
             ));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取分组及成员失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.a316b356cc3a") + e.getMessage()));
         }
     }
 
@@ -48,9 +49,9 @@ public class RoomGroupController extends BaseStoreController {
     public ResponseEntity<ApiResponse<RoomGroup>> getById(@PathVariable Long id) {
         try {
             RoomGroup group = roomGroupService.getById(id);
-            return ResponseEntity.ok(ApiResponse.success("获取分组成功", group));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.e8633229ad44"), group));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取分组失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.291e7122e3be") + e.getMessage()));
         }
     }
 
@@ -61,9 +62,9 @@ public class RoomGroupController extends BaseStoreController {
             group.setName(dto.getName());
             group.setDescription(dto.getDescription());
             RoomGroup created = roomGroupService.create(group);
-            return ResponseEntity.ok(ApiResponse.success("创建分组成功", created));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.f014b50e1f6f"), created));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("创建分组失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.05b044055d4b") + e.getMessage()));
         }
     }
 
@@ -75,9 +76,9 @@ public class RoomGroupController extends BaseStoreController {
             updates.setName(dto.getName());
             updates.setDescription(dto.getDescription());
             RoomGroup updated = roomGroupService.update(id, updates);
-            return ResponseEntity.ok(ApiResponse.success("更新分组成功", updated));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.c5b4569cc2bd"), updated));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("更新分组失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.3f60ceb2727f") + e.getMessage()));
         }
     }
 
@@ -85,9 +86,9 @@ public class RoomGroupController extends BaseStoreController {
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         try {
             roomGroupService.delete(id);
-            return ResponseEntity.ok(ApiResponse.success("删除分组成功", null));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.c739bdb82eaf"), null));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("删除分组失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.477e7fb15eb7") + e.getMessage()));
         }
     }
 
@@ -95,9 +96,9 @@ public class RoomGroupController extends BaseStoreController {
     public ResponseEntity<ApiResponse<List<RoomGroupMember>>> getGroupMembers(@PathVariable Long id) {
         try {
             List<RoomGroupMember> members = roomGroupService.getGroupMembers(id);
-            return ResponseEntity.ok(ApiResponse.success("获取分组房间成功", members));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.9cb66a69f003"), members));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取分组房间失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.6b21e9e8fc8d") + e.getMessage()));
         }
     }
 
@@ -106,9 +107,9 @@ public class RoomGroupController extends BaseStoreController {
                                                                        @PathVariable Long roomId) {
         try {
             RoomGroupMember member = roomGroupService.addRoomToGroup(id, roomId);
-            return ResponseEntity.ok(ApiResponse.success("添加房间成功", member));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.aed74ce4fee8"), member));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("添加房间失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.7839066362bd") + e.getMessage()));
         }
     }
 
@@ -117,9 +118,9 @@ public class RoomGroupController extends BaseStoreController {
                                                              @Valid @RequestBody RoomGroupMemberDTO dto) {
         try {
             roomGroupService.addRoomsToGroup(id, dto.getRoomIds());
-            return ResponseEntity.ok(ApiResponse.success("批量添加房间成功", null));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.303c97ac57fb"), null));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("批量添加房间失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.e0ba273291c2") + e.getMessage()));
         }
     }
 
@@ -128,9 +129,9 @@ public class RoomGroupController extends BaseStoreController {
                                                                  @PathVariable Long roomId) {
         try {
             roomGroupService.removeRoomFromGroup(id, roomId);
-            return ResponseEntity.ok(ApiResponse.success("移除房间成功", null));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.5036f2dbfe85"), null));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("移除房间失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.9496894b9c4e") + e.getMessage()));
         }
     }
 
@@ -139,9 +140,9 @@ public class RoomGroupController extends BaseStoreController {
                                                                   @Valid @RequestBody RoomGroupMemberDTO dto) {
         try {
             roomGroupService.removeRoomsFromGroup(id, dto.getRoomIds());
-            return ResponseEntity.ok(ApiResponse.success("批量移除房间成功", null));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.c46fd1c774b6"), null));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("批量移除房间失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.53cc100dff4e") + e.getMessage()));
         }
     }
 }

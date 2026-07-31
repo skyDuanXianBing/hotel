@@ -14,6 +14,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/ota-sync")
 public class OtaSyncController {
@@ -47,9 +48,9 @@ public class OtaSyncController {
         try {
             Long storeId = StoreContextHolder.getContext().getStoreId();
             OtaSyncService.OtaSyncResult result = otaSyncService.syncStorePricesToSu(storeId, currentStoreDate(storeId), days);
-            return ResponseEntity.ok(ApiResponse.success("同步到 OTA 已触发", result));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.91e1b7dea467"), result));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("同步到 OTA 失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.794ee87b2b3d") + e.getMessage()));
         }
     }
 
@@ -63,9 +64,9 @@ public class OtaSyncController {
         try {
             Long storeId = StoreContextHolder.getContext().getStoreId();
             OtaReservationSyncService.ReservationSyncResult result = otaReservationSyncService.syncStoreReservations(storeId);
-            return ResponseEntity.ok(ApiResponse.success("拉取OTA预订成功", result));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.7b1e2a084680"), result));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("拉取OTA预订失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.c546d95f51c0") + e.getMessage()));
         }
     }
 

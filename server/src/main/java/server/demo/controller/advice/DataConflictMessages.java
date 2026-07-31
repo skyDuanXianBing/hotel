@@ -1,6 +1,7 @@
 package server.demo.controller.advice;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import server.demo.i18n.ApiMessages;
 
 /**
  * 数据完整性冲突的文案解析（D2 兜底，Billing/Admin 两侧 handler 共用）：
@@ -10,17 +11,13 @@ import org.springframework.dao.DataIntegrityViolationException;
  */
 final class DataConflictMessages {
 
-    /** 幂等键冲突：重复提交/双击/重试被唯一键拦截（正常路径已被包装层恢复为重放）。 */
-    static final String IDEMPOTENCY_CONFLICT = "重复提交，已为您恢复之前的订单结果";
-
-    /** 其他唯一键/外键/非空等约束冲突的通用文案。 */
-    static final String GENERIC_CONFLICT = "请求与现有数据冲突，请稍后重试";
-
     private DataConflictMessages() {
     }
 
     static String resolve(DataIntegrityViolationException e) {
-        return isIdempotencyConflict(e) ? IDEMPOTENCY_CONFLICT : GENERIC_CONFLICT;
+        return isIdempotencyConflict(e)
+                ? ApiMessages.get("api.conflict.idempotency")
+                : ApiMessages.get("api.conflict.generic");
     }
 
     private static boolean isIdempotencyConflict(DataIntegrityViolationException e) {

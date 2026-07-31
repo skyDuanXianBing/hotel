@@ -12,6 +12,7 @@ import server.demo.service.OrderBoxService;
 import java.util.List;
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/order-box")
 public class OrderBoxController {
@@ -28,7 +29,7 @@ public class OrderBoxController {
             List<OrderBoxDTO> orderBoxList = orderBoxService.getOrderBoxList();
             return ApiResponse.success(orderBoxList);
         } catch (Exception e) {
-            return ApiResponse.error("获取订单盒子列表失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.7c3d64895c08") + e.getMessage());
         }
     }
 
@@ -39,9 +40,9 @@ public class OrderBoxController {
     public ApiResponse<OrderBoxDTO> moveToOrderBox(@Valid @RequestBody MoveToOrderBoxRequest request) {
         try {
             OrderBoxDTO orderBox = orderBoxService.moveToOrderBox(request);
-            return ApiResponse.success("已移入订单盒子", orderBox);
+            return ApiResponse.success(ApiMessages.get("api.t.5d60bd2dcb2b"), orderBox);
         } catch (Exception e) {
-            return ApiResponse.error("移入订单盒子失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.29307d3585b4") + e.getMessage());
         }
     }
 
@@ -52,9 +53,9 @@ public class OrderBoxController {
     public ApiResponse<Void> moveOutOrderBox(@Valid @RequestBody MoveOutOrderBoxRequest request) {
         try {
             orderBoxService.moveOutOrderBox(request);
-            return ApiResponse.success("已移出订单盒子", null);
+            return ApiResponse.success(ApiMessages.get("api.t.ebad0c72b67c"), null);
         } catch (Exception e) {
-            return ApiResponse.error("移出订单盒子失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.cae9c786dab8") + e.getMessage());
         }
     }
 
@@ -67,7 +68,7 @@ public class OrderBoxController {
             Map<String, Object> statistics = orderBoxService.getOrderBoxStatistics();
             return ApiResponse.success(statistics);
         } catch (Exception e) {
-            return ApiResponse.error("获取订单盒子统计失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.23873a5f8ea1") + e.getMessage());
         }
     }
 
@@ -81,7 +82,7 @@ public class OrderBoxController {
             OrderBoxDTO orderBox = orderBoxService.getOrderBoxItemByReservationId(reservationId);
             return ApiResponse.success(orderBox);
         } catch (Exception e) {
-            return ApiResponse.error("查询订单盒子记录失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.b8d730e7c065") + e.getMessage());
         }
     }
 
@@ -94,7 +95,7 @@ public class OrderBoxController {
             Map<String, Object> result = orderBoxService.checkCanMoveToOrderBox(reservationId);
             return ApiResponse.success(result);
         } catch (Exception e) {
-            return ApiResponse.error("检查失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.59c6009a14f4") + e.getMessage());
         }
     }
 }

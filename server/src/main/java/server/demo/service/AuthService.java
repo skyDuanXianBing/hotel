@@ -21,6 +21,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 认证服务
  * 负责用户注册、登录、登出等业务逻辑
@@ -69,19 +70,19 @@ public class AuthService {
         // 检查是否在冷却时间内
         if (redisUtil.isInCooldown(email, type)) {
             logger.warn("验证码发送失败: 操作频繁 - email={}, type={}", email, type);
-            throw new RuntimeException("操作频繁,请稍后再试");
+            throw new RuntimeException(ApiMessages.get("api.t.fe0705f5860b"));
         }
 
         // 对于注册,检查邮箱是否已存在
         if ("register".equals(type) && userRepository.existsByEmail(email)) {
             logger.warn("验证码发送失败: 邮箱已注册 - email={}", email);
-            throw new RuntimeException("该邮箱已注册");
+            throw new RuntimeException(ApiMessages.get("api.t.b4d4a871006f"));
         }
 
         // 对于登录和重置密码,检查用户是否存在
         if (("login".equals(type) || "reset_password".equals(type)) && !userRepository.existsByEmail(email)) {
             logger.warn("验证码发送失败: 邮箱未注册 - email={}", email);
-            throw new RuntimeException("该邮箱未注册");
+            throw new RuntimeException(ApiMessages.get("api.t.a2e2252e8fb7"));
         }
 
         // 生成验证码
@@ -98,7 +99,7 @@ public class AuthService {
             logger.info("验证码邮件发送成功: email={}, code={}", email, code);
         } catch (MessagingException e) {
             logger.error("验证码邮件发送失败: email={}, error={}", email, e.getMessage());
-            throw new RuntimeException("验证码发送失败,请稍后重试");
+            throw new RuntimeException(ApiMessages.get("api.t.95f80b422758"));
         }
     }
 
@@ -111,12 +112,12 @@ public class AuthService {
     public UserDTO register(RegisterRequest request) {
         // 验证验证码
         if (!redisUtil.verifyCode(request.getEmail(), request.getVerificationCode(), "register")) {
-            throw new RuntimeException("验证码错误或已过期");
+            throw new RuntimeException(ApiMessages.get("api.t.44559f42fb96"));
         }
 
         // 检查邮箱是否已存在
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("该邮箱已注册");
+            throw new RuntimeException(ApiMessages.get("api.t.b4d4a871006f"));
         }
 
         // 创建用户
@@ -142,12 +143,12 @@ public class AuthService {
     public LoginResponse loginByPassword(LoginByPasswordRequest request) {
         // 查询用户 - 仅查询User表中的管理员
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("邮箱或密码错误"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.e64880a1b110")));
         requireActiveUser(user);
 
         // 验证密码
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("邮箱或密码错误");
+            throw new RuntimeException(ApiMessages.get("api.t.e64880a1b110"));
         }
 
         // 生成token
@@ -172,12 +173,12 @@ public class AuthService {
     public LoginResponse loginByCode(LoginByCodeRequest request) {
         // 验证验证码
         if (!redisUtil.verifyCode(request.getEmail(), request.getVerificationCode(), "login")) {
-            throw new RuntimeException("验证码错误或已过期");
+            throw new RuntimeException(ApiMessages.get("api.t.44559f42fb96"));
         }
 
         // 查询用户 - 仅查询User表中的管理员
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("该邮箱未注册"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.a2e2252e8fb7")));
         requireActiveUser(user);
 
         // 生成token
@@ -198,10 +199,10 @@ public class AuthService {
      */
     public LoginResponse buildAuthenticatedLoginResponse(Long userId, String token) {
         if (userId == null) {
-            throw new RuntimeException("用户不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.1b2a3e6bd117"));
         }
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1b2a3e6bd117")));
         requireActiveUser(user);
 
         UserDTO userDTO = new UserDTO(user);
@@ -219,15 +220,15 @@ public class AuthService {
      */
     public UserDTO updateProfile(Long userId, UpdateProfileRequest request) {
         if (userId == null) {
-            throw new RuntimeException("用户未登录");
+            throw new RuntimeException(ApiMessages.get("api.t.d428f5e3965b"));
         }
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1b2a3e6bd117")));
 
         if (request.getNickname() != null) {
             String nickname = request.getNickname().trim();
             if (nickname.isEmpty()) {
-                throw new RuntimeException("昵称不能为空");
+                throw new RuntimeException(ApiMessages.get("api.t.24786cc1ef7e"));
             }
             user.setNickname(nickname);
         }
@@ -242,7 +243,7 @@ public class AuthService {
             if (gender.isEmpty()) {
                 user.setGender(null);
             } else if (!ALLOWED_GENDERS.contains(gender)) {
-                throw new RuntimeException("性别参数不合法");
+                throw new RuntimeException(ApiMessages.get("api.t.e81542307960"));
             } else {
                 user.setGender(gender);
             }
@@ -261,19 +262,19 @@ public class AuthService {
      */
     public void changePassword(Long userId, String token, ChangePasswordRequest request) {
         if (userId == null) {
-            throw new RuntimeException("用户未登录");
+            throw new RuntimeException(ApiMessages.get("api.t.d428f5e3965b"));
         }
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1b2a3e6bd117")));
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-            throw new RuntimeException("当前密码不正确");
+            throw new RuntimeException(ApiMessages.get("api.t.b0dabf50cdbd"));
         }
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-            throw new RuntimeException("两次输入的密码不一致");
+            throw new RuntimeException(ApiMessages.get("api.t.3e2b222d98e5"));
         }
         if (request.getNewPassword().equals(request.getCurrentPassword())) {
-            throw new RuntimeException("新密码不能与当前密码相同");
+            throw new RuntimeException(ApiMessages.get("api.t.17b3195adeb9"));
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
@@ -304,7 +305,7 @@ public class AuthService {
                     : System.currentTimeMillis() + 86400000;
             redisUtil.addTokenToBlacklist(token, expirationTime);
         } catch (Exception e) {
-            throw new RuntimeException("登出失败");
+            throw new RuntimeException(ApiMessages.get("api.t.48eef187536d"));
         }
     }
 
@@ -316,7 +317,7 @@ public class AuthService {
      */
     public UserDTO getCurrentUser(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1b2a3e6bd117")));
         return new UserDTO(user);
     }
 
@@ -328,12 +329,12 @@ public class AuthService {
     public void resetPassword(ResetPasswordRequest request) {
         // 验证验证码
         if (!redisUtil.verifyCode(request.getEmail(), request.getVerificationCode(), "reset_password")) {
-            throw new RuntimeException("验证码错误或已过期");
+            throw new RuntimeException(ApiMessages.get("api.t.44559f42fb96"));
         }
 
         // 查询用户（必须已注册）
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("该邮箱未注册，请先注册"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.986834a3b88e")));
 
         // 更新密码
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
@@ -492,7 +493,7 @@ public class AuthService {
 
     private void requireActiveUser(User user) {
         if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new RuntimeException("用户账号已停用，无法登录");
+            throw new RuntimeException(ApiMessages.get("api.t.f2dffd27882b"));
         }
     }
 

@@ -14,6 +14,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class NotificationService {
 
@@ -136,7 +137,7 @@ public class NotificationService {
     @Transactional
     public Notification markAsRead(Long notificationId) {
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new RuntimeException("通知不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.0066636db9b8")));
         notification.setReadAt(nowUtc());
         notification.setIsRead(true);
         return notificationRepository.save(notification);

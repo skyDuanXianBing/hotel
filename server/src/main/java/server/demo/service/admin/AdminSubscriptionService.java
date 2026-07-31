@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 平台管理端：租户订阅查询 / 人工开通切换 / 人工取消。
  */
@@ -97,25 +98,25 @@ public class AdminSubscriptionService {
     @Transactional
     public SubscriptionView grantSubscription(SubscriptionGrantRequest request, String operator) {
         Store store = storeRepository.findById(request.storeId())
-                .orElseThrow(() -> new IllegalArgumentException("门店不存在: " + request.storeId()));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.d0dfd856aed3") + request.storeId()));
 
         String remark = request.remark() == null ? "" : request.remark().trim();
         if (remark.isEmpty()) {
-            throw new IllegalArgumentException("remark 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.42f14a7bfa66"));
         }
         if (remark.length() > 500) {
-            throw new IllegalArgumentException("remark 长度不能超过 500");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.0b0e998b329b"));
         }
         boolean permanent = Boolean.TRUE.equals(request.permanent());
         if (permanent && request.durationDays() != null) {
-            throw new IllegalArgumentException("permanent 与 durationDays 不可同时指定");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.de85e5035d00"));
         }
         LocalDateTime endTimeOverride = null;
         if (permanent) {
             endTimeOverride = PERMANENT_END_TIME;
         } else if (request.durationDays() != null) {
             if (request.durationDays() < 1 || request.durationDays() > 36500) {
-                throw new IllegalArgumentException("durationDays 需在 1-36500 之间");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.5d7af526b112"));
             }
             endTimeOverride = LocalDateTime.now().plusDays(request.durationDays());
         }
@@ -131,7 +132,7 @@ public class AdminSubscriptionService {
 
     /** 订单备注：「操作人:{operator}；{remark}」，整体截断到列宽 500。 */
     static String composeOrderRemark(String operator, String remark) {
-        String composed = "操作人:" + (operator == null || operator.isBlank() ? "unknown" : operator)
+        String composed = ApiMessages.get("api.t.dc7299b1ca96") + (operator == null || operator.isBlank() ? "unknown" : operator)
                 + "；" + remark;
         return composed.length() <= MAX_ORDER_REMARK_LENGTH
                 ? composed
@@ -154,9 +155,9 @@ public class AdminSubscriptionService {
     @Transactional
     public SubscriptionView cancelSubscription(Long subscriptionId, String operator) {
         SaasSubscription subscription = subscriptionRepository.findById(subscriptionId)
-                .orElseThrow(() -> new IllegalArgumentException("订阅不存在: " + subscriptionId));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.a598b4feb961") + subscriptionId));
         if (subscription.getStatus() != SaasSubscriptionStatus.ACTIVE) {
-            throw new IllegalArgumentException("仅进行中的订阅可取消，当前状态: " + subscription.getStatus());
+            throw new IllegalArgumentException(ApiMessages.get("api.t.95084eeb0c47") + subscription.getStatus());
         }
         subscription.setStatus(SaasSubscriptionStatus.CANCELLED);
         subscriptionRepository.save(subscription);

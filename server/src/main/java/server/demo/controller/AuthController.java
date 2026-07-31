@@ -8,6 +8,7 @@ import server.demo.dto.ApiResponse;
 import server.demo.dto.auth.*;
 import server.demo.service.AuthService;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 认证控制器
  * 提供用户认证相关的RESTful API接口
@@ -29,7 +30,7 @@ public class AuthController {
     public ApiResponse<Void> sendVerificationCode(@Valid @RequestBody SendVerificationCodeRequest request) {
         try {
             authService.sendVerificationCode(request);
-            return ApiResponse.success("验证码发送成功", null);
+            return ApiResponse.success(ApiMessages.get("api.t.e1aaa946cba7"), null);
         } catch (Exception e) {
             return ApiResponse.error(e.getMessage());
         }
@@ -45,7 +46,7 @@ public class AuthController {
     public ApiResponse<UserDTO> register(@Valid @RequestBody RegisterRequest request) {
         try {
             UserDTO userDTO = authService.register(request);
-            return ApiResponse.success("注册成功", userDTO);
+            return ApiResponse.success(ApiMessages.get("api.t.4a1935bccfd3"), userDTO);
         } catch (Exception e) {
             return ApiResponse.error(e.getMessage());
         }
@@ -61,7 +62,7 @@ public class AuthController {
     public ApiResponse<LoginResponse> loginByPassword(@Valid @RequestBody LoginByPasswordRequest request) {
         try {
             LoginResponse loginResponse = authService.loginByPassword(request);
-            return ApiResponse.success("登录成功", loginResponse);
+            return ApiResponse.success(ApiMessages.get("api.t.2991317aba58"), loginResponse);
         } catch (Exception e) {
             return ApiResponse.error(e.getMessage());
         }
@@ -77,7 +78,7 @@ public class AuthController {
     public ApiResponse<LoginResponse> loginByCode(@Valid @RequestBody LoginByCodeRequest request) {
         try {
             LoginResponse loginResponse = authService.loginByCode(request);
-            return ApiResponse.success("登录成功", loginResponse);
+            return ApiResponse.success(ApiMessages.get("api.t.2991317aba58"), loginResponse);
         } catch (Exception e) {
             return ApiResponse.error(e.getMessage());
         }
@@ -94,7 +95,7 @@ public class AuthController {
         try {
             String token = (String) httpRequest.getAttribute("token");
             authService.logout(token);
-            return ApiResponse.success("登出成功", null);
+            return ApiResponse.success(ApiMessages.get("api.t.64765c6511c6"), null);
         } catch (Exception e) {
             return ApiResponse.error(e.getMessage());
         }
@@ -112,7 +113,7 @@ public class AuthController {
         try {
             Long userId = (Long) httpRequest.getAttribute("userId");
             UserDTO userDTO = authService.updateProfile(userId, request);
-            return ApiResponse.success("更新个人资料成功", userDTO);
+            return ApiResponse.success(ApiMessages.get("api.t.e53b1212a761"), userDTO);
         } catch (Exception e) {
             return ApiResponse.error(e.getMessage());
         }
@@ -131,7 +132,7 @@ public class AuthController {
             Long userId = (Long) httpRequest.getAttribute("userId");
             String token = (String) httpRequest.getAttribute("token");
             authService.changePassword(userId, token, request);
-            return ApiResponse.success("密码修改成功", null);
+            return ApiResponse.success(ApiMessages.get("api.t.f0e65f05ada2"), null);
         } catch (Exception e) {
             return ApiResponse.error(e.getMessage());
         }
@@ -164,7 +165,7 @@ public class AuthController {
     public ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         try {
             authService.resetPassword(request);
-            return ApiResponse.success("密码重置成功", null);
+            return ApiResponse.success(ApiMessages.get("api.t.f4908703524d"), null);
         } catch (Exception e) {
             return ApiResponse.error(e.getMessage());
         }

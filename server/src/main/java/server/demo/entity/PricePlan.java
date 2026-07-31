@@ -17,7 +17,7 @@ public class PricePlan implements StoreScopedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "价格计划名称不能为空")
+    @NotBlank(message = "{api.t.f290490f7230}")
     @Column(nullable = false, length = 100)
     private String name;
 
@@ -30,8 +30,8 @@ public class PricePlan implements StoreScopedEntity {
     @Column(name = "description_en", length = 500)
     private String descriptionEn;
 
-    @NotNull(message = "最少入住天数不能为空")
-    @Min(value = 1, message = "最少入住天数必须大于0")
+    @NotNull(message = "{api.t.fcb0cb3f073b}")
+    @Min(value = 1, message = "{api.t.dd74197ac285}")
     @Column(name = "min_nights", nullable = false)
     private Integer minNights = 1;
 

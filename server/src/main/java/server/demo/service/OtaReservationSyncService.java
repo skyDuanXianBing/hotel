@@ -42,6 +42,7 @@ import java.util.Set;
 import java.util.StringJoiner;
 import java.util.UUID;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class OtaReservationSyncService {
 
@@ -230,7 +231,7 @@ public class OtaReservationSyncService {
             throw new IllegalArgumentException("storeId is required");
         }
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new IllegalArgumentException("闂ㄥ簵涓嶅瓨鍦? " + storeId));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.4111b8918f0f") + storeId));
 
         List<JsonNode> reservationNodes = reservations != null ? reservations : List.of();
         if (reservationNodes.isEmpty()) {
@@ -266,7 +267,7 @@ public class OtaReservationSyncService {
         }
 
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new IllegalArgumentException("门店不存在: " + storeId));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.d0dfd856aed3") + storeId));
 
         String hotelId = resolveHotelId(store);
         reservationLogger.info("[ReservationSync] start. storeId={}, hotelId={}, onlyAckNotifIds={}",
@@ -282,7 +283,7 @@ public class OtaReservationSyncService {
 
         UpsertResult upsert = upsertReservationsWithIsolatedTransactions(store, reservations);
         if (upsert == null) {
-            upsert = new UpsertResult(0, 0, 0, 0, 0, Set.of(), Set.of(), List.of("事务执行失败：upsert结果为空"));
+            upsert = new UpsertResult(0, 0, 0, 0, 0, Set.of(), Set.of(), List.of(ApiMessages.get("api.t.3b2b348de956")));
         }
 
         reservationLogger.info("[ReservationSync] upsert done. storeId={}, hotelId={}, processed={}, created={}, updated={}, failed={}, notifIds={}",
@@ -350,7 +351,7 @@ public class OtaReservationSyncService {
         }
 
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new IllegalArgumentException("闂ㄥ簵涓嶅瓨鍦? " + storeId));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.4111b8918f0f") + storeId));
 
         String hotelId = resolveHotelId(store);
         reservationLogger.info("[ReservationSyncPush] start. storeId={}, hotelId={}, onlyProcessNotifIds={}",
@@ -368,7 +369,7 @@ public class OtaReservationSyncService {
 
         UpsertResult upsert = upsertReservationsWithIsolatedTransactions(store, filtered);
         if (upsert == null) {
-            upsert = new UpsertResult(0, 0, 0, 0, 0, Set.of(), Set.of(), List.of("浜嬪姟鎵ц澶辫触锛歶psert缁撴灉涓虹┖"));
+            upsert = new UpsertResult(0, 0, 0, 0, 0, Set.of(), Set.of(), List.of(ApiMessages.get("api.t.f9098a3c4e98")));
         }
 
         reservationLogger.info("[ReservationSyncPush] upsert done. storeId={}, hotelId={}, processed={}, created={}, updated={}, failed={}, notifIds={}",
@@ -710,7 +711,7 @@ public class OtaReservationSyncService {
             if (roomTypeId != null && (lockedRoomTypeIds == null
                     || !lockedRoomTypeIds.contains(roomTypeId))) {
                 throw new IllegalStateException(
-                        "预订房型在库存加锁后发生变化，请重试，roomTypeId=" + roomTypeId
+                        ApiMessages.get("api.t.ac8798a3261f") + roomTypeId
                 );
             }
         }
@@ -738,7 +739,7 @@ public class OtaReservationSyncService {
         int failed = 0;
 
         User user = userRepository.findById(store.getUserId())
-                .orElseThrow(() -> new IllegalStateException("门店关联的用户不存在: " + store.getUserId()));
+                .orElseThrow(() -> new IllegalStateException(ApiMessages.get("api.t.ab10159afbb4") + store.getUserId()));
         java.util.Map<String, String> pricePlanDisplayCache = new java.util.HashMap<>();
         Set<Long> lockedInventoryRoomTypeIds =
                 lockInventoryForUpsert(store.getId(), reservations);
@@ -787,7 +788,7 @@ public class OtaReservationSyncService {
                     boolean datesMissing = checkIn == null || checkOut == null;
                     // Cancelled notifications from Su may omit rooms/dates. Keep non-cancel payloads strict.
                     if (datesMissing && mappedStatusEarly != ReservationStatus.CANCELLED) {
-                        throw new IllegalArgumentException("缺少入住/退房日期");
+                        throw new IllegalArgumentException(ApiMessages.get("api.t.6bb69b6ed589"));
                     }
                     String itProviderRoomId = roomStay != null
                             ? SuReservationParser.extractRoomTypeId(roomStay)
@@ -818,7 +819,7 @@ public class OtaReservationSyncService {
                     );
 
                     Channel channel = resolveChannel(store.getId(), channelCode)
-                            .orElseThrow(() -> new IllegalStateException("渠道不存在: " + channelCode));
+                            .orElseThrow(() -> new IllegalStateException(ApiMessages.get("api.t.95ea7966cadd") + channelCode));
 
                     String externalBookingKey = resolveExternalBookingKey(
                             channelCode,
@@ -861,7 +862,7 @@ public class OtaReservationSyncService {
                         checkIn = reservation.getCheckInDate();
                         checkOut = reservation.getCheckOutDate();
                         if (checkIn == null || checkOut == null) {
-                            throw new IllegalArgumentException("缺少入住/退房日期");
+                            throw new IllegalArgumentException(ApiMessages.get("api.t.6bb69b6ed589"));
                         }
                         reservationLogger.info(
                                 "[ReservationUpsert] reuse existing dates for cancelled payload without dates. storeId={}, hotelId={}, reservationId={}, notifId={}, checkIn={}, checkOut={}, existingDbId={}",

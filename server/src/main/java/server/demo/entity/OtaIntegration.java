@@ -31,14 +31,14 @@ public class OtaIntegration implements StoreScopedEntity {
     /**
      * OTA渠道名称（如 Airbnb, Booking.com）
      */
-    @NotBlank(message = "渠道名称不能为空")
+    @NotBlank(message = "{api.t.2487468540f0}")
     @Column(nullable = false, length = 100)
     private String name;
 
     /**
      * OTA渠道代码（如 AIRBNB, BOOKING）
      */
-    @NotBlank(message = "渠道代码不能为空")
+    @NotBlank(message = "{api.t.89bbffb3b5d3}")
     @Column(nullable = false, length = 50)
     private String code;
 

@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 角色权限服务
  */
@@ -58,10 +59,10 @@ public class RolePermissionService {
         if (permissionDTOs != null && permissionDTOs.stream().anyMatch(dto -> dto != null
                 && dto.getModule() == PermissionModule.ACCOMMODATION
                 && dto.getAction() == PermissionAction.CREATE_INTERNAL_TASK)) {
-            throw new PermissionDeniedException("创建其他任务权限只能直接授予门店成员");
+            throw new PermissionDeniedException(ApiMessages.get("api.t.2828e335a9ab"));
         }
         Role role = roleRepository.findById(roleId)
-                .orElseThrow(() -> new RuntimeException("角色不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.3b434ed58cbf")));
 
         // 删除现有权限
         rolePermissionRepository.deleteByRoleId(roleId);

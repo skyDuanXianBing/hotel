@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ConcurrentHashMap;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 独立站 Stripe 客户端工厂。门店级密钥存于数据库（IndependentSiteStripeSettingsService 解析），
  * 本类只负责按 secretKey 构建并缓存 StripeClient（stripe-java 实例模式天然支持多租户逐店一密钥）。
@@ -30,7 +31,7 @@ public class StripeConfig {
     /** 按门店 secretKey 建并缓存 StripeClient；secretKey 缺失时抛 IllegalStateException。 */
     public StripeClient clientFor(String secretKey) {
         if (secretKey == null || secretKey.isBlank()) {
-            throw new IllegalStateException("Stripe secret key 缺失，无法构建客户端");
+            throw new IllegalStateException(ApiMessages.get("api.t.9bceeb9e9bc3"));
         }
         return clients.computeIfAbsent(secretKey, key -> StripeClient.builder()
                 .setApiKey(key)

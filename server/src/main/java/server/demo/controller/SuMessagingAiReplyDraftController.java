@@ -13,6 +13,7 @@ import server.demo.dto.SuMessagingAiReplyDraftRequest;
 import server.demo.dto.SuMessagingAiReplyDraftResponse;
 import server.demo.service.SuMessagingAiReplyDraftService;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/su-messaging")
 public class SuMessagingAiReplyDraftController {
@@ -33,11 +34,11 @@ public class SuMessagingAiReplyDraftController {
             Long storeId = StoreContextHolder.getContext().getStoreId();
             SuMessagingAiReplyDraftResponse response =
                     aiReplyDraftService.generateDraft(storeId, threadId, request);
-            return ResponseEntity.ok(ApiResponse.success("AI 回复草稿生成成功", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.88621ac3a7e0"), response));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("生成 AI 回复草稿失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.134acbe9f921") + e.getMessage()));
         }
     }
 }

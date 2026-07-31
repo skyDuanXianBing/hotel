@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class PriceLabsApiClient {
     private static final Logger logger = LoggerFactory.getLogger(PriceLabsApiClient.class);
@@ -558,7 +559,7 @@ public class PriceLabsApiClient {
 
     public GetPricesResponse getPrices(List<String> listingIds, LocalDate startDate, LocalDate endDate, Boolean deltaOnly) {
         if (listingIds == null || listingIds.isEmpty()) {
-            throw new IllegalArgumentException("listingIds 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.565aba70a3b7"));
         }
         String url = priceLabsConfig.getBaseUrl() + "/get_prices";
         HttpHeaders headers = createHeaders();
@@ -602,7 +603,7 @@ public class PriceLabsApiClient {
 
     public PullSyncGetPricesResponse pullSyncGetPrices(String listingId, String ratePlanId, Boolean deltaOnly) {
         if (listingId == null || listingId.isBlank()) {
-            throw new IllegalArgumentException("listingId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.fe17c9f46694"));
         }
         String url = priceLabsConfig.getBaseUrl() + "/get_prices";
         HttpHeaders headers = createHeaders();
@@ -663,7 +664,7 @@ public class PriceLabsApiClient {
 
     public PriceLabsResponse queryStatus(List<StatusReq> statuses) {
         if (statuses == null || statuses.isEmpty()) {
-            throw new IllegalArgumentException("statuses 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.300fe5295d2b"));
         }
         String url = priceLabsConfig.getBaseUrl() + "/status";
         HttpHeaders headers = createHeaders();
@@ -880,7 +881,7 @@ public class PriceLabsApiClient {
 
     private static void assertWebhookUrlReachable(String url, String name) {
         if (url == null || url.isBlank()) {
-            throw new IllegalStateException("Webhook URL 未配置: " + name);
+            throw new IllegalStateException(ApiMessages.get("api.t.a5a6225e9e7e") + name);
         }
 
         HttpClient client = HttpClient.newBuilder()
@@ -890,7 +891,7 @@ public class PriceLabsApiClient {
 
         int status = headThenGetStatus(client, url);
         if (status >= 400) {
-            throw new IllegalStateException("Webhook URL 不可访问: " + name + "=" + url + " (HTTP " + status + ")");
+            throw new IllegalStateException(ApiMessages.get("api.t.090b9933af40") + name + "=" + url + " (HTTP " + status + ")");
         }
     }
 
@@ -914,7 +915,7 @@ public class PriceLabsApiClient {
             HttpResponse<Void> getRes = client.send(get, HttpResponse.BodyHandlers.discarding());
             return getRes.statusCode();
         } catch (Exception e) {
-            throw new IllegalStateException("Webhook URL 访问失败: " + url + " (" + e.getMessage() + ")", e);
+            throw new IllegalStateException(ApiMessages.get("api.t.84ddf2f581f1") + url + " (" + e.getMessage() + ")", e);
         }
     }
 

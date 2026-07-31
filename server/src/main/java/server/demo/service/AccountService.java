@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 账号管理服务
  */
@@ -66,7 +67,7 @@ public class AccountService {
      */
     public AccountDTO getAccountById(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("账号不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.37f36ca852b6")));
         return convertToDTO(user);
     }
 
@@ -77,12 +78,12 @@ public class AccountService {
     public AccountDTO createAccount(CreateAccountRequest request) {
         // 检查用户名是否已存在
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("用户名已存在");
+            throw new RuntimeException(ApiMessages.get("api.t.6116dd94fdb6"));
         }
 
         // 检查邮箱是否已存在
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("邮箱已存在");
+            throw new RuntimeException(ApiMessages.get("api.t.02d365387d4b"));
         }
 
         // 创建用户
@@ -114,7 +115,7 @@ public class AccountService {
     @Transactional
     public AccountDTO updateAccount(Long id, UpdateAccountRequest request) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("账号不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.37f36ca852b6")));
 
         // 更新基本信息
         if (request.getName() != null) {
@@ -123,7 +124,7 @@ public class AccountService {
 
         if (request.getEmail() != null && !request.getEmail().equals(user.getEmail())) {
             if (userRepository.existsByEmail(request.getEmail())) {
-                throw new RuntimeException("邮箱已存在");
+                throw new RuntimeException(ApiMessages.get("api.t.02d365387d4b"));
             }
             user.setEmail(request.getEmail());
         }
@@ -161,7 +162,7 @@ public class AccountService {
     @Transactional
     public void deleteAccount(Long id) {
         if (!userRepository.existsById(id)) {
-            throw new RuntimeException("账号不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.37f36ca852b6"));
         }
         userRepository.deleteById(id);
     }
@@ -180,7 +181,7 @@ public class AccountService {
     @Transactional
     public AccountDTO updateAccountStatus(Long id, Boolean isActive) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("账号不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.37f36ca852b6")));
 
         user.setIsActive(isActive);
         User updatedUser = userRepository.save(user);

@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/room-prices")
 @server.demo.annotation.StoreScoped
@@ -51,10 +52,10 @@ public class RoomPriceController {
             } else {
                 roomPrices = roomPriceService.getRoomPricesByDateRange(startDate, endDate);
             }
-            return ResponseEntity.ok(ApiResponse.success("获取房价数据成功", roomPrices));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.bcbb2d0f4d44"), roomPrices));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("获取房价数据失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.8abed0e359dd") + e.getMessage()));
         }
     }
 
@@ -69,14 +70,14 @@ public class RoomPriceController {
         try {
             Optional<RoomPriceDTO> roomPrice = roomPriceService.getRoomPrice(roomTypeId, date);
             if (roomPrice.isPresent()) {
-                return ResponseEntity.ok(ApiResponse.success("获取房价成功", roomPrice.get()));
+                return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.1890ba0a1ad4"), roomPrice.get()));
             } else {
                 return ResponseEntity.status(404)
-                        .body(ApiResponse.error("该日期没有设置特定价格"));
+                        .body(ApiResponse.error(ApiMessages.get("api.t.6ab27d35c82e")));
             }
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("获取房价失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.ab636cdb2b99") + e.getMessage()));
         }
     }
 
@@ -90,10 +91,10 @@ public class RoomPriceController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         try {
             BigDecimal price = roomPriceService.getEffectivePrice(roomTypeId, date);
-            return ResponseEntity.ok(ApiResponse.success("获取有效房价成功", price));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.a1c17bbd277f"), price));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("获取有效房价失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.6ab74473ffed") + e.getMessage()));
         }
     }
 
@@ -108,10 +109,10 @@ public class RoomPriceController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
             List<RoomPriceDTO> roomPrices = roomPriceService.getRoomPricesByRoomTypeAndDateRange(roomTypeId, startDate, endDate);
-            return ResponseEntity.ok(ApiResponse.success("获取房价数据成功", roomPrices));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.bcbb2d0f4d44"), roomPrices));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("获取房价数据失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.8abed0e359dd") + e.getMessage()));
         }
     }
 
@@ -124,13 +125,13 @@ public class RoomPriceController {
             @Valid @RequestBody UpdateRoomPriceRequest request) {
         try {
             List<RoomPriceDTO> updatedPrices = roomPriceService.updateRoomPrice(request);
-            return ResponseEntity.ok(ApiResponse.success("房价更新成功", updatedPrices));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.c406fbbd3b0d"), updatedPrices));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(400)
-                    .body(ApiResponse.error("参数错误: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.567d311e6a3e") + e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("房价更新失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.4fe0a1fd8b63") + e.getMessage()));
         }
     }
 
@@ -143,10 +144,10 @@ public class RoomPriceController {
             @Valid @RequestBody List<UpdateRoomPriceRequest> requests) {
         try {
             List<RoomPriceDTO> updatedPrices = roomPriceService.batchUpdateRoomPrices(requests);
-            return ResponseEntity.ok(ApiResponse.success("批量房价更新成功", updatedPrices));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.79a69d2a9e81"), updatedPrices));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("批量房价更新失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.bb8223c35479") + e.getMessage()));
         }
     }
 
@@ -161,14 +162,14 @@ public class RoomPriceController {
         try {
             boolean deleted = roomPriceService.deleteRoomPrice(roomTypeId, date);
             if (deleted) {
-                return ResponseEntity.ok(ApiResponse.success("房价删除成功"));
+                return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.ac6ec44c598b")));
             } else {
                 return ResponseEntity.status(404)
-                        .body(ApiResponse.error("未找到要删除的房价设置"));
+                        .body(ApiResponse.error(ApiMessages.get("api.t.931aa77f4b54")));
             }
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("房价删除失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.28754a72b121") + e.getMessage()));
         }
     }
 
@@ -183,10 +184,10 @@ public class RoomPriceController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
             int deletedCount = roomPriceService.deleteRoomPriceRange(roomTypeId, startDate, endDate);
-            return ResponseEntity.ok(ApiResponse.success("成功删除 " + deletedCount + " 条房价设置"));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.82121e47a5e9") + deletedCount + ApiMessages.get("api.t.ca8df759ad5b")));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("房价删除失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.28754a72b121") + e.getMessage()));
         }
     }
 
@@ -200,15 +201,15 @@ public class RoomPriceController {
         try {
             List<RoomPriceDTO> updatedPrices = roomPriceService.bulkPriceChange(request);
             return ResponseEntity.ok(ApiResponse.success(
-                "批量改价成功，共更新 " + updatedPrices.size() + " 条房价记录",
+                ApiMessages.get("api.t.3d3c6dd36274") + updatedPrices.size() + ApiMessages.get("api.t.86b04b9efd76"),
                 updatedPrices
             ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(400)
-                    .body(ApiResponse.error("参数错误: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.567d311e6a3e") + e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("批量改价失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.b8aa79b26067") + e.getMessage()));
         }
     }
 
@@ -224,10 +225,10 @@ public class RoomPriceController {
         try {
             List<RoomPriceManagementDTO> data = roomPriceService.getRoomPriceManagementData(
                     startDate, endDate, roomTypeId);
-            return ResponseEntity.ok(ApiResponse.success("获取房价管理数据成功", data));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.695ecfef40dc"), data));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("获取房价管理数据失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.167010d58308") + e.getMessage()));
         }
     }
 
@@ -296,15 +297,15 @@ public class RoomPriceController {
                 }
             }
             return ResponseEntity.ok(ApiResponse.success(
-                    "价格更新成功，共更新 " + updatedPrices.size() + " 条记录",
+                    ApiMessages.get("api.t.dd06afeba744") + updatedPrices.size() + ApiMessages.get("api.t.bed75b36517a"),
                     updatedPrices
             ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(400)
-                    .body(ApiResponse.error("参数错误: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.567d311e6a3e") + e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("价格更新失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.ea70a5e845ad") + e.getMessage()));
         }
     }
 }

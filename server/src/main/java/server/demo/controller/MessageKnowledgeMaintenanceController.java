@@ -14,6 +14,7 @@ import server.demo.dto.MessageKnowledgeRebuildResponse;
 import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/su-messaging/knowledge")
 public class MessageKnowledgeMaintenanceController {
@@ -41,13 +42,13 @@ public class MessageKnowledgeMaintenanceController {
                     0
             );
             return ResponseEntity.ok(ApiResponse.success(
-                    "旧知识库重建已停用，会话级 AI 知识抽取是唯一新主路径",
+                    ApiMessages.get("api.t.a7f63b5172b1"),
                     response
             ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("知识库重建任务执行失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.e2c16060f3b8") + e.getMessage()));
         }
     }
 

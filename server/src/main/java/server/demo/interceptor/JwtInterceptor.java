@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
+import server.demo.i18n.ApiMessages;
+import server.demo.util.ApiResponseHttpWriter;
 import server.demo.util.JwtUtil;
 import server.demo.util.RedisUtil;
 
@@ -32,70 +34,54 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        // 获取Authorization头
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"success\":false,\"message\":\"未提供认证令牌\",\"data\":null}");
+            writeUnauthorized(response, ApiMessages.get("api.auth.token.missing"));
             return false;
         }
 
-        // 提取token
         String token = authHeader.substring(7);
 
-        // 检查token是否在黑名单中
         if (redisUtil.isTokenBlacklisted(token)) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"success\":false,\"message\":\"认证令牌已失效\",\"data\":null}");
+            writeUnauthorized(response, ApiMessages.get("api.auth.token.blacklisted"));
             return false;
         }
 
-        // 验证token
         if (!jwtUtil.validateToken(token)) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"success\":false,\"message\":\"认证令牌无效或已过期\",\"data\":null}");
+            writeUnauthorized(response, ApiMessages.get("api.auth.token.invalid"));
             return false;
         }
 
-        // 从token中提取用户信息（含受众隔离校验）
         try {
             Claims claims = jwtUtil.getClaims(token);
 
-            // 受众白名单：携带 aud 的 token 必须是租户受众；aud=admin 等一律拒绝
             Set<String> audience = claims.getAudience();
             if (audience != null && !audience.isEmpty()
                     && !audience.contains(JwtUtil.TENANT_TOKEN_AUDIENCE)) {
-                writeUnauthorized(response, "非租户端认证令牌");
+                writeUnauthorized(response, ApiMessages.get("api.auth.token.not_tenant"));
                 return false;
             }
 
-            // 无 aud 的旧 token 兼容策略：按既有租户声明 userId 判定，缺失即非租户令牌
             Long userId = claims.get("userId", Long.class);
             if (userId == null) {
-                writeUnauthorized(response, "非租户端认证令牌");
+                writeUnauthorized(response, ApiMessages.get("api.auth.token.not_tenant"));
                 return false;
             }
             String email = claims.getSubject();
 
-            // 将用户信息存储到请求属性中
             request.setAttribute("userId", userId);
             request.setAttribute("email", email);
             request.setAttribute("token", token);
 
             return true;
         } catch (Exception e) {
-            writeUnauthorized(response, "认证令牌解析失败");
+            writeUnauthorized(response, ApiMessages.get("api.auth.token.parse_failed"));
             return false;
         }
     }
 
     private void writeUnauthorized(HttpServletResponse response, String message) throws Exception {
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write("{\"success\":false,\"message\":\"" + message + "\",\"data\":null}");
+        ApiResponseHttpWriter.writeError(response, HttpServletResponse.SC_UNAUTHORIZED, message);
     }
 }

@@ -23,6 +23,7 @@ import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class OtaSyncService {
 
@@ -168,7 +169,7 @@ public class OtaSyncService {
 
     private String resolveHotelId(Long storeId) {
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new IllegalArgumentException("门店不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.051df0941ec3")));
 
         String hotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
         if (hotelId == null) {
@@ -181,7 +182,7 @@ public class OtaSyncService {
 
     private LocalDate currentStoreDate(Long storeId) {
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new IllegalArgumentException("门店不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.051df0941ec3")));
         ZoneId zoneId = StoreTimeZoneUtil.resolveZoneId(store);
         return LocalDate.now(effectiveClock().withZone(zoneId));
     }

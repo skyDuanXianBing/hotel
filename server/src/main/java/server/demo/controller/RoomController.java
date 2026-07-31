@@ -11,6 +11,7 @@ import server.demo.repository.RoomRepository;
 import java.time.LocalDate;
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/rooms")
 @StoreScoped
@@ -36,7 +37,7 @@ public class RoomController extends BaseStoreController {
 
             return ApiResponse.success(rooms);
         } catch (Exception e) {
-            return ApiResponse.error("获取房间列表失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.51d4b411ddb7") + e.getMessage());
         }
     }
 
@@ -45,9 +46,9 @@ public class RoomController extends BaseStoreController {
         try {
             return roomRepository.findByStoreIdAndId(currentStoreId(), id)
                     .map(ApiResponse::success)
-                    .orElse(ApiResponse.error("房间不存在"));
+                    .orElse(ApiResponse.error(ApiMessages.get("api.t.57ab5ddad6df")));
         } catch (Exception e) {
-            return ApiResponse.error("获取房间信息失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.61b329d5e832") + e.getMessage());
         }
     }
 
@@ -55,10 +56,10 @@ public class RoomController extends BaseStoreController {
     public ApiResponse<server.demo.entity.RoomType> getRoomTypeByRoomId(@PathVariable Long id) {
         try {
             return roomRepository.findByStoreIdAndIdWithRoomType(currentStoreId(), id)
-                    .map(room -> ApiResponse.success("获取房型信息成功", room.getRoomType()))
-                    .orElse(ApiResponse.error("房间不存在"));
+                    .map(room -> ApiResponse.success(ApiMessages.get("api.t.6eea775bce90"), room.getRoomType()))
+                    .orElse(ApiResponse.error(ApiMessages.get("api.t.57ab5ddad6df")));
         } catch (Exception e) {
-            return ApiResponse.error("获取房型信息失败: " + e.getMessage());
+            return ApiResponse.error(ApiMessages.get("api.t.180f95cf4616") + e.getMessage());
         }
     }
 }

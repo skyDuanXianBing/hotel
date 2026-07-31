@@ -9,10 +9,10 @@ import java.util.List;
  */
 public class BatchUpdateRolesRequest {
 
-    @NotEmpty(message = "账号ID列表不能为空")
+    @NotEmpty(message = "{api.t.f3594450f917}")
     private List<Long> accountIds;
 
-    @NotNull(message = "角色ID列表不能为空")
+    @NotNull(message = "{api.t.50d4c131475f}")
     private List<Long> roleIds;
 
     public BatchUpdateRolesRequest() {}

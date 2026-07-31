@@ -36,6 +36,7 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class SmartLockSwitchBotClient implements SmartLockProviderClient {
     private static final Logger logger = LoggerFactory.getLogger(SmartLockSwitchBotClient.class);
@@ -48,10 +49,8 @@ public class SmartLockSwitchBotClient implements SmartLockProviderClient {
     private static final int DIAGNOSTIC_HASH_HEX_LENGTH = 12;
     private static final int MAX_DIAGNOSTIC_FIELD_NAMES = 12;
     private static final String PASSCODE_PARAMETER_TYPE = "timeLimit";
-    private static final String CREATE_KEY_WAITING_KEYLIST_MESSAGE =
-            "SwitchBot 已返回 success 但未返回 commandId 或 keyId，等待 keyList 同步";
-    private static final String DELETE_KEY_WAITING_RECONCILIATION_MESSAGE =
-            "SwitchBot 已返回 success 但未返回 commandId，等待 keyList 对账确认密码删除结果";
+    private static final String CREATE_KEY_WAITING_KEYLIST_MESSAGE_KEY = "api.t.065856f6b3b7";
+    private static final String DELETE_KEY_WAITING_RECONCILIATION_MESSAGE_KEY = "api.t.62e9c796ae4a";
     private static final String REDACTED = "[REDACTED]";
     private static final Pattern CIPHER_KEY_VALUE_PATTERN = Pattern.compile(
             "(?i)([\"']?\\b[A-Za-z0-9_-]*cipher(?:[-_\\s]*text)?[A-Za-z0-9_-]*\\b[\"']?\\s*[:=]\\s*)"
@@ -219,10 +218,10 @@ public class SmartLockSwitchBotClient implements SmartLockProviderClient {
                     SmartLockTaskStatus.PENDING,
                     null,
                     null,
-                    CREATE_KEY_WAITING_KEYLIST_MESSAGE
+                    ApiMessages.get(CREATE_KEY_WAITING_KEYLIST_MESSAGE_KEY)
             );
         }
-        return new ProviderTaskResult(SmartLockTaskStatus.PENDING, taskId, keyId, "SwitchBot 密码创建命令已受理，等待 webhook 确认");
+        return new ProviderTaskResult(SmartLockTaskStatus.PENDING, taskId, keyId, ApiMessages.get("api.t.3a602353d0ea"));
     }
 
     @Override
@@ -241,10 +240,10 @@ public class SmartLockSwitchBotClient implements SmartLockProviderClient {
                     SmartLockTaskStatus.PENDING,
                     null,
                     providerPasscodeId,
-                    DELETE_KEY_WAITING_RECONCILIATION_MESSAGE
+                    ApiMessages.get(DELETE_KEY_WAITING_RECONCILIATION_MESSAGE_KEY)
             );
         }
-        return new ProviderTaskResult(SmartLockTaskStatus.PENDING, taskId, providerPasscodeId, "SwitchBot 密码删除命令已受理，等待 webhook 确认");
+        return new ProviderTaskResult(SmartLockTaskStatus.PENDING, taskId, providerPasscodeId, ApiMessages.get("api.t.06bf2214a7d6"));
     }
 
     @Override
@@ -316,7 +315,7 @@ public class SmartLockSwitchBotClient implements SmartLockProviderClient {
 
     @Override
     public ProviderTaskResult queryTask(SmartLockCredentialData credentials, String providerTaskId) {
-        return new ProviderTaskResult(SmartLockTaskStatus.PENDING, providerTaskId, null, "SwitchBot 未提供独立任务查询 API，等待 webhook 更新");
+        return new ProviderTaskResult(SmartLockTaskStatus.PENDING, providerTaskId, null, ApiMessages.get("api.t.518bb4119e34"));
     }
 
     private ProviderTaskResult sendLockCommand(
@@ -326,12 +325,12 @@ public class SmartLockSwitchBotClient implements SmartLockProviderClient {
     ) {
         JsonNode root = command(credentials, providerLockId, command, "default");
         String taskId = extractCommandTaskId(root);
-        String commandLabel = "unlock".equals(command) ? "开锁" : "上锁";
+        String commandLabel = "unlock".equals(command) ? ApiMessages.get("api.t.434f0ae3ef84") : ApiMessages.get("api.t.c640b921bff5");
         return new ProviderTaskResult(
                 SmartLockTaskStatus.SUCCESS,
                 taskId,
                 null,
-                "SwitchBot " + commandLabel + "指令已发送，请刷新状态确认实体门锁结果"
+                "SwitchBot " + commandLabel + ApiMessages.get("api.t.97d4f5142d3d")
         );
     }
 
@@ -401,7 +400,7 @@ public class SmartLockSwitchBotClient implements SmartLockProviderClient {
                 );
                 if (httpError.getStatusCode().is4xxClientError()) {
                     throw new ProviderRejectedException(
-                            "SwitchBot HTTP 请求被拒绝: " + httpError.getStatusCode().value()
+                            ApiMessages.get("api.t.6fc3582f3f32") + httpError.getStatusCode().value()
                     );
                 }
                 throw ex;
@@ -446,7 +445,7 @@ public class SmartLockSwitchBotClient implements SmartLockProviderClient {
             }
             String message = firstText(root, "message", "error");
             throw new ProviderRejectedException(
-                    "SwitchBot 请求失败: " + fallback(safeDiagnosticMessage(message), String.valueOf(statusCode))
+                    ApiMessages.get("api.t.4d4702e3b8a1") + fallback(safeDiagnosticMessage(message), String.valueOf(statusCode))
             );
         }
         return root;
@@ -785,7 +784,7 @@ public class SmartLockSwitchBotClient implements SmartLockProviderClient {
         try {
             return objectMapper.readTree(body);
         } catch (Exception ex) {
-            throw new RuntimeException("SwitchBot 返回格式无法解析", ex);
+            throw new RuntimeException(ApiMessages.get("api.t.7f42efe492f1"), ex);
         }
     }
 

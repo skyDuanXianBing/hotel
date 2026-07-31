@@ -18,11 +18,11 @@ public class RoomGroupMember implements StoreScopedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull(message = "分组ID不能为空")
+    @NotNull(message = "{api.t.19dc4e3e88fb}")
     @Column(name = "group_id", nullable = false)
     private Long groupId;
 
-    @NotNull(message = "房间ID不能为空")
+    @NotNull(message = "{api.t.8c7fdbbf6451}")
     @Column(name = "room_id", nullable = false)
     private Long roomId;
 

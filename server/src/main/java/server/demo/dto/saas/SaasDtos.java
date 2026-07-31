@@ -39,7 +39,7 @@ public final class SaasDtos {
     }
 
     public record SubscribeRequest(
-            @NotNull(message = "packageId 不能为空") Long packageId,
+            @NotNull(message = "{api.t.942b012cedd1}") Long packageId,
             String idempotencyKey
     ) {
     }

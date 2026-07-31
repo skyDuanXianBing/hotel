@@ -10,22 +10,22 @@ import java.time.LocalDateTime;
 
 public class CreateNoteRequest {
 
-    @NotBlank(message = "类型不能为空")
+    @NotBlank(message = "{api.t.f0a2b4248e97}")
     private String type; // income 或 expense
 
-    @NotBlank(message = "项目类别不能为空")
+    @NotBlank(message = "{api.t.446858b8340f}")
     private String category;
 
-    @NotBlank(message = "支付方式不能为空")
+    @NotBlank(message = "{api.t.82918ab17733}")
     private String paymentMethod;
 
-    @NotNull(message = "金额不能为空")
-    @Positive(message = "金额必须大于0")
+    @NotNull(message = "{api.t.3298f7783509}")
+    @Positive(message = "{api.t.d242c32a83f3}")
     private BigDecimal amount;
 
     private Long roomId;
 
-    @NotNull(message = "记账时间不能为空")
+    @NotNull(message = "{api.t.bd10d855b5c8}")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime datetime;
 

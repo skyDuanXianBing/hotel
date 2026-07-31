@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 /**
  * SaaS 权益判定与配额扣减核心服务。
  *
@@ -108,7 +109,7 @@ public class EntitlementService {
         try {
             return objectMapper.readValue(subscription.getEntitlementSnapshotJson(), EntitlementSnapshot.class);
         } catch (Exception e) {
-            throw new IllegalStateException("订阅权益快照解析失败: subscriptionId=" + subscription.getId(), e);
+            throw new IllegalStateException(ApiMessages.get("api.t.0e55673d01b0") + subscription.getId(), e);
         }
     }
 
@@ -116,7 +117,7 @@ public class EntitlementService {
         try {
             return objectMapper.writeValueAsString(snapshot);
         } catch (Exception e) {
-            throw new IllegalStateException("订阅权益快照序列化失败", e);
+            throw new IllegalStateException(ApiMessages.get("api.t.dbf4cbf5c32c"), e);
         }
     }
 
@@ -176,9 +177,9 @@ public class EntitlementService {
             Long used = quotaAccountRepository.findByStoreIdAndFeatureCode(storeId, featureCode)
                     .map(SaasQuotaAccount::getUsedQuota)
                     .orElse(null);
-            String cycleText = account.getResetCycle() == SaasQuotaResetCycle.MONTHLY ? "本月" : "";
+            String cycleText = account.getResetCycle() == SaasQuotaResetCycle.MONTHLY ? ApiMessages.get("api.t.389f0007de41") : "";
             throw new NeedUpgradeException(featureCode, entry.limit(), used,
-                    cycleText + "额度已用尽，请升级套餐", NeedUpgradeException.Reason.QUOTA_EXHAUSTED);
+                    cycleText + ApiMessages.get("api.t.f92db3f6a5b3"), NeedUpgradeException.Reason.QUOTA_EXHAUSTED);
         }
         writeLog(storeId, featureCode, delta, SaasQuotaAction.DEDUCT, bizId, null);
     }
@@ -284,12 +285,12 @@ public class EntitlementService {
     @Transactional
     public QuotaUsage adjustQuota(Long storeId, String featureCode, long delta, String remark, String operator) {
         if (delta == 0) {
-            throw new IllegalArgumentException("调整量不能为 0");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.ca9794da402f"));
         }
         EntitlementSnapshot snapshot = getSnapshot(storeId);
         EntitlementSnapshot.Entry entry = snapshot != null ? snapshot.find(featureCode) : null;
         if (entry == null || entry.type() != SaasFeatureType.QUOTA) {
-            throw new IllegalArgumentException("该门店当前订阅不包含此配额权益: " + featureCode);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.94ca14ec6849") + featureCode);
         }
         if (entry.limit() == null) {
             // 不限额度：调整无实际效果，仅写审计流水
@@ -329,7 +330,7 @@ public class EntitlementService {
                     featureCode,
                     entry.limit(),
                     currentCount,
-                    "已达到套餐的" + featureName + "上限（" + entry.limit() + "），请升级套餐后再新增",
+                    ApiMessages.get("api.t.de480131ace4") + featureName + ApiMessages.get("api.t.da81cf090773") + entry.limit() + ApiMessages.get("api.t.f327f129529c"),
                     NeedUpgradeException.Reason.CAPACITY_EXCEEDED
             );
         }
@@ -350,10 +351,10 @@ public class EntitlementService {
     private NeedUpgradeException entryMissingException(EntitlementSnapshot snapshot, String featureCode) {
         if (snapshot == null) {
             return new NeedUpgradeException(featureCode, null, null,
-                    "当前门店尚未开通套餐，请先购买套餐", NeedUpgradeException.Reason.NO_SUBSCRIPTION);
+                    ApiMessages.get("api.t.ef0b8741a1b5"), NeedUpgradeException.Reason.NO_SUBSCRIPTION);
         }
         return new NeedUpgradeException(featureCode, null, null,
-                "当前套餐不包含该功能，请升级套餐", NeedUpgradeException.Reason.NOT_INCLUDED);
+                ApiMessages.get("api.t.039b6ea98231"), NeedUpgradeException.Reason.NOT_INCLUDED);
     }
 
     /**
@@ -375,7 +376,7 @@ public class EntitlementService {
             // 并发首用建账撞 uk：读取并发胜者已提交的账户行继续
             return quotaAccountRepository.findByStoreIdAndFeatureCode(storeId, featureCode)
                     .orElseThrow(() -> new IllegalStateException(
-                            "配额账户并发创建后读取失败: storeId=" + storeId + ", feature=" + featureCode, e));
+                            ApiMessages.get("api.t.c45f5e819312") + storeId + ", feature=" + featureCode, e));
         }
     }
 

@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class ManagedOperationCalculationService {
     private static final BigDecimal ONE = BigDecimal.ONE;
@@ -29,7 +30,7 @@ public class ManagedOperationCalculationService {
         };
         if (received.signum() < 0) {
             throw new ManagedOperationValidationException(
-                    "第 " + row.sourceRowNumber() + " 行受取金为负数，请检查销售额和手续费");
+                    ApiMessages.get("api.t.f495347d6acf") + row.sourceRowNumber() + ApiMessages.get("api.t.74d831ca6e61"));
         }
         BigDecimal managementFee = yen(received.multiply(managementFeeRate));
         BigDecimal scheduledTransfer = yen(received.multiply(ONE.subtract(managementFeeRate)));
@@ -44,18 +45,18 @@ public class ManagedOperationCalculationService {
             BigDecimal taxRate,
             BigDecimal registrationFeeNetUnit,
             List<ManagedOperationDtos.DeductionInput> deductions) {
-        validateRate(managementFeeRate, "管理费率");
-        validateRate(taxRate, "消费税率");
-        validateNonNegative(cleaningFeeGross, "含税清洁费");
-        validateNonNegative(registrationFeeNetUnit, "名簿制作费");
-        if (selectedRoomCount < 0) throw new ManagedOperationValidationException("房间数量不合法");
+        validateRate(managementFeeRate, ApiMessages.get("api.t.b457f2525d4d"));
+        validateRate(taxRate, ApiMessages.get("api.t.49afb4e7bdf8"));
+        validateNonNegative(cleaningFeeGross, ApiMessages.get("api.t.ca2708ecfc3b"));
+        validateNonNegative(registrationFeeNetUnit, ApiMessages.get("api.t.1fda0430b730"));
+        if (selectedRoomCount < 0) throw new ManagedOperationValidationException(ApiMessages.get("api.t.c81ac87bdb78"));
 
         BigDecimal cleaningFeeNetUnit = cleaningFeeGross
                 .divide(ONE.add(taxRate), 0, RoundingMode.HALF_UP);
         for (RowAmounts amount : included) {
-            validateNonNegative(amount.receivedAmount(), "受取金");
-            validateNonNegative(amount.managementFee(), "管理费");
-            validateNonNegative(amount.scheduledTransfer(), "振込予定金额");
+            validateNonNegative(amount.receivedAmount(), ApiMessages.get("api.t.76e7365aab90"));
+            validateNonNegative(amount.managementFee(), ApiMessages.get("api.t.e75002c3e5e5"));
+            validateNonNegative(amount.scheduledTransfer(), ApiMessages.get("api.t.22d47fe26a04"));
         }
         BigDecimal totalReceived = included.stream().map(RowAmounts::receivedAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -78,7 +79,7 @@ public class ManagedOperationCalculationService {
         BigDecimal invoiceTax = invoiceSubtotalNet.multiply(taxRate).setScale(0, RoundingMode.DOWN);
         BigDecimal invoiceTotalGross = invoiceSubtotalNet.add(invoiceTax);
         if (invoiceSubtotalNet.signum() < 0 || invoiceTotalGross.signum() < 0) {
-            throw new ManagedOperationValidationException("请款书金额不能为负数");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.49a35fdd7889"));
         }
 
         return new ManagedOperationDtos.PreviewSummary(
@@ -89,8 +90,8 @@ public class ManagedOperationCalculationService {
     }
 
     public BigDecimal cleaningFeeNet(BigDecimal cleaningFeeGross, BigDecimal taxRate) {
-        validateNonNegative(cleaningFeeGross, "含税清洁费");
-        validateRate(taxRate, "消费税率");
+        validateNonNegative(cleaningFeeGross, ApiMessages.get("api.t.ca2708ecfc3b"));
+        validateRate(taxRate, ApiMessages.get("api.t.49afb4e7bdf8"));
         return cleaningFeeGross.divide(ONE.add(taxRate), 0, RoundingMode.HALF_UP);
     }
 
@@ -104,13 +105,13 @@ public class ManagedOperationCalculationService {
 
     private static void validateRate(BigDecimal value, String field) {
         if (value == null || value.signum() < 0 || value.compareTo(ONE) > 0) {
-            throw new ManagedOperationValidationException(field + "必须在 0 到 1 之间");
+            throw new ManagedOperationValidationException(field + ApiMessages.get("api.t.b1d5d5a3a6dc"));
         }
     }
 
     private static void validateNonNegative(BigDecimal value, String field) {
         if (value == null || value.signum() < 0 || value.compareTo(MAX_AMOUNT) > 0) {
-            throw new ManagedOperationValidationException(field + "不合法");
+            throw new ManagedOperationValidationException(field + ApiMessages.get("api.t.3e2ad38e6ee2"));
         }
         ManagedOperationMoneyRules.requireWholeYen(value, field);
     }
@@ -118,9 +119,9 @@ public class ManagedOperationCalculationService {
     private static void validateDeduction(ManagedOperationDtos.DeductionInput deduction) {
         if (deduction == null || deduction.description() == null || deduction.description().isBlank()
                 || deduction.description().strip().length() > 200) {
-            throw new ManagedOperationValidationException("扣款项目名称不能为空且不能超过 200 字符");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.1269ec40efd9"));
         }
-        validateNonNegative(deduction.amountGross(), "扣款金额");
+        validateNonNegative(deduction.amountGross(), ApiMessages.get("api.t.9b5c1b5cbd69"));
     }
 
     public record RowAmounts(BigDecimal receivedAmount, BigDecimal managementFee, BigDecimal scheduledTransfer) {}

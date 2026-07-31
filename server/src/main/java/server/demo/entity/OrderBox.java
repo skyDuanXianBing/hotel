@@ -11,12 +11,12 @@ public class OrderBox {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull(message = "订单不能为空")
+    @NotNull(message = "{api.t.c76bee0e25b1}")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reservation_id", nullable = false)
     private Reservation reservation;
 
-    @NotNull(message = "移入时间不能为空")
+    @NotNull(message = "{api.t.aef0257e2cc4}")
     @Column(name = "moved_in_at", nullable = false)
     private LocalDateTime movedInAt;
 

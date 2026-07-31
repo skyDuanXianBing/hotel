@@ -15,6 +15,7 @@ import server.demo.repository.RoleRepository;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 角色管理服务
  */
@@ -33,7 +34,7 @@ public class RoleService {
     private Long getCurrentStoreId() {
         StoreContext context = StoreContextHolder.getContext();
         if (context == null || context.getStoreId() == null) {
-            throw new RuntimeException("无法获取当前门店信息");
+            throw new RuntimeException(ApiMessages.get("api.t.642b7e97c7d4"));
         }
         return context.getStoreId();
     }
@@ -61,7 +62,7 @@ public class RoleService {
      */
     public RoleDTO getRoleById(Long id) {
         Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("角色不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.3b434ed58cbf")));
         return convertToDTOWithPermissions(role);
     }
 
@@ -74,7 +75,7 @@ public class RoleService {
 
         // 检查角色名在当前门店是否已存在
         if (roleRepository.existsByStoreIdAndName(storeId, request.getName())) {
-            throw new RuntimeException("角色名已存在");
+            throw new RuntimeException(ApiMessages.get("api.t.aa16d9175f3b"));
         }
 
         Role role = new Role();
@@ -96,22 +97,22 @@ public class RoleService {
         Long storeId = getCurrentStoreId();
 
         Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("角色不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.3b434ed58cbf")));
 
         // 验证角色属于当前门店
         if (!storeId.equals(role.getStoreId())) {
-            throw new RuntimeException("无权限修改此角色");
+            throw new RuntimeException(ApiMessages.get("api.t.be3eb08c7f4e"));
         }
 
         // 如果是系统角色,不允许修改名称
         if (role.getIsSystem() && request.getName() != null && !request.getName().equals(role.getName())) {
-            throw new RuntimeException("系统角色不允许修改名称");
+            throw new RuntimeException(ApiMessages.get("api.t.f61eb46bb0f0"));
         }
 
         // 检查新名称在当前门店是否已被其他角色使用
         if (request.getName() != null && !request.getName().equals(role.getName())) {
             if (roleRepository.existsByStoreIdAndName(storeId, request.getName())) {
-                throw new RuntimeException("角色名已存在");
+                throw new RuntimeException(ApiMessages.get("api.t.aa16d9175f3b"));
             }
             role.setName(request.getName());
         }
@@ -133,16 +134,16 @@ public class RoleService {
         Long storeId = getCurrentStoreId();
 
         Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("角色不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.3b434ed58cbf")));
 
         // 验证角色属于当前门店
         if (!storeId.equals(role.getStoreId())) {
-            throw new RuntimeException("无权限删除此角色");
+            throw new RuntimeException(ApiMessages.get("api.t.27156dd540b1"));
         }
 
         // 检查是否为系统角色
         if (role.getIsSystem()) {
-            throw new RuntimeException("系统角色不允许删除");
+            throw new RuntimeException(ApiMessages.get("api.t.47dbf13fca59"));
         }
 
         roleRepository.deleteStoreUserRoleLinks(id);
@@ -168,7 +169,7 @@ public class RoleService {
     public void updateRolePermissions(Long roleId, List<PermissionDTO> permissions) {
         // 检查角色是否存在
         if (!roleRepository.existsById(roleId)) {
-            throw new RuntimeException("角色不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.3b434ed58cbf"));
         }
 
         rolePermissionService.updateRolePermissions(roleId, permissions);

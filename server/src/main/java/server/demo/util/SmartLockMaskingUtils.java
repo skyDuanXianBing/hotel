@@ -3,6 +3,7 @@ package server.demo.util;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import server.demo.i18n.ApiMessages;
 public final class SmartLockMaskingUtils {
     private static final String REDACTED = "[REDACTED]";
     private static final String SENSITIVE_KEY_PATTERN = String.join(
@@ -73,7 +74,7 @@ public final class SmartLockMaskingUtils {
 
     public static String safeExceptionMessage(Throwable error) {
         if (error == null) {
-            return "未知错误";
+            return ApiMessages.get("api.t.5f76edc5de7b");
         }
         String message = redactSensitiveMessage(error.getMessage());
         if (message == null || message.isBlank()) {

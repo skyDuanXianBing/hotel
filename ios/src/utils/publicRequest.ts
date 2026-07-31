@@ -1,6 +1,6 @@
 import type { RequestConfig, ApiResponse } from '@/types/api'
 import { PUBLIC_API_BASE_URL } from '@/constants/api'
-import { i18n } from '@/locales'
+import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, i18n, resolveLocale } from '@/locales'
 import { sanitizeUserFacingMessage, showErrorToast } from '@/utils/notify'
 
 // 与 client 端 request.ts 的 DEFAULT_API_TIMEOUT_MS 对齐
@@ -14,6 +14,13 @@ const trimLeadingSlash = (value: string) => value.replace(/^\/+/, '')
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
 const isAbsoluteUrl = (value: string) => /^https?:\/\//i.test(value)
 
+const resolveAppLocale = () => {
+  if (typeof localStorage === 'undefined') {
+    return DEFAULT_LOCALE
+  }
+  return resolveLocale(localStorage.getItem(LOCALE_STORAGE_KEY))
+}
+
 const createHeaders = (config: RequestConfig) => {
   const headers = new Headers({
     Accept: 'application/json; charset=UTF-8',
@@ -23,6 +30,10 @@ const createHeaders = (config: RequestConfig) => {
   Object.entries(config.headers ?? {}).forEach(([key, value]) => {
     headers.set(key, value)
   })
+
+  const appLocale = resolveAppLocale()
+  headers.set('Accept-Language', appLocale)
+  headers.set('X-App-Locale', appLocale)
 
   if (config.data instanceof FormData) {
     headers.delete('Content-Type')

@@ -12,6 +12,7 @@ import server.demo.service.ConsumptionItemService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/consumption-items")
 @StoreScoped
@@ -27,9 +28,9 @@ public class ConsumptionItemController {
     public ResponseEntity<ApiResponse<List<ConsumptionItem>>> getAll() {
         try {
             List<ConsumptionItem> items = consumptionItemService.getAll();
-            return ResponseEntity.ok(ApiResponse.success("获取消费项列表成功", items));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.4462eedf1dee"), items));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取消费项列表失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.10ff05664bd7") + e.getMessage()));
         }
     }
 
@@ -40,9 +41,9 @@ public class ConsumptionItemController {
     public ResponseEntity<ApiResponse<ConsumptionItem>> getById(@PathVariable Long id) {
         try {
             ConsumptionItem item = consumptionItemService.getById(id);
-            return ResponseEntity.ok(ApiResponse.success("获取消费项成功", item));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.4afe021e8d76"), item));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取消费项失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.5ce0a8efdd29") + e.getMessage()));
         }
     }
 
@@ -53,9 +54,9 @@ public class ConsumptionItemController {
     public ResponseEntity<ApiResponse<List<ConsumptionItem>>> getByCategory(@PathVariable String category) {
         try {
             List<ConsumptionItem> items = consumptionItemService.getByCategory(category);
-            return ResponseEntity.ok(ApiResponse.success("获取消费项列表成功", items));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.4462eedf1dee"), items));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取消费项列表失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.10ff05664bd7") + e.getMessage()));
         }
     }
 
@@ -66,9 +67,9 @@ public class ConsumptionItemController {
     public ResponseEntity<ApiResponse<List<ConsumptionItem>>> getByEnabled(@PathVariable Boolean enabled) {
         try {
             List<ConsumptionItem> items = consumptionItemService.getByEnabled(enabled);
-            return ResponseEntity.ok(ApiResponse.success("获取消费项列表成功", items));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.4462eedf1dee"), items));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("获取消费项列表失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.10ff05664bd7") + e.getMessage()));
         }
     }
 
@@ -85,9 +86,9 @@ public class ConsumptionItemController {
             item.setEnabled(dto.getEnabled() != null ? dto.getEnabled() : true);
             item.setDescription(dto.getDescription());
             ConsumptionItem created = consumptionItemService.create(item);
-            return ResponseEntity.ok(ApiResponse.success("创建消费项成功", created));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.ff904a2217b7"), created));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("创建消费项失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.af9dc661881f") + e.getMessage()));
         }
     }
 
@@ -106,9 +107,9 @@ public class ConsumptionItemController {
             updates.setEnabled(dto.getEnabled());
             updates.setDescription(dto.getDescription());
             ConsumptionItem updated = consumptionItemService.update(id, updates);
-            return ResponseEntity.ok(ApiResponse.success("更新消费项成功", updated));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.d813ef3f5904"), updated));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("更新消费项失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.0c299ead4a39") + e.getMessage()));
         }
     }
 
@@ -121,9 +122,9 @@ public class ConsumptionItemController {
             @RequestParam Boolean enabled) {
         try {
             ConsumptionItem updated = consumptionItemService.updateEnabled(id, enabled);
-            return ResponseEntity.ok(ApiResponse.success("更新状态成功", updated));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.438e3e68d993"), updated));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("更新状态失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.841c933da597") + e.getMessage()));
         }
     }
 
@@ -134,9 +135,9 @@ public class ConsumptionItemController {
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         try {
             consumptionItemService.delete(id);
-            return ResponseEntity.ok(ApiResponse.success("删除消费项成功", null));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.d199e49e1d90"), null));
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error("删除消费项失败: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error(ApiMessages.get("api.t.ef3ac66cff6d") + e.getMessage()));
         }
     }
 }

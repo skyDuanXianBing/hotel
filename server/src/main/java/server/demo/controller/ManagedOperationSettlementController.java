@@ -28,6 +28,7 @@ import server.demo.util.StoreContextUtils;
 
 import java.nio.charset.StandardCharsets;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/managed-operation-settlement")
 @StoreScoped(warmupChannelPrices = false)
@@ -55,13 +56,13 @@ public class ManagedOperationSettlementController {
     @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MODIFY_STORE_SETTINGS)
     public ApiResponse<ManagedOperationDtos.SettingsResponse> saveSettings(
             @RequestBody ManagedOperationDtos.SettingsRequest request) {
-        return ApiResponse.success("配置已保存", settingsService.saveSettings(StoreContextUtils.requireStoreId(), request));
+        return ApiResponse.success(ApiMessages.get("api.t.c4e4c1a74293"), settingsService.saveSettings(StoreContextUtils.requireStoreId(), request));
     }
 
     @PostMapping(value = "/stamp", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MODIFY_STORE_SETTINGS)
     public ApiResponse<ManagedOperationDtos.StampResponse> uploadStamp(@RequestPart("file") MultipartFile file) {
-        return ApiResponse.success("印章已保存", settingsService.uploadStamp(StoreContextUtils.requireStoreId(), file));
+        return ApiResponse.success(ApiMessages.get("api.t.fcd62c76e017"), settingsService.uploadStamp(StoreContextUtils.requireStoreId(), file));
     }
 
     @GetMapping("/stamp")

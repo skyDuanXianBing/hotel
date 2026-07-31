@@ -5,13 +5,13 @@ import jakarta.validation.constraints.NotNull;
 import server.demo.enums.ChannelType;
 
 public class CreateChannelRequest {
-    @NotBlank(message = "渠道名称不能为空")
+    @NotBlank(message = "{api.t.2487468540f0}")
     private String name;
 
-    @NotBlank(message = "渠道代码不能为空")
+    @NotBlank(message = "{api.t.89bbffb3b5d3}")
     private String code;
 
-    @NotNull(message = "渠道类型不能为空")
+    @NotNull(message = "{api.t.aa258a229e40}")
     private ChannelType type;
 
     private String color = "#409EFF";

@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.util.Locale;
 import java.util.UUID;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 媒体文件上传与读取服务。
  */
@@ -29,18 +30,18 @@ public class MediaStorageService {
 
     public MediaUploadResponseDTO upload(Long storeId, String scope, MultipartFile file) {
         if (storeId == null) {
-            throw new RuntimeException("缺少门店上下文");
+            throw new RuntimeException(ApiMessages.get("api.t.2bfd332b0f72"));
         }
         if (file == null || file.isEmpty()) {
-            throw new RuntimeException("请上传文件");
+            throw new RuntimeException(ApiMessages.get("api.t.c7de0f24a299"));
         }
         String normalizedScope = normalizeScope(scope);
         String contentType = file.getContentType();
         if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
-            throw new RuntimeException("仅支持图片文件");
+            throw new RuntimeException(ApiMessages.get("api.t.284338940052"));
         }
         if (file.getSize() > 5L * 1024 * 1024) {
-            throw new RuntimeException("图片大小不能超过 5MB");
+            throw new RuntimeException(ApiMessages.get("api.t.6ec3e798f0ff"));
         }
 
         String originalName = file.getOriginalFilename();
@@ -59,7 +60,7 @@ public class MediaStorageService {
             response.setFileSize(file.getSize());
             return response;
         } catch (Exception e) {
-            throw new RuntimeException("图片上传失败: " + e.getMessage(), e);
+            throw new RuntimeException(ApiMessages.get("api.t.332740aed4d6") + e.getMessage(), e);
         }
     }
 
@@ -76,19 +77,19 @@ public class MediaStorageService {
             }
             return new FileSystemResource(path);
         } catch (Exception e) {
-            throw new RuntimeException("文件不存在");
+            throw new RuntimeException(ApiMessages.get("api.t.ffcf0a1eb083"));
         }
     }
 
     private static String normalizeScope(String scope) {
         if (scope == null || scope.isBlank()) {
-            throw new RuntimeException("scope 不能为空");
+            throw new RuntimeException(ApiMessages.get("api.t.6d9442f65956"));
         }
         String normalized = scope.trim().toLowerCase(Locale.ROOT);
         return switch (normalized) {
             case "store-logo", "store-desktop", "store-mobile", "room-type-desktop", "room-type-mobile",
                     "independent-site" -> normalized;
-            default -> throw new RuntimeException("不支持的上传类型: " + scope);
+            default -> throw new RuntimeException(ApiMessages.get("api.t.65d2d66d422b") + scope);
         };
     }
 

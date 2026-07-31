@@ -43,6 +43,7 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 @Transactional
 public class RoomTypeService {
@@ -659,7 +660,7 @@ public class RoomTypeService {
         }
         if (blockingTotal > 0) {
             throw new RoomTypeDeleteBlockedException(
-                    "该房型仍有未来占用订单，无法删除。请先对相关订单办理退房或取消后重试。",
+                    ApiMessages.get("api.t.af35c8c7d8a9"),
                     new RoomTypeDeleteBlockInfo(blockingTotal, samples)
             );
         }

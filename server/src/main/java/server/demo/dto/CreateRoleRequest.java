@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotBlank;
  */
 public class CreateRoleRequest {
 
-    @NotBlank(message = "角色名称不能为空")
+    @NotBlank(message = "{api.t.299e56ae879f}")
     private String name;
 
     private String description;

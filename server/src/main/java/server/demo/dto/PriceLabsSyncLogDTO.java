@@ -6,6 +6,7 @@ import server.demo.enums.SyncType;
 
 import java.time.LocalDateTime;
 
+import server.demo.i18n.ApiMessages;
 /**
  * PriceLabs 同步日志 DTO
  */
@@ -142,11 +143,11 @@ public class PriceLabsSyncLogDTO {
     private String getSyncTypeDisplayText(SyncType type) {
         if (type == null) return "";
         switch (type) {
-            case LISTING: return "房源同步";
-            case RATE_PLAN: return "价格计划同步";
-            case CALENDAR: return "日历同步";
-            case RESERVATION: return "预订同步";
-            case PRICE_UPDATE: return "价格更新";
+            case LISTING: return ApiMessages.get("api.t.a45305bfebc8");
+            case RATE_PLAN: return ApiMessages.get("api.t.5f1fa3159043");
+            case CALENDAR: return ApiMessages.get("api.t.fa0bc354f237");
+            case RESERVATION: return ApiMessages.get("api.t.2c7f056889ef");
+            case PRICE_UPDATE: return ApiMessages.get("api.t.3f799ab84162");
             default: return type.name();
         }
     }
@@ -154,8 +155,8 @@ public class PriceLabsSyncLogDTO {
     private String getDirectionDisplayText(SyncDirection direction) {
         if (direction == null) return "";
         switch (direction) {
-            case OUTBOUND: return "推送";
-            case INBOUND: return "接收";
+            case OUTBOUND: return ApiMessages.get("api.t.a71772f65f62");
+            case INBOUND: return ApiMessages.get("api.t.de7b4c9eebf8");
             default: return direction.name();
         }
     }
@@ -163,9 +164,9 @@ public class PriceLabsSyncLogDTO {
     private String getStatusDisplayText(SyncStatus status) {
         if (status == null) return "";
         switch (status) {
-            case SUCCESS: return "成功";
-            case FAILURE: return "失败";
-            case PARTIAL: return "部分成功";
+            case SUCCESS: return ApiMessages.get("api.t.51991a5d111a");
+            case FAILURE: return ApiMessages.get("api.t.3e3c8068bb0e");
+            case PARTIAL: return ApiMessages.get("api.t.2f2b7e05e3ea");
             default: return status.name();
         }
     }

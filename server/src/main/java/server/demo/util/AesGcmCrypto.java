@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 通用 AES-GCM 凭据加解密工具（随机 IV，Base64 输出）。
  * 密文格式与门锁凭据一致："v1:<base64(nonce)>:<base64(ciphertext+tag)"，
@@ -26,7 +27,7 @@ public final class AesGcmCrypto {
 
     public AesGcmCrypto(byte[] keyBytes) {
         if (keyBytes == null || keyBytes.length != KEY_BYTES) {
-            throw new IllegalArgumentException("AES-GCM 密钥必须为 32 字节");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.6cc518a8bf1e"));
         }
         this.keyBytes = keyBytes.clone();
     }
@@ -34,13 +35,13 @@ public final class AesGcmCrypto {
     /** 从 Base64 编码的 32 字节密钥构造；格式非法时抛 IllegalArgumentException。 */
     public static AesGcmCrypto fromBase64Key(String base64Key) {
         if (base64Key == null || base64Key.isBlank()) {
-            throw new IllegalArgumentException("AES-GCM 密钥不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.af60cb8dc9a0"));
         }
         final byte[] keyBytes;
         try {
             keyBytes = Base64.getDecoder().decode(base64Key.trim());
         } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException("AES-GCM 密钥不是合法的 Base64", ex);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.b6773ffdd4b5"), ex);
         }
         return new AesGcmCrypto(keyBytes);
     }
@@ -62,7 +63,7 @@ public final class AesGcmCrypto {
             return "v1:" + Base64.getEncoder().encodeToString(nonce)
                     + ":" + Base64.getEncoder().encodeToString(ciphertext);
         } catch (Exception ex) {
-            throw new IllegalStateException("凭据加密失败", ex);
+            throw new IllegalStateException(ApiMessages.get("api.t.bb5a71231b7e"), ex);
         }
     }
 
@@ -86,7 +87,7 @@ public final class AesGcmCrypto {
             );
             return new String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8);
         } catch (Exception ex) {
-            throw new IllegalStateException("凭据解密失败", ex);
+            throw new IllegalStateException(ApiMessages.get("api.t.6829c7ee4fed"), ex);
         }
     }
 }

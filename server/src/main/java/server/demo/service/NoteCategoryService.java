@@ -10,6 +10,7 @@ import server.demo.repository.NoteCategoryRepository;
 import java.util.List;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 记一笔分类 Service（门店级架构）
  */
@@ -66,11 +67,11 @@ public class NoteCategoryService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
 
         NoteCategory category = noteCategoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("分类不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.da8191cea549")));
 
         // 验证分类属于当前门店
         if (!storeId.equals(category.getStoreId())) {
-            throw new RuntimeException("无权限修改此分类");
+            throw new RuntimeException(ApiMessages.get("api.t.81cd48404868"));
         }
 
         if (updates.getName() != null) {
@@ -94,11 +95,11 @@ public class NoteCategoryService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
 
         NoteCategory category = noteCategoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("分类不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.da8191cea549")));
 
         // 验证分类属于当前门店
         if (!storeId.equals(category.getStoreId())) {
-            throw new RuntimeException("无权限删除此分类");
+            throw new RuntimeException(ApiMessages.get("api.t.aec037994d5f"));
         }
 
         noteCategoryRepository.deleteById(id);
@@ -115,10 +116,10 @@ public class NoteCategoryService {
         // 验证所有分类都属于当前门店
         for (NoteCategory category : categories) {
             NoteCategory existing = noteCategoryRepository.findById(category.getId())
-                    .orElseThrow(() -> new RuntimeException("分类不存在: " + category.getId()));
+                    .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.0b1800b79521") + category.getId()));
 
             if (!storeId.equals(existing.getStoreId())) {
-                throw new RuntimeException("无权限修改此分类: " + category.getId());
+                throw new RuntimeException(ApiMessages.get("api.t.e847ddafd8a8") + category.getId());
             }
 
             existing.setDisplayOrder(category.getDisplayOrder());

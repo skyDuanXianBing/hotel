@@ -8,6 +8,7 @@ import server.demo.service.CleaningConfigService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 保洁配置控制器
  */
@@ -24,7 +25,7 @@ public class CleaningConfigController {
     @GetMapping("/user/{userId}")
     public ApiResponse<List<CleaningConfig>> getConfigsByUserId(@PathVariable Long userId) {
         List<CleaningConfig> configs = cleaningConfigService.getConfigsByUserId(userId);
-        return ApiResponse.success("获取保洁配置列表成功", configs);
+        return ApiResponse.success(ApiMessages.get("api.t.392a27c39935"), configs);
     }
 
     /**
@@ -35,7 +36,7 @@ public class CleaningConfigController {
             @PathVariable Long userId,
             @PathVariable Long storeId) {
         CleaningConfig config = cleaningConfigService.getOrCreateConfig(userId, storeId);
-        return ApiResponse.success("获取保洁配置成功", config);
+        return ApiResponse.success(ApiMessages.get("api.t.dbed2767d638"), config);
     }
 
     /**
@@ -44,8 +45,8 @@ public class CleaningConfigController {
     @GetMapping("/{id}")
     public ApiResponse<CleaningConfig> getConfigById(@PathVariable Long id) {
         return cleaningConfigService.getConfigById(id)
-                .map(config -> ApiResponse.success("获取保洁配置详情成功", config))
-                .orElse(ApiResponse.error("保洁配置不存在"));
+                .map(config -> ApiResponse.success(ApiMessages.get("api.t.c89c8acaaeda"), config))
+                .orElse(ApiResponse.error(ApiMessages.get("api.t.3be7a2601f50")));
     }
 
     /**
@@ -57,7 +58,7 @@ public class CleaningConfigController {
             @RequestBody CleaningConfig config) {
         try {
             CleaningConfig updatedConfig = cleaningConfigService.updateConfig(id, config);
-            return ApiResponse.success("更新保洁配置成功", updatedConfig);
+            return ApiResponse.success(ApiMessages.get("api.t.a1c2488bcd0b"), updatedConfig);
         } catch (RuntimeException e) {
             return ApiResponse.error(e.getMessage());
         }
@@ -69,6 +70,6 @@ public class CleaningConfigController {
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteConfig(@PathVariable Long id) {
         cleaningConfigService.deleteConfig(id);
-        return ApiResponse.success("删除保洁配置成功", null);
+        return ApiResponse.success(ApiMessages.get("api.t.663fb3804e78"), null);
     }
 }

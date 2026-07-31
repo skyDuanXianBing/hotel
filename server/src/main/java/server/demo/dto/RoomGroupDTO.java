@@ -9,7 +9,7 @@ public class RoomGroupDTO {
 
     private Long id;
 
-    @NotBlank(message = "分组名称不能为空")
+    @NotBlank(message = "{api.t.26080174c3be}")
     private String name;
 
     private String description;

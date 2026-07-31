@@ -43,6 +43,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class ChannelMappingPriceSettingsService {
 
@@ -276,7 +277,7 @@ public class ChannelMappingPriceSettingsService {
             failed.setMultiplier(multiplier);
             failed.setSurcharge(surcharge);
             failed.setSyncStatus(ChannelMappingPriceSyncStatus.FAILED.name());
-            failed.setLastError("缺少 rowKey，未同步该条映射");
+            failed.setLastError(ApiMessages.get("api.t.da20aa3400d3"));
             return failed;
         }
 
@@ -302,7 +303,7 @@ public class ChannelMappingPriceSettingsService {
         }
 
         if (target == null) {
-            markFailure(setting, ChannelMappingPriceSyncStatus.STALE_MAPPING, "当前 Su mappings 中找不到该 rowKey，未同步该条映射", retrying);
+            markFailure(setting, ChannelMappingPriceSyncStatus.STALE_MAPPING, ApiMessages.get("api.t.ed805bb9c393"), retrying);
             ChannelMappingPriceSetting saved = settingRepository.save(setting);
             return toRowDto(context, null, saved);
         }
@@ -332,7 +333,7 @@ public class ChannelMappingPriceSettingsService {
             } else {
                 String errorMessage = buildUserFacingSuErrorMessage(suResponse);
                 if (isBlank(errorMessage)) {
-                    errorMessage = "Su 返回非成功状态";
+                    errorMessage = ApiMessages.get("api.t.e6a6240b1105");
                 }
                 markFailure(setting, ChannelMappingPriceSyncStatus.FAILED, errorMessage, retrying);
                 logSuRowFailure(context, rowKey, operationId, batchId, updateResult);
@@ -357,16 +358,16 @@ public class ChannelMappingPriceSettingsService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         Channel channel = channelRepository.findById(channelId)
                 .filter(candidate -> storeId.equals(candidate.getStoreId()))
-                .orElseThrow(() -> new RuntimeException("渠道不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.11e0759cc797")));
 
         String channelCode = normalizeChannelCode(channel.getCode());
         String suChannelId = resolveSuChannelId(channelCode);
         if (suChannelId == null) {
-            throw new RuntimeException("该渠道不支持映射级价格设置");
+            throw new RuntimeException(ApiMessages.get("api.t.d2c1f3dd7a0f"));
         }
 
         OtaIntegration integration = findOtaIntegration(storeId, channelCode, channel.getCode())
-                .orElseThrow(() -> new RuntimeException("未找到当前门店的 OTA 配置"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.6863c7304665")));
         String hotelId = resolveReadOnlySuHotelId(storeId, integration);
         return new ResolvedContext(storeId, channel, channelCode, suChannelId, integration, hotelId);
     }
@@ -398,7 +399,7 @@ public class ChannelMappingPriceSettingsService {
         }
 
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new RuntimeException("门店不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.051df0941ec3")));
         String storeHotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
         if (storeHotelId == null) {
             return SuHotelIdUtil.buildDefault(storeId);
@@ -1647,34 +1648,34 @@ public class ChannelMappingPriceSettingsService {
 
     private String validateTarget(String channelCode, MappingTarget target) {
         if (!isActive(target.status())) {
-            return "Su 映射未启用，未同步该条映射";
+            return ApiMessages.get("api.t.aa40d7023589");
         }
         if (isBlank(target.channelHotelId())) {
-            return "Su 映射缺少 ChannelHotelID，未同步该条映射";
+            return ApiMessages.get("api.t.a578691015a6");
         }
         if (isBlank(target.roomId())) {
-            return "Su 映射缺少 PMS roomid，未同步该条映射";
+            return ApiMessages.get("api.t.5c67452b9080");
         }
         if (isBlank(target.rateId())) {
-            return "Su 映射缺少 PMS rateid，未同步该条映射";
+            return ApiMessages.get("api.t.99adecbccbaf");
         }
         if (CHANNEL_CODE_AIRBNB.equals(channelCode)) {
             if (isBlank(target.listingId())) {
-                return "Airbnb 映射缺少 listingid，未同步该条映射";
+                return ApiMessages.get("api.t.c2c122bf0cbd");
             }
             if (isBlank(target.occupancy())) {
-                return "Airbnb 映射缺少 occupancy，未同步该条映射";
+                return ApiMessages.get("api.t.1cda292732d2");
             }
             return null;
         }
         if (isBlank(target.applicableNoOfGuest())) {
-            return "Booking 映射缺少 applicablenoofguest，未同步该条映射";
+            return ApiMessages.get("api.t.b0439751e2da");
         }
         if (isBlank(target.channelRoomId())) {
-            return "Booking 映射缺少 channelroomid，未同步该条映射";
+            return ApiMessages.get("api.t.601ccdb857a2");
         }
         if (isBlank(target.channelRateId())) {
-            return "Booking 映射缺少 channelrateid，未同步该条映射";
+            return ApiMessages.get("api.t.76be9aae3ce9");
         }
         String pricingError = validateBookingPricingTargets(target);
         if (pricingError != null) {
@@ -1686,15 +1687,15 @@ public class ChannelMappingPriceSettingsService {
     private String validateBookingPricingTargets(MappingTarget target) {
         List<BookingPricingTarget> pricingTargets = target.bookingPricingTargets();
         if (pricingTargets == null || pricingTargets.isEmpty()) {
-            return "Booking 映射缺少 pricing，未同步该条映射";
+            return ApiMessages.get("api.t.eb906014b302");
         }
         for (BookingPricingTarget pricingTarget : pricingTargets) {
             if (pricingTarget == null || isBlank(pricingTarget.applicableNoOfGuest())) {
-                return "Booking 映射缺少 applicablenoofguest，未同步该条映射";
+                return ApiMessages.get("api.t.b0439751e2da");
             }
             boolean currentGuest = pricingTarget.applicableNoOfGuest().equals(target.applicableNoOfGuest());
             if (!currentGuest && (pricingTarget.multiplier() == null || pricingTarget.surcharge() == null)) {
-                return "Booking 映射缺少其它 applicable guest 的现有价格设置，未同步该条映射";
+                return ApiMessages.get("api.t.614cb2b4a77c");
             }
         }
         return null;
@@ -1702,10 +1703,10 @@ public class ChannelMappingPriceSettingsService {
 
     private String validateRequestedValues(BigDecimal multiplier) {
         if (multiplier == null) {
-            return "缺少 multiplier，未同步该条映射";
+            return ApiMessages.get("api.t.102c30083964");
         }
         if (multiplier.compareTo(BigDecimal.ZERO) < 0) {
-            return "multiplier 不能小于 0，未同步该条映射";
+            return ApiMessages.get("api.t.202d3005f0a3");
         }
         return null;
     }
@@ -1764,12 +1765,12 @@ public class ChannelMappingPriceSettingsService {
 
     private String buildSaveMessage(MappingPriceSettingsSaveResponseDTO response) {
         if ("SUCCESS".equals(response.getStatus())) {
-            return "映射级价格设置已全部同步";
+            return ApiMessages.get("api.t.dd815da47e38");
         }
         if ("PARTIAL".equals(response.getStatus())) {
-            return "映射级价格设置部分同步失败";
+            return ApiMessages.get("api.t.e340ce5e0e44");
         }
-        return "映射级价格设置同步失败";
+        return ApiMessages.get("api.t.02fab5cf65c1");
     }
 
     private static String buildDisplayName(

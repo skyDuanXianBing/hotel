@@ -1,10 +1,12 @@
 package server.demo.controller.advice;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import server.demo.dto.ApiResponse;
+import server.demo.i18n.TestApiMessages;
 
 import java.sql.SQLIntegrityConstraintViolationException;
 
@@ -19,6 +21,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 class AdminApiExceptionHandlerTest {
 
     private final AdminApiExceptionHandler handler = new AdminApiExceptionHandler();
+
+    @BeforeEach
+    void setUp() {
+        TestApiMessages.install();
+    }
 
     @Test
     void dataIntegrityViolation_idempotencyKeyConflict_returns409WithDuplicateSubmissionMessage() {

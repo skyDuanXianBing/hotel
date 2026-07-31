@@ -28,6 +28,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/reservations")
 @StoreScoped
@@ -42,10 +43,10 @@ public class ReservationController extends BaseStoreController {
             @Valid @RequestBody CreateReservationRequest request) {
         try {
             ReservationDTO reservation = reservationService.createReservation(request);
-            return ResponseEntity.ok(ApiResponse.success("预订创建成功", reservation));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.c6db3bc677ed"), reservation));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("预订创建失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.3819387947d3") + e.getMessage()));
         }
     }
 
@@ -55,10 +56,10 @@ public class ReservationController extends BaseStoreController {
             @Valid @RequestBody BatchCreateReservationRequest request) {
         try {
             BatchCreateReservationResponse reservations = reservationService.createBatchReservations(request);
-            return ResponseEntity.ok(ApiResponse.success("批量预订创建成功", reservations));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.784c468df935"), reservations));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("批量预订创建失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.e4e557bf645c") + e.getMessage()));
         }
     }
 
@@ -67,7 +68,7 @@ public class ReservationController extends BaseStoreController {
     public ResponseEntity<ApiResponse<ReservationHoverSummaryResponseDTO>> getHoverSummaries(
             @Valid @RequestBody ReservationHoverSummaryRequest request) {
         ReservationHoverSummaryResponseDTO response = reservationService.getHoverSummaries(request.getReservationIds());
-        return ResponseEntity.ok(ApiResponse.success("获取悬停摘要成功", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.e68fad36a044"), response));
     }
 
     @PostMapping("/{id}/check-in")
@@ -75,10 +76,10 @@ public class ReservationController extends BaseStoreController {
     public ResponseEntity<ApiResponse<ReservationDTO>> checkIn(@PathVariable Long id) {
         try {
             ReservationDTO reservation = reservationService.checkIn(id);
-            return ResponseEntity.ok(ApiResponse.success("入住办理成功", reservation));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.a21d69f36b0b"), reservation));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("入住办理失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.3ea361822773") + e.getMessage()));
         }
     }
 
@@ -87,10 +88,10 @@ public class ReservationController extends BaseStoreController {
     public ResponseEntity<ApiResponse<ReservationDTO>> checkOut(@PathVariable Long id) {
         try {
             ReservationDTO reservation = reservationService.checkOut(id);
-            return ResponseEntity.ok(ApiResponse.success("退房办理成功", reservation));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.f32827c48ff7"), reservation));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("退房办理失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.d27110e63e96") + e.getMessage()));
         }
     }
 
@@ -99,10 +100,10 @@ public class ReservationController extends BaseStoreController {
     public ResponseEntity<ApiResponse<ReservationDTO>> cancelReservation(@PathVariable Long id) {
         try {
             ReservationDTO reservation = reservationService.cancelReservation(id);
-            return ResponseEntity.ok(ApiResponse.success("预订取消成功", reservation));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.7596874072b6"), reservation));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("预订取消失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.407b32fbf214") + e.getMessage()));
         }
     }
 
@@ -114,9 +115,9 @@ public class ReservationController extends BaseStoreController {
     ) {
         try {
             ReservationDTO reservation = reservationService.updateSettlementStatus(id, Boolean.TRUE.equals(request.getSettled()));
-            return ResponseEntity.ok(ApiResponse.success("更新结账状态成功", reservation));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.564dc3734725"), reservation));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("更新结账状态失败: " + e.getMessage()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(ApiMessages.get("api.t.400425083502") + e.getMessage()));
         }
     }
 
@@ -125,7 +126,7 @@ public class ReservationController extends BaseStoreController {
     public ResponseEntity<ApiResponse<ReservationDTO>> getReservation(@PathVariable Long id) {
         Optional<ReservationDTO> reservation = reservationService.getReservationById(id);
         return reservation.map(res ->
-                        ResponseEntity.ok(ApiResponse.success("获取预订信息成功", res)))
+                        ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.20f167d846d2"), res)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -134,7 +135,7 @@ public class ReservationController extends BaseStoreController {
     public ResponseEntity<ApiResponse<ReservationDTO>> getReservationByOrderNumber(@PathVariable String orderNumber) {
         Optional<ReservationDTO> reservation = reservationService.getReservationByOrderNumber(orderNumber);
         return reservation.map(res ->
-                        ResponseEntity.ok(ApiResponse.success("获取预订信息成功", res)))
+                        ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.20f167d846d2"), res)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -144,14 +145,14 @@ public class ReservationController extends BaseStoreController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         List<ReservationDTO> reservations = reservationService.getReservationsByDateRange(startDate, endDate);
-        return ResponseEntity.ok(ApiResponse.success("获取订单列表成功", reservations));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.ec8dd8556676"), reservations));
     }
 
     @GetMapping("/room/{roomId}")
     @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> getReservationsByRoomId(@PathVariable Long roomId) {
         List<ReservationDTO> reservations = reservationService.getReservationsByRoomId(roomId);
-        return ResponseEntity.ok(ApiResponse.success("获取房间订单成功", reservations));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.cd5ba9d086c4"), reservations));
     }
 
     @GetMapping("/room/{roomId}/date/{date}")
@@ -161,7 +162,7 @@ public class ReservationController extends BaseStoreController {
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         Optional<ReservationDTO> reservation = reservationService.getReservationByRoomAndDate(roomId, date);
         return reservation.map(res ->
-                        ResponseEntity.ok(ApiResponse.success("获取预订信息成功", res)))
+                        ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.20f167d846d2"), res)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -170,21 +171,21 @@ public class ReservationController extends BaseStoreController {
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> searchReservations(
             @RequestParam String keyword) {
         List<ReservationDTO> reservations = reservationService.searchReservationsByGuestInfo(keyword);
-        return ResponseEntity.ok(ApiResponse.success("搜索订单成功", reservations));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.9757c0e8355f"), reservations));
     }
 
     @GetMapping("/today/check-in")
     @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> getTodayCheckIns() {
         List<ReservationDTO> reservations = reservationService.getTodayCheckIns();
-        return ResponseEntity.ok(ApiResponse.success("获取今日入住列表成功", reservations));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.dbb6f29a20b8"), reservations));
     }
 
     @GetMapping("/today/check-out")
     @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> getTodayCheckOuts() {
         List<ReservationDTO> reservations = reservationService.getTodayCheckOuts();
-        return ResponseEntity.ok(ApiResponse.success("获取今日退房列表成功", reservations));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.19fff61a457f"), reservations));
     }
 
     @PostMapping("/{id}/update")
@@ -194,10 +195,10 @@ public class ReservationController extends BaseStoreController {
             @Valid @RequestBody CreateReservationRequest request) {
         try {
             ReservationDTO reservation = reservationService.updateReservation(id, request);
-            return ResponseEntity.ok(ApiResponse.success("预订更新成功", reservation));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.7a741993b8de"), reservation));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("预订更新失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.483e861c2c64") + e.getMessage()));
         }
     }
 
@@ -222,35 +223,35 @@ public class ReservationController extends BaseStoreController {
                 page, size, searchKeyword, channel, roomType, checkinType,
                 status, paymentStatus, isPackage, startDate, endDate, orderType, operationDate);
 
-        return ResponseEntity.ok(ApiResponse.success("获取订单列表成功", response));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.ec8dd8556676"), response));
     }
 
     @GetMapping("/statistics")
     @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<ReservationStatistics>> getReservationStatistics() {
         ReservationStatistics statistics = reservationService.getReservationStatistics();
-        return ResponseEntity.ok(ApiResponse.success("获取订单统计成功", statistics));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.06f9a038c21c"), statistics));
     }
 
     @GetMapping("/today/new")
     @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> getTodayNewReservations() {
         List<ReservationDTO> reservations = reservationService.getTodayNewReservations();
-        return ResponseEntity.ok(ApiResponse.success("获取今日新增订单成功", reservations));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.216f4edcd0c6"), reservations));
     }
 
     @GetMapping("/unassigned")
     @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> getUnassignedReservations() {
         List<ReservationDTO> reservations = reservationService.getUnassignedReservations();
-        return ResponseEntity.ok(ApiResponse.success("获取未排房订单成功", reservations));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.f4a558b80c4e"), reservations));
     }
 
     @GetMapping("/pending")
     @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> getPendingReservations() {
         List<ReservationDTO> reservations = reservationService.getPendingReservations();
-        return ResponseEntity.ok(ApiResponse.success("获取待处理订单成功", reservations));
+        return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.04fb48eb817f"), reservations));
     }
 
     @GetMapping("/by-type")
@@ -258,10 +259,10 @@ public class ReservationController extends BaseStoreController {
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> getReservationsByType(@RequestParam String type) {
         try {
             List<ReservationDTO> reservations = reservationService.getReservationsByType(type);
-            return ResponseEntity.ok(ApiResponse.success("获取" + getTypeDisplayName(type) + "订单成功", reservations));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.5f49c1c38dc8") + getTypeDisplayName(type) + ApiMessages.get("api.t.3b8efb5fe786"), reservations));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("获取订单失败: " + e.getMessage()));
+                    .body(ApiResponse.error(ApiMessages.get("api.t.8d74f8143362") + e.getMessage()));
         }
     }
 
@@ -284,7 +285,7 @@ public class ReservationController extends BaseStoreController {
     ) {
         try {
             AssignableRoomsResponse resp = reservationService.getAssignableRooms(id, roomTypeId);
-            return ResponseEntity.ok(ApiResponse.success("获取可排房房型/房间成功", resp));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.bcd21218690a"), resp));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
@@ -298,7 +299,7 @@ public class ReservationController extends BaseStoreController {
     ) {
         try {
             ReservationDTO updated = reservationService.assignRoom(id, request.getRoomId());
-            return ResponseEntity.ok(ApiResponse.success("排房成功", updated));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.2714c04ce05f"), updated));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
@@ -307,19 +308,19 @@ public class ReservationController extends BaseStoreController {
     private String getTypeDisplayName(String type) {
         switch (type) {
             case "today-arrivals":
-                return "今日预抵";
+                return ApiMessages.get("api.t.5f0c535868b8");
             case "today-departures":
-                return "今日预离";
+                return ApiMessages.get("api.t.5c105e3d9403");
             case "today-new":
-                return "今日新办";
+                return ApiMessages.get("api.t.77726319686c");
             case "unassigned":
-                return "未排房/未映射";
+                return ApiMessages.get("api.t.1269a36fb4ee");
             case "assigned":
-                return "已排房";
+                return ApiMessages.get("api.t.b4eeb5d0f990");
             case "pending":
-                return "待处理";
+                return ApiMessages.get("api.t.59a9eb4e6574");
             default:
-                return "订单";
+                return ApiMessages.get("api.t.81b3798bebc6");
         }
     }
 }

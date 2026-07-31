@@ -1,19 +1,21 @@
 package server.demo.enums;
 
+import server.demo.i18n.ApiMessages;
+
 public enum RoomStatus {
-    AVAILABLE("可用"),
-    OCCUPIED("已入住"),
-    RESERVED("已预订"),
-    MAINTENANCE("维修"),
-    OUT_OF_ORDER("停用");
+    AVAILABLE("api.t.e91365cf9ed9"),
+    OCCUPIED("api.t.e822694b11c0"),
+    RESERVED("api.t.cdddae4919a3"),
+    MAINTENANCE("api.t.2b83a4cb9ca5"),
+    OUT_OF_ORDER("api.t.d989e55188c9");
 
-    private final String description;
+    private final String descriptionKey;
 
-    RoomStatus(String description) {
-        this.description = description;
+    RoomStatus(String descriptionKey) {
+        this.descriptionKey = descriptionKey;
     }
 
     public String getDescription() {
-        return description;
+        return ApiMessages.get(descriptionKey);
     }
 }

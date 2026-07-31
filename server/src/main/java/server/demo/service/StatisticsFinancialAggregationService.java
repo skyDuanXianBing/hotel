@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class StatisticsFinancialAggregationService {
 
@@ -30,9 +31,9 @@ public class StatisticsFinancialAggregationService {
     public static final String PAYMENT_TYPE_REFUND = "REFUND";
     public static final String PAYMENT_TYPE_UNKNOWN_RECEIPT = "UNKNOWN_TEXT_DEFAULT_RECEIPT";
 
-    private static final String DEFAULT_PAYMENT_METHOD = "未填写支付方式";
-    private static final String DEFAULT_CONSUMPTION_ITEM = "未填写消费项目";
-    private static final String DEFAULT_NOTE_CATEGORY = "未填写记账分类";
+    private static final String DEFAULT_PAYMENT_METHOD_KEY = "api.t.850cde0a341c";
+    private static final String DEFAULT_CONSUMPTION_ITEM_KEY = "api.t.289cde3267bf";
+    private static final String DEFAULT_NOTE_CATEGORY_KEY = "api.t.6ffb67032d91";
 
     private final PaymentRepository paymentRepository;
     private final ConsumptionRepository consumptionRepository;
@@ -94,12 +95,12 @@ public class StatisticsFinancialAggregationService {
                 result.paymentRefund = result.paymentRefund.add(amount);
                 daily.paymentRefund = daily.paymentRefund.add(amount);
                 result.addExpensePaymentMethod(paymentMethod, amount, typeInfo.normalizedType, SOURCE_PAYMENT_TYPE_TEXT);
-                result.addCategory("退款", amount, SOURCE_PAYMENT_TYPE_TEXT);
+                result.addCategory(ApiMessages.get("api.t.b82ef83b7f00"), amount, SOURCE_PAYMENT_TYPE_TEXT);
             } else if (PAYMENT_TYPE_DEPOSIT.equals(typeInfo.normalizedType)) {
                 result.deposit = result.deposit.add(amount);
                 daily.deposit = daily.deposit.add(amount);
                 result.addIncomePaymentMethod(paymentMethod, amount, typeInfo.normalizedType, SOURCE_PAYMENT_TYPE_TEXT);
-                result.addCategory("押金", amount, SOURCE_PAYMENT_TYPE_TEXT);
+                result.addCategory(ApiMessages.get("api.t.52661b02b6a2"), amount, SOURCE_PAYMENT_TYPE_TEXT);
             } else {
                 if (isSplitAccountPaymentMethod(paymentMethod)) {
                     result.splitAccountPayment = result.splitAccountPayment.add(amount);
@@ -109,7 +110,7 @@ public class StatisticsFinancialAggregationService {
                     daily.actualReceived = daily.actualReceived.add(amount);
                 }
                 result.addIncomePaymentMethod(paymentMethod, amount, typeInfo.normalizedType, SOURCE_PAYMENT_TYPE_TEXT);
-                result.addCategory("实收款", amount, SOURCE_PAYMENT_TYPE_TEXT);
+                result.addCategory(ApiMessages.get("api.t.7c6bc01d5fec"), amount, SOURCE_PAYMENT_TYPE_TEXT);
             }
             daily.transactionCount++;
             result.paymentTypeSources.add(typeInfo.sourceLabel);
@@ -133,7 +134,7 @@ public class StatisticsFinancialAggregationService {
             result.roomServiceFee = result.roomServiceFee.add(amount);
             daily.roomServiceFee = daily.roomServiceFee.add(amount);
             daily.transactionCount++;
-            result.addCategory(normalizeBlank(consumption.getItem(), DEFAULT_CONSUMPTION_ITEM),
+            result.addCategory(normalizeBlank(consumption.getItem(), ApiMessages.get(DEFAULT_CONSUMPTION_ITEM_KEY)),
                     amount,
                     SOURCE_CONSUMPTION_ABS_AMOUNT);
         }
@@ -156,19 +157,19 @@ public class StatisticsFinancialAggregationService {
 
             BigDecimal amount = positiveAmount(note.getAmount());
             String paymentMethod = normalizePaymentMethod(note.getPaymentMethod());
-            String category = normalizeBlank(note.getCategory(), DEFAULT_NOTE_CATEGORY);
+            String category = normalizeBlank(note.getCategory(), ApiMessages.get(DEFAULT_NOTE_CATEGORY_KEY));
             String type = normalizeBlank(note.getType(), "");
             if ("income".equalsIgnoreCase(type)) {
                 result.notesIncome = result.notesIncome.add(amount);
                 daily.notesIncome = daily.notesIncome.add(amount);
                 result.addIncomePaymentMethod(paymentMethod, amount, "NOTE_INCOME", SOURCE_NOTE_TYPE);
-                result.addCategory("记一笔收入:" + category, amount, SOURCE_NOTE_TYPE);
+                result.addCategory(ApiMessages.get("api.t.28dc156f53a4") + category, amount, SOURCE_NOTE_TYPE);
                 daily.transactionCount++;
             } else if ("expense".equalsIgnoreCase(type)) {
                 result.notesExpense = result.notesExpense.add(amount);
                 daily.notesExpense = daily.notesExpense.add(amount);
                 result.addExpensePaymentMethod(paymentMethod, amount, "NOTE_EXPENSE", SOURCE_NOTE_TYPE);
-                result.addCategory("记一笔支出:" + category, amount, SOURCE_NOTE_TYPE);
+                result.addCategory(ApiMessages.get("api.t.44f28426ff87") + category, amount, SOURCE_NOTE_TYPE);
                 daily.transactionCount++;
             }
         }
@@ -181,14 +182,14 @@ public class StatisticsFinancialAggregationService {
         }
 
         String lower = normalized.toLowerCase();
-        if (lower.contains("refund") || normalized.contains("退款") || normalized.contains("退押")) {
+        if (lower.contains("refund") || normalized.contains(ApiMessages.get("api.t.b82ef83b7f00")) || normalized.contains(ApiMessages.get("api.t.5bed0f2a50cd"))) {
             return new PaymentTypeInfo(PAYMENT_TYPE_REFUND, normalized);
         }
-        if (lower.contains("deposit") || normalized.contains("押金")) {
+        if (lower.contains("deposit") || normalized.contains(ApiMessages.get("api.t.52661b02b6a2"))) {
             return new PaymentTypeInfo(PAYMENT_TYPE_DEPOSIT, normalized);
         }
-        if (lower.contains("payment") || lower.contains("pay") || normalized.contains("收款")
-                || normalized.contains("房费")) {
+        if (lower.contains("payment") || lower.contains("pay") || normalized.contains(ApiMessages.get("api.t.6caa43723982"))
+                || normalized.contains(ApiMessages.get("api.t.7463d2f41d86"))) {
             return new PaymentTypeInfo(PAYMENT_TYPE_ROOM_PAYMENT, normalized);
         }
         return new PaymentTypeInfo(PAYMENT_TYPE_UNKNOWN_RECEIPT, normalized + "->receipt");
@@ -200,28 +201,28 @@ public class StatisticsFinancialAggregationService {
             return false;
         }
         String lower = method.toLowerCase();
-        return method.contains("代收")
+        return method.contains(ApiMessages.get("api.t.7e02ec8246c2"))
                 || lower.contains("ota")
                 || lower.contains("booking")
                 || lower.contains("airbnb")
                 || lower.contains("agoda")
                 || lower.contains("expedia")
                 || lower.contains("ctrip")
-                || method.contains("携程")
-                || method.contains("美团");
+                || method.contains(ApiMessages.get("api.t.410060171540"))
+                || method.contains(ApiMessages.get("api.t.95610c0e9dab"));
     }
 
     private String normalizePaymentMethod(String paymentMethod) {
-        String normalized = normalizeBlank(paymentMethod, DEFAULT_PAYMENT_METHOD);
+        String normalized = normalizeBlank(paymentMethod, ApiMessages.get(DEFAULT_PAYMENT_METHOD_KEY));
         String lower = normalized.toLowerCase();
         if ("wechat".equals(lower)) {
-            return "微信";
+            return ApiMessages.get("api.t.68406df395e4");
         }
         if ("alipay".equals(lower)) {
-            return "支付宝";
+            return ApiMessages.get("api.t.66f1177d677b");
         }
         if ("cash".equals(lower)) {
-            return "现金";
+            return ApiMessages.get("api.t.6548450b8d16");
         }
         return normalized;
     }

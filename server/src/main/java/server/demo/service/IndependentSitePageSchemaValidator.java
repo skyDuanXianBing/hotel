@@ -12,6 +12,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class IndependentSitePageSchemaValidator {
 
@@ -101,7 +102,16 @@ public class IndependentSitePageSchemaValidator {
             "支付",
             "价格",
             "金额",
-            "路由"
+            "路由",
+            "價格",
+            "金額",
+            "Payment",
+            "Price",
+            "Amount",
+            "Route",
+            "支払い",
+            "価格",
+            "ルート"
     };
 
     private final ObjectMapper objectMapper;
@@ -112,25 +122,25 @@ public class IndependentSitePageSchemaValidator {
 
     public JsonNode validate(JsonNode input) {
         if (input == null || !input.isObject()) {
-            throw new IllegalArgumentException("页面配置必须是 JSON 对象");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.3b9ee5827759"));
         }
-        assertOnlyFields(input, ROOT_FIELDS, "页面配置");
+        assertOnlyFields(input, ROOT_FIELDS, ApiMessages.get("api.t.50ae1ea8117b"));
 
         String schemaVersion = requiredText(input, "schemaVersion", 60);
         if (!SCHEMA_VERSION.equals(schemaVersion)) {
-            throw new IllegalArgumentException("仅支持 " + SCHEMA_VERSION);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.c04ad2f38d38") + SCHEMA_VERSION);
         }
 
         JsonNode theme = input.get("theme");
         if (theme == null || !theme.isObject()) {
-            throw new IllegalArgumentException("页面配置缺少 theme 对象");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.3d4d536f8221"));
         }
         JsonNode sections = input.get("sections");
         if (sections == null || !sections.isArray()) {
-            throw new IllegalArgumentException("页面配置缺少 sections 数组");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.00090346b57d"));
         }
         if (sections.isEmpty() || sections.size() > 8) {
-            throw new IllegalArgumentException("sections 数量必须为 1 到 8");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.2d06b94bef49"));
         }
 
         ObjectNode canonical = objectMapper.createObjectNode();
@@ -175,12 +185,12 @@ public class IndependentSitePageSchemaValidator {
         Set<String> seenTypes = new HashSet<>();
         for (JsonNode section : sections) {
             if (section == null || !section.isObject()) {
-                throw new IllegalArgumentException("section 必须是 JSON 对象");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.f92a29a69a6f"));
             }
             assertOnlyFields(section, SECTION_FIELDS, "section");
             String type = requiredEnum(section, "type", SECTION_TYPES);
             if (!seenTypes.add(type)) {
-                throw new IllegalArgumentException("section 类型不可重复: " + type);
+                throw new IllegalArgumentException(ApiMessages.get("api.t.53338aa85214") + type);
             }
 
             ObjectNode normalized = canonical.addObject();
@@ -190,7 +200,7 @@ public class IndependentSitePageSchemaValidator {
             if (id != null && !id.isNull()) {
                 String idValue = text(id, "id", 40);
                 if (!SECTION_ID.matcher(idValue).matches()) {
-                    throw new IllegalArgumentException("id 仅允许 1-40 位字母、数字和中划线");
+                    throw new IllegalArgumentException(ApiMessages.get("api.t.b9ddee12b2ff"));
                 }
                 normalized.put("id", idValue);
             }
@@ -205,10 +215,10 @@ public class IndependentSitePageSchemaValidator {
             JsonNode items = section.get("items");
             if (items != null && !items.isNull()) {
                 if (!items.isArray() || items.size() > 12) {
-                    throw new IllegalArgumentException("section.items 必须是最多 12 项的数组");
+                    throw new IllegalArgumentException(ApiMessages.get("api.t.34a35ecfcdc0"));
                 }
                 if (!Set.of("HIGHLIGHTS", "AMENITIES", "HOUSE_RULES").contains(type)) {
-                    throw new IllegalArgumentException(type + " 不允许 items");
+                    throw new IllegalArgumentException(type + ApiMessages.get("api.t.b16952dfbb68"));
                 }
                 ArrayNode normalizedItems = normalized.putArray("items");
                 for (JsonNode item : items) {
@@ -219,7 +229,7 @@ public class IndependentSitePageSchemaValidator {
             JsonNode imageUrl = section.get("imageUrl");
             if (imageUrl != null && !imageUrl.isNull()) {
                 if (!IMAGE_URL_TYPES.contains(type)) {
-                    throw new IllegalArgumentException(type + " 不允许 imageUrl");
+                    throw new IllegalArgumentException(type + ApiMessages.get("api.t.137dd4f149cc"));
                 }
                 normalized.put("imageUrl", safeImageUrl(imageUrl, "imageUrl"));
             }
@@ -227,17 +237,17 @@ public class IndependentSitePageSchemaValidator {
             JsonNode images = section.get("images");
             if (images != null && !images.isNull()) {
                 if (!"GALLERY".equals(type)) {
-                    throw new IllegalArgumentException(type + " 不允许 images");
+                    throw new IllegalArgumentException(type + ApiMessages.get("api.t.8392e486787c"));
                 }
                 if (!images.isArray() || images.isEmpty() || images.size() > 12) {
-                    throw new IllegalArgumentException("GALLERY.images 必须是 1 到 12 项的数组");
+                    throw new IllegalArgumentException(ApiMessages.get("api.t.509d9b1aea56"));
                 }
                 ArrayNode normalizedImages = normalized.putArray("images");
                 for (JsonNode image : images) {
                     if (image == null || !image.isObject()) {
-                        throw new IllegalArgumentException("GALLERY.images 项必须是 JSON 对象");
+                        throw new IllegalArgumentException(ApiMessages.get("api.t.8ea0843f4cdd"));
                     }
-                    assertOnlyFields(image, GALLERY_IMAGE_FIELDS, "GALLERY.images 项");
+                    assertOnlyFields(image, GALLERY_IMAGE_FIELDS, ApiMessages.get("api.t.6b1a999f70f3"));
                     ObjectNode normalizedImage = normalizedImages.addObject();
                     normalizedImage.put("url", safeImageUrl(requiredNode(image, "url"), "url"));
                     JsonNode alt = image.get("alt");
@@ -247,7 +257,7 @@ public class IndependentSitePageSchemaValidator {
                 }
             }
             if ("GALLERY".equals(type) && !normalized.has("images")) {
-                throw new IllegalArgumentException("GALLERY 缺少 images");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.c7cd09f328e8"));
             }
 
             JsonNode alignment = section.get("alignment");
@@ -259,7 +269,7 @@ public class IndependentSitePageSchemaValidator {
             );
         }
         if (!seenTypes.contains("HERO")) {
-            throw new IllegalArgumentException("页面配置必须包含 HERO section");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.30f578303868"));
         }
         return canonical;
     }
@@ -269,7 +279,7 @@ public class IndependentSitePageSchemaValidator {
         while (fieldNames.hasNext()) {
             String fieldName = fieldNames.next();
             if (!allowed.contains(fieldName)) {
-                throw new IllegalArgumentException(location + " 包含不允许的字段: " + fieldName);
+                throw new IllegalArgumentException(location + ApiMessages.get("api.t.9cccd8f8a7d7") + fieldName);
             }
         }
     }
@@ -277,7 +287,7 @@ public class IndependentSitePageSchemaValidator {
     private static String requiredColor(JsonNode node, String field) {
         String value = requiredText(node, field, 7);
         if (!HEX_COLOR.matcher(value).matches()) {
-            throw new IllegalArgumentException(field + " 必须是六位十六进制颜色");
+            throw new IllegalArgumentException(field + ApiMessages.get("api.t.f2287312799e"));
         }
         return value.toUpperCase(Locale.ROOT);
     }
@@ -285,7 +295,7 @@ public class IndependentSitePageSchemaValidator {
     private static String requiredEnum(JsonNode node, String field, Set<String> values) {
         JsonNode value = node.get(field);
         if (value == null || value.isNull()) {
-            throw new IllegalArgumentException("缺少字段: " + field);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.89448bba23ad") + field);
         }
         return enumText(value, field, values);
     }
@@ -293,7 +303,7 @@ public class IndependentSitePageSchemaValidator {
     private static String enumText(JsonNode value, String field, Set<String> values) {
         String normalized = text(value, field, 40).toUpperCase(Locale.ROOT);
         if (!values.contains(normalized)) {
-            throw new IllegalArgumentException(field + " 的值不受支持");
+            throw new IllegalArgumentException(field + ApiMessages.get("api.t.32092696afac"));
         }
         return normalized;
     }
@@ -301,33 +311,33 @@ public class IndependentSitePageSchemaValidator {
     private static String requiredText(JsonNode node, String field, int maxLength) {
         JsonNode value = node.get(field);
         if (value == null || value.isNull()) {
-            throw new IllegalArgumentException("缺少字段: " + field);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.89448bba23ad") + field);
         }
         return text(value, field, maxLength);
     }
 
     private static String text(JsonNode value, String field, int maxLength) {
         if (value == null || !value.isTextual()) {
-            throw new IllegalArgumentException(field + " 必须是文本");
+            throw new IllegalArgumentException(field + ApiMessages.get("api.t.60d5db96549d"));
         }
         String normalized = value.asText().trim();
         if (normalized.isEmpty() || normalized.length() > maxLength) {
-            throw new IllegalArgumentException(field + " 为空或超过长度限制");
+            throw new IllegalArgumentException(field + ApiMessages.get("api.t.836de9b3c4a3"));
         }
         return normalized;
     }
 
     private static String safeImageUrl(JsonNode value, String field) {
         if (value == null || !value.isTextual()) {
-            throw new IllegalArgumentException(field + " 必须是文本");
+            throw new IllegalArgumentException(field + ApiMessages.get("api.t.60d5db96549d"));
         }
         String normalized = value.asText().trim();
         if (normalized.isEmpty() || !IMAGE_URL.matcher(normalized).matches()) {
-            throw new IllegalArgumentException(field + " 必须是 http(s) 或 / 开头的图片地址");
+            throw new IllegalArgumentException(field + ApiMessages.get("api.t.bca4d57957b7"));
         }
         String lower = normalized.toLowerCase(Locale.ROOT);
         if (lower.startsWith("javascript:") || lower.startsWith("data:")) {
-            throw new IllegalArgumentException(field + " 包含不允许的协议");
+            throw new IllegalArgumentException(field + ApiMessages.get("api.t.7f07d3133310"));
         }
         return normalized;
     }
@@ -335,7 +345,7 @@ public class IndependentSitePageSchemaValidator {
     private static JsonNode requiredNode(JsonNode node, String field) {
         JsonNode value = node.get(field);
         if (value == null || value.isNull()) {
-            throw new IllegalArgumentException("缺少字段: " + field);
+            throw new IllegalArgumentException(ApiMessages.get("api.t.89448bba23ad") + field);
         }
         return value;
     }
@@ -344,18 +354,18 @@ public class IndependentSitePageSchemaValidator {
         String normalized = value.trim();
         String lower = normalized.toLowerCase(Locale.ROOT);
         if (HTML_TAG.matcher(normalized).matches() || normalized.contains("{") || normalized.contains("}")) {
-            throw new IllegalArgumentException(field + " 包含 HTML/CSS/代码");
+            throw new IllegalArgumentException(field + ApiMessages.get("api.t.a79edd319c46"));
         }
         if (MONEY_VALUE.matcher(normalized).matches()) {
-            throw new IllegalArgumentException(field + " 不得包含价格或货币值");
+            throw new IllegalArgumentException(field + ApiMessages.get("api.t.880669d1f383"));
         }
         if (CSS_DECLARATION.matcher(normalized).matches()
                 || URL_OR_ROUTE.matcher(normalized).matches()) {
-            throw new IllegalArgumentException(field + " 不得包含 CSS、URL 或路由");
+            throw new IllegalArgumentException(field + ApiMessages.get("api.t.f5df24a15cb3"));
         }
         for (String forbidden : FORBIDDEN_TEXT) {
             if (lower.contains(forbidden.toLowerCase(Locale.ROOT))) {
-                throw new IllegalArgumentException(field + " 包含不允许的页面能力");
+                throw new IllegalArgumentException(field + ApiMessages.get("api.t.77f7bfb5c939"));
             }
         }
         return normalized;

@@ -21,6 +21,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 虚拟邮箱控制器
  * 提供虚拟邮箱和邮件消息的API接口
@@ -124,7 +125,7 @@ public class VirtualMailboxController {
             @PathVariable Long mailboxId,
             @Valid @RequestBody SendMessageRequest request) {
 
-        String senderName = request.getSenderName() != null ? request.getSenderName() : "客服";
+        String senderName = request.getSenderName() != null ? request.getSenderName() : ApiMessages.get("api.t.b8649fa6bedb");
 
         EmailMessage message = emailMessageService.sendEmailMessage(
                 mailboxId,
@@ -145,7 +146,7 @@ public class VirtualMailboxController {
     @PostMapping("/mailbox/{mailboxId}/close")
     public ApiResponse<Void> closeMailbox(@PathVariable Long mailboxId) {
         virtualMailboxService.closeMailbox(mailboxId);
-        return ApiResponse.success("虚拟邮箱已关闭", null);
+        return ApiResponse.success(ApiMessages.get("api.t.b41214dcf111"), null);
     }
 
     /**

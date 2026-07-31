@@ -18,6 +18,7 @@ import server.demo.dto.admin.AdminDtos.SubscriptionView;
 import server.demo.interceptor.AdminAuthInterceptor;
 import server.demo.service.admin.AdminSubscriptionService;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 平台管理端：租户订阅查询、人工开通/切换、人工取消。
  */
@@ -59,7 +60,7 @@ public class AdminSubscriptionController {
                     .findReplaySubscriptionView(request.storeId(), request.idempotencyKey())
                     .orElseThrow(() -> conflict);
         }
-        return ApiResponse.success("订阅已开通", view);
+        return ApiResponse.success(ApiMessages.get("api.t.d3518c7b32c6"), view);
     }
 
     @PostMapping("/{id}/cancel")
@@ -68,7 +69,7 @@ public class AdminSubscriptionController {
             HttpServletRequest httpRequest
     ) {
         String operator = (String) httpRequest.getAttribute(AdminAuthInterceptor.ATTR_ADMIN_USERNAME);
-        return ApiResponse.success("订阅已取消",
+        return ApiResponse.success(ApiMessages.get("api.t.f8841c7b07a5"),
                 adminSubscriptionService.cancelSubscription(id, operator));
     }
 }

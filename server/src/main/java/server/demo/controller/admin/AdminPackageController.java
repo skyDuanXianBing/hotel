@@ -18,6 +18,7 @@ import server.demo.service.admin.AdminPackageService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 平台管理端：套餐模板与套餐权益维护。
  */
@@ -38,7 +39,7 @@ public class AdminPackageController {
 
     @PostMapping
     public ApiResponse<SaasPackage> createPackage(@Valid @RequestBody PackageUpsertRequest request) {
-        return ApiResponse.success("套餐已创建（默认下架，配置权益后可上架）",
+        return ApiResponse.success(ApiMessages.get("api.t.508b227e8289"),
                 adminPackageService.createPackage(request));
     }
 
@@ -47,7 +48,7 @@ public class AdminPackageController {
             @PathVariable Long id,
             @Valid @RequestBody PackageUpsertRequest request
     ) {
-        return ApiResponse.success("套餐已更新", adminPackageService.updatePackage(id, request));
+        return ApiResponse.success(ApiMessages.get("api.t.c6fdd30e05cb"), adminPackageService.updatePackage(id, request));
     }
 
     /** 上下架：改价建议新建更高 version 的套餐行并下架旧行；存量订阅不受上下架影响。 */
@@ -56,7 +57,7 @@ public class AdminPackageController {
             @PathVariable Long id,
             @Valid @RequestBody PackageStatusRequest request
     ) {
-        return ApiResponse.success("套餐状态已更新",
+        return ApiResponse.success(ApiMessages.get("api.t.bc9d49f6033e"),
                 adminPackageService.updatePackageStatus(id, request.status()));
     }
 
@@ -71,7 +72,7 @@ public class AdminPackageController {
             @PathVariable Long id,
             @Valid @RequestBody ReplacePackageFeaturesRequest request
     ) {
-        return ApiResponse.success("套餐权益已更新",
+        return ApiResponse.success(ApiMessages.get("api.t.8ba6ecc1b2bc"),
                 adminPackageService.replacePackageFeatures(id, request.features()));
     }
 }

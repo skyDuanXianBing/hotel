@@ -8,11 +8,11 @@ import jakarta.validation.constraints.NotBlank;
  */
 public class CleanerInvitationDTO {
 
-    @NotBlank(message = "邮箱不能为空")
-    @Email(message = "邮箱格式不正确")
+    @NotBlank(message = "{api.t.cfe012352180}")
+    @Email(message = "{api.t.4f0599f86e3f}")
     private String email;
 
-    @NotBlank(message = "姓名不能为空")
+    @NotBlank(message = "{api.t.b0f8137f7e6b}")
     private String name;
 
     private Long userId;

@@ -27,6 +27,7 @@ import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class SuAiAutoReplyService {
 
@@ -35,7 +36,7 @@ public class SuAiAutoReplyService {
     static final String ACTION_AI_GUEST_MESSAGE = "AI_GUEST_MESSAGE";
     static final String TARGET_TYPE_SU_MESSAGE = "SU_MESSAGE";
 
-    private static final String DEFAULT_AI_SENDER_NAME = "AI客服";
+    private static final String DEFAULT_AI_SENDER_NAME_KEY = "api.t.6ae063d46454";
     private static final String DELIVERY_SENDING = "SENDING";
     private static final String DELIVERY_SENT = "SENT";
     private static final String DELIVERY_FAILED = "FAILED";
@@ -234,17 +235,17 @@ public class SuAiAutoReplyService {
     private Map<String, Object> buildReplyPayload(SuMessageThread thread, String message) {
         String hotelId = thread.getSuHotelId();
         if (hotelId == null || hotelId.isBlank()) {
-            throw new IllegalStateException("缺少 hotelid，无法回复");
+            throw new IllegalStateException(ApiMessages.get("api.t.8326c5395ac0"));
         }
 
         Integer channelId = thread.getChannelId();
         if (channelId == null) {
-            throw new IllegalStateException("缺少 channelId，无法回复");
+            throw new IllegalStateException(ApiMessages.get("api.t.7e77a5f5c59a"));
         }
 
         String listingId = thread.getListingId();
         if (listingId == null || listingId.isBlank()) {
-            throw new IllegalStateException("缺少 listingid，无法回复");
+            throw new IllegalStateException(ApiMessages.get("api.t.f593e9d6488e"));
         }
 
         Map<String, Object> payload = new HashMap<>();
@@ -257,7 +258,7 @@ public class SuAiAutoReplyService {
             String threadId = thread.getThreadId();
             String guestId = thread.getGuestId();
             if (threadId == null || threadId.isBlank() || guestId == null || guestId.isBlank()) {
-                throw new IllegalStateException("Airbnb 回复需要 threadid + guestid，但当前会话缺少必要字段");
+                throw new IllegalStateException(ApiMessages.get("api.t.93bbacc041c0"));
             }
             payload.put("threadid", threadId);
             payload.put("guestid", guestId);
@@ -268,13 +269,13 @@ public class SuAiAutoReplyService {
         if (channelId == SuMessagingService.CHANNEL_BOOKING) {
             String bookingId = thread.getBookingId();
             if (bookingId == null || bookingId.isBlank()) {
-                throw new IllegalStateException("Booking.com 回复需要 bookingid，但当前会话缺少必要字段");
+                throw new IllegalStateException(ApiMessages.get("api.t.9eb669aa5a72"));
             }
             payload.put("bookingid", bookingId);
             return payload;
         }
 
-        throw new IllegalStateException("不支持的渠道: " + channelId);
+        throw new IllegalStateException(ApiMessages.get("api.t.b95e88e646a1") + channelId);
     }
 
     private String writeJsonSafely(Object payload) {
@@ -319,11 +320,11 @@ public class SuAiAutoReplyService {
 
     private static String resolveAiSenderName(String configuredSenderName) {
         if (configuredSenderName == null || configuredSenderName.isBlank()) {
-            return DEFAULT_AI_SENDER_NAME;
+            return ApiMessages.get(DEFAULT_AI_SENDER_NAME_KEY);
         }
         String trimmed = configuredSenderName.trim();
-        if (trimmed.contains("锟") || trimmed.contains("å") || trimmed.contains("æ") || trimmed.contains("瀹")) {
-            return DEFAULT_AI_SENDER_NAME;
+        if (trimmed.contains(ApiMessages.get("api.t.a43f3ee09610")) || trimmed.contains("å") || trimmed.contains("æ") || trimmed.contains(ApiMessages.get("api.t.aec333e095d3"))) {
+            return ApiMessages.get(DEFAULT_AI_SENDER_NAME_KEY);
         }
         return trimmed;
     }

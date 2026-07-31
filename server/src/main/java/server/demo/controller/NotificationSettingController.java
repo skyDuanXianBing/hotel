@@ -6,6 +6,7 @@ import server.demo.dto.ApiResponse;
 import server.demo.entity.NotificationSetting;
 import server.demo.service.NotificationSettingService;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 通知设置控制器
  */
@@ -23,7 +24,7 @@ public class NotificationSettingController {
     @GetMapping("/user/{userId}")
     public ApiResponse<NotificationSetting> getByUserId(@PathVariable Long userId) {
         NotificationSetting setting = notificationSettingService.getOrCreateByUserId(userId);
-        return ApiResponse.success("获取通知设置成功", setting);
+        return ApiResponse.success(ApiMessages.get("api.t.de24bcb09084"), setting);
     }
 
     /**
@@ -36,6 +37,6 @@ public class NotificationSettingController {
             @PathVariable Long userId,
             @RequestBody NotificationSetting settings) {
         NotificationSetting updatedSetting = notificationSettingService.updateSettings(userId, settings);
-        return ApiResponse.success("更新通知设置成功", updatedSetting);
+        return ApiResponse.success(ApiMessages.get("api.t.102f9e2c1e38"), updatedSetting);
     }
 }

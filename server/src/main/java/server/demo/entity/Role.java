@@ -23,7 +23,7 @@ public class Role implements StoreScopedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "角色名称不能为空")
+    @NotBlank(message = "{api.t.299e56ae879f}")
     @Column(nullable = false, length = 50)
     private String name;
 

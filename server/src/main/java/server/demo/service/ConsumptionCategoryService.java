@@ -11,6 +11,7 @@ import server.demo.repository.ConsumptionItemRepository;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class ConsumptionCategoryService {
 
@@ -57,7 +58,7 @@ public class ConsumptionCategoryService {
      */
     public ConsumptionCategory getById(Long id) {
         return categoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("分类不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.da8191cea549")));
     }
 
     /**
@@ -86,7 +87,7 @@ public class ConsumptionCategoryService {
         // 检查同名分类是否存在
         ConsumptionCategory existing = getByName(category.getName());
         if (existing != null) {
-            throw new RuntimeException("分类名称已存在");
+            throw new RuntimeException(ApiMessages.get("api.t.d35d01b2a309"));
         }
         return categoryRepository.save(category);
     }
@@ -102,7 +103,7 @@ public class ConsumptionCategoryService {
             // 检查新名称是否已存在
             ConsumptionCategory existing = getByName(updates.getName());
             if (existing != null) {
-                throw new RuntimeException("分类名称已存在");
+                throw new RuntimeException(ApiMessages.get("api.t.d35d01b2a309"));
             }
             category.setName(updates.getName());
         }
@@ -126,7 +127,7 @@ public class ConsumptionCategoryService {
         List<ConsumptionItem> items = itemRepository.findByStoreIdAndCategory(
                 storeId, category.getName());
         if (!items.isEmpty()) {
-            throw new RuntimeException("该分类下存在消费项,无法删除");
+            throw new RuntimeException(ApiMessages.get("api.t.3db513b36375"));
         }
 
         categoryRepository.deleteById(id);

@@ -14,6 +14,7 @@ import server.demo.service.HomeWorkbenchService;
 
 import java.time.LocalDate;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/home")
 @StoreScoped
@@ -37,13 +38,13 @@ public class HomeWorkbenchController {
         try {
             HomeWorkbenchResponse response = homeWorkbenchService.getWorkbench(
                     date, limit, type, status, size, cursor, includeSummaries);
-            return ResponseEntity.ok(ApiResponse.success("获取首页工作台成功", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.5bd60b86e63c"), response));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (StoreAccessDeniedException e) {
             return ResponseEntity.status(403).body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("获取首页工作台失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.dd2e7ec75205") + e.getMessage()));
         }
     }
 }

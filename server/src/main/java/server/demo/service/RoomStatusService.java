@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 @Service
 @Transactional
 public class RoomStatusService {
@@ -138,7 +139,7 @@ public class RoomStatusService {
                 PermissionAction.VIEW_ROOM_STATUS
         );
         if (scope.isEmpty()) {
-            throw new PermissionDeniedException("您没有权限查看房态");
+            throw new PermissionDeniedException(ApiMessages.get("api.t.3374a6f00b30"));
         }
 
         List<Room> rooms = roomRepository.findByStoreIdWithRoomType(storeId);
@@ -215,7 +216,7 @@ public class RoomStatusService {
                 currentDate = currentDate.plusDays(1);
             }
 
-            String roomTypeName = room.getRoomType() != null ? room.getRoomType().getName() : "未知房型";
+            String roomTypeName = room.getRoomType() != null ? room.getRoomType().getName() : ApiMessages.get("api.t.bf9c87e5ff5b");
             Long roomTypeId = room.getRoomType() != null ? room.getRoomType().getId() : null;
             RoomStatusCalendarDTO.CalendarRoomDataDTO roomData = new RoomStatusCalendarDTO.CalendarRoomDataDTO(
                     room.getId(),
@@ -233,25 +234,25 @@ public class RoomStatusService {
     public RoomBlockoutSummaryDTO closeRooms(UpsertRoomBlockoutRequest request) {
         Long storeId = currentStoreId();
         if (request == null) {
-            throw new RuntimeException("请求不能为空");
+            throw new RuntimeException(ApiMessages.get("api.t.ceec49c84c40"));
         }
         LocalDate startDate = request.getStartDate();
         LocalDate endDate = request.getEndDate();
         if (startDate == null || endDate == null || endDate.isBefore(startDate)) {
-            throw new RuntimeException("日期范围不合法");
+            throw new RuntimeException(ApiMessages.get("api.t.dbebca388b58"));
         }
         RoomBlockoutType type = RoomBlockoutType.fromUiValue(request.getType());
         if (type == null) {
-            throw new RuntimeException("关房类型不合法: " + request.getType());
+            throw new RuntimeException(ApiMessages.get("api.t.b389755fdd82") + request.getType());
         }
         List<Long> roomIds = request.getRoomIds();
         if (roomIds == null || roomIds.isEmpty()) {
-            throw new RuntimeException("roomIds 不能为空");
+            throw new RuntimeException(ApiMessages.get("api.t.db75975a148a"));
         }
 
         List<Room> rooms = roomRepository.findByStoreIdAndIdIn(storeId, roomIds);
         if (rooms.size() != roomIds.stream().filter(id -> id != null).collect(Collectors.toSet()).size()) {
-            throw new RuntimeException("部分房间不存在或无权限");
+            throw new RuntimeException(ApiMessages.get("api.t.988ad0cabfae"));
         }
 
         if (permissionService.isEnforcementEnabled()) {
@@ -263,7 +264,7 @@ public class RoomStatusService {
                     PermissionAction.VIEW_ROOM_STATUS
             );
             if (scope.isEmpty()) {
-                throw new PermissionDeniedException("您没有权限操作房态");
+                throw new PermissionDeniedException(ApiMessages.get("api.t.1fea6a2a0605"));
             }
             if (!scope.isAllRoomTypes()) {
                 Set<Long> allowedRoomTypeIds = scope.getRoomTypeIds();
@@ -272,7 +273,7 @@ public class RoomStatusService {
                         || r.getRoomType().getId() == null
                         || !allowedRoomTypeIds.contains(r.getRoomType().getId()));
                 if (anyForbidden) {
-                    throw new PermissionDeniedException("您没有权限操作该房型的房态");
+                    throw new PermissionDeniedException(ApiMessages.get("api.t.0a150e316b17"));
                 }
             }
         }
@@ -298,7 +299,7 @@ public class RoomStatusService {
                             ", status=" + r.getStatus() +
                             ", order=" + r.getOrderNumber())
                     .collect(Collectors.joining("; "));
-            throw new RuntimeException("所选日期范围内存在预订，无法关房。示例: " + detail);
+            throw new RuntimeException(ApiMessages.get("api.t.801f897ec482") + detail);
         }
 
         Map<String, RoomBlockout> existingByKey = new HashMap<>();
@@ -360,22 +361,22 @@ public class RoomStatusService {
     public RoomBlockoutSummaryDTO openRooms(OpenRoomBlockoutRequest request) {
         Long storeId = currentStoreId();
         if (request == null) {
-            throw new RuntimeException("请求不能为空");
+            throw new RuntimeException(ApiMessages.get("api.t.ceec49c84c40"));
         }
         LocalDate startDate = request.getStartDate();
         LocalDate endDate = request.getEndDate();
         if (startDate == null || endDate == null || endDate.isBefore(startDate)) {
-            throw new RuntimeException("日期范围不合法");
+            throw new RuntimeException(ApiMessages.get("api.t.dbebca388b58"));
         }
         List<Long> roomIds = request.getRoomIds();
         if (roomIds == null || roomIds.isEmpty()) {
-            throw new RuntimeException("roomIds 不能为空");
+            throw new RuntimeException(ApiMessages.get("api.t.db75975a148a"));
         }
 
         // 校验房间属于当前门店
         List<Room> rooms = roomRepository.findByStoreIdAndIdIn(storeId, roomIds);
         if (rooms.size() != roomIds.stream().filter(id -> id != null).collect(Collectors.toSet()).size()) {
-            throw new RuntimeException("部分房间不存在或无权限");
+            throw new RuntimeException(ApiMessages.get("api.t.988ad0cabfae"));
         }
 
         if (permissionService.isEnforcementEnabled()) {
@@ -387,7 +388,7 @@ public class RoomStatusService {
                     PermissionAction.VIEW_ROOM_STATUS
             );
             if (scope.isEmpty()) {
-                throw new PermissionDeniedException("您没有权限操作房态");
+                throw new PermissionDeniedException(ApiMessages.get("api.t.1fea6a2a0605"));
             }
             if (!scope.isAllRoomTypes()) {
                 Set<Long> allowedRoomTypeIds = scope.getRoomTypeIds();
@@ -396,7 +397,7 @@ public class RoomStatusService {
                         || r.getRoomType().getId() == null
                         || !allowedRoomTypeIds.contains(r.getRoomType().getId()));
                 if (anyForbidden) {
-                    throw new PermissionDeniedException("您没有权限操作该房型的房态");
+                    throw new PermissionDeniedException(ApiMessages.get("api.t.0a150e316b17"));
                 }
             }
         }
@@ -448,7 +449,7 @@ public class RoomStatusService {
     public void updateRoomStatus(Long roomId, LocalDate date, RoomStatus newStatus, String reason) {
         Long storeId = currentStoreId();
         Room room = roomRepository.findByStoreIdAndIdWithRoomType(storeId, roomId)
-                .orElseThrow(() -> new RuntimeException("房间不存在或无权限"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.43248df8f842")));
 
         if (permissionService.isEnforcementEnabled()) {
             Long userId = currentUserId();
@@ -468,7 +469,7 @@ public class RoomStatusService {
                     roomTypeId
             );
             if (!canEdit || !canViewRoomType) {
-                throw new PermissionDeniedException("您没有权限修改该房型的房态");
+                throw new PermissionDeniedException(ApiMessages.get("api.t.9312db6763a4"));
             }
         }
 
@@ -490,7 +491,7 @@ public class RoomStatusService {
                 ));
         if (hasExistingReservation &&
                 (newStatus == RoomStatus.AVAILABLE || newStatus == RoomStatus.MAINTENANCE)) {
-            throw new RuntimeException("该日期已有预订，无法修改为该状态");
+            throw new RuntimeException(ApiMessages.get("api.t.62ff05a6085a"));
         }
 
         if (isDateToday(storeId, date)) {
@@ -531,7 +532,7 @@ public class RoomStatusService {
                     PermissionAction.VIEW_ROOM_STATUS
             );
             if (scope.isEmpty()) {
-                throw new PermissionDeniedException("您没有权限查看房态");
+                throw new PermissionDeniedException(ApiMessages.get("api.t.3374a6f00b30"));
             }
         }
         return getRoomStatusStatisticsForStore(currentStoreId(), date);
@@ -656,7 +657,7 @@ public class RoomStatusService {
             return null;
         }
         Reservation r = reservation;
-        String channelName = r.getChannel() != null ? r.getChannel().getName() : "未知渠道";
+        String channelName = r.getChannel() != null ? r.getChannel().getName() : ApiMessages.get("api.t.d0f332397a79");
         DailyRoomStatusDTO.ReservationInfoDTO reservationInfo = new DailyRoomStatusDTO.ReservationInfoDTO(
                 r.getId(),
                 r.getGuestName(),

@@ -29,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 /**
  * PriceLabs Webhook 控制器
  * 接收来自 PriceLabs 的推送通知
@@ -120,13 +121,13 @@ public class PriceLabsWebhookController {
                 if (plSignedHeaders == null || plSignedHeaders.isBlank()) {
                     logger.warn("[PriceLabsWebhook][{}] /sync missing X-PL-SIGNED-HEADERS", traceId);
                     response.put("success", false);
-                    response.put("message", "缺少签名");
+                    response.put("message", ApiMessages.get("api.t.444d7a818c57"));
                     return ResponseEntity.status(401).body(response);
                 }
                 if (plSignedBody == null || plSignedBody.isBlank()) {
                     logger.warn("[PriceLabsWebhook][{}] /sync missing X-PL-SIGNED-BODY", traceId);
                     response.put("success", false);
-                    response.put("message", "缺少签名");
+                    response.put("message", ApiMessages.get("api.t.444d7a818c57"));
                     return ResponseEntity.status(401).body(response);
                 }
 
@@ -134,7 +135,7 @@ public class PriceLabsWebhookController {
                 if (!verifier.verify(plSignedHeaders, plSignedBody, plSource, plTimestamp, plRequestId, rawBody)) {
                     logger.warn("[PriceLabsWebhook][{}] /sync X-PL signature verification failed", traceId);
                     response.put("success", false);
-                    response.put("message", "签名验证失败");
+                    response.put("message", ApiMessages.get("api.t.7ef0f1bd02d3"));
                     if (config.isDebug()) {
                         response.put("traceId", traceId);
                     }
@@ -149,7 +150,7 @@ public class PriceLabsWebhookController {
                     } else {
                         logger.warn("[PriceLabsWebhook][{}] /sync missing signature", traceId);
                         response.put("success", false);
-                        response.put("message", "缺少签名");
+                        response.put("message", ApiMessages.get("api.t.444d7a818c57"));
                         return ResponseEntity.status(401).body(response);
                     }
                 }
@@ -159,7 +160,7 @@ public class PriceLabsWebhookController {
                     if (!verifier.verifySignature(rawBody, signature)) {
                         logger.warn("[PriceLabsWebhook][{}] /sync signature verification failed", traceId);
                         response.put("success", false);
-                        response.put("message", "签名验证失败");
+                        response.put("message", ApiMessages.get("api.t.7ef0f1bd02d3"));
                         if (config.isDebug()) {
                             response.put("traceId", traceId);
                         }
@@ -199,7 +200,7 @@ public class PriceLabsWebhookController {
                     e.getMessage(),
                     e);
             response.put("success", false);
-            response.put("message", "处理失败: " + e.getMessage());
+            response.put("message", ApiMessages.get("api.t.408c461f535a") + e.getMessage());
             response.put("traceId", traceId);
             return ResponseEntity.status(500).body(response);
         }
@@ -328,7 +329,7 @@ public class PriceLabsWebhookController {
                     || plRequestId == null || plRequestId.isBlank()) {
                 logger.warn("[PriceLabsWebhook][{}] /calendar-trigger missing X-PL signature headers", traceId);
                 response.put("success", false);
-                response.put("message", "缺少签名");
+                response.put("message", ApiMessages.get("api.t.444d7a818c57"));
                 return ResponseEntity.status(401).body(response);
             }
 
@@ -336,7 +337,7 @@ public class PriceLabsWebhookController {
             if (!verifier.verify(plSignedHeaders, plSignedBody, plSource, plTimestamp, plRequestId, rawBody)) {
                 logger.warn("[PriceLabsWebhook][{}] /calendar-trigger X-PL signature verification failed", traceId);
                 response.put("success", false);
-                response.put("message", "签名验证失败");
+                response.put("message", ApiMessages.get("api.t.7ef0f1bd02d3"));
                 if (config.isDebug()) {
                     response.put("traceId", traceId);
                 }
@@ -372,7 +373,7 @@ public class PriceLabsWebhookController {
 
             if (listingId == null) {
                 logger.warn("[PriceLabsWebhook] calendar-trigger missing/invalid listing_id, skip sync. request={}", requestData);
-                response.put("message", "日历刷新请求已接收，但缺少可解析的 listing_id，已忽略");
+                response.put("message", ApiMessages.get("api.t.3f593f150a36"));
                 if (config.isDebug()) {
                     response.put("traceId", traceId);
                 }
@@ -385,7 +386,7 @@ public class PriceLabsWebhookController {
                 } else {
                     priceLabsSyncService.syncCalendar(storeId, startDate, endDate);
                 }
-                response.put("message", "日历刷新已触发");
+                response.put("message", ApiMessages.get("api.t.e9252f5709fe"));
                 response.put("listingId", listingId);
                 if (storeId != null) {
                     response.put("storeId", storeId);
@@ -405,7 +406,7 @@ public class PriceLabsWebhookController {
             } catch (Exception ex) {
                 logger.error("[PriceLabsWebhook] calendar-trigger sync failed. storeId={}, listingId={}, err={}", storeId, listingId, ex.getMessage(), ex);
                 response.put("success", false);
-                response.put("message", "日历刷新同步失败: " + ex.getMessage());
+                response.put("message", ApiMessages.get("api.t.d0bc9764b095") + ex.getMessage());
                 response.put("listingId", listingId);
                 if (storeId != null) {
                     response.put("storeId", storeId);
@@ -423,11 +424,11 @@ public class PriceLabsWebhookController {
             if (config.isDebug()) {
                 response.put("success", false);
                 response.put("traceId", traceId);
-                response.put("message", "日历刷新处理失败: " + e.getMessage());
+                response.put("message", ApiMessages.get("api.t.da09cfee1dc1") + e.getMessage());
                 return ResponseEntity.status(500).body(response);
             }
             response.put("success", true);
-            response.put("message", "日历刷新请求已接收，但处理失败（已记录日志）");
+            response.put("message", ApiMessages.get("api.t.1de58a11d592"));
             return ResponseEntity.ok(response);
         }
     }
@@ -526,7 +527,7 @@ public class PriceLabsWebhookController {
                     || plRequestId == null || plRequestId.isBlank()) {
                 logger.warn("[PriceLabsWebhook][{}] /hook missing X-PL signature headers", traceId);
                 response.put("success", false);
-                response.put("message", "缺少签名");
+                response.put("message", ApiMessages.get("api.t.444d7a818c57"));
                 return ResponseEntity.status(401).body(response);
             }
 
@@ -534,7 +535,7 @@ public class PriceLabsWebhookController {
             if (!verifier.verify(plSignedHeaders, plSignedBody, plSource, plTimestamp, plRequestId, rawBody)) {
                 logger.warn("[PriceLabsWebhook][{}] /hook X-PL signature verification failed", traceId);
                 response.put("success", false);
-                response.put("message", "签名验证失败");
+                response.put("message", ApiMessages.get("api.t.7ef0f1bd02d3"));
                 if (config.isDebug()) {
                     response.put("traceId", traceId);
                 }
@@ -549,7 +550,7 @@ public class PriceLabsWebhookController {
             logger.warn("[PriceLabsWebhook][{}] received PriceLabs error hook: {}", traceId, errorData);
 
             response.put("success", true);
-            response.put("message", "错误通知已接收");
+            response.put("message", ApiMessages.get("api.t.9c8964e2abfe"));
             if (config.isDebug()) {
                 response.put("traceId", traceId);
             }
@@ -558,7 +559,7 @@ public class PriceLabsWebhookController {
 
         } catch (Exception e) {
             response.put("success", false);
-            response.put("message", "处理失败: " + e.getMessage());
+            response.put("message", ApiMessages.get("api.t.408c461f535a") + e.getMessage());
             if (config.isDebug()) {
                 response.put("traceId", traceId);
             }

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.util.ReflectionTestUtils;
+import server.demo.i18n.TestApiMessages;
 import server.demo.util.JwtUtil;
 
 import java.util.HashMap;
@@ -25,6 +26,7 @@ class AdminAuthInterceptorTest {
 
     @BeforeEach
     void setUp() {
+        TestApiMessages.install();
         jwtUtil = new JwtUtil();
         ReflectionTestUtils.setField(jwtUtil, "secret",
                 "admin-interceptor-test-secret-key-at-least-256-bits-long-for-hs256");

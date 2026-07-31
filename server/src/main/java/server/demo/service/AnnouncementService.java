@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class AnnouncementService {
     private static final String DEFAULT_LOCALE = "zh-CN";
@@ -113,12 +114,12 @@ public class AnnouncementService {
 
     private Announcement findOwnedStoreAnnouncement(Long id, Long storeId) {
         if (id == null) {
-            throw new IllegalArgumentException("公告ID不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.5c7f83b2c88c"));
         }
 
         return announcementRepository
                 .findByIdAndScopeAndStoreId(id, Announcement.SCOPE_STORE, storeId)
-                .orElseThrow(() -> new IllegalArgumentException("公告不存在或不属于当前门店"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.89a2f2af3d5d")));
     }
 
     private void applyStoreManagedFields(
@@ -127,18 +128,18 @@ public class AnnouncementService {
             boolean isCreate
     ) {
         if (request == null) {
-            throw new IllegalArgumentException("公告内容不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.cae920db7651"));
         }
 
-        announcement.setTitle(normalizeRequiredText(request.getTitle(), "公告标题", MAX_TITLE_LENGTH));
-        announcement.setContent(normalizeRequiredText(request.getContent(), "公告内容", null));
+        announcement.setTitle(normalizeRequiredText(request.getTitle(), ApiMessages.get("api.t.547bc7967c43"), MAX_TITLE_LENGTH));
+        announcement.setContent(normalizeRequiredText(request.getContent(), ApiMessages.get("api.t.7d23960dcaec"), null));
         announcement.setLocale(normalizeStoredLocale(request.getLocale()));
-        announcement.setType(normalizeCode(request.getType(), DEFAULT_TYPE, MAX_TYPE_LENGTH, "公告类型"));
+        announcement.setType(normalizeCode(request.getType(), DEFAULT_TYPE, MAX_TYPE_LENGTH, ApiMessages.get("api.t.cd0d7920085b")));
         announcement.setSeverity(normalizeCode(
                 request.getSeverity(),
                 DEFAULT_SEVERITY,
                 MAX_SEVERITY_LENGTH,
-                "公告级别"
+                ApiMessages.get("api.t.91c29fb57d38")
         ));
         announcement.setSortOrder(request.getSortOrder() == null ? DEFAULT_SORT_ORDER : request.getSortOrder());
         if (isCreate) {
@@ -153,12 +154,12 @@ public class AnnouncementService {
 
     private static String normalizeRequiredText(String value, String fieldLabel, Integer maxLength) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(fieldLabel + "不能为空");
+            throw new IllegalArgumentException(fieldLabel + ApiMessages.get("api.t.44fa2a2c698d"));
         }
 
         String normalized = value.trim();
         if (maxLength != null && normalized.length() > maxLength) {
-            throw new IllegalArgumentException(fieldLabel + "不能超过" + maxLength + "个字符");
+            throw new IllegalArgumentException(fieldLabel + ApiMessages.get("api.t.334e82f35399") + maxLength + ApiMessages.get("api.t.43c428caacac"));
         }
         return normalized;
     }
@@ -170,7 +171,7 @@ public class AnnouncementService {
 
         String normalized = locale.trim();
         if (normalized.length() > MAX_LOCALE_LENGTH) {
-            throw new IllegalArgumentException("语言标识不能超过" + MAX_LOCALE_LENGTH + "个字符");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.c4446e107977") + MAX_LOCALE_LENGTH + ApiMessages.get("api.t.43c428caacac"));
         }
         return normalized;
     }
@@ -187,14 +188,14 @@ public class AnnouncementService {
 
         String normalized = value.trim().toUpperCase(Locale.ROOT);
         if (normalized.length() > maxLength) {
-            throw new IllegalArgumentException(fieldLabel + "不能超过" + maxLength + "个字符");
+            throw new IllegalArgumentException(fieldLabel + ApiMessages.get("api.t.334e82f35399") + maxLength + ApiMessages.get("api.t.43c428caacac"));
         }
         return normalized;
     }
 
     private static void validateSchedule(LocalDateTime startsAt, LocalDateTime endsAt) {
         if (startsAt != null && endsAt != null && startsAt.isAfter(endsAt)) {
-            throw new IllegalArgumentException("开始时间不能晚于结束时间");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.a8b8c651566f"));
         }
     }
 

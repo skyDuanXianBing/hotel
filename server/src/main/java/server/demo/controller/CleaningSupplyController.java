@@ -9,6 +9,7 @@ import server.demo.service.CleaningSupplyService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 保洁易耗品控制器
  */
@@ -26,7 +27,7 @@ public class CleaningSupplyController {
     @GetMapping
     public ApiResponse<List<CleaningSupply>> getAllSupplies() {
         List<CleaningSupply> supplies = cleaningSupplyService.getAllSupplies();
-        return ApiResponse.success("获取易耗品列表成功", supplies);
+        return ApiResponse.success(ApiMessages.get("api.t.16712ee892ca"), supplies);
     }
 
     /**
@@ -36,7 +37,7 @@ public class CleaningSupplyController {
     @GetMapping("/user/{userId}")
     public ApiResponse<List<CleaningSupply>> getSuppliesByUserId(@PathVariable Long userId) {
         List<CleaningSupply> supplies = cleaningSupplyService.getSuppliesByUserId(userId);
-        return ApiResponse.success("获取易耗品列表成功", supplies);
+        return ApiResponse.success(ApiMessages.get("api.t.16712ee892ca"), supplies);
     }
 
     /**
@@ -45,8 +46,8 @@ public class CleaningSupplyController {
     @GetMapping("/{id}")
     public ApiResponse<CleaningSupply> getSupplyById(@PathVariable Long id) {
         return cleaningSupplyService.getSupplyById(id)
-                .map(supply -> ApiResponse.success("获取易耗品详情成功", supply))
-                .orElse(ApiResponse.error("易耗品不存在"));
+                .map(supply -> ApiResponse.success(ApiMessages.get("api.t.d5d5f2de6afe"), supply))
+                .orElse(ApiResponse.error(ApiMessages.get("api.t.b9b31a4ffc83")));
     }
 
     /**
@@ -55,7 +56,7 @@ public class CleaningSupplyController {
     @PostMapping
     public ApiResponse<CleaningSupply> createSupply(@RequestBody CleaningSupply supply) {
         CleaningSupply createdSupply = cleaningSupplyService.createSupply(supply);
-        return ApiResponse.success("创建易耗品成功", createdSupply);
+        return ApiResponse.success(ApiMessages.get("api.t.d532fdad1e48"), createdSupply);
     }
 
     /**
@@ -67,7 +68,7 @@ public class CleaningSupplyController {
             @RequestBody CleaningSupply supply) {
         try {
             CleaningSupply updatedSupply = cleaningSupplyService.updateSupply(id, supply);
-            return ApiResponse.success("更新易耗品成功", updatedSupply);
+            return ApiResponse.success(ApiMessages.get("api.t.772d7b567310"), updatedSupply);
         } catch (RuntimeException e) {
             return ApiResponse.error(e.getMessage());
         }
@@ -79,7 +80,7 @@ public class CleaningSupplyController {
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteSupply(@PathVariable Long id) {
         cleaningSupplyService.deleteSupply(id);
-        return ApiResponse.success("删除易耗品成功", null);
+        return ApiResponse.success(ApiMessages.get("api.t.a2f7c21167df"), null);
     }
 
     /**
@@ -89,7 +90,7 @@ public class CleaningSupplyController {
     public ApiResponse<CleaningSupply> clearSupply(@PathVariable Long id) {
         try {
             CleaningSupply supply = cleaningSupplyService.clearSupply(id);
-            return ApiResponse.success("清空易耗品成功", supply);
+            return ApiResponse.success(ApiMessages.get("api.t.6a1e58055e63"), supply);
         } catch (RuntimeException e) {
             return ApiResponse.error(e.getMessage());
         }

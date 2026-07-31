@@ -9,16 +9,16 @@ import java.util.List;
  * 按价格计划更新价格请求
  */
 public class UpdatePriceByPlanRequest {
-    @NotNull(message = "房型ID不能为空")
+    @NotNull(message = "{api.t.9b3078915166}")
     private Long roomTypeId;
 
-    @NotNull(message = "价格计划ID不能为空")
+    @NotNull(message = "{api.t.45a1e1fd40f2}")
     private Long pricePlanId;
 
-    @NotNull(message = "开始日期不能为空")
+    @NotNull(message = "{api.t.897f09b95242}")
     private LocalDate startDate;
 
-    @NotNull(message = "结束日期不能为空")
+    @NotNull(message = "{api.t.6ff06603a351}")
     private LocalDate endDate;
 
     private List<Integer> weekdays; // 0=全部, 1=周一, 2=周二, ..., 7=周日
@@ -34,12 +34,12 @@ public class UpdatePriceByPlanRequest {
 
     private Integer availableRooms;
 
-    @jakarta.validation.constraints.Min(value = 1, message = "最小入住天数必须大于等于1")
-    @jakarta.validation.constraints.Max(value = 99, message = "最小入住天数必须小于等于99")
+    @jakarta.validation.constraints.Min(value = 1, message = "{api.t.6ef12cef435c}")
+    @jakarta.validation.constraints.Max(value = 99, message = "{api.t.c3fb8c1b6546}")
     private Integer minStay;
 
-    @jakarta.validation.constraints.Min(value = 1, message = "最大入住天数必须大于等于1")
-    @jakarta.validation.constraints.Max(value = 99, message = "最大入住天数必须小于等于99")
+    @jakarta.validation.constraints.Min(value = 1, message = "{api.t.6f5946b763cd}")
+    @jakarta.validation.constraints.Max(value = 99, message = "{api.t.8731154aa44b}")
     private Integer maxStay;
 
     /**

@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotNull;
 
 public class UpdateReservationSettlementStatusRequest {
 
-    @NotNull(message = "settled 不能为空")
+    @NotNull(message = "{api.t.e705927a94be}")
     private Boolean settled;
 
     public Boolean getSettled() {

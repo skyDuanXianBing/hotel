@@ -14,6 +14,7 @@ import server.demo.dto.SuMessagingTranslationRequest;
 import server.demo.dto.SuMessagingTranslationResponse;
 import server.demo.service.SuMessagingTranslationService;
 
+import server.demo.i18n.ApiMessages;
 @RestController
 @RequestMapping("/api/v1/su-messaging")
 public class SuMessagingTranslationController {
@@ -34,11 +35,11 @@ public class SuMessagingTranslationController {
             Long storeId = StoreContextHolder.getContext().getStoreId();
             SuMessagingTranslationResponse response =
                     translationService.getOrCreateTranslation(storeId, threadId, messageId, request);
-            return ResponseEntity.ok(ApiResponse.success("消息翻译成功", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.b8ba345b6698"), response));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("消息翻译失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.94e3b6bbb610") + e.getMessage()));
         }
     }
 }

@@ -6,17 +6,17 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public class UpdateRoomPriceRequest {
-    @NotNull(message = "房型ID不能为空")
+    @NotNull(message = "{api.t.9b3078915166}")
     private Long roomTypeId;
 
-    @NotNull(message = "开始日期不能为空")
+    @NotNull(message = "{api.t.897f09b95242}")
     private LocalDate startDate;
 
-    @NotNull(message = "结束日期不能为空")
+    @NotNull(message = "{api.t.6ff06603a351}")
     private LocalDate endDate;
 
-    @NotNull(message = "价格不能为空")
-    @DecimalMin(value = "0.0", inclusive = false, message = "价格必须大于0")
+    @NotNull(message = "{api.t.65b3b94588a8}")
+    @DecimalMin(value = "0.0", inclusive = false, message = "{api.t.d866edf26493}")
     private BigDecimal price;
 
     private Boolean isHoliday;

@@ -19,11 +19,11 @@ public class Room implements StoreScopedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "房间号不能为空")
+    @NotBlank(message = "{api.t.d1eaae8bb920}")
     @Column(name = "room_number", nullable = false, length = 20)
     private String roomNumber;
 
-    @NotNull(message = "房型不能为空")
+    @NotNull(message = "{api.t.04e9140efd9c}")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_type_id", nullable = false)
     private RoomType roomType;

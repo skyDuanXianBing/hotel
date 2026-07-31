@@ -6,6 +6,7 @@ import org.mockito.Mockito;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.util.ReflectionTestUtils;
+import server.demo.i18n.TestApiMessages;
 import server.demo.util.JwtUtil;
 import server.demo.util.RedisUtil;
 
@@ -31,6 +32,7 @@ class JwtInterceptorTest {
 
     @BeforeEach
     void setUp() {
+        TestApiMessages.install();
         jwtUtil = new JwtUtil();
         ReflectionTestUtils.setField(jwtUtil, "secret",
                 "jwt-interceptor-test-secret-key-at-least-256-bits-long-for-hs256");

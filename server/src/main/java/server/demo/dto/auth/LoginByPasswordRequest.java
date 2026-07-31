@@ -8,11 +8,11 @@ import jakarta.validation.constraints.NotBlank;
  */
 public class LoginByPasswordRequest {
 
-    @NotBlank(message = "邮箱不能为空")
-    @Email(message = "邮箱格式不正确")
+    @NotBlank(message = "{api.t.cfe012352180}")
+    @Email(message = "{api.t.4f0599f86e3f}")
     private String email;
 
-    @NotBlank(message = "密码不能为空")
+    @NotBlank(message = "{api.t.4d81424b0110}")
     private String password;
 
     private Boolean rememberMe;

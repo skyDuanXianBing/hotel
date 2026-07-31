@@ -2,6 +2,8 @@ package server.demo.controller.advice;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -18,6 +20,8 @@ import server.demo.service.IndependentSiteServiceException;
 
 import java.util.Map;
 
+import server.demo.i18n.ApiMessages;
+@Order(Ordered.HIGHEST_PRECEDENCE + 40)
 @RestControllerAdvice(assignableTypes = {
         IndependentSiteController.class,
         PublicIndependentSiteController.class,
@@ -49,8 +53,8 @@ public class IndependentSiteApiExceptionHandler {
                 .findFirst()
                 .orElse(null);
         String message = firstError == null
-                ? "请求参数不正确"
-                : firstError.getField() + " 参数不正确";
+                ? ApiMessages.get("api.t.b3ef3802af04")
+                : firstError.getField() + ApiMessages.get("api.t.394c026821d9");
         return ResponseEntity.badRequest()
                 .body(ApiResponse.error(message, Map.of("code", "VALIDATION_FAILED")));
     }
@@ -59,7 +63,7 @@ public class IndependentSiteApiExceptionHandler {
     public ResponseEntity<ApiResponse<Object>> handleBadRequest(Exception exception) {
         String message = exception instanceof IllegalArgumentException
                 ? exception.getMessage()
-                : "请求格式不正确";
+                : ApiMessages.get("api.t.2b0d0d721d45");
         return ResponseEntity.badRequest()
                 .body(ApiResponse.error(message, Map.of("code", "INVALID_REQUEST")));
     }
@@ -68,13 +72,13 @@ public class IndependentSiteApiExceptionHandler {
     public ResponseEntity<ApiResponse<Object>> handleConflict(DataIntegrityViolationException exception) {
         logger.warn("Independent-site data conflict: {}", exception.getMostSpecificCause().getMessage());
         return ResponseEntity.status(409)
-                .body(ApiResponse.error("请求与现有数据冲突", Map.of("code", "DATA_CONFLICT")));
+                .body(ApiResponse.error(ApiMessages.get("api.t.dc8458db2b9b"), Map.of("code", "DATA_CONFLICT")));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleUnexpected(Exception exception) {
         logger.error("Independent-site unexpected error", exception);
         return ResponseEntity.status(500)
-                .body(ApiResponse.error("系统错误，请稍后重试", Map.of("code", "INTERNAL_ERROR")));
+                .body(ApiResponse.error(ApiMessages.get("api.t.52c9e93c967e"), Map.of("code", "INTERNAL_ERROR")));
     }
 }

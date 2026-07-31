@@ -48,6 +48,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class IndependentSiteManagementService {
 
@@ -158,16 +159,16 @@ public class IndependentSiteManagementService {
     ) {
         requireStoreId(storeId);
         if (request == null) {
-            throw new IllegalArgumentException("站点配置不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.331f0757ba60"));
         }
         channelBootstrapService.ensureDefaultChannelsForStore(storeId);
         String name = normalizeSiteName(request.name());
         String slug = normalizeSlug(request.slug());
         if (siteRepository.existsBySlug(slug)) {
-            throw conflict("SLUG_ALREADY_EXISTS", "该公开链接后缀已被使用");
+            throw conflict("SLUG_ALREADY_EXISTS", ApiMessages.get("api.t.3f9cd96f6b33"));
         }
         Channel channel = channelRepository.findByStoreIdAndCode(storeId, BOOKING_ENGINE_CHANNEL_CODE)
-                .orElseThrow(() -> new IllegalStateException("BOOKING_ENGINE 渠道初始化失败"));
+                .orElseThrow(() -> new IllegalStateException(ApiMessages.get("api.t.4f605cc2c43c")));
 
         IndependentSite site = new IndependentSite();
         site.setStoreId(storeId);
@@ -188,7 +189,7 @@ public class IndependentSiteManagementService {
         requireStoreId(storeId);
         channelBootstrapService.ensureDefaultChannelsForStore(storeId);
         IndependentSite site = siteRepository.findByStoreIdAndIdWithChannel(storeId, id)
-                .orElseThrow(() -> new IllegalArgumentException("独立站不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.87f7c7d02b26")));
         return toDetailResponse(site);
     }
 
@@ -200,11 +201,11 @@ public class IndependentSiteManagementService {
     ) {
         requireStoreId(storeId);
         if (request == null) {
-            throw new IllegalArgumentException("站点配置不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.331f0757ba60"));
         }
         channelBootstrapService.ensureDefaultChannelsForStore(storeId);
         IndependentSite site = siteRepository.findByStoreIdAndIdWithChannelForUpdate(storeId, id)
-                .orElseThrow(() -> new IllegalArgumentException("独立站不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.87f7c7d02b26")));
         applySiteConfig(
                 storeId,
                 site,
@@ -226,9 +227,9 @@ public class IndependentSiteManagementService {
     public void deleteSite(Long storeId, Long id) {
         requireStoreId(storeId);
         IndependentSite site = siteRepository.findByStoreIdAndId(storeId, id)
-                .orElseThrow(() -> new IllegalArgumentException("独立站不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.87f7c7d02b26")));
         if (paymentAttemptRepository.existsBySite_Id(site.getId())) {
-            throw conflict("SITE_HAS_PAYMENTS", "该独立站存在支付记录，不可删除");
+            throw conflict("SITE_HAS_PAYMENTS", ApiMessages.get("api.t.2ca1d2717095"));
         }
         // publications/pages 由数据库外键 ON DELETE CASCADE 级联删除
         siteRepository.delete(site);
@@ -253,7 +254,7 @@ public class IndependentSiteManagementService {
     ) {
         requireStoreId(storeId);
         if (request == null) {
-            throw new IllegalArgumentException("独立站配置不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.ca3ca06e42fa"));
         }
         channelBootstrapService.ensureDefaultChannelsForStore(storeId);
 
@@ -305,13 +306,13 @@ public class IndependentSiteManagementService {
     ) {
         requireStoreId(storeId);
         if (request == null) {
-            throw new IllegalArgumentException("页面配置不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.fccd94b94156"));
         }
         IndependentSite site = requireSite(storeId, siteId);
         IndependentSitePageType type = parseCreatablePageType(request.type());
         String path = normalizePagePath(request.path());
         if (pageRepository.findByStoreIdAndSiteIdAndPath(storeId, siteId, path).isPresent()) {
-            throw conflict("PAGE_PATH_ALREADY_EXISTS", "该页面路径已存在");
+            throw conflict("PAGE_PATH_ALREADY_EXISTS", ApiMessages.get("api.t.996bd7175c1b"));
         }
 
         IndependentSitePage page = new IndependentSitePage();
@@ -335,7 +336,7 @@ public class IndependentSiteManagementService {
         requireStoreId(storeId);
         requireSite(storeId, siteId);
         IndependentSitePage page = pageRepository.findByStoreIdAndSiteIdAndId(storeId, siteId, pageId)
-                .orElseThrow(() -> new IllegalArgumentException("页面不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.55c9e10608ff")));
         return toPageDetail(page);
     }
 
@@ -348,12 +349,12 @@ public class IndependentSiteManagementService {
     ) {
         requireStoreId(storeId);
         if (request == null) {
-            throw new IllegalArgumentException("页面配置不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.fccd94b94156"));
         }
         requireSite(storeId, siteId);
         IndependentSitePage page = pageRepository
                 .findByStoreIdAndSiteIdAndIdForUpdate(storeId, siteId, pageId)
-                .orElseThrow(() -> new IllegalArgumentException("页面不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.55c9e10608ff")));
 
         if (request.title() != null) {
             page.setTitle(normalizePageTitle(request.title()));
@@ -363,13 +364,13 @@ public class IndependentSiteManagementService {
         }
         if (request.path() != null) {
             if (page.getType() == IndependentSitePageType.HOME) {
-                throw new IllegalArgumentException("首页路径不可修改");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.6ea72805103d"));
             }
             String path = normalizePagePath(request.path());
             Optional<IndependentSitePage> existing =
                     pageRepository.findByStoreIdAndSiteIdAndPath(storeId, siteId, path);
             if (existing.isPresent() && !Objects.equals(existing.get().getId(), page.getId())) {
-                throw conflict("PAGE_PATH_ALREADY_EXISTS", "该页面路径已存在");
+                throw conflict("PAGE_PATH_ALREADY_EXISTS", ApiMessages.get("api.t.996bd7175c1b"));
             }
             page.setPath(path);
         }
@@ -390,9 +391,9 @@ public class IndependentSiteManagementService {
         requireStoreId(storeId);
         requireSite(storeId, siteId);
         IndependentSitePage page = pageRepository.findByStoreIdAndSiteIdAndId(storeId, siteId, pageId)
-                .orElseThrow(() -> new IllegalArgumentException("页面不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.55c9e10608ff")));
         if (page.getType() == IndependentSitePageType.HOME) {
-            throw new IllegalArgumentException("首页不可删除");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.deeb24a7b4ce"));
         }
         pageRepository.delete(page);
     }
@@ -403,13 +404,13 @@ public class IndependentSiteManagementService {
         requireSite(storeId, siteId);
         IndependentSitePage page = pageRepository
                 .findByStoreIdAndSiteIdAndIdForUpdate(storeId, siteId, pageId)
-                .orElseThrow(() -> new IllegalArgumentException("页面不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.55c9e10608ff")));
         String backup = page.getDraftBackupSchemaJson();
         if (backup == null || backup.isBlank()) {
             throw new IndependentSiteServiceException(
                     HttpStatus.NOT_FOUND,
                     "AI_EDIT_BACKUP_NOT_FOUND",
-                    "没有可撤销的 AI 修改备份"
+                    ApiMessages.get("api.t.926ef26f3218")
             );
         }
         page.setDraftSchemaJson(backup);
@@ -428,12 +429,12 @@ public class IndependentSiteManagementService {
     ) {
         requireStoreId(storeId);
         if (request == null || request.draftVersion() == null) {
-            throw new IllegalArgumentException("待发布草稿版本不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.bc5bae79f364"));
         }
         IndependentSite site = requireSite(storeId, siteId);
         IndependentSitePage page = pageRepository
                 .findByStoreIdAndSiteIdAndIdForUpdate(storeId, siteId, pageId)
-                .orElseThrow(() -> new IllegalArgumentException("页面不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.55c9e10608ff")));
         publishPageInternal(site, page, request.draftVersion());
         return toPageDetail(page);
     }
@@ -489,7 +490,7 @@ public class IndependentSiteManagementService {
             if (roomType == null) {
                 skipped.add(new IndependentSiteDtos.SkippedRoomPage(
                         roomTypeId,
-                        "房型不存在或不属于当前门店"
+                        ApiMessages.get("api.t.318168534f9f")
                 ));
                 continue;
             }
@@ -501,7 +502,7 @@ public class IndependentSiteManagementService {
             } catch (IllegalArgumentException e) {
                 skipped.add(new IndependentSiteDtos.SkippedRoomPage(
                         roomTypeId,
-                        e.getMessage() == null ? "房型内容未通过页面白名单校验" : e.getMessage()
+                        e.getMessage() == null ? ApiMessages.get("api.t.1c8aee147f92") : e.getMessage()
                 ));
                 continue;
             }
@@ -563,7 +564,7 @@ public class IndependentSiteManagementService {
     ) {
         requireStoreId(storeId);
         if (request == null) {
-            throw new IllegalArgumentException("导入请求不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.4c383bd7b301"));
         }
         IndependentSite site = requireSite(storeId, siteId);
         String mode = normalizeImportMode(request.mode());
@@ -575,18 +576,18 @@ public class IndependentSiteManagementService {
             path = normalizePagePath(request.path());
             title = normalizePageTitle(request.title());
             if (pageRepository.findByStoreIdAndSiteIdAndPath(storeId, siteId, path).isPresent()) {
-                throw conflict("PAGE_PATH_ALREADY_EXISTS", "该页面路径已存在");
+                throw conflict("PAGE_PATH_ALREADY_EXISTS", ApiMessages.get("api.t.996bd7175c1b"));
             }
         } else {
             if (request.pageId() == null) {
-                throw new IllegalArgumentException("覆盖草稿模式必须提供 pageId");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.ba106a6ad900"));
             }
             page = pageRepository
                     .findByStoreIdAndSiteIdAndIdForUpdate(storeId, siteId, request.pageId())
-                    .orElseThrow(() -> new IllegalArgumentException("页面不存在"));
+                    .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.55c9e10608ff")));
             if (page.getFormat() != IndependentSitePageFormat.BLOCKS) {
                 // URL 导入本轮保持 BLOCKS 管线；CANVAS 页面的导入迁移在后续轮次进行
-                throw new IllegalArgumentException("URL 导入暂不支持 CANVAS 页面");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.ddb30f84e8d1"));
             }
         }
 
@@ -636,11 +637,11 @@ public class IndependentSiteManagementService {
 
     private static String normalizeImportMode(String value) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("导入模式不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.389400c1df4b"));
         }
         String normalized = value.trim().toUpperCase(Locale.ROOT);
         if (!Set.of("NEW_PAGE", "OVERWRITE_DRAFT").contains(normalized)) {
-            throw new IllegalArgumentException("导入模式不受支持");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.450f5cef4d78"));
         }
         return normalized;
     }
@@ -656,11 +657,11 @@ public class IndependentSiteManagementService {
     ) {
         requireStoreId(storeId);
         if (request == null || request.pageSchema() == null) {
-            throw new IllegalArgumentException("页面草稿不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.cfcd24adf980"));
         }
         IndependentSite site = defaultSite(storeId);
         if (site == null) {
-            throw new IllegalArgumentException("请先保存独立站基础配置");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.4ea3a531c064"));
         }
         IndependentSitePage home = homePageForUpdate(storeId, site.getId());
         JsonNode schema = savePageDraftInternal(home, request.pageSchema(), request.expectedDraftVersion());
@@ -681,11 +682,11 @@ public class IndependentSiteManagementService {
     ) {
         requireStoreId(storeId);
         if (request == null || request.draftVersion() == null) {
-            throw new IllegalArgumentException("待发布草稿版本不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.bc5bae79f364"));
         }
         IndependentSite site = defaultSite(storeId);
         if (site == null) {
-            throw new IllegalArgumentException("独立站不存在");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.87f7c7d02b26"));
         }
         IndependentSitePage home = homePageForUpdate(storeId, site.getId());
         publishPageInternal(site, home, request.draftVersion());
@@ -711,17 +712,17 @@ public class IndependentSiteManagementService {
             Set<Long> publishedRoomIds
     ) {
         Channel channel = channelRepository.findByStoreIdAndCode(storeId, BOOKING_ENGINE_CHANNEL_CODE)
-                .orElseThrow(() -> new IllegalStateException("BOOKING_ENGINE 渠道初始化失败"));
+                .orElseThrow(() -> new IllegalStateException(ApiMessages.get("api.t.4f605cc2c43c")));
         PricePlan pricePlan = pricePlanRepository.findByStoreIdAndId(storeId, defaultPricePlanId)
-                .orElseThrow(() -> new IllegalArgumentException("基准价格计划不存在或不属于当前门店"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.682f5b830e57")));
 
         String slug = normalizeSlug(rawSlug);
         if (site.getId() == null) {
             if (siteRepository.existsBySlug(slug)) {
-                throw conflict("SLUG_ALREADY_EXISTS", "该公开链接后缀已被使用");
+                throw conflict("SLUG_ALREADY_EXISTS", ApiMessages.get("api.t.3f9cd96f6b33"));
             }
         } else if (siteRepository.existsBySlugAndIdNot(slug, site.getId())) {
-            throw conflict("SLUG_ALREADY_EXISTS", "该公开链接后缀已被使用");
+            throw conflict("SLUG_ALREADY_EXISTS", ApiMessages.get("api.t.3f9cd96f6b33"));
         }
 
         PublicationSelection publications = resolvePublications(
@@ -730,10 +731,10 @@ public class IndependentSiteManagementService {
                 publishedRoomIds
         );
         if (enabled && publications.roomTypeIds().isEmpty()) {
-            throw new IllegalArgumentException("启用独立站前至少发布一个房型或房间");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.d20b0c5718f6"));
         }
         if (enabled && !isHomePagePublished(storeId, site)) {
-            throw new IllegalArgumentException("启用独立站前请先发布首页");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.26971d3f7e07"));
         }
         validatePricePlanMappings(storeId, pricePlan.getId(), publications.roomTypeIds());
 
@@ -783,13 +784,13 @@ public class IndependentSiteManagementService {
                 throw new IndependentSiteServiceException(
                         HttpStatus.UNPROCESSABLE_ENTITY,
                         "PAYMENT_PROVIDER_NOT_AVAILABLE",
-                        "Stripe 支付未配置，请先在独立站列表页的 Stripe 设置中配置门店密钥"
+                        ApiMessages.get("api.t.5142661bd220")
                 );
             }
             return IndependentSitePaymentProvider.STRIPE;
         }
         if (!IndependentSitePaymentProvider.SIMULATED.name().equals(normalized)) {
-            throw new IllegalArgumentException("paymentProvider 不受支持");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.999ffc4d461a"));
         }
         return IndependentSitePaymentProvider.SIMULATED;
     }
@@ -809,7 +810,7 @@ public class IndependentSiteManagementService {
     ) {
         long currentDraftVersion = draftVersion(page);
         if (expectedDraftVersion != null && expectedDraftVersion != currentDraftVersion) {
-            throw conflict("DRAFT_VERSION_CONFLICT", "页面草稿已被其他操作更新，请刷新后重试");
+            throw conflict("DRAFT_VERSION_CONFLICT", ApiMessages.get("api.t.3cc0a609ba1d"));
         }
         JsonNode schema = validateByFormat(page.getFormat(), draftSchema);
         page.setDraftSchemaJson(writeJson(schema));
@@ -820,10 +821,10 @@ public class IndependentSiteManagementService {
 
     private void publishPageInternal(IndependentSite site, IndependentSitePage page, long expectedDraftVersion) {
         if (page.getDraftSchemaJson() == null || page.getDraftSchemaJson().isBlank()) {
-            throw new IllegalArgumentException("请先保存页面草稿");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.38dccde7ee5e"));
         }
         if (expectedDraftVersion != draftVersion(page)) {
-            throw conflict("DRAFT_VERSION_CONFLICT", "页面草稿版本已变化，请刷新后重试");
+            throw conflict("DRAFT_VERSION_CONFLICT", ApiMessages.get("api.t.a608474868bd"));
         }
         JsonNode validatedDraft = validateByFormat(page.getFormat(), readJson(page.getDraftSchemaJson()));
         LocalDateTime now = nowUtc();
@@ -869,7 +870,7 @@ public class IndependentSiteManagementService {
 
     private IndependentSite requireSite(Long storeId, Long siteId) {
         return siteRepository.findByStoreIdAndId(storeId, siteId)
-                .orElseThrow(() -> new IllegalArgumentException("独立站不存在"));
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessages.get("api.t.87f7c7d02b26")));
     }
 
     private IndependentSite defaultSite(Long storeId) {
@@ -897,7 +898,7 @@ public class IndependentSiteManagementService {
     private IndependentSitePage homePageForUpdate(Long storeId, Long siteId) {
         IndependentSitePage home = homePage(storeId, siteId);
         if (home == null) {
-            throw new IllegalArgumentException("站点首页不存在");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.71503be5d39f"));
         }
         return pageRepository
                 .findByStoreIdAndSiteIdAndIdForUpdate(storeId, siteId, home.getId())
@@ -918,18 +919,18 @@ public class IndependentSiteManagementService {
                     new ArrayList<>(roomTypeIds)
             );
             if (roomTypes.size() != roomTypeIds.size()) {
-                throw new IllegalArgumentException("发布房型包含其他门店或不存在的数据");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.f5b48940817c"));
             }
         }
 
         if (!roomIds.isEmpty()) {
             List<Room> rooms = roomRepository.findByStoreIdAndIdIn(storeId, roomIds);
             if (rooms.size() != roomIds.size()) {
-                throw new IllegalArgumentException("发布房间包含其他门店或不存在的数据");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.9981bedea6c6"));
             }
             for (Room room : rooms) {
                 if (room.getRoomType() == null || room.getRoomType().getId() == null) {
-                    throw new IllegalArgumentException("发布房间缺少有效房型");
+                    throw new IllegalArgumentException(ApiMessages.get("api.t.3dd6aabd08e2"));
                 }
                 roomTypeIds.add(room.getRoomType().getId());
             }
@@ -943,7 +944,7 @@ public class IndependentSiteManagementService {
                     .existsByStoreIdAndRoomTypeIdAndPricePlanId(storeId, roomTypeId, pricePlanId);
             if (!mapped) {
                 throw new IllegalArgumentException(
-                        "基准价格计划未关联已发布房型，roomTypeId=" + roomTypeId
+                        ApiMessages.get("api.t.bb5978278388") + roomTypeId
                 );
             }
         }
@@ -1067,7 +1068,7 @@ public class IndependentSiteManagementService {
 
         ObjectNode about = sections.addObject();
         about.put("type", "ABOUT");
-        about.put("title", "房型介绍");
+        about.put("title", ApiMessages.get("api.t.1c20862281c8"));
         String aboutBody = buildRoomAboutBody(roomType);
         if (aboutBody != null) {
             about.put("body", aboutBody);
@@ -1089,14 +1090,14 @@ public class IndependentSiteManagementService {
         if (!amenities.isEmpty()) {
             ObjectNode amenitiesSection = sections.addObject();
             amenitiesSection.put("type", "AMENITIES");
-            amenitiesSection.put("title", "设施");
+            amenitiesSection.put("title", ApiMessages.get("api.t.3deed6506845"));
             ArrayNode items = amenitiesSection.putArray("items");
             amenities.forEach(items::add);
         }
 
         ObjectNode booking = sections.addObject();
         booking.put("type", "BOOKING");
-        booking.put("title", "立即预订");
+        booking.put("title", ApiMessages.get("api.t.ea64d274ea8f"));
 
         return pageSchemaValidator.validate(root);
     }
@@ -1161,16 +1162,16 @@ public class IndependentSiteManagementService {
         if (roomType.getSizeMeasurement() != null) {
             String unit = trimToNull(roomType.getSizeMeasurementUnit());
             facts.add(
-                    "面积 " + roomType.getSizeMeasurement().stripTrailingZeros().toPlainString()
+                    ApiMessages.get("api.t.4a9ac763e06a") + roomType.getSizeMeasurement().stripTrailingZeros().toPlainString()
                             + (unit == null ? "" : " " + unit)
             );
         }
         Integer maxGuests = roomType.getMaxGuests();
         Integer maxChildren = roomType.getMaxChildOccupancy();
         if (maxGuests != null && maxGuests > 0) {
-            String occupancy = "最多可入住 " + maxGuests + " 位成人";
+            String occupancy = ApiMessages.get("api.t.e1af1a6ecb23") + maxGuests + ApiMessages.get("api.t.5f70876879a5");
             if (maxChildren != null && maxChildren > 0) {
-                occupancy += "、" + maxChildren + " 名儿童";
+                occupancy += "、" + maxChildren + ApiMessages.get("api.t.1f9092cd4f8b");
             }
             facts.add(occupancy);
         }
@@ -1199,7 +1200,7 @@ public class IndependentSiteManagementService {
         infoTitle.put("type", "element");
         infoTitle.put("tag", "h2");
         infoTitle.put("class", "text-2xl font-semibold");
-        canvasText(infoTitle.putArray("children"), "info-title-t", "房型信息");
+        canvasText(infoTitle.putArray("children"), "info-title-t", ApiMessages.get("api.t.4156c8fcae09"));
 
         ObjectNode list = infoChildren.addObject();
         list.put("id", "info-list");
@@ -1230,7 +1231,7 @@ public class IndependentSiteManagementService {
                 "rounded-full bg-slate-900 px-8 py-3 text-white transition hover:bg-slate-700"
         );
         button.put("action", "scroll-to-booking");
-        canvasText(button.putArray("children"), "cta-button-t", "立即预订");
+        canvasText(button.putArray("children"), "cta-button-t", ApiMessages.get("api.t.ea64d274ea8f"));
 
         return canvasValidator.validate(root);
     }
@@ -1247,16 +1248,16 @@ public class IndependentSiteManagementService {
         if (roomType.getSizeMeasurement() != null) {
             String unit = trimToNull(roomType.getSizeMeasurementUnit());
             parts.add(
-                    "面积 " + roomType.getSizeMeasurement().stripTrailingZeros().toPlainString()
+                    ApiMessages.get("api.t.4a9ac763e06a") + roomType.getSizeMeasurement().stripTrailingZeros().toPlainString()
                             + (unit == null ? "" : " " + unit)
             );
         }
         Integer maxGuests = roomType.getMaxGuests();
         Integer maxChildren = roomType.getMaxChildOccupancy();
         if (maxGuests != null && maxGuests > 0) {
-            String occupancy = "最多可入住 " + maxGuests + " 位成人";
+            String occupancy = ApiMessages.get("api.t.e1af1a6ecb23") + maxGuests + ApiMessages.get("api.t.5f70876879a5");
             if (maxChildren != null && maxChildren > 0) {
-                occupancy += "、" + maxChildren + " 名儿童";
+                occupancy += "、" + maxChildren + ApiMessages.get("api.t.1f9092cd4f8b");
             }
             parts.add(occupancy);
         }
@@ -1469,7 +1470,7 @@ public class IndependentSiteManagementService {
         try {
             return objectMapper.readTree(json);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("已保存的独立站页面配置无效", e);
+            throw new IllegalStateException(ApiMessages.get("api.t.62681428ec01"), e);
         }
     }
 
@@ -1477,7 +1478,7 @@ public class IndependentSiteManagementService {
         try {
             return objectMapper.writeValueAsString(node);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("独立站页面配置序列化失败", e);
+            throw new IllegalStateException(ApiMessages.get("api.t.59af26623ec1"), e);
         }
     }
 
@@ -1491,36 +1492,36 @@ public class IndependentSiteManagementService {
 
     private static String normalizeSlug(String value) {
         if (value == null) {
-            throw new IllegalArgumentException("slug 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.fa49aa62fc93"));
         }
         String normalized = value.trim().toLowerCase(Locale.ROOT);
         if (!normalized.matches("[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?")) {
-            throw new IllegalArgumentException("slug 仅允许 3-63 位小写字母、数字和中划线");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.6c1fb59ae508"));
         }
         if (RESERVED_SLUGS.contains(normalized)) {
-            throw new IllegalArgumentException("该 slug 为系统保留值");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.d7bdb3244bd6"));
         }
         return normalized;
     }
 
     private static String normalizeSiteName(String value) {
         if (value == null) {
-            throw new IllegalArgumentException("站点名称不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.78e4a8063b1b"));
         }
         String normalized = value.trim();
         if (normalized.isEmpty() || normalized.length() > 120) {
-            throw new IllegalArgumentException("站点名称长度必须为 1-120 字符");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.48b7c37dd3cc"));
         }
         return normalized;
     }
 
     private static String normalizePageTitle(String value) {
         if (value == null) {
-            throw new IllegalArgumentException("页面标题不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.7d0c83d99c36"));
         }
         String normalized = value.trim();
         if (normalized.isEmpty() || normalized.length() > 120) {
-            throw new IllegalArgumentException("页面标题长度必须为 1-120 字符");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.cef8a481eab7"));
         }
         return normalized;
     }
@@ -1531,7 +1532,7 @@ public class IndependentSiteManagementService {
         }
         String normalized = value.trim();
         if (normalized.length() > 300) {
-            throw new IllegalArgumentException("SEO 描述长度不可超过 300 字符");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.6efc31a08f5b"));
         }
         return normalized;
     }
@@ -1542,7 +1543,7 @@ public class IndependentSiteManagementService {
         }
         String normalized = value.trim().toLowerCase(Locale.ROOT);
         if (!THEME_KEYS.contains(normalized)) {
-            throw new IllegalArgumentException("themeKey 不受支持");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.bdd80c433e35"));
         }
         return normalized;
     }
@@ -1555,24 +1556,24 @@ public class IndependentSiteManagementService {
         try {
             type = IndependentSitePageType.valueOf(value.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("页面类型不受支持");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.1b9f921f2ba0"));
         }
         if (type != IndependentSitePageType.CUSTOM) {
-            throw new IllegalArgumentException("仅支持创建自定义页面");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.0adc88498c26"));
         }
         return type;
     }
 
     private static String normalizePagePath(String value) {
         if (value == null) {
-            throw new IllegalArgumentException("页面路径不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.cb6a26734cae"));
         }
         String normalized = value.trim().toLowerCase(Locale.ROOT);
         if (normalized.length() > 1 && normalized.endsWith("/")) {
-            throw new IllegalArgumentException("页面路径不能以 / 结尾");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.37c40b0838f9"));
         }
         if (!normalized.matches("^/[a-z0-9][a-z0-9/-]{0,119}$")) {
-            throw new IllegalArgumentException("页面路径仅允许小写字母、数字、中划线和 / 分层");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.9bf03633aaf1"));
         }
         return normalized;
     }
@@ -1584,7 +1585,7 @@ public class IndependentSiteManagementService {
         }
         for (Long value : values) {
             if (value == null || value <= 0) {
-                throw new IllegalArgumentException(fieldName + " 包含无效 ID");
+                throw new IllegalArgumentException(fieldName + ApiMessages.get("api.t.4371e3426af5"));
             }
             normalized.add(value);
         }
@@ -1597,7 +1598,7 @@ public class IndependentSiteManagementService {
 
     private static void requireStoreId(Long storeId) {
         if (storeId == null) {
-            throw new IllegalArgumentException("缺少门店上下文");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.2bfd332b0f72"));
         }
     }
 

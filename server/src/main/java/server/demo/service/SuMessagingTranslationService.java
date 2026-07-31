@@ -26,6 +26,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class SuMessagingTranslationService {
     private static final Logger logger = LoggerFactory.getLogger(SuMessagingTranslationService.class);
@@ -347,7 +348,7 @@ public class SuMessagingTranslationService {
 
     private static RegistrationTargetLanguage resolveTargetLanguage(SuMessagingTranslationRequest request) {
         if (request == null || request.getTargetLanguage() == null || request.getTargetLanguage().isBlank()) {
-            throw new IllegalArgumentException("目标语言不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.460ce9217fb8"));
         }
         String targetLanguage = request.getTargetLanguage().trim();
         String normalized = targetLanguage.toLowerCase(Locale.ROOT).replace('_', '-');

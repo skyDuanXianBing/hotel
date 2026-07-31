@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class CleanerInvitationServiceImpl implements CleanerInvitationService {
 
@@ -46,7 +47,7 @@ public class CleanerInvitationServiceImpl implements CleanerInvitationService {
     @Value("${app.frontend.url:http://localhost:8091}")
     private String frontendUrl;
 
-    private static final String DEFAULT_STORE_NAME = "门店";
+    private static final String DEFAULT_STORE_NAME_KEY = "api.t.52d6e9087708";
     private static final String DEFAULT_FRONTEND_URL = "http://localhost:8091";
 
     @Override
@@ -84,7 +85,7 @@ public class CleanerInvitationServiceImpl implements CleanerInvitationService {
                     invitationUrl
             );
         } catch (MessagingException e) {
-            throw new RuntimeException("邮件发送失败: " + e.getMessage());
+            throw new RuntimeException(ApiMessages.get("api.t.6f08ade5cc87") + e.getMessage());
         }
 
         return invitation;
@@ -93,16 +94,16 @@ public class CleanerInvitationServiceImpl implements CleanerInvitationService {
     @Override
     public CleanerInvitation validateToken(String token) {
         CleanerInvitation invitation = invitationRepository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("无效的邀请链接"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.77c55f4cc963")));
 
         if (!"pending".equals(invitation.getStatus())) {
-            throw new RuntimeException("邀请已失效");
+            throw new RuntimeException(ApiMessages.get("api.t.ec0fa251c26c"));
         }
 
         if (invitation.getExpiresAt().isBefore(LocalDateTime.now())) {
             invitation.setStatus("expired");
             invitationRepository.save(invitation);
-            throw new RuntimeException("邀请已过期");
+            throw new RuntimeException(ApiMessages.get("api.t.c0fb198c0abd"));
         }
 
         return invitation;
@@ -117,7 +118,7 @@ public class CleanerInvitationServiceImpl implements CleanerInvitationService {
                 ? null
                 : registrationDTO.getEmail().trim();
         if (!invitation.getEmail().equalsIgnoreCase(registrationEmail)) {
-            throw new RuntimeException("邮箱地址不匹配");
+            throw new RuntimeException(ApiMessages.get("api.t.e883c0787402"));
         }
 
         String cleanerName = registrationDTO.getName() == null
@@ -130,12 +131,12 @@ public class CleanerInvitationServiceImpl implements CleanerInvitationService {
                 registrationEmail
         );
         if (storeCleaners.size() > 1) {
-            throw new RuntimeException("当前门店下存在重复的保洁员档案，请联系管理员检查数据");
+            throw new RuntimeException(ApiMessages.get("api.t.f0e05b6afc26"));
         }
 
         Cleaner existingCleaner = storeCleaners.isEmpty() ? null : storeCleaners.get(0);
         if (existingCleaner != null && Boolean.TRUE.equals(existingCleaner.getIsActive())) {
-            throw new RuntimeException("该账号已是当前门店保洁员");
+            throw new RuntimeException(ApiMessages.get("api.t.43418167abe3"));
         }
 
         User user = cleanerIdentityService.createOrReuseCleanerUserAccount(
@@ -186,17 +187,17 @@ public class CleanerInvitationServiceImpl implements CleanerInvitationService {
 
     private String resolveStoreName(Long storeId) {
         if (storeId == null) {
-            return DEFAULT_STORE_NAME;
+            return ApiMessages.get(DEFAULT_STORE_NAME_KEY);
         }
         return storeRepository.findById(storeId)
                 .map(store -> {
                     String name = store.getName();
                     if (name == null || name.isBlank()) {
-                        return DEFAULT_STORE_NAME;
+                        return ApiMessages.get(DEFAULT_STORE_NAME_KEY);
                     }
                     return name;
                 })
-                .orElse(DEFAULT_STORE_NAME);
+                .orElse(ApiMessages.get(DEFAULT_STORE_NAME_KEY));
     }
 
     private String buildInvitationUrl(String token) {

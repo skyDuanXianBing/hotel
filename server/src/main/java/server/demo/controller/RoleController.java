@@ -15,6 +15,7 @@ import server.demo.service.RoleService;
 
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 角色管理控制器
  */
@@ -41,7 +42,7 @@ public class RoleController {
             } else {
                 roles = roleService.getAllRoles();
             }
-            return ResponseEntity.ok(new ApiResponse<>(true, "获取角色列表成功", roles));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.ad1919927ee6"), roles));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -56,7 +57,7 @@ public class RoleController {
     public ResponseEntity<ApiResponse<RoleDTO>> getRoleById(@PathVariable Long id) {
         try {
             RoleDTO role = roleService.getRoleById(id);
-            return ResponseEntity.ok(new ApiResponse<>(true, "获取角色详情成功", role));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.7fa6bf8e0102"), role));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -72,7 +73,7 @@ public class RoleController {
         try {
             RoleDTO role = roleService.createRole(request);
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new ApiResponse<>(true, "创建角色成功", role));
+                    .body(new ApiResponse<>(true, ApiMessages.get("api.t.b966ba2f1f9b"), role));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -90,7 +91,7 @@ public class RoleController {
     ) {
         try {
             RoleDTO role = roleService.updateRole(id, request);
-            return ResponseEntity.ok(new ApiResponse<>(true, "更新角色成功", role));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.eff6d5d619c8"), role));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -105,7 +106,7 @@ public class RoleController {
     public ResponseEntity<ApiResponse<Void>> deleteRole(@PathVariable Long id) {
         try {
             roleService.deleteRole(id);
-            return ResponseEntity.ok(new ApiResponse<>(true, "删除角色成功", null));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.abda08e7b20c"), null));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -120,7 +121,7 @@ public class RoleController {
     public ResponseEntity<ApiResponse<List<PermissionDTO>>> getRolePermissions(@PathVariable Long id) {
         try {
             List<PermissionDTO> permissions = roleService.getRolePermissions(id);
-            return ResponseEntity.ok(new ApiResponse<>(true, "获取角色权限成功", permissions));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.cef547f349ec"), permissions));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -138,7 +139,7 @@ public class RoleController {
     ) {
         try {
             roleService.updateRolePermissions(id, permissions);
-            return ResponseEntity.ok(new ApiResponse<>(true, "更新角色权限成功", null));
+            return ResponseEntity.ok(new ApiResponse<>(true, ApiMessages.get("api.t.4874ea622ade"), null));
         } catch (PermissionDeniedException e) {
             throw e;
         } catch (RuntimeException e) {

@@ -9,6 +9,7 @@ import server.demo.dto.ApiResponse;
 import server.demo.dto.RequestBookingActionRequest;
 import server.demo.service.RequestBookingService;
 
+import server.demo.i18n.ApiMessages;
 /**
  * Request Booking（REQUEST 状态订单）在 PMS 内的确认/拒绝闭环
  */
@@ -28,9 +29,9 @@ public class RequestBookingController {
         try {
             Long storeId = StoreContextHolder.getContext().getStoreId();
             JsonNode response = requestBookingService.confirm(storeId, request.getBookingId());
-            return ResponseEntity.ok(ApiResponse.success("确认请求预订成功", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.5e7f73601f90"), response));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("确认请求预订失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.427c48be7922") + e.getMessage()));
         }
     }
 
@@ -45,9 +46,9 @@ public class RequestBookingController {
                     request.getMessageGuest(),
                     request.getMessageAirbnb()
             );
-            return ResponseEntity.ok(ApiResponse.success("拒绝/取消请求预订成功", response));
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.2d599df8ab10"), response));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.error("拒绝/取消请求预订失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(ApiMessages.get("api.t.f9a6d96d434b") + e.getMessage()));
         }
     }
 }

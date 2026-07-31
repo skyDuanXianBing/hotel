@@ -62,44 +62,44 @@ public final class ReviewDtos {
     }
 
     public record ReplyRequest(
-            @NotBlank(message = "回复内容不能为空")
-            @Size(max = 5000, message = "回复内容不能超过5000个字符")
+            @NotBlank(message = "{api.t.f5da0888cd26}")
+            @Size(max = 5000, message = "{api.t.53cb4eace618}")
             String reviewReply,
-            @NotBlank(message = "幂等键不能为空")
-            @Size(min = 8, max = 120, message = "幂等键长度必须为8到120个字符")
+            @NotBlank(message = "{api.t.d5fb56f49c83}")
+            @Size(min = 8, max = 120, message = "{api.t.5cd5160b6aac}")
             String idempotencyKey
     ) {
     }
 
     public record GuestReviewRequest(
-            @NotBlank(message = "幂等键不能为空")
-            @Size(min = 8, max = 120, message = "幂等键长度必须为8到120个字符")
+            @NotBlank(message = "{api.t.d5fb56f49c83}")
+            @Size(min = 8, max = 120, message = "{api.t.5cd5160b6aac}")
             String idempotencyKey,
-            @AssertTrue(message = "提交评价住客前必须二次确认")
+            @AssertTrue(message = "{api.t.d6eed374b0e2}")
             boolean confirmed,
-            @NotNull(message = "必须明确是否推荐住客")
+            @NotNull(message = "{api.t.24426efdd37c}")
             Boolean isRevieweeRecommended,
-            @NotBlank(message = "公开评价不能为空")
-            @Size(max = 999, message = "公开评价必须少于1000个字符")
+            @NotBlank(message = "{api.t.ffa489420b6e}")
+            @Size(max = 999, message = "{api.t.933358840823}")
             String publicReview,
-            @Size(max = 999, message = "私密反馈必须少于1000个字符")
+            @Size(max = 999, message = "{api.t.da00e45df564}")
             String privateFeedback,
-            @NotNull(message = "分类评分不能为空")
-            @Size(min = 3, max = 3, message = "必须提交清洁、沟通和遵守房屋规则三项评分")
+            @NotNull(message = "{api.t.ac405167a599}")
+            @Size(min = 3, max = 3, message = "{api.t.78ca42f7d2ed}")
             List<@Valid CategoryRating> categoryRatings
     ) {
     }
 
     public record CategoryRating(
-            @NotBlank(message = "评分分类不能为空")
+            @NotBlank(message = "{api.t.0d1f57e61665}")
             String category,
-            @Min(value = 1, message = "评分最低为1")
-            @Max(value = 5, message = "评分最高为5")
+            @Min(value = 1, message = "{api.t.8711bfeadf1a}")
+            @Max(value = 5, message = "{api.t.9cfe491cb2b8}")
             int rating,
-            @Size(max = 50, message = "低分说明不能超过50个字符")
+            @Size(max = 50, message = "{api.t.55670a33f2ea}")
             String comment,
-            @Size(max = 20, message = "每项评分最多提交20个标签")
-            List<@NotBlank(message = "评分标签不能为空") String> reviewCategoryTags
+            @Size(max = 20, message = "{api.t.95d5ee8282e5}")
+            List<@NotBlank(message = "{api.t.e734811b2556}") String> reviewCategoryTags
     ) {
     }
 

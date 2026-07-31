@@ -32,6 +32,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 独立站"抠页面"URL 抓取与内容抽取服务。
  *
@@ -139,7 +140,7 @@ public class IndependentSiteUrlFetchService {
                 throw new IndependentSiteServiceException(
                         HttpStatus.UNPROCESSABLE_ENTITY,
                         "URL_CONTENT_UNSUPPORTED",
-                        "目标内容不是 HTML 页面，无法导入"
+                        ApiMessages.get("api.t.dea7a0586d06")
                 );
             }
             String html = readBody(response.body(), resolveCharset(contentType), current);
@@ -252,7 +253,7 @@ public class IndependentSiteUrlFetchService {
         return new IndependentSiteServiceException(
                 HttpStatus.BAD_REQUEST,
                 "URL_NOT_ALLOWED",
-                "目标地址不在允许范围内，仅支持公开 http/https 页面"
+                ApiMessages.get("api.t.79480bc20251")
         );
     }
 
@@ -260,7 +261,7 @@ public class IndependentSiteUrlFetchService {
         return new IndependentSiteServiceException(
                 HttpStatus.UNPROCESSABLE_ENTITY,
                 "URL_FETCH_FAILED",
-                "页面抓取失败，请检查链接后重试"
+                ApiMessages.get("api.t.200c8a9a8250")
         );
     }
 

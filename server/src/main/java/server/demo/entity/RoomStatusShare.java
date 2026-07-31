@@ -15,7 +15,7 @@ public class RoomStatusShare implements StoreScopedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "分享标题不能为空")
+    @NotBlank(message = "{api.t.922e72ab74ac}")
     @Column(name = "share_title", nullable = false, length = 100)
     private String shareTitle;
 

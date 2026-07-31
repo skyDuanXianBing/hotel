@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 
+import server.demo.i18n.ApiMessages;
 /**
  * Su Channel Manager API 客户端
  * 负责与Su API的所有通信
@@ -52,14 +53,14 @@ public class SuApiClient {
     private String getClientIdOrThrow() {
         return requireNonBlankTrimmed(
                 suApiConfig.getClientId(),
-                "缺少 Su client-id，请在 application.properties 配置 su.api.client-id 或设置环境变量 SU_CLIENT_ID"
+                ApiMessages.get("api.t.aa8fad38420e")
         );
     }
 
     private String getClientSecretOrThrow() {
         return requireNonBlankTrimmed(
                 suApiConfig.getClientSecret(),
-                "缺少 Su client-secret，请在 application.properties 配置 su.api.client-secret 或设置环境变量 SU_CLIENT_SECRET"
+                ApiMessages.get("api.t.66c85215da04")
         );
     }
 
@@ -293,10 +294,10 @@ public class SuApiClient {
      */
     public SuTokenResponse generateAccessToken() {
         if (suApiConfig.getClientId() == null || suApiConfig.getClientId().isBlank()) {
-            throw new IllegalStateException("缺少 Su client-id，请在 application.properties 配置 su.api.client-id 或设置环境变量 SU_CLIENT_ID");
+            throw new IllegalStateException(ApiMessages.get("api.t.aa8fad38420e"));
         }
         if (suApiConfig.getClientSecret() == null || suApiConfig.getClientSecret().isBlank()) {
-            throw new IllegalStateException("缺少 Su client-secret，请在 application.properties 配置 su.api.client-secret 或设置环境变量 SU_CLIENT_SECRET");
+            throw new IllegalStateException(ApiMessages.get("api.t.66c85215da04"));
         }
         String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/auth/generate-access-token";
 
@@ -344,10 +345,10 @@ public class SuApiClient {
      */
     public SuWidgetTokenResponse getWidgetToken(String hotelId, String accessToken) {
         if (hotelId == null || hotelId.isBlank()) {
-            throw new IllegalArgumentException("hotelId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.5f65d474fa8e"));
         }
         if (accessToken == null || accessToken.isBlank()) {
-            throw new IllegalArgumentException("accessToken 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.5a60d1c8886f"));
         }
         String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/widget/getWidgetAccessToken";
 
@@ -495,7 +496,7 @@ public class SuApiClient {
      */
     public JsonNode getMappings(String accessToken, String hotelId, String channelId) {
         if (hotelId == null || hotelId.isBlank()) {
-            throw new IllegalArgumentException("hotelId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.5f65d474fa8e"));
         }
         String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/mappings";
 
@@ -545,7 +546,7 @@ public class SuApiClient {
 
     private JsonNode postSuJsonWithAuthRetry(String url, String accessToken, Object payload, String actionName) {
         if (accessToken == null || accessToken.isBlank()) {
-            throw new IllegalArgumentException("accessToken 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.5a60d1c8886f"));
         }
         HttpHeaders headers = buildSuAuthHeaders(accessToken, false, true);
         HttpEntity<Object> request = new HttpEntity<>(payload, headers);
@@ -634,7 +635,7 @@ public class SuApiClient {
 
     public JsonNode pullReservations(String accessToken, String hotelId) {
         if (hotelId == null || hotelId.isBlank()) {
-            throw new IllegalArgumentException("hotelId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.5f65d474fa8e"));
         }
         String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/Reservation";
 
@@ -694,10 +695,10 @@ public class SuApiClient {
      */
     public JsonNode ackReservationNotifs(String accessToken, String hotelId, List<String> notifIds) {
         if (hotelId == null || hotelId.isBlank()) {
-            throw new IllegalArgumentException("hotelId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.5f65d474fa8e"));
         }
         if (notifIds == null || notifIds.isEmpty()) {
-            throw new IllegalArgumentException("notifIds 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.818015cf358c"));
         }
 
         String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/Reservation_notif";
@@ -762,7 +763,7 @@ public class SuApiClient {
      */
     public JsonNode confirmRequestBooking(String accessToken, String bookingId) {
         if (bookingId == null || bookingId.isBlank()) {
-            throw new IllegalArgumentException("bookingId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.776be73241ef"));
         }
 
         String url = suApiConfig.getBaseUrl() + "/SUAPI/service/requestbookings";
@@ -826,7 +827,7 @@ public class SuApiClient {
             String messageAirbnb
     ) {
         if (bookingId == null || bookingId.isBlank()) {
-            throw new IllegalArgumentException("bookingId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.776be73241ef"));
         }
 
         String url = suApiConfig.getBaseUrl() + "/SUAPI/service/requestbookings";

@@ -21,6 +21,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class OperationLogService {
 
@@ -89,12 +90,12 @@ public class OperationLogService {
         }
 
         if (reservationId == null) {
-            throw new RuntimeException("\u7f3a\u5c11\u95e8\u5e97\u4fe1\u606f");
+            throw new RuntimeException(ApiMessages.get("api.t.88d01d419f62"));
         }
         Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new RuntimeException("\u8ba2\u5355\u4e0d\u5b58\u5728"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.b8768a4b0d04")));
         if (reservation.getStoreId() == null) {
-            throw new RuntimeException("\u8ba2\u5355\u7f3a\u5c11\u95e8\u5e97\u4fe1\u606f");
+            throw new RuntimeException(ApiMessages.get("api.t.70306fa9e595"));
         }
         return reservation.getStoreId();
     }
@@ -128,7 +129,7 @@ public class OperationLogService {
         try {
             return objectMapper.writeValueAsString(details);
         } catch (Exception e) {
-            throw new RuntimeException("\u64cd\u4f5c\u65e5\u5fd7\u8be6\u60c5\u5e8f\u5217\u5316\u5931\u8d25: " + e.getMessage(), e);
+            throw new RuntimeException(ApiMessages.get("api.t.fa866a665ea3") + e.getMessage(), e);
         }
     }
 

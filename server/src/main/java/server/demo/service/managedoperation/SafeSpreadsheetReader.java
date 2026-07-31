@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
+import server.demo.i18n.ApiMessages;
 @Component
 public class SafeSpreadsheetReader {
     // Two files share the application's 15MB multipart request cap.
@@ -40,10 +41,10 @@ public class SafeSpreadsheetReader {
 
     public Table read(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new ManagedOperationValidationException("上传文件不能为空");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.565540b5ff3e"));
         }
         if (file.getSize() > MAX_FILE_BYTES) {
-            throw new ManagedOperationValidationException("单个上传文件不能超过 7MB");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.6bcea87c4803"));
         }
         String extension = extension(file.getOriginalFilename());
         try {
@@ -52,12 +53,12 @@ public class SafeSpreadsheetReader {
             return switch (extension) {
                 case "csv" -> readCsv(bytes);
                 case "xls", "xlsx" -> readExcel(bytes);
-                default -> throw new ManagedOperationValidationException("仅支持 CSV、XLS、XLSX 文件");
+                default -> throw new ManagedOperationValidationException(ApiMessages.get("api.t.301ddd4acf3a"));
             };
         } catch (ManagedOperationValidationException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new ManagedOperationValidationException("表格解析失败: " + safeMessage(ex), ex);
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.661cf86cdf32") + safeMessage(ex), ex);
         }
     }
 
@@ -69,7 +70,7 @@ public class SafeSpreadsheetReader {
                     .onUnmappableCharacter(CodingErrorAction.REPORT)
                     .decode(ByteBuffer.wrap(bytes)).toString();
         } catch (CharacterCodingException ex) {
-            throw new ManagedOperationValidationException("CSV 必须使用严格 UTF-8 编码");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.14f75c803cc8"));
         }
         if (!text.isEmpty() && text.charAt(0) == '\ufeff') {
             text = text.substring(1);
@@ -82,10 +83,10 @@ public class SafeSpreadsheetReader {
         try (CSVParser parser = CSVParser.parse(new StringReader(text), format)) {
             for (CSVRecord record : parser) {
                 if (record.getRecordNumber() > MAX_ROWS) {
-                    throw new ManagedOperationValidationException("表格行数超过 " + MAX_ROWS);
+                    throw new ManagedOperationValidationException(ApiMessages.get("api.t.bece94b6952e") + MAX_ROWS);
                 }
                 if (record.size() > MAX_COLUMNS) {
-                    throw new ManagedOperationValidationException("表格列数超过 " + MAX_COLUMNS);
+                    throw new ManagedOperationValidationException(ApiMessages.get("api.t.3dcbc2d55a1e") + MAX_COLUMNS);
                 }
                 List<String> row = new ArrayList<>(record.size());
                 for (String value : record) {
@@ -103,7 +104,7 @@ public class SafeSpreadsheetReader {
         ZipSecureFile.setMaxTextSize(20L * 1024 * 1024);
         try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(bytes))) {
             if (workbook.getNumberOfSheets() > MAX_SHEETS) {
-                throw new ManagedOperationValidationException("Excel sheet 数超过 " + MAX_SHEETS);
+                throw new ManagedOperationValidationException(ApiMessages.get("api.t.05a70b677d85") + MAX_SHEETS);
             }
             Sheet selected = null;
             for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
@@ -114,17 +115,17 @@ public class SafeSpreadsheetReader {
                 }
             }
             if (selected == null) {
-                throw new ManagedOperationValidationException("Excel 中没有可读取的数据");
+                throw new ManagedOperationValidationException(ApiMessages.get("api.t.8d5ff49a3174"));
             }
             if (selected.getLastRowNum() + 1 > MAX_ROWS) {
-                throw new ManagedOperationValidationException("表格行数超过 " + MAX_ROWS);
+                throw new ManagedOperationValidationException(ApiMessages.get("api.t.bece94b6952e") + MAX_ROWS);
             }
             List<List<String>> rows = new ArrayList<>();
             for (int rowIndex = selected.getFirstRowNum(); rowIndex <= selected.getLastRowNum(); rowIndex++) {
                 Row row = selected.getRow(rowIndex);
                 int lastCell = row == null ? 0 : Math.max(0, row.getLastCellNum());
                 if (lastCell > MAX_COLUMNS) {
-                    throw new ManagedOperationValidationException("表格列数超过 " + MAX_COLUMNS);
+                    throw new ManagedOperationValidationException(ApiMessages.get("api.t.3dcbc2d55a1e") + MAX_COLUMNS);
                 }
                 List<String> values = new ArrayList<>(lastCell);
                 for (int column = 0; column < lastCell; column++) {
@@ -153,7 +154,7 @@ public class SafeSpreadsheetReader {
                 yield NumberToTextConverter.toText(cell.getNumericCellValue());
             }
             case BOOLEAN -> Boolean.toString(cell.getBooleanCellValue());
-            case ERROR -> throw new ManagedOperationValidationException("Excel 包含错误单元格");
+            case ERROR -> throw new ManagedOperationValidationException(ApiMessages.get("api.t.f2ec34cf12b9"));
             default -> "";
         };
     }
@@ -175,7 +176,7 @@ public class SafeSpreadsheetReader {
             rows.remove(rows.size() - 1);
         }
         if (rows.size() < 2 || rows.get(0).stream().allMatch(String::isBlank)) {
-            throw new ManagedOperationValidationException("表格没有表头或数据行");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.95e50aa5950b"));
         }
         return new Table(List.copyOf(rows.get(0)), List.copyOf(rows.subList(1, rows.size())));
     }
@@ -183,7 +184,7 @@ public class SafeSpreadsheetReader {
     private static String safeCell(String value) {
         String result = value == null ? "" : value.strip();
         if (result.length() > MAX_CELL_LENGTH) {
-            throw new ManagedOperationValidationException("单元格文字超过 " + MAX_CELL_LENGTH + " 字符");
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.d6c2a426c202") + MAX_CELL_LENGTH + ApiMessages.get("api.t.7d03d8f58723"));
         }
         return result;
     }
@@ -202,17 +203,17 @@ public class SafeSpreadsheetReader {
                 && (bytes[3] == 4 || bytes[3] == 6 || bytes[3] == 8);
         switch (extension) {
             case "xls" -> {
-                if (!ole) throw new ManagedOperationValidationException("XLS 扩展名与文件内容不一致");
+                if (!ole) throw new ManagedOperationValidationException(ApiMessages.get("api.t.077aede1c7ca"));
             }
             case "xlsx" -> {
-                if (!zip) throw new ManagedOperationValidationException("XLSX 扩展名与文件内容不一致");
+                if (!zip) throw new ManagedOperationValidationException(ApiMessages.get("api.t.7001678adb7f"));
             }
             case "csv" -> {
                 if (ole || zip || containsNul(bytes)) {
-                    throw new ManagedOperationValidationException("CSV 扩展名与文件内容不一致");
+                    throw new ManagedOperationValidationException(ApiMessages.get("api.t.9804980e1f2b"));
                 }
             }
-            default -> throw new ManagedOperationValidationException("仅支持 CSV、XLS、XLSX 文件");
+            default -> throw new ManagedOperationValidationException(ApiMessages.get("api.t.301ddd4acf3a"));
         }
     }
 

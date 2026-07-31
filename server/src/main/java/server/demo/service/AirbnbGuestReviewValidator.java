@@ -12,6 +12,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import server.demo.i18n.ApiMessages;
 @Component
 public class AirbnbGuestReviewValidator {
 
@@ -54,44 +55,44 @@ public class AirbnbGuestReviewValidator {
 
     public List<Map<String, Object>> validateAndBuild(ReviewDtos.GuestReviewRequest request) {
         if (request == null) {
-            throw new IllegalArgumentException("评价住客请求不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.bbcb32b8e386"));
         }
         if (!request.confirmed()) {
-            throw new IllegalArgumentException("提交评价住客前必须二次确认");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.d6eed374b0e2"));
         }
         if (request.categoryRatings() == null || request.categoryRatings().size() != 3) {
-            throw new IllegalArgumentException("必须提交清洁、沟通和遵守房屋规则三项评分");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.78ca42f7d2ed"));
         }
 
         Map<String, ReviewDtos.CategoryRating> byCategory = new LinkedHashMap<>();
         for (ReviewDtos.CategoryRating rating : request.categoryRatings()) {
             if (rating == null || rating.category() == null) {
-                throw new IllegalArgumentException("评分分类不能为空");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.0d1f57e61665"));
             }
             String category = rating.category().trim().toLowerCase(Locale.ROOT);
             if (!REQUIRED_CATEGORIES.contains(category)) {
-                throw new IllegalArgumentException("不支持的 Airbnb 评分分类: " + rating.category());
+                throw new IllegalArgumentException(ApiMessages.get("api.t.bf0cd9271eeb") + rating.category());
             }
             if (byCategory.putIfAbsent(category, rating) != null) {
-                throw new IllegalArgumentException("评分分类重复: " + category);
+                throw new IllegalArgumentException(ApiMessages.get("api.t.a2a52c0828c5") + category);
             }
         }
         if (!byCategory.keySet().containsAll(REQUIRED_CATEGORIES)) {
-            throw new IllegalArgumentException("必须提交清洁、沟通和遵守房屋规则三项评分");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.78ca42f7d2ed"));
         }
 
         List<Map<String, Object>> result = new ArrayList<>();
         for (String category : REQUIRED_CATEGORIES) {
             ReviewDtos.CategoryRating rating = byCategory.get(category);
             if (rating.rating() < 1 || rating.rating() > 5) {
-                throw new IllegalArgumentException("评分必须在1到5之间");
+                throw new IllegalArgumentException(ApiMessages.get("api.t.cf5d7b33acb4"));
             }
             String comment = trimToNull(rating.comment());
             if (rating.rating() < 5 && comment == null) {
-                throw new IllegalArgumentException(category + " 低于5分时必须填写说明");
+                throw new IllegalArgumentException(category + ApiMessages.get("api.t.55517b0956c7"));
             }
             if (comment != null && comment.length() > 50) {
-                throw new IllegalArgumentException(category + " 的低分说明不能超过50个字符");
+                throw new IllegalArgumentException(category + ApiMessages.get("api.t.75119af1bcb0"));
             }
 
             Set<String> normalizedTags = new LinkedHashSet<>();
@@ -99,7 +100,7 @@ public class AirbnbGuestReviewValidator {
                 for (String rawTag : rating.reviewCategoryTags()) {
                     String tag = trimToNull(rawTag);
                     if (tag == null || !TAGS_BY_CATEGORY.get(category).contains(tag)) {
-                        throw new IllegalArgumentException("评分标签不属于 " + category + ": " + rawTag);
+                        throw new IllegalArgumentException(ApiMessages.get("api.t.d32ac3b3ef24") + category + ": " + rawTag);
                     }
                     normalizedTags.add(tag);
                 }

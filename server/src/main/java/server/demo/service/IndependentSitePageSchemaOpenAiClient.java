@@ -21,6 +21,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 
+import server.demo.i18n.ApiMessages;
 /**
  * 独立站页面 schema 生成专用 OpenAI 直连客户端。
  *
@@ -93,7 +94,7 @@ public class IndependentSitePageSchemaOpenAiClient implements IndependentSitePag
             throw new IndependentSiteServiceException(
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "OPENAI_CHANNEL_UNAVAILABLE",
-                    "当前无法确认系统 OpenAI 通道可用，未生成可发布草稿"
+                    ApiMessages.get("api.t.0719e2c2c28a")
             );
         }
         String body = buildRequestBody(userMessage).toString();
@@ -160,7 +161,7 @@ public class IndependentSitePageSchemaOpenAiClient implements IndependentSitePag
         return new IndependentSiteServiceException(
                 HttpStatus.SERVICE_UNAVAILABLE,
                 "OPENAI_GENERATION_FAILED",
-                "OpenAI 页面草稿生成失败"
+                ApiMessages.get("api.t.dbeb1a88547f")
         );
     }
 

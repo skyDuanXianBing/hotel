@@ -14,9 +14,12 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
+import server.demo.i18n.ApiMessages;
+
 @Service
 public class PaymentMethodService {
 
+    /** Stable zh-CN seed names persisted to DB; do not resolve via request locale. */
     private static final List<String> DEFAULT_METHOD_NAMES = List.of(
             "携程代收",
             "飞猪代收",
@@ -59,7 +62,7 @@ public class PaymentMethodService {
         Long storeId = getCurrentStoreId();
         String normalizedName = normalizeName(request.getName());
         if (paymentMethodRepository.existsByStoreIdAndNameIgnoreCase(storeId, normalizedName)) {
-            throw new RuntimeException("收款方式名称已存在");
+            throw new RuntimeException(ApiMessages.get("api.t.62af3752b3b9"));
         }
 
         List<PaymentMethod> currentMethods = paymentMethodRepository.findByStoreIdOrderByDisplayOrderAscIdAsc(storeId);
@@ -77,13 +80,13 @@ public class PaymentMethodService {
     public PaymentMethodDTO update(Long id, UpsertPaymentMethodRequest request) {
         Long storeId = getCurrentStoreId();
         PaymentMethod paymentMethod = paymentMethodRepository.findByStoreIdAndId(storeId, id)
-                .orElseThrow(() -> new RuntimeException("收款方式不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.a71644435299")));
 
         String normalizedName = normalizeName(request.getName());
         paymentMethodRepository.findByStoreIdAndNameIgnoreCase(storeId, normalizedName)
                 .ifPresent(existing -> {
                     if (!Objects.equals(existing.getId(), id)) {
-                        throw new RuntimeException("收款方式名称已存在");
+                        throw new RuntimeException(ApiMessages.get("api.t.62af3752b3b9"));
                     }
                 });
 
@@ -99,7 +102,7 @@ public class PaymentMethodService {
     public PaymentMethodDTO updateEnabled(Long id, Boolean enabled) {
         Long storeId = getCurrentStoreId();
         PaymentMethod paymentMethod = paymentMethodRepository.findByStoreIdAndId(storeId, id)
-                .orElseThrow(() -> new RuntimeException("收款方式不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.a71644435299")));
         paymentMethod.setEnabled(Boolean.TRUE.equals(enabled));
         return toDTO(paymentMethodRepository.save(paymentMethod));
     }
@@ -108,7 +111,7 @@ public class PaymentMethodService {
     public void delete(Long id) {
         Long storeId = getCurrentStoreId();
         PaymentMethod paymentMethod = paymentMethodRepository.findByStoreIdAndId(storeId, id)
-                .orElseThrow(() -> new RuntimeException("收款方式不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.a71644435299")));
         paymentMethodRepository.delete(paymentMethod);
         reindexDisplayOrder(storeId);
     }
@@ -127,7 +130,7 @@ public class PaymentMethodService {
 
         for (PaymentMethodOrderRequest request : requests) {
             PaymentMethod method = paymentMethodRepository.findByStoreIdAndId(storeId, request.getId())
-                    .orElseThrow(() -> new RuntimeException("收款方式不存在: " + request.getId()));
+                    .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.0567368be4dd") + request.getId()));
             method.setDisplayOrder(request.getDisplayOrder());
             paymentMethodRepository.save(method);
         }
@@ -170,18 +173,18 @@ public class PaymentMethodService {
 
     private Long getCurrentStoreId() {
         if (StoreContextHolder.getContext() == null || StoreContextHolder.getContext().getStoreId() == null) {
-            throw new RuntimeException("缺少门店上下文");
+            throw new RuntimeException(ApiMessages.get("api.t.2bfd332b0f72"));
         }
         return StoreContextHolder.getContext().getStoreId();
     }
 
     private String normalizeName(String name) {
         if (name == null) {
-            throw new RuntimeException("收款方式名称不能为空");
+            throw new RuntimeException(ApiMessages.get("api.t.4ec45d56edac"));
         }
         String normalized = name.trim();
         if (normalized.isEmpty()) {
-            throw new RuntimeException("收款方式名称不能为空");
+            throw new RuntimeException(ApiMessages.get("api.t.4ec45d56edac"));
         }
         return normalized;
     }

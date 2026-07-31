@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import server.demo.i18n.ApiMessages;
 @Service
 public class SuAutoReplyService {
 
@@ -160,7 +161,7 @@ public class SuAutoReplyService {
             msg.setThread(thread);
             msg.setExternalMessageId(null);
             msg.setSenderType(SuMessagingSenderType.STAFF);
-            msg.setSenderName("系统自动回复");
+            msg.setSenderName(ApiMessages.get("api.t.1d49e08a8b7e"));
             msg.setContent(rendered.trim());
             msg.setSentAt(UtcTimeUtil.nowLocalDateTime());
             msg.setIsRead(true);
@@ -269,15 +270,15 @@ public class SuAutoReplyService {
     private Map<String, Object> buildReplyPayload(SuMessageThread thread, String message) {
         String hotelId = thread.getSuHotelId();
         if (hotelId == null || hotelId.isBlank()) {
-            throw new IllegalStateException("缺少 hotelid，无法发送");
+            throw new IllegalStateException(ApiMessages.get("api.t.dc005a1df560"));
         }
         Integer channelId = thread.getChannelId();
         if (channelId == null) {
-            throw new IllegalStateException("缺少 channelId，无法发送");
+            throw new IllegalStateException(ApiMessages.get("api.t.00b24cb5038e"));
         }
         String listingId = thread.getListingId();
         if (listingId == null || listingId.isBlank()) {
-            throw new IllegalStateException("缺少 listingid（渠道房源ID），无法发送");
+            throw new IllegalStateException(ApiMessages.get("api.t.42945910cf3a"));
         }
 
         Map<String, Object> payload = new HashMap<>();
@@ -290,7 +291,7 @@ public class SuAutoReplyService {
             String threadId = thread.getThreadId();
             String guestId = thread.getGuestId();
             if (threadId == null || threadId.isBlank() || guestId == null || guestId.isBlank()) {
-                throw new IllegalStateException("Airbnb 回复需要 threadid + guestid，但当前会话缺少必要字段");
+                throw new IllegalStateException(ApiMessages.get("api.t.93bbacc041c0"));
             }
             payload.put("threadid", threadId);
             payload.put("guestid", guestId);
@@ -298,11 +299,11 @@ public class SuAutoReplyService {
         } else if (channelId == SuMessagingService.CHANNEL_BOOKING) {
             String bookingId = thread.getBookingId();
             if (bookingId == null || bookingId.isBlank()) {
-                throw new IllegalStateException("Booking.com 回复需要 bookingid，但当前会话缺少必要字段");
+                throw new IllegalStateException(ApiMessages.get("api.t.9eb669aa5a72"));
             }
             payload.put("bookingid", bookingId);
         } else {
-            throw new IllegalStateException("不支持的渠道: " + channelId);
+            throw new IllegalStateException(ApiMessages.get("api.t.b95e88e646a1") + channelId);
         }
 
         return payload;

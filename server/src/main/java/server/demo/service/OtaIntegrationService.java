@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import server.demo.i18n.ApiMessages;
 /**
  * OTA直连配置服务层
  */
@@ -99,7 +100,7 @@ public class OtaIntegrationService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findById(id)
                 .filter(ota -> ota.getStoreId().equals(storeId))
-                .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1d2944e4502e")));
         return convertToDTO(integration);
     }
 
@@ -109,7 +110,7 @@ public class OtaIntegrationService {
     public OtaIntegrationDTO getOtaIntegrationByCode(String code) {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findByStoreIdAndCode(storeId, code)
-                .orElseThrow(() -> new RuntimeException("OTA配置不存在: " + code));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.4a106f413e65") + code));
         return convertToDTO(integration);
     }
 
@@ -121,7 +122,7 @@ public class OtaIntegrationService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findById(id)
                 .filter(ota -> ota.getStoreId().equals(storeId))
-                .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1d2944e4502e")));
 
         // 更新可修改的字段
         if (dto.getApiUrl() != null) {
@@ -149,7 +150,7 @@ public class OtaIntegrationService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findById(id)
                 .filter(ota -> ota.getStoreId().equals(storeId))
-                .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1d2944e4502e")));
 
         integration.setApiKey(apiKey);
         integration.setApiSecret(apiSecret);
@@ -167,7 +168,7 @@ public class OtaIntegrationService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findById(id)
                 .filter(ota -> ota.getStoreId().equals(storeId))
-                .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1d2944e4502e")));
 
         integration.setApiKey(null);
         integration.setApiSecret(null);
@@ -203,7 +204,7 @@ public class OtaIntegrationService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findById(id)
                 .filter(ota -> ota.getStoreId().equals(storeId))
-                .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1d2944e4502e")));
 
         if (dto.getPriceAdjustmentType() != null) {
             integration.setPriceAdjustmentType(dto.getPriceAdjustmentType());
@@ -250,13 +251,13 @@ public class OtaIntegrationService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findById(id)
                 .filter(ota -> ota.getStoreId().equals(storeId))
-                .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1d2944e4502e")));
 
         // 1. 初始化 Su Property ID（如果尚未初始化）
         String hotelId = integration.getSuPropertyId();
         if (hotelId == null || hotelId.isBlank()) {
             Store store = storeRepository.findById(storeId)
-                    .orElseThrow(() -> new RuntimeException("门店不存在"));
+                    .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.051df0941ec3")));
 
             String storeHotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
             if (storeHotelId == null) {
@@ -354,7 +355,7 @@ public class OtaIntegrationService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findById(id)
                 .filter(ota -> ota.getStoreId().equals(storeId))
-                .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1d2944e4502e")));
 
         String hotelId = resolveOrInitSuHotelId(storeId, integration);
         SuContentSyncService.SuRoomSyncSummary rooms = suContentSyncService.syncRoomsForWidget(storeId, hotelId);
@@ -370,7 +371,7 @@ public class OtaIntegrationService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findById(id)
                 .filter(ota -> ota.getStoreId().equals(storeId))
-                .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1d2944e4502e")));
 
         String hotelId = resolveOrInitSuHotelId(storeId, integration);
         return suContentSyncService.syncRoomsForWidget(storeId, hotelId);
@@ -384,7 +385,7 @@ public class OtaIntegrationService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findById(id)
                 .filter(ota -> ota.getStoreId().equals(storeId))
-                .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1d2944e4502e")));
 
         String hotelId = resolveOrInitSuHotelId(storeId, integration);
         return suContentSyncService.syncRatePlansForWidget(storeId, hotelId);
@@ -398,7 +399,7 @@ public class OtaIntegrationService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findById(id)
                 .filter(ota -> ota.getStoreId().equals(storeId))
-                .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1d2944e4502e")));
 
         String hotelId = resolveOrInitSuHotelId(storeId, integration);
         int d = days != null ? days : 365;
@@ -424,7 +425,7 @@ public class OtaIntegrationService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findById(id)
                 .filter(ota -> ota.getStoreId().equals(storeId))
-                .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1d2944e4502e")));
 
         String hotelId = resolveOrInitSuHotelId(storeId, integration);
         List<Integer> otaCodes = resolveSuOtaCodes(integration);
@@ -436,7 +437,7 @@ public class OtaIntegrationService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findById(id)
                 .filter(ota -> ota.getStoreId().equals(storeId))
-                .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1d2944e4502e")));
 
         String hotelId = resolveOrInitSuHotelId(storeId, integration);
         int d = days != null ? days : 365;
@@ -491,7 +492,7 @@ public class OtaIntegrationService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findById(id)
                 .filter(ota -> ota.getStoreId().equals(storeId))
-                .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1d2944e4502e")));
 
         return getSuMappingsForIntegration(storeId, integration, channelId);
     }
@@ -499,13 +500,13 @@ public class OtaIntegrationService {
     @Transactional(readOnly = true)
     public JsonNode getSuMappingsByStoreAndCode(Long storeId, String code, String channelId) {
         if (storeId == null) {
-            throw new IllegalArgumentException("storeId 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.d7f09cedd0e8"));
         }
         if (code == null || code.isBlank()) {
-            throw new IllegalArgumentException("OTA code 不能为空");
+            throw new IllegalArgumentException(ApiMessages.get("api.t.b0ec62997bed"));
         }
         OtaIntegration integration = otaIntegrationRepository.findByStoreIdAndCode(storeId, code.trim().toUpperCase())
-                .orElseThrow(() -> new RuntimeException("OTA配置不存在: " + code));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.4a106f413e65") + code));
 
         return getSuMappingsForIntegration(storeId, integration, channelId);
     }
@@ -527,7 +528,7 @@ public class OtaIntegrationService {
         }
 
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new RuntimeException("门店不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.051df0941ec3")));
         String storeHotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
         if (storeHotelId == null) {
             storeHotelId = SuHotelIdUtil.buildDefault(storeId);
@@ -554,12 +555,12 @@ public class OtaIntegrationService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findById(id)
                 .filter(ota -> ota.getStoreId().equals(storeId))
-                .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.1d2944e4502e")));
 
         String hotelId = integration.getSuPropertyId();
         if (hotelId == null || hotelId.isBlank()) {
             Store store = storeRepository.findById(storeId)
-                    .orElseThrow(() -> new RuntimeException("门店不存在"));
+                    .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.051df0941ec3")));
             String storeHotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
             if (storeHotelId == null) {
                 storeHotelId = SuHotelIdUtil.buildDefault(storeId);
@@ -693,7 +694,7 @@ public class OtaIntegrationService {
         }
 
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new RuntimeException("门店不存在"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.051df0941ec3")));
 
         String storeHotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
         if (storeHotelId == null) {
