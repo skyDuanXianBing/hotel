@@ -5,6 +5,11 @@ import { useI18n } from 'vue-i18n'
 import { TopRight } from '@element-plus/icons-vue'
 import { listBillingPackages, type BillingPackageView } from '@/api/billing'
 import { useEntitlementStore } from '@/stores/entitlement'
+import {
+  formatFeatureQuotaLimit,
+  resolveFeatureDisplayName,
+  resolvePackageDisplayName,
+} from '@/utils/saasDisplay'
 
 /**
  * 全局 402 升级引导弹窗：request.ts 命中 402 时由 entitlement store 触发，
@@ -33,9 +38,10 @@ const featureName = computed(() => {
   if (!code) {
     return ''
   }
-  const key = `saasSubscription.featureNames.${code}`
-  return te(key) ? t(key) : code
+  return resolveFeatureDisplayName(t, te, code)
 })
+
+const packageDisplayName = (name: string) => resolvePackageDisplayName(t, te, name)
 
 const hasUsage = computed(
   () => typeof context.value?.limit === 'number' && typeof context.value?.used === 'number',
@@ -84,7 +90,7 @@ const packageEntitlementLabel = (pkg: BillingPackageView) => {
   if (feature.quotaLimit === null) {
     return t('saasSubscription.myPlan.unlimited')
   }
-  return `${feature.quotaLimit}${feature.unit || ''}`
+  return formatFeatureQuotaLimit(t, te, feature.featureCode, feature.quotaLimit, feature.unit)
 }
 
 const loadPackages = async () => {
@@ -122,7 +128,7 @@ const goToPlans = () => {
     append-to-body
   >
     <div class="upgrade-guide">
-      <p v-if="context?.message" class="upgrade-message">{{ context.message }}</p>
+      <!-- 原因文案走前端 i18n；不展示后端 message（种子为中文，切语言不会变） -->
       <p class="upgrade-reason">{{ reasonText }}</p>
 
       <div v-if="packages.length" class="upgrade-packages">
@@ -134,9 +140,9 @@ const goToPlans = () => {
             class="upgrade-package-item"
             :class="{ 'is-included': packageIncludesFeature(pkg) }"
           >
-            <span class="package-name">{{ pkg.name }}</span>
+            <span class="package-name">{{ packageDisplayName(pkg.name) }}</span>
             <span class="package-price">
-              ¥{{ pkg.price }}/{{ t(`saasSubscription.periods.${pkg.period}`) }}
+              ${{ pkg.price }}/{{ t(`saasSubscription.periods.${pkg.period}`) }}
             </span>
             <span class="package-included">
               {{ packageEntitlementLabel(pkg) }}
@@ -162,12 +168,6 @@ const goToPlans = () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-
-.upgrade-message {
-  margin: 0;
-  color: #606266;
-  font-size: 13px;
 }
 
 .upgrade-reason {

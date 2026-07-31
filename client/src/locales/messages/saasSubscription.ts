@@ -18,6 +18,17 @@ const en = {
       ai_website_gen: 'AI Website Generation',
       room_count: 'Room Capacity',
     },
+    featureUnits: {
+      ai_website_gen: 'times',
+      room_count: 'rooms',
+    },
+    // Keys match backend seed package names (V063); custom admin names fall back to raw API value.
+    packageNames: {
+      标准版: 'Standard',
+      豪华版: 'Premium',
+      旗舰版: 'Flagship',
+      默认版: 'Default',
+    },
     myPlan: {
       title: 'My Plan',
       description: 'View your current subscription, entitlement usage, and available plans.',
@@ -29,6 +40,7 @@ const en = {
       unlimited: 'Unlimited',
       quotaUsage: '{used}/{total} used',
       quotaResetHint: '{remaining} remaining · resets at {date}',
+      quotaLimitWithUnit: '{limit} {unit}',
       capacityLimit: 'Up to {limit}',
       capacityUsage: 'Current {used} / limit {limit}',
       capacityExceeded: 'Over the limit. Upgrade to add more.',
@@ -93,6 +105,16 @@ const ja = {
       ai_website_gen: 'AI サイト生成',
       room_count: '客室数上限',
     },
+    featureUnits: {
+      ai_website_gen: '回',
+      room_count: '室',
+    },
+    packageNames: {
+      标准版: 'スタンダード',
+      豪华版: 'プレミアム',
+      旗舰版: 'フラッグシップ',
+      默认版: 'デフォルト',
+    },
     myPlan: {
       title: 'マイプラン',
       description: '現在の契約プラン、特典の利用状況、購入可能なプランを確認できます。',
@@ -104,6 +126,7 @@ const ja = {
       unlimited: '無制限',
       quotaUsage: '{used}/{total} 使用済み',
       quotaResetHint: '残り {remaining} 回・{date} にリセット',
+      quotaLimitWithUnit: '{limit} {unit}',
       capacityLimit: '上限 {limit}',
       capacityUsage: '現在 {used} / 上限 {limit}',
       capacityExceeded: '上限を超えています。アップグレードまで新規追加できません。',
@@ -170,6 +193,16 @@ const zhCN = {
       ai_website_gen: 'AI 建站生成次数',
       room_count: '可存在房间数量',
     },
+    featureUnits: {
+      ai_website_gen: '次',
+      room_count: '间',
+    },
+    packageNames: {
+      标准版: '标准版',
+      豪华版: '豪华版',
+      旗舰版: '旗舰版',
+      默认版: '默认版',
+    },
     myPlan: {
       title: '我的套餐',
       description: '查看当前订阅、权益用量与在售套餐。',
@@ -181,6 +214,7 @@ const zhCN = {
       unlimited: '不限',
       quotaUsage: '已用 {used}/{total}',
       quotaResetHint: '剩余 {remaining} 次 · {date} 重置',
+      quotaLimitWithUnit: '{limit} {unit}',
       capacityLimit: '上限 {limit}',
       capacityUsage: '当前 {used} / 上限 {limit}',
       capacityExceeded: '已超上限，升级前无法新增',
@@ -243,6 +277,16 @@ const zhTW = {
       ai_website_gen: 'AI 建站生成次數',
       room_count: '可存在房間數量',
     },
+    featureUnits: {
+      ai_website_gen: '次',
+      room_count: '間',
+    },
+    packageNames: {
+      标准版: '標準版',
+      豪华版: '豪華版',
+      旗舰版: '旗艦版',
+      默认版: '預設版',
+    },
     myPlan: {
       title: '我的套餐',
       description: '查看目前訂閱、權益用量與在售套餐。',
@@ -254,6 +298,7 @@ const zhTW = {
       unlimited: '不限',
       quotaUsage: '已用 {used}/{total}',
       quotaResetHint: '剩餘 {remaining} 次 · {date} 重置',
+      quotaLimitWithUnit: '{limit} {unit}',
       capacityLimit: '上限 {limit}',
       capacityUsage: '目前 {used} / 上限 {limit}',
       capacityExceeded: '已超上限，升級前無法新增',

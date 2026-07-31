@@ -23,6 +23,7 @@ import {
   remainingDays,
   type GrantDurationMode,
 } from '@/utils/subscriptionAdjustment'
+import { resolvePackageDisplayName } from '@/utils/saasDisplay'
 
 const { t, te } = useI18n()
 
@@ -34,6 +35,8 @@ const periodLabel = (period: string | null | undefined) => {
   const key = `admin.enums.period.${period}`
   return period && te(key) ? t(key) : (period ?? '-')
 }
+
+const packageDisplayName = (name: string) => resolvePackageDisplayName(t, te, name)
 
 const loading = ref(true)
 const subscriptions = ref<AdminSubscriptionView[]>([])
@@ -263,7 +266,7 @@ const handleCancel = async (row: AdminSubscriptionView) => {
     await ElMessageBox.confirm(
       t('admin.subscriptions.cancelConfirm', {
         store: row.storeName || row.storeId,
-        package: row.packageName,
+        package: packageDisplayName(row.packageName),
       }),
       t('admin.subscriptions.cancelTitle'),
       {
@@ -323,11 +326,9 @@ onMounted(loadSubscriptions)
             <span class="store-id">(#{{ row.storeId }})</span>
           </template>
         </el-table-column>
-        <el-table-column
-          prop="packageName"
-          :label="t('admin.subscriptions.columns.package')"
-          min-width="110"
-        />
+        <el-table-column :label="t('admin.subscriptions.columns.package')" min-width="110">
+          <template #default="{ row }">{{ packageDisplayName(row.packageName) }}</template>
+        </el-table-column>
         <el-table-column
           :label="t('admin.subscriptions.columns.pricePaid')"
           width="100"
@@ -421,7 +422,7 @@ onMounted(loadSubscriptions)
               type="warning"
               :title="
                 t('admin.subscriptions.grantReplaceWarning', {
-                  package: currentSubscription.packageName,
+                  package: packageDisplayName(currentSubscription.packageName),
                   days: currentRemainingDays,
                   amount: currentSubscription.pricePaid,
                 })
@@ -432,7 +433,7 @@ onMounted(loadSubscriptions)
             <dl class="current-subscription-meta">
               <div>
                 <dt>{{ t('admin.subscriptions.current.package') }}</dt>
-                <dd>{{ currentSubscription.packageName }}</dd>
+                <dd>{{ packageDisplayName(currentSubscription.packageName) }}</dd>
               </div>
               <div>
                 <dt>{{ t('admin.subscriptions.current.endTime') }}</dt>
@@ -480,7 +481,7 @@ onMounted(loadSubscriptions)
               v-for="pkg in packages"
               :key="pkg.id"
               :value="pkg.id"
-              :label="`${pkg.name}（v${pkg.version} · $${pkg.price}/${periodLabel(pkg.period)}${pkg.status === 'OFF_SHELF' ? ' · ' + t('admin.enums.packageStatus.OFF_SHELF') : ''}${pkg.isSystem === true ? ' · ' + t('admin.subscriptions.systemPackageTag') : ''}）`"
+              :label="`${packageDisplayName(pkg.name)}（v${pkg.version} · $${pkg.price}/${periodLabel(pkg.period)}${pkg.status === 'OFF_SHELF' ? ' · ' + t('admin.enums.packageStatus.OFF_SHELF') : ''}${pkg.isSystem === true ? ' · ' + t('admin.subscriptions.systemPackageTag') : ''}）`"
             />
           </el-select>
         </el-form-item>

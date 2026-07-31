@@ -13,8 +13,12 @@ import {
 } from '@/api/admin'
 import AdminStoreSelect from '@/components/admin/AdminStoreSelect.vue'
 import { getAdminErrorMessage } from '@/utils/adminRequest'
+import { resolveFeatureDisplayName } from '@/utils/saasDisplay'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
+
+const featureDisplayName = (featureCode: string, fallbackName?: string | null) =>
+  resolveFeatureDisplayName(t, te, featureCode, fallbackName)
 
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
@@ -177,7 +181,7 @@ onMounted(loadFeatures)
                 v-for="feature in quotaFeatures"
                 :key="feature.featureCode"
                 :value="feature.featureCode"
-                :label="`${feature.name}（${feature.featureCode}）`"
+                :label="`${featureDisplayName(feature.featureCode, feature.name)}（${feature.featureCode}）`"
               />
             </el-select>
           </el-form-item>

@@ -17,6 +17,11 @@ import {
   type AdminPackageFeatureItem,
 } from '@/api/admin'
 import { getAdminErrorMessage } from '@/utils/adminRequest'
+import {
+  resolveFeatureDisplayName,
+  resolveFeatureUnit,
+  resolvePackageDisplayName,
+} from '@/utils/saasDisplay'
 
 const { t, te } = useI18n()
 
@@ -32,6 +37,12 @@ const periodLabel = (period: string | null | undefined) => {
   const key = `admin.enums.period.${period}`
   return period && te(key) ? t(key) : (period ?? '-')
 }
+
+const packageDisplayName = (name: string) => resolvePackageDisplayName(t, te, name)
+const featureDisplayName = (featureCode: string, fallbackName?: string | null) =>
+  resolveFeatureDisplayName(t, te, featureCode, fallbackName)
+const featureUnitLabel = (featureCode: string, fallbackUnit?: string | null) =>
+  resolveFeatureUnit(t, te, featureCode, fallbackUnit)
 
 // ---------------- 新建 / 编辑套餐 ----------------
 const dialogVisible = ref(false)
@@ -160,7 +171,7 @@ const handleToggleStatus = async (pkg: AdminPackage) => {
   if (nextStatus === 'OFF_SHELF') {
     try {
       await ElMessageBox.confirm(
-        t('admin.packages.offShelfConfirmMessage', { name: pkg.name }),
+        t('admin.packages.offShelfConfirmMessage', { name: packageDisplayName(pkg.name) }),
         t('admin.packages.offShelfConfirmTitle'),
         {
           confirmButtonText: t('admin.common.confirm'),
@@ -275,7 +286,9 @@ onMounted(loadAll)
     <el-card>
       <el-table :data="packages" row-key="id">
         <el-table-column prop="id" label="ID" width="70" />
-        <el-table-column prop="name" :label="t('admin.packages.columns.name')" min-width="120" />
+        <el-table-column :label="t('admin.packages.columns.name')" min-width="120">
+          <template #default="{ row }">{{ packageDisplayName(row.name) }}</template>
+        </el-table-column>
         <el-table-column
           prop="version"
           :label="t('admin.packages.columns.version')"
@@ -386,14 +399,20 @@ onMounted(loadAll)
 
     <el-drawer
       v-model="drawerVisible"
-      :title="t('admin.packages.features.title', { name: drawerPackage?.name || '' })"
+      :title="
+        t('admin.packages.features.title', {
+          name: drawerPackage ? packageDisplayName(drawerPackage.name) : '',
+        })
+      "
       size="440px"
     >
       <div v-loading="drawerLoading" class="features-drawer">
         <p class="features-hint">{{ t('admin.packages.features.hint') }}</p>
         <div v-for="draft in featureDrafts" :key="draft.feature.featureCode" class="feature-row">
           <el-checkbox v-model="draft.checked" class="feature-checkbox">
-            <span class="feature-name">{{ draft.feature.name }}</span>
+            <span class="feature-name">{{
+              featureDisplayName(draft.feature.featureCode, draft.feature.name)
+            }}</span>
             <span class="feature-code">{{ draft.feature.featureCode }}</span>
           </el-checkbox>
           <el-tag size="small" effect="plain">{{
@@ -411,8 +430,14 @@ onMounted(loadAll)
                 :precision="0"
                 size="small"
               />
-              <span v-if="needsQuotaLimit(draft) && draft.feature.unit" class="feature-unit">
-                {{ draft.feature.unit }}
+              <span
+                v-if="
+                  needsQuotaLimit(draft) &&
+                  featureUnitLabel(draft.feature.featureCode, draft.feature.unit)
+                "
+                class="feature-unit"
+              >
+                {{ featureUnitLabel(draft.feature.featureCode, draft.feature.unit) }}
               </span>
             </div>
           </template>

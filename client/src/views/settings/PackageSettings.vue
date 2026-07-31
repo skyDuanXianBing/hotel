@@ -17,6 +17,11 @@ import {
   resolvePackageAction,
   type PackageActionKind,
 } from '@/utils/packageTier'
+import {
+  formatFeatureQuotaLimit,
+  resolveFeatureDisplayName,
+  resolvePackageDisplayName,
+} from '@/utils/saasDisplay'
 
 const { t, te } = useI18n()
 const entitlementStore = useEntitlementStore()
@@ -47,13 +52,13 @@ const subscription = computed(() => entitlementStore.subscription)
 const formatDateTime = (value: string | null | undefined) =>
   value ? value.slice(0, 19).replace('T', ' ') : '-'
 
-const featureDisplayName = (featureCode: string, fallbackName?: string | null) => {
-  if (fallbackName) {
-    return fallbackName
-  }
-  const key = `saasSubscription.featureNames.${featureCode}`
-  return te(key) ? t(key) : featureCode
-}
+const featureDisplayName = (featureCode: string, fallbackName?: string | null) =>
+  resolveFeatureDisplayName(t, te, featureCode, fallbackName)
+
+const packageDisplayName = (name: string) => resolvePackageDisplayName(t, te, name)
+
+const featureQuotaLabel = (featureCode: string, limit: number, unit?: string | null) =>
+  formatFeatureQuotaLimit(t, te, featureCode, limit, unit)
 
 const quotaFor = (featureCode: string): BillingQuotaUsageView | null =>
   subscription.value?.quotas.find((quota) => quota.featureCode === featureCode) ?? null
@@ -230,15 +235,16 @@ const handleSubscribe = async (pkg: BillingPackageView) => {
   // 按购买方向告知后果：升档=立即替换不折算差价；同套餐重购=到期后续延；无订阅=原始购买文案。
   // 注：同套餐重购分支当前不可达（当前套餐按钮禁用，现状保留），仅为防御性补全。
   const current = subscription.value
+  const displayName = packageDisplayName(pkg.name)
   const confirmMessage =
     action === 'upgrade'
-      ? t('saasSubscription.packages.upgradeConfirm', { name: pkg.name })
+      ? t('saasSubscription.packages.upgradeConfirm', { name: displayName })
       : current?.status === 'ACTIVE' && current.packageId === pkg.id
         ? t('saasSubscription.packages.repurchaseConfirm', {
             end: formatDateTime(current.endTime),
           })
         : t('saasSubscription.packages.subscribeConfirm', {
-            name: pkg.name,
+            name: displayName,
             price: pkg.price,
             period: t(`saasSubscription.periods.${pkg.period}`),
           })
@@ -264,7 +270,9 @@ const handleSubscribe = async (pkg: BillingPackageView) => {
     if (!response.success) {
       throw new Error(response.message || t('saasSubscription.packages.subscribeFailed'))
     }
-    ElMessage.success(t('saasSubscription.packages.subscribeSuccess', { name: pkg.name }))
+    ElMessage.success(
+      t('saasSubscription.packages.subscribeSuccess', { name: packageDisplayName(pkg.name) }),
+    )
     resetSubscribeAttempt() // 成交后键必须作废，否则未来再次购买同套餐会被幂等重放吞掉
     await loadData()
   } catch {
@@ -306,7 +314,7 @@ onMounted(loadData)
           />
           <div class="plan-summary">
             <div class="plan-name-row">
-              <span class="plan-name">{{ subscription.packageName }}</span>
+              <span class="plan-name">{{ packageDisplayName(subscription.packageName) }}</span>
               <el-tag type="success" effect="plain">
                 {{ t(`saasSubscription.subscriptionStatus.${subscription.status}`) }}
               </el-tag>
@@ -413,7 +421,7 @@ onMounted(loadData)
             :class="{ 'is-current': isCurrentPackage(pkg) }"
           >
             <div class="package-card-head">
-              <span class="package-name">{{ pkg.name }}</span>
+              <span class="package-name">{{ packageDisplayName(pkg.name) }}</span>
               <el-tag v-if="isCurrentPackage(pkg)" type="success" size="small" effect="dark">
                 {{ t('saasSubscription.myPlan.currentPackage') }}
               </el-tag>
@@ -440,7 +448,11 @@ onMounted(loadData)
                     {{
                       feature.quotaLimit === null
                         ? t('saasSubscription.myPlan.unlimited')
-                        : `${feature.quotaLimit}${feature.unit || ''}`
+                        : featureQuotaLabel(
+                            feature.featureCode,
+                            feature.quotaLimit,
+                            feature.unit,
+                          )
                     }}
                   </template>
                 </span>

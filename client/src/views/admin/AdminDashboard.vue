@@ -5,8 +5,11 @@ import { ElMessage } from 'element-plus'
 import { Coin, DataAnalysis, Goods, OfficeBuilding } from '@element-plus/icons-vue'
 import { getAdminDashboard, type AdminDashboardResponse } from '@/api/admin'
 import { getAdminErrorMessage } from '@/utils/adminRequest'
+import { resolvePackageDisplayName } from '@/utils/saasDisplay'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
+
+const packageDisplayName = (name: string) => resolvePackageDisplayName(t, te, name)
 
 const loading = ref(true)
 const dashboard = ref<AdminDashboardResponse | null>(null)
@@ -84,7 +87,9 @@ onMounted(loadDashboard)
           <span>{{ t('admin.dashboard.packageDistribution') }}</span>
         </template>
         <el-table :data="dashboard.packageSubscriptionCounts" size="small">
-          <el-table-column prop="packageName" :label="t('admin.dashboard.packageName')" />
+          <el-table-column :label="t('admin.dashboard.packageName')">
+            <template #default="{ row }">{{ packageDisplayName(row.packageName) }}</template>
+          </el-table-column>
           <el-table-column
             prop="count"
             :label="t('admin.dashboard.subscriptionCount')"
