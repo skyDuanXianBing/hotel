@@ -4,15 +4,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import server.demo.entity.MessageKnowledgeTopic;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class MessageKnowledgeThreadPromptBuilder {
-    private static final int DEFAULT_MAX_INPUT_CHARS = 24000;
+    private static final int DEFAULT_MAX_INPUT_CHARS = 200000;
     private static final int DEFAULT_MAX_MESSAGE_CHARS = 1600;
     private static final int DEFAULT_MAX_OUTPUT_ITEMS = 8;
 
-    @Value("${messaging.knowledge.thread-extractor.max-input-chars:24000}")
+    @Value("${messaging.knowledge.thread-extractor.max-input-chars:200000}")
     private int maxInputChars;
 
     @Value("${messaging.knowledge.thread-extractor.max-message-chars:1600}")
@@ -53,15 +54,32 @@ public class MessageKnowledgeThreadPromptBuilder {
         appendThreadContext(prompt, conversation.context());
         appendTopics(prompt, activeTopics);
         prompt.append("Conversation lines:\n");
-        int messageCount = 0;
+        List<String> lines = new ArrayList<>();
         for (MessageKnowledgeThreadConversationMessage message : conversation.messages()) {
-            appendConversationLine(prompt, message);
-            messageCount++;
-            if (prompt.length() > resolveMaxInputChars()) {
-                throw new IllegalArgumentException("Thread extraction prompt exceeds configured character limit");
-            }
+            lines.add(conversationLine(message));
         }
-        return new MessageKnowledgeThreadPrompt(prompt.toString(), messageCount);
+        // Keep the newest lines that fit the input budget; drop the oldest instead of failing
+        int budget = resolveMaxInputChars() - prompt.length();
+        int startIndex = lines.size();
+        int used = 0;
+        while (startIndex > 0) {
+            String candidate = lines.get(startIndex - 1);
+            if (startIndex < lines.size() && used + candidate.length() > budget) {
+                break;
+            }
+            used += candidate.length();
+            startIndex--;
+        }
+        int omitted = startIndex;
+        if (omitted > 0) {
+            prompt.append("- (")
+                    .append(omitted)
+                    .append(" oldest message(s) omitted to fit the input limit)\n");
+        }
+        for (int i = startIndex; i < lines.size(); i++) {
+            prompt.append(lines.get(i));
+        }
+        return new MessageKnowledgeThreadPrompt(prompt.toString(), lines.size() - omitted);
     }
 
     private void appendThreadContext(
@@ -101,25 +119,26 @@ public class MessageKnowledgeThreadPromptBuilder {
         prompt.append("\n");
     }
 
-    private void appendConversationLine(
-            StringBuilder prompt,
+    private String conversationLine(
             MessageKnowledgeThreadConversationMessage message
     ) {
-        prompt.append("[")
+        StringBuilder line = new StringBuilder();
+        line.append("[")
                 .append(message.id())
                 .append("] ")
                 .append(message.roleLabel())
                 .append(": ")
                 .append(truncateMessage(message.content()));
-        prompt.append(" [status=");
+        line.append(" [status=");
         if (message.deliveryStatus() == null || message.deliveryStatus().isBlank()) {
-            prompt.append("UNKNOWN");
+            line.append("UNKNOWN");
         } else {
-            prompt.append(cleanPromptValue(message.deliveryStatus()));
+            line.append(cleanPromptValue(message.deliveryStatus()));
         }
-        prompt.append(", evidence=")
+        line.append(", evidence=")
                 .append(message.eligibleAsEvidence())
                 .append("]\n");
+        return line.toString();
     }
 
     private void appendLine(StringBuilder prompt, String label, String value) {

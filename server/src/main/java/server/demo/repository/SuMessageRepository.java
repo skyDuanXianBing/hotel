@@ -135,6 +135,22 @@ public interface SuMessageRepository extends JpaRepository<SuMessage, Long> {
     @Query("""
             SELECT m
             FROM SuMessage m
+            JOIN FETCH m.thread
+            WHERE m.storeId = :storeId
+              AND m.thread.id = :threadId
+              AND m.id <= :coveredMessageId
+            ORDER BY m.sentAt DESC, m.id DESC
+            """)
+    List<SuMessage> findByStoreIdAndThreadIdUpToMessageIdOrderBySentAtDesc(
+            @Param("storeId") Long storeId,
+            @Param("threadId") Long threadId,
+            @Param("coveredMessageId") Long coveredMessageId,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT m
+            FROM SuMessage m
             WHERE m.storeId = :storeId
               AND m.thread.id = :threadId
               AND (:beforeMessageId IS NULL OR m.id < :beforeMessageId)

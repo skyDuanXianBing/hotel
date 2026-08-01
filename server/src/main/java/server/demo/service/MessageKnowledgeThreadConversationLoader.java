@@ -10,11 +10,12 @@ import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Service
 public class MessageKnowledgeThreadConversationLoader {
-    private static final int DEFAULT_MAX_MESSAGES = 500;
+    private static final int DEFAULT_MAX_MESSAGES = 2000;
     private static final String DELIVERY_STATUS_FAILED = "FAILED";
     private static final String DELIVERY_STATUS_SENDING = "SENDING";
 
@@ -22,7 +23,7 @@ public class MessageKnowledgeThreadConversationLoader {
     private final SuMessageThreadRepository threadRepository;
     private final SuMessagingThreadContextResolver contextResolver;
 
-    @Value("${messaging.knowledge.thread-extractor.max-messages:500}")
+    @Value("${messaging.knowledge.thread-extractor.max-messages:2000}")
     private int maxMessages;
 
     public MessageKnowledgeThreadConversationLoader(
@@ -47,15 +48,16 @@ public class MessageKnowledgeThreadConversationLoader {
         SuMessageThread thread = threadRepository.findByStoreIdAndId(storeId, threadId)
                 .orElseThrow(() -> new IllegalArgumentException("Message thread not found for store"));
         int limit = resolveMaxMessages();
-        List<SuMessage> messages = messageRepository.findByStoreIdAndThreadIdUpToMessageIdOrderBySentAtAsc(
-                storeId,
-                threadId,
-                coveredUntilMessageId,
-                PageRequest.of(0, limit + 1)
+        // Keep the most recent messages when the thread is longer than the extractor window
+        List<SuMessage> messages = new ArrayList<>(
+                messageRepository.findByStoreIdAndThreadIdUpToMessageIdOrderBySentAtDesc(
+                        storeId,
+                        threadId,
+                        coveredUntilMessageId,
+                        PageRequest.of(0, limit)
+                )
         );
-        if (messages.size() > limit) {
-            throw new IllegalArgumentException("Thread conversation exceeds extractor message limit");
-        }
+        Collections.reverse(messages);
 
         List<MessageKnowledgeThreadConversationMessage> conversationMessages = new ArrayList<>();
         for (SuMessage message : messages) {
