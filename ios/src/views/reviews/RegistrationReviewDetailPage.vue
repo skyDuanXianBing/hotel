@@ -72,7 +72,7 @@
                   <h2 class="mobile-section-title">{{ $t('settingsStage4.roomTypeManagement.actions.basicInfo') }}</h2>
                   <p class="mobile-note">{{ $t('stage5SourceText.198') }}</p>
                 </div>
-                <ion-button fill="outline" size="small" @click="handleOpenLinks">{{ $t('stage5.dataCenter.registrations.linkList') }}</ion-button>
+                <ion-button fill="outline" size="small" @click="handleOpenLinks">链接</ion-button>
               </div>
 
               <div class="registration-review-detail-page__detail-grid">
@@ -115,7 +115,7 @@
                   <p class="mobile-note">{{ $t('stage5SourceText.28') }}</p>
                 </div>
                 <ion-button fill="outline" size="small" :disabled="isPdfDownloading" @click="handleDownloadPdf">
-                  {{ isPdfDownloading ? $t('stage5DynamicUi.1') : $t('stage5DynamicUi.0') }}
+                  {{ isPdfDownloading ? $t('stage5DynamicUi.1') : 'PDF' }}
                 </ion-button>
               </div>
 
@@ -876,12 +876,6 @@ async function handleOpenLinks() {
 
 .registration-review-detail-page__preview-trigger {
   flex-shrink: 0;
-  --background: rgba(255, 255, 255, 0.76);
-  --border-color: rgba(58, 120, 255, 0.24);
-  --border-radius: 999px;
-  --color: var(--ion-color-primary);
-  font-weight: 600;
-  backdrop-filter: blur(18px);
 }
 
 .registration-review-detail-page__summary-grid,
@@ -941,10 +935,79 @@ async function handleOpenLinks() {
   margin-top: 12px;
 }
 
+.registration-review-detail-page__section-card > .mobile-inline-row {
+  align-items: flex-start;
+}
+
+.registration-review-detail-page__section-card > .mobile-inline-row ion-button,
+.registration-review-detail-page__guest-message .mobile-inline-row ion-button,
+.registration-review-detail-page__preview-trigger,
+.registration-review-detail-page__item-actions ion-button {
+  flex-shrink: 0;
+  margin: 0;
+  min-height: 32px;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --border-radius: 9px;
+  --box-shadow: none;
+  --background: rgba(255, 255, 255, 0.88);
+  --background-hover: rgba(255, 255, 255, 0.94);
+  --background-activated: rgba(245, 248, 255, 0.94);
+  --border-color: rgba(130, 143, 165, 0.24);
+  --color: var(--ios-pms-primary);
+  font-size: 13px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.registration-review-detail-page__section-card > .mobile-inline-row ion-button::part(native),
+.registration-review-detail-page__guest-message .mobile-inline-row ion-button::part(native),
+.registration-review-detail-page__preview-trigger::part(native),
+.registration-review-detail-page__item-actions ion-button::part(native) {
+  min-height: 32px;
+  border: 1px solid rgba(130, 143, 165, 0.24);
+  border-radius: 9px;
+  box-shadow: none;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.registration-review-detail-page__preview-trigger {
+  --background: rgba(255, 255, 255, 0.8);
+  --background-hover: rgba(255, 255, 255, 0.92);
+  --background-activated: rgba(245, 248, 255, 0.92);
+  --color: var(--ion-color-primary);
+  backdrop-filter: blur(14px);
+}
+
+.registration-review-detail-page__attachment-list .registration-review-detail-page__list-item {
+  display: grid;
+  gap: 12px;
+}
+
+.registration-review-detail-page__attachment-list .registration-review-detail-page__list-item > div:first-child {
+  min-width: 0;
+}
+
 .registration-review-detail-page__item-actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(130, 143, 165, 0.14);
+}
+
+.registration-review-detail-page__item-actions ion-button {
+  flex: 1 1 104px;
+}
+
+.registration-review-detail-page__item-actions ion-button.button-disabled {
+  opacity: 0.58;
 }
 
 .registration-review-detail-page__actions-card {
@@ -1099,10 +1162,19 @@ async function handleOpenLinks() {
     align-items: stretch;
   }
 
+  .registration-review-detail-page__preview-trigger {
+    width: 100%;
+  }
+
   .registration-review-detail-page__summary-grid,
   .registration-review-detail-page__actions-grid,
   .registration-review-detail-page__detail-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .registration-review-detail-page__section-card > .mobile-inline-row ion-button,
+  .registration-review-detail-page__guest-message .mobile-inline-row ion-button {
+    width: 100%;
   }
 }
 </style>
