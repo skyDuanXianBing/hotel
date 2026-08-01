@@ -277,6 +277,28 @@
                     <strong>{{ resolveGuestPreviewValue(guest.nationality) }}</strong>
                   </div>
                 </div>
+
+                <div v-if="findPassportAttachment(guest.id)" class="registration-review-detail-page__preview-passport">
+                  <span class="registration-review-detail-page__preview-passport-title">
+                    {{ $t('stage5.publicRegistration.form.passportPhoto') }}
+                  </span>
+                  <div
+                    v-if="guestPassportStates[guest.id]?.loading"
+                    class="registration-review-detail-page__preview-passport-state"
+                  >
+                    <ion-spinner name="crescent" />
+                  </div>
+                  <img
+                    v-else-if="guestPassportStates[guest.id]?.url"
+                    :src="guestPassportStates[guest.id]?.url"
+                    :alt="$t('stage5.publicRegistration.form.passportPhoto')"
+                    class="registration-review-detail-page__preview-passport-img"
+                    @click="handleOpenGuestPassportViewer(guest)"
+                  />
+                  <p v-else-if="guestPassportStates[guest.id]?.failed" class="mobile-note">
+                    {{ $t('stage5Final.review.previewAttachmentFailed') }}
+                  </p>
+                </div>
               </article>
 
               <section v-if="!hasGuestPreview" class="mobile-card">
@@ -286,6 +308,13 @@
           </div>
         </ion-content>
       </ion-modal>
+
+      <ImageViewerModal
+        :open="imageViewerOpen"
+        :src="imageViewerSrc"
+        :title="imageViewerTitle"
+        @close="handleCloseImageViewer"
+      />
     </ion-content>
   </ion-page>
 </template>
@@ -308,7 +337,7 @@ import {
   IonToolbar,
   onIonViewWillEnter,
 } from '@ionic/vue'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   approveRegistrationReview,
@@ -318,7 +347,8 @@ import {
   rejectRegistrationReview,
 } from '@/api/review'
 import { getAllQuickReplies, type QuickReplyDTO } from '@/api/quickReply'
-import { getReviewStatusLabel, type ReviewAttachment, type ReviewRecord } from '@/constants/reviews'
+import ImageViewerModal from '@/components/global/ImageViewerModal.vue'
+import { getReviewStatusLabel, type ReviewAttachment, type ReviewGuest, type ReviewRecord } from '@/constants/reviews'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useReviewStore } from '@/stores/reviews'
 import { downloadBlobFile, openBlobPreview } from '@/utils/file'
@@ -343,6 +373,22 @@ const guestMessage = ref('')
 const quickReplies = ref<QuickReplyDTO[]>([])
 const quickReplyLoading = ref(false)
 const selectedQuickReplyId = ref<number | null>(null)
+
+type GuestPassportState = {
+  url?: string
+  loading: boolean
+  failed?: boolean
+}
+
+const IMAGE_FILE_PATTERN = /\.(avif|bmp|gif|hei[cf]|jpe?g|png|webp)$/i
+
+const imageViewerOpen = ref(false)
+const imageViewerSrc = ref('')
+const imageViewerTitle = ref('')
+// 附件预览的 blob URL 由本页面创建、关闭查看器时回收；客人护照图的 URL 归 guestPassportStates 管理
+let imageViewerRevokeOnClose = false
+const guestPassportStates = ref<Record<string, GuestPassportState>>({})
+let guestPreviewRequestId = 0
 
 const formId = computed(() => {
   const rawFormId = Array.isArray(route.params.formId) ? route.params.formId[0] : route.params.formId
@@ -496,17 +542,137 @@ function resolveGuestPreviewValue(value?: string) {
   return nextValue
 }
 
+function isImageAttachment(blob: Blob, attachment: ReviewAttachment) {
+  const mimeType = (blob.type || '').toLowerCase()
+
+  if (mimeType.startsWith('image/')) {
+    return true
+  }
+
+  // 服务端仅在未记录 Content-Type 时回退 octet-stream，此时按文件名扩展名兜底判断
+  if (mimeType && mimeType !== 'application/octet-stream') {
+    return false
+  }
+
+  return IMAGE_FILE_PATTERN.test(attachment.originalName || attachment.name || '')
+}
+
+function findPassportAttachment(guestId: string) {
+  if (!record.value || !guestId) {
+    return undefined
+  }
+
+  return record.value.attachments.find(
+    (attachment) => attachment.guestId === guestId && attachment.type?.toUpperCase().includes('PASSPORT'),
+  )
+}
+
+function revokeGuestPassportImages() {
+  Object.values(guestPassportStates.value).forEach((state) => {
+    if (state.url?.startsWith('blob:')) {
+      URL.revokeObjectURL(state.url)
+    }
+  })
+}
+
+async function loadGuestPassportImages(requestId: number) {
+  const currentRecord = record.value
+  if (!currentRecord) {
+    return
+  }
+
+  await Promise.all(
+    currentRecord.guests.map(async (guest) => {
+      const attachment = findPassportAttachment(guest.id)
+      if (!attachment || attachment.attachmentNumericId <= 0) {
+        return
+      }
+
+      guestPassportStates.value[guest.id] = { loading: true }
+
+      try {
+        const blob = await downloadRegistrationAttachment(
+          currentRecord.formNumericId,
+          attachment.attachmentNumericId,
+        )
+
+        if (requestId !== guestPreviewRequestId || !guestPreviewOpen.value) {
+          return
+        }
+
+        if (!isImageAttachment(blob, attachment)) {
+          guestPassportStates.value[guest.id] = { loading: false, failed: true }
+          return
+        }
+
+        guestPassportStates.value[guest.id] = { loading: false, url: URL.createObjectURL(blob) }
+      } catch {
+        if (requestId !== guestPreviewRequestId) {
+          return
+        }
+        guestPassportStates.value[guest.id] = { loading: false, failed: true }
+      }
+    }),
+  )
+}
+
 function handleOpenGuestPreview() {
   if (!hasGuestPreview.value) {
     return
   }
 
+  guestPreviewRequestId += 1
+  revokeGuestPassportImages()
+  guestPassportStates.value = {}
   guestPreviewOpen.value = true
+  void loadGuestPassportImages(guestPreviewRequestId)
 }
 
 function handleCloseGuestPreview() {
   guestPreviewOpen.value = false
+  guestPreviewRequestId += 1
+  revokeGuestPassportImages()
+  guestPassportStates.value = {}
 }
+
+function revokeImageViewerUrl() {
+  if (imageViewerRevokeOnClose && imageViewerSrc.value.startsWith('blob:')) {
+    URL.revokeObjectURL(imageViewerSrc.value)
+  }
+  imageViewerRevokeOnClose = false
+  imageViewerSrc.value = ''
+}
+
+function openImageViewer(src: string, title: string, revokeOnClose: boolean) {
+  revokeImageViewerUrl()
+  imageViewerSrc.value = src
+  imageViewerTitle.value = title
+  imageViewerRevokeOnClose = revokeOnClose
+  imageViewerOpen.value = true
+}
+
+function handleCloseImageViewer() {
+  imageViewerOpen.value = false
+  revokeImageViewerUrl()
+}
+
+function openAttachmentImagePreview(blob: Blob, attachment: ReviewAttachment) {
+  openImageViewer(URL.createObjectURL(blob), attachment.name || attachment.originalName, true)
+}
+
+function handleOpenGuestPassportViewer(guest: ReviewGuest) {
+  const url = guestPassportStates.value[guest.id]?.url
+  if (!url) {
+    return
+  }
+  openImageViewer(url, `${guest.name} · ${t('stage5.publicRegistration.form.passportPhoto')}`, false)
+}
+
+onBeforeUnmount(() => {
+  guestPreviewRequestId += 1
+  revokeGuestPassportImages()
+  revokeImageViewerUrl()
+})
 
 async function handleDownloadPdf() {
   if (!record.value || isPdfDownloading.value) {
@@ -543,6 +709,13 @@ async function handlePreviewAttachment(attachment: ReviewAttachment) {
       record.value.formNumericId,
       attachment.attachmentNumericId,
     )
+
+    // WKWebView 内 window.open(blobUrl) 与 <a download> 均不可用，图片改为页内弹窗预览（对齐 web 端内联展示）
+    if (isImageAttachment(attachmentBlob, attachment)) {
+      openAttachmentImagePreview(attachmentBlob, attachment)
+      return
+    }
+
     const didOpenPreview = openBlobPreview(attachmentBlob)
 
     if (didOpenPreview) {
@@ -891,6 +1064,33 @@ async function handleOpenLinks() {
   font-size: 15px;
   font-weight: 600;
   line-height: 1.45;
+}
+
+.registration-review-detail-page__preview-passport {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.registration-review-detail-page__preview-passport-title {
+  color: var(--ios-pms-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.registration-review-detail-page__preview-passport-state {
+  display: grid;
+  justify-items: center;
+  padding: 18px 0;
+}
+
+.registration-review-detail-page__preview-passport-img {
+  display: block;
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 16px;
+  background: #ffffff;
+  cursor: zoom-in;
 }
 
 @media (max-width: 360px) {
