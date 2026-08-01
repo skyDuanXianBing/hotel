@@ -55,6 +55,7 @@ vi.mock('@ionic/vue', async () => {
     IonPage: createStub('IonPage'),
     IonRefresher: createStub('IonRefresher'),
     IonRefresherContent: createStub('IonRefresherContent'),
+    IonSearchbar: createStub('IonSearchbar'),
     IonSpinner: createStub('IonSpinner'),
     IonTextarea: createStub('IonTextarea', 'textarea'),
     IonTitle: createStub('IonTitle'),
@@ -94,6 +95,10 @@ vi.mock('@/api/message', () => ({
 
 vi.mock('@/api/reservation', () => ({
   getReservationsWithFilters: vi.fn(),
+}))
+
+vi.mock('@/api/quickReply', () => ({
+  getAllQuickReplies: vi.fn(),
 }))
 
 vi.mock('@/utils/notify', () => ({

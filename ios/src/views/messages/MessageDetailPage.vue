@@ -144,6 +144,15 @@
           >
             AI
           </ion-button>
+          <ion-button
+            class="message-composer__quick-reply"
+            fill="solid"
+            :disabled="sending || !activeThread || activeThread.closed"
+            :aria-label="t('messageDetail.quickReplyButton')"
+            @click="handleOpenQuickReplies"
+          >
+            <ion-icon :icon="chatbubbleEllipsesOutline" />
+          </ion-button>
           <div class="message-composer__input" @click="handleFocusComposer">
             <ion-textarea
               ref="composerTextareaRef"
@@ -292,6 +301,87 @@
         </div>
       </ion-content>
     </ion-modal>
+
+    <ion-modal
+      class="message-ai-modal message-quick-reply-modal"
+      :is-open="quickReplyOpen"
+      @didDismiss="handleDismissQuickReplies"
+    >
+      <ion-header translucent class="message-ai-page__header">
+        <ion-toolbar class="message-ai-page__toolbar">
+          <ion-buttons slot="start">
+            <ion-button
+              class="message-ai-page__back"
+              fill="clear"
+              :aria-label="t('messageDetail.backToConversation')"
+              @click="handleDismissQuickReplies"
+            >
+              <ion-icon :icon="chevronBackOutline" />
+              <span>{{ t('messageDetail.back') }}</span>
+            </ion-button>
+          </ion-buttons>
+          <ion-title>{{ t('messageDetail.quickReplyTitle') }}</ion-title>
+          <ion-buttons slot="end">
+            <ion-button
+              class="message-ai-page__back message-quick-reply__refresh"
+              fill="clear"
+              :disabled="quickReplyLoading"
+              :aria-label="t('messageDetail.quickReplyRefresh')"
+              @click="loadQuickReplies"
+            >
+              <ion-icon :icon="refreshOutline" />
+            </ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="mobile-page mobile-page--dashboard message-ai-page">
+        <div class="message-ai-page-shell">
+          <section class="message-ai-page-card message-quick-reply-card">
+            <ion-searchbar
+              v-model="quickReplyKeyword"
+              :debounce="0"
+              class="message-quick-reply__search"
+              :placeholder="t('messageDetail.quickReplySearchPlaceholder')"
+            />
+
+            <div v-if="quickReplyLoading" class="message-quick-reply__status">
+              <ion-spinner name="crescent" />
+              <span>{{ t('messageDetail.quickReplyLoading') }}</span>
+            </div>
+
+            <div v-else-if="quickReplyLoadFailed" class="message-quick-reply__status">
+              <p class="message-quick-reply__status-text">
+                {{ t('messageDetail.quickReplyLoadFailed') }}
+              </p>
+              <ion-button class="message-ai-action-button" @click="loadQuickReplies">
+                {{ t('messageDetail.quickReplyRetry') }}
+              </ion-button>
+            </div>
+
+            <p
+              v-else-if="filteredQuickReplies.length === 0"
+              class="message-quick-reply__status message-quick-reply__status-text"
+            >
+              {{ t('messageDetail.quickReplyEmpty') }}
+            </p>
+
+            <ul v-else class="message-quick-reply__list">
+              <li v-for="reply in filteredQuickReplies" :key="reply.id">
+                <button
+                  type="button"
+                  class="message-quick-reply__item"
+                  @click="handleSelectQuickReply(reply)"
+                >
+                  <span class="message-quick-reply__item-title">{{ reply.title }}</span>
+                  <span class="message-quick-reply__item-preview">{{ reply.message }}</span>
+                </button>
+              </li>
+            </ul>
+          </section>
+        </div>
+      </ion-content>
+    </ion-modal>
   </ion-page>
 </template>
 
@@ -309,6 +399,7 @@ import {
   IonPage,
   IonRefresher,
   IonRefresherContent,
+  IonSearchbar,
   IonSpinner,
   IonTextarea,
   IonTitle,
@@ -316,7 +407,7 @@ import {
   onIonViewWillEnter,
   onIonViewWillLeave,
 } from '@ionic/vue'
-import { chevronBackOutline, languageOutline } from 'ionicons/icons'
+import { chatbubbleEllipsesOutline, chevronBackOutline, languageOutline, refreshOutline } from 'ionicons/icons'
 import { computed, nextTick, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -331,6 +422,7 @@ import {
   sendThreadMessage,
   translateThreadMessage,
 } from '@/api/message'
+import { getAllQuickReplies, type QuickReplyDTO } from '@/api/quickReply'
 import { getReservationsWithFilters, type ReservationDTO } from '@/api/reservation'
 import { ROUTE_PATHS } from '@/router/guards'
 import type { MessageDTO, MessageThreadDTO } from '@/types/message'
@@ -424,6 +516,11 @@ const aiDraftTranslation = ref('')
 const aiDraftTranslationSource = ref('')
 const aiDraftTranslationTarget = ref<MessageTranslationLanguageValue | null>(null)
 const isAiDraftTranslationView = ref(false)
+const quickReplyOpen = ref(false)
+const quickReplyLoading = ref(false)
+const quickReplyLoadFailed = ref(false)
+const quickReplyKeyword = ref('')
+const quickReplies = ref<QuickReplyDTO[]>([])
 const translationEnabled = ref(false)
 const translationTargetLanguage = ref<MessageTranslationLanguageValue>('zh-CN')
 const translatedMessageMap = ref<Record<string, string>>({})
@@ -508,6 +605,19 @@ const activeThreadAvatarVars = computed(() => {
 const aiDraftTranslationLanguageLabel = computed(() =>
   resolveMessageTranslationLanguageLabel(translationTargetLanguage.value),
 )
+
+const filteredQuickReplies = computed(() => {
+  const keyword = quickReplyKeyword.value.trim().toLowerCase()
+  if (!keyword) {
+    return quickReplies.value
+  }
+
+  return quickReplies.value.filter(
+    (item) =>
+      item.title.toLowerCase().includes(keyword) ||
+      item.message.toLowerCase().includes(keyword),
+  )
+})
 
 const headerCaption = computed(() => {
   if (!activeThread.value) {
@@ -1523,6 +1633,61 @@ function handleDismissAiDraft() {
   isAiDraftTranslationView.value = false
 }
 
+let quickReplyFocusComposerOnDismiss = false
+
+async function loadQuickReplies() {
+  quickReplyLoading.value = true
+  quickReplyLoadFailed.value = false
+  try {
+    const response = await getAllQuickReplies()
+    if (!response.success || !response.data) {
+      throw new Error(response.message || t('messageDetail.quickReplyLoadFailed'))
+    }
+
+    quickReplies.value = response.data
+  } catch (error) {
+    quickReplies.value = []
+    quickReplyLoadFailed.value = true
+    if (!isHandledRequestError(error)) {
+      showWarningToast(resolveWarningMessage(error, t('messageDetail.quickReplyLoadFailed')))
+    }
+  } finally {
+    quickReplyLoading.value = false
+  }
+}
+
+function handleOpenQuickReplies() {
+  if (!activeThread.value || activeThread.value.closed) {
+    return
+  }
+
+  quickReplyKeyword.value = ''
+  quickReplyOpen.value = true
+  void loadQuickReplies()
+}
+
+function handleDismissQuickReplies() {
+  quickReplyOpen.value = false
+  if (quickReplyFocusComposerOnDismiss) {
+    quickReplyFocusComposerOnDismiss = false
+    void nextTick(() => {
+      handleFocusComposer()
+    })
+  }
+}
+
+function handleSelectQuickReply(reply: QuickReplyDTO) {
+  const replyMessage = reply.message.trim()
+  if (!replyMessage) {
+    return
+  }
+
+  const currentMessage = composerValue.value.trim()
+  composerValue.value = currentMessage ? `${currentMessage}\n\n${replyMessage}` : replyMessage
+  quickReplyFocusComposerOnDismiss = true
+  quickReplyOpen.value = false
+}
+
 function clearAiDraftTranslation() {
   aiDraftTranslation.value = ''
   aiDraftTranslationSource.value = ''
@@ -1987,6 +2152,7 @@ ion-header::after {
 }
 
 .message-composer__ai,
+.message-composer__quick-reply,
 .message-composer__send {
   margin: 0;
   min-height: 44px;
@@ -2006,6 +2172,27 @@ ion-header::after {
   --border-radius: 50%;
   width: 44px;
   min-width: 44px;
+}
+
+.message-composer__quick-reply {
+  --background: #ffffff;
+  --background-activated: #eef4fb;
+  --background-hover: #ffffff;
+  --box-shadow: 0 4px 14px rgba(68, 91, 132, 0.06);
+  --color: #2f9cff;
+  --padding-start: 0;
+  --padding-end: 0;
+  --border-radius: 50%;
+  width: 44px;
+  min-width: 44px;
+}
+
+.message-composer__quick-reply ion-icon {
+  font-size: 20px;
+}
+
+.message-composer__quick-reply[disabled] {
+  opacity: 0.52;
 }
 
 .message-composer__input {
@@ -2332,6 +2519,86 @@ ion-modal.message-ai-modal {
 .message-ai-action-button[disabled],
 .message-ai-fill-button[disabled] {
   opacity: 0.52;
+}
+
+.message-quick-reply-card {
+  gap: var(--ios-pms-space-4);
+}
+
+.message-quick-reply__search {
+  min-height: 40px;
+  margin: 0;
+  padding: 0;
+  --background: #f4f6fa;
+  --border-radius: 20px;
+  --box-shadow: none;
+  --color: var(--ios-pms-text-primary);
+  --icon-color: var(--ios-pms-text-muted);
+  --placeholder-color: var(--ios-pms-text-muted);
+  --placeholder-opacity: 0.72;
+  --clear-button-color: var(--ios-pms-text-muted);
+}
+
+.message-quick-reply__status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ios-pms-space-3);
+  min-height: 140px;
+  margin: 0;
+  color: var(--ios-pms-text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.message-quick-reply__status-text {
+  margin: 0;
+}
+
+.message-quick-reply__list {
+  display: grid;
+  gap: var(--ios-pms-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.message-quick-reply__item {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: var(--ios-pms-space-3) var(--ios-pms-space-4);
+  border: 1px solid var(--ios-pms-border-soft);
+  border-radius: 12px;
+  background: #ffffff;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+}
+
+.message-quick-reply__item:active {
+  background: #f2f6fb;
+}
+
+.message-quick-reply__item-title {
+  color: var(--ios-pms-text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.message-quick-reply__item-preview {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ios-pms-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 @media (max-width: 374px) {
