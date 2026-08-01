@@ -357,13 +357,76 @@ onIonViewWillEnter(async () => {
   font-weight: 700;
 }
 
+.price-history-page .mobile-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.price-history-page .mobile-chip {
+  min-width: 0;
+  min-height: 24px;
+  padding: 2px 10px;
+  border-color: rgba(var(--ion-color-primary-rgb), 0.1);
+  background: rgba(var(--ion-color-primary-rgb), 0.07);
+  color: rgba(var(--ion-color-primary-rgb), 0.88);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.price-history-page .mobile-stack {
+  gap: 18px;
+  margin-top: 10px;
+  padding-bottom: 4px;
+}
+
+.price-history-page .mobile-stack > .mobile-card {
+  min-width: 0;
+  padding: 22px 16px 24px;
+  border: 1px solid var(--ios-pms-dashboard-card-border);
+  border-radius: var(--ios-pms-radius-card);
+  background: var(--ios-pms-dashboard-card-background);
+  box-shadow: var(--ios-pms-dashboard-card-shadow);
+}
+
 .price-history-page__filter-card {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .price-history-page__section-header {
   align-items: flex-start;
+}
+
+.price-history-page__section-header > div {
+  min-width: 0;
+}
+
+.price-history-page__section-header .mobile-section-title {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 22px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.price-history-page__section-header .mobile-note {
+  margin-top: 5px;
+  color: var(--ios-pms-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.price-history-page__section-header ion-button,
+.price-history-page__section-header ion-spinner {
+  flex-shrink: 0;
 }
 
 .price-history-page__filter-grid {
@@ -389,12 +452,14 @@ onIonViewWillEnter(async () => {
 
 .price-history-page__field input,
 .price-history-page__field select {
+  box-sizing: border-box;
+  width: 100%;
   min-height: 44px;
   padding: 10px 12px;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--app-heading);
+  border: 1px solid rgba(130, 143, 165, 0.24);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--ios-pms-text-primary);
   font: inherit;
 }
 
@@ -406,19 +471,55 @@ onIonViewWillEnter(async () => {
   flex-wrap: wrap;
 }
 
+.price-history-page__actions ion-button,
+.price-history-page__load-more ion-button {
+  min-height: 29px;
+  margin: 0;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --border-radius: 9px;
+  --box-shadow: none;
+  font-size: 14px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
+}
+
+.price-history-page__actions ion-button::part(native),
+.price-history-page__load-more ion-button::part(native) {
+  min-height: 29px;
+  border: 1px solid rgba(130, 143, 165, 0.24);
+  border-radius: 9px;
+  box-shadow: none;
+  line-height: 1.2;
+}
+
+.price-history-page__actions ion-button[fill='outline'],
+.price-history-page__load-more ion-button[fill='outline'] {
+  --background: rgba(255, 255, 255, 0.88);
+  --color: var(--ios-pms-primary);
+  --border-color: rgba(130, 143, 165, 0.24);
+}
+
 .price-history-page__error {
   color: var(--ion-color-danger);
 }
 
 .price-history-page__list {
-  margin-top: 16px;
+  margin-top: 21px;
+  gap: 17px;
 }
 
 .price-history-page__record-card {
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid var(--app-border);
-  background: rgba(255, 255, 255, 0.82);
+  min-width: 0;
+  padding: 14px 15px;
+  border: 1px solid rgba(130, 143, 165, 0.2);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.88) inset,
+    0 8px 18px rgba(77, 98, 145, 0.035);
 }
 
 .price-history-page__record-header {
@@ -428,24 +529,55 @@ onIonViewWillEnter(async () => {
   align-items: flex-start;
 }
 
+.price-history-page__record-header > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
 .price-history-page__record-header strong,
 .price-history-page__record-header p {
   margin: 0;
 }
 
+.price-history-page__record-header strong {
+  color: var(--ios-pms-text-primary);
+  font-size: 20px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.15;
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .price-history-page__record-header p {
-  margin-top: 6px;
-  color: var(--app-muted);
+  color: var(--ios-pms-text-muted);
   font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .price-history-page__record-header span {
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--app-primary-soft);
-  color: var(--ion-color-primary);
-  font-size: 12px;
-  font-weight: 600;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  margin-top: -2px;
+  padding: 0 10px;
+  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.1);
+  border-radius: var(--ios-pms-radius-pill);
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
+  color: var(--ios-pms-primary);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .price-history-page__record-grid {
@@ -453,18 +585,49 @@ onIonViewWillEnter(async () => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px 12px;
   margin-top: 14px;
-  color: var(--app-muted);
+  color: var(--ios-pms-text-muted);
   font-size: 12px;
+}
+
+.price-history-page__record-grid span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 
 .price-history-page__record-note {
   margin-top: 12px;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 520px) {
   .price-history-page__filter-grid,
   .price-history-page__record-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 374px) {
+  .price-history-page {
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
+
+  .price-history-page .mobile-stack > .mobile-card {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .price-history-page__section-header .mobile-section-title {
+    font-size: 20px;
+  }
+
+  .price-history-page__record-card {
+    padding: 13px 13px 14px;
+  }
+
+  .price-history-page__record-header strong {
+    font-size: 19px;
   }
 }
 </style>

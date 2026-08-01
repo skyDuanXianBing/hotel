@@ -502,14 +502,78 @@ onIonViewWillEnter(async () => {
   font-weight: 700;
 }
 
+.cleaning-task-list-page .mobile-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.cleaning-task-list-page .mobile-chip {
+  min-width: 0;
+  min-height: 24px;
+  padding: 2px 10px;
+  border-color: rgba(var(--ion-color-primary-rgb), 0.1);
+  background: rgba(var(--ion-color-primary-rgb), 0.07);
+  color: rgba(var(--ion-color-primary-rgb), 0.88);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.cleaning-task-list-page .mobile-stack {
+  gap: 18px;
+  margin-top: 10px;
+  padding-bottom: 4px;
+}
+
+.cleaning-task-list-page .mobile-stack > .mobile-card {
+  min-width: 0;
+  padding: 22px 16px 24px;
+  border: 1px solid var(--ios-pms-dashboard-card-border);
+  border-radius: var(--ios-pms-radius-card);
+  background: var(--ios-pms-dashboard-card-background);
+  box-shadow: var(--ios-pms-dashboard-card-shadow);
+}
+
 .cleaning-task-list-page__filter-card,
 .cleaning-task-list-page__detail-card {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .cleaning-task-list-page__section-header {
   align-items: flex-start;
+}
+
+.cleaning-task-list-page__section-header > div {
+  min-width: 0;
+}
+
+.cleaning-task-list-page__section-header .mobile-section-title,
+.cleaning-task-list-page .mobile-stack > .mobile-card > .mobile-section-title {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 22px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.cleaning-task-list-page__section-header .mobile-note {
+  margin-top: 5px;
+  color: var(--ios-pms-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.cleaning-task-list-page__section-header ion-button,
+.cleaning-task-list-page__section-header ion-spinner {
+  flex-shrink: 0;
 }
 
 .cleaning-task-list-page__filter-grid,
@@ -536,12 +600,14 @@ onIonViewWillEnter(async () => {
 
 .cleaning-task-list-page__field input,
 .cleaning-task-list-page__field select {
+  box-sizing: border-box;
+  width: 100%;
   min-height: 44px;
   padding: 10px 12px;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--app-heading);
+  border: 1px solid rgba(130, 143, 165, 0.24);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--ios-pms-text-primary);
   font: inherit;
 }
 
@@ -554,26 +620,72 @@ onIonViewWillEnter(async () => {
   flex-wrap: wrap;
 }
 
+.cleaning-task-list-page__actions ion-button,
+.cleaning-task-list-page__task-actions ion-button,
+.cleaning-task-list-page__load-more ion-button {
+  min-height: 29px;
+  margin: 0;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --border-radius: 9px;
+  --box-shadow: none;
+  font-size: 14px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
+}
+
+.cleaning-task-list-page__actions ion-button::part(native),
+.cleaning-task-list-page__task-actions ion-button::part(native),
+.cleaning-task-list-page__load-more ion-button::part(native) {
+  min-height: 29px;
+  border: 1px solid rgba(130, 143, 165, 0.24);
+  border-radius: 9px;
+  box-shadow: none;
+  line-height: 1.2;
+}
+
+.cleaning-task-list-page__actions ion-button[fill='outline'],
+.cleaning-task-list-page__task-actions ion-button[fill='outline'],
+.cleaning-task-list-page__load-more ion-button[fill='outline'] {
+  --background: rgba(255, 255, 255, 0.88);
+  --color: var(--ios-pms-primary);
+  --border-color: rgba(130, 143, 165, 0.24);
+}
+
 .cleaning-task-list-page__error {
   color: var(--ion-color-danger);
 }
 
 .cleaning-task-list-page__list {
-  margin-top: 16px;
+  margin-top: 21px;
+  gap: 17px;
 }
 
 .cleaning-task-list-page__task-card {
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid var(--app-border);
-  background: rgba(255, 255, 255, 0.82);
+  min-width: 0;
+  padding: 14px 15px;
+  border: 1px solid rgba(130, 143, 165, 0.2);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.88) inset,
+    0 8px 18px rgba(77, 98, 145, 0.035);
 }
 
 .cleaning-task-list-page__task-header {
+  min-width: 0;
   display: flex;
   justify-content: space-between;
   gap: 12px;
   align-items: flex-start;
+}
+
+.cleaning-task-list-page__task-header > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
 }
 
 .cleaning-task-list-page__task-header strong,
@@ -581,17 +693,42 @@ onIonViewWillEnter(async () => {
   margin: 0;
 }
 
+.cleaning-task-list-page__task-header strong {
+  color: var(--ios-pms-text-primary);
+  font-size: 20px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.15;
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cleaning-task-list-page__task-header p {
-  margin-top: 6px;
-  color: var(--app-muted);
+  color: var(--ios-pms-text-muted);
   font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cleaning-task-list-page__task-header span {
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  margin-top: -2px;
+  padding: 0 10px;
+  border-radius: var(--ios-pms-radius-pill);
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .cleaning-task-list-page__task-header span.is-expired {
@@ -620,8 +757,21 @@ onIonViewWillEnter(async () => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px 12px;
   margin-top: 14px;
-  color: var(--app-muted);
+  color: var(--ios-pms-text-muted);
   font-size: 12px;
+}
+
+.cleaning-task-list-page__task-grid span,
+.cleaning-task-list-page__detail-grid span,
+.cleaning-task-list-page__detail-card .mobile-note,
+.cleaning-task-list-page .mobile-bullet-list li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
+.cleaning-task-list-page .mobile-bullet-list {
+  margin-top: 14px;
 }
 
 .cleaning-task-list-page__modal-page {
@@ -636,6 +786,31 @@ onIonViewWillEnter(async () => {
   .cleaning-task-list-page__detail-grid,
   .cleaning-task-list-page__task-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 374px) {
+  .cleaning-task-list-page {
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
+
+  .cleaning-task-list-page .mobile-stack > .mobile-card {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .cleaning-task-list-page__section-header .mobile-section-title,
+  .cleaning-task-list-page .mobile-stack > .mobile-card > .mobile-section-title {
+    font-size: 20px;
+  }
+
+  .cleaning-task-list-page__task-card {
+    padding: 13px 13px 14px;
+  }
+
+  .cleaning-task-list-page__task-header strong {
+    font-size: 19px;
   }
 }
 </style>

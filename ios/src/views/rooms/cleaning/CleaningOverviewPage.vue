@@ -55,7 +55,7 @@
           <p v-if="errorMessage" class="mobile-note cleaning-overview-page__error">{{ errorMessage }}</p>
         </section>
 
-        <section class="mobile-card">
+        <section class="mobile-card cleaning-overview-page__task-card">
           <div class="mobile-inline-row cleaning-overview-page__section-header">
             <div>
               <h2 class="mobile-section-title">{{ $t('iosStage5.cleaning.taskWindow') }}</h2>
@@ -67,15 +67,15 @@
           <div v-if="roomGroups.length > 0" class="mobile-list cleaning-overview-page__group-list">
             <section v-for="group in roomGroups" :key="group.roomType" class="cleaning-overview-page__group-card">
               <div class="cleaning-overview-page__group-header">
-                <strong>{{ group.roomType }}</strong>
+                <strong :title="group.roomType">{{ group.roomType }}</strong>
                 <span>{{ group.rooms.length }} {{ $t('iosStage5.cleaning.roomCountUnit') }}</span>
               </div>
 
               <div class="mobile-list cleaning-overview-page__room-list">
                 <article v-for="room in group.rooms" :key="room.roomId" class="cleaning-overview-page__room-card">
                   <div class="cleaning-overview-page__room-header">
-                    <strong>{{ room.roomNumber }}</strong>
-                    <span>{{ room.roomType }}</span>
+                    <strong :title="room.roomNumber">{{ room.roomNumber }}</strong>
+                    <span :title="room.roomType">{{ room.roomType }}</span>
                   </div>
 
                   <div class="cleaning-overview-page__date-strip">
@@ -678,10 +678,47 @@ onIonViewWillEnter(async () => {
   font-weight: 700;
 }
 
+.cleaning-overview-page .mobile-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.cleaning-overview-page .mobile-chip {
+  min-width: 0;
+  min-height: 24px;
+  padding: 2px 10px;
+  border-color: rgba(var(--ion-color-primary-rgb), 0.1);
+  background: rgba(var(--ion-color-primary-rgb), 0.07);
+  color: rgba(var(--ion-color-primary-rgb), 0.88);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.cleaning-overview-page .mobile-stack {
+  gap: 18px;
+  margin-top: 10px;
+  padding-bottom: 4px;
+}
+
+.cleaning-overview-page .mobile-stack > .mobile-card {
+  min-width: 0;
+  padding: 22px 16px 24px;
+  border: 1px solid var(--ios-pms-dashboard-card-border);
+  border-radius: var(--ios-pms-radius-card);
+  background: var(--ios-pms-dashboard-card-background);
+  box-shadow: var(--ios-pms-dashboard-card-shadow);
+}
+
 .cleaning-overview-page__toolbar-card,
 .cleaning-overview-page__detail-card {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .cleaning-overview-page__toolbar-row,
@@ -690,6 +727,37 @@ onIonViewWillEnter(async () => {
   gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.cleaning-overview-page__toolbar-row ion-button,
+.cleaning-overview-page__modal-actions ion-button {
+  min-height: 29px;
+  margin: 0;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --border-radius: 9px;
+  --box-shadow: none;
+  font-size: 14px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
+}
+
+.cleaning-overview-page__toolbar-row ion-button::part(native),
+.cleaning-overview-page__modal-actions ion-button::part(native) {
+  min-height: 29px;
+  border: 1px solid rgba(130, 143, 165, 0.24);
+  border-radius: 9px;
+  box-shadow: none;
+  line-height: 1.2;
+}
+
+.cleaning-overview-page__toolbar-row ion-button[fill='outline'],
+.cleaning-overview-page__modal-actions ion-button[fill='outline'] {
+  --background: rgba(255, 255, 255, 0.88);
+  --color: var(--ios-pms-primary);
+  --border-color: rgba(130, 143, 165, 0.24);
 }
 
 .cleaning-overview-page__filter-grid,
@@ -717,12 +785,14 @@ onIonViewWillEnter(async () => {
 .cleaning-overview-page__field input,
 .cleaning-overview-page__field select,
 .cleaning-overview-page__field textarea {
+  box-sizing: border-box;
+  width: 100%;
   min-height: 44px;
   padding: 10px 12px;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--app-heading);
+  border: 1px solid rgba(130, 143, 165, 0.24);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--ios-pms-text-primary);
   font: inherit;
 }
 
@@ -739,8 +809,44 @@ onIonViewWillEnter(async () => {
   align-items: flex-start;
 }
 
+.cleaning-overview-page__section-header > div {
+  min-width: 0;
+}
+
+.cleaning-overview-page__section-header .mobile-section-title {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 22px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.cleaning-overview-page__section-header .mobile-note {
+  margin-top: 5px;
+  color: var(--ios-pms-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.cleaning-overview-page__section-header ion-spinner {
+  flex-shrink: 0;
+  color: var(--ios-pms-primary);
+}
+
+.cleaning-overview-page__task-card,
+.cleaning-overview-page__group-list,
+.cleaning-overview-page__group-card,
+.cleaning-overview-page__room-list,
+.cleaning-overview-page__room-card {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .cleaning-overview-page__group-list {
-  margin-top: 16px;
+  margin-top: 21px;
+  gap: 17px;
 }
 
 .cleaning-overview-page__group-card,
@@ -749,34 +855,112 @@ onIonViewWillEnter(async () => {
   gap: 12px;
 }
 
+.cleaning-overview-page__group-card {
+  padding: 14px 15px;
+  border: 1px solid rgba(130, 143, 165, 0.2);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.88) inset,
+    0 8px 18px rgba(77, 98, 145, 0.035);
+}
+
+.cleaning-overview-page__room-list {
+  gap: 12px;
+}
+
+.cleaning-overview-page__room-card {
+  padding: 12px;
+  border: 1px solid rgba(130, 143, 165, 0.16);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(248, 250, 252, 0.68);
+}
+
 .cleaning-overview-page__group-header,
 .cleaning-overview-page__room-header {
+  min-width: 0;
   display: flex;
   justify-content: space-between;
   gap: 12px;
   align-items: center;
 }
 
+.cleaning-overview-page__group-header strong,
+.cleaning-overview-page__room-header strong,
+.cleaning-overview-page__room-header span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cleaning-overview-page__group-header strong {
+  flex: 1 1 auto;
+  color: var(--ios-pms-text-primary);
+  font-size: 20px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.cleaning-overview-page__group-header span {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 1px solid rgba(130, 143, 165, 0.18);
+  border-radius: var(--ios-pms-radius-pill);
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--ios-pms-text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.cleaning-overview-page__room-header strong,
+.cleaning-overview-page__room-header span {
+  flex: 1 1 0;
+}
+
+.cleaning-overview-page__room-header strong {
+  color: var(--ios-pms-text-primary);
+  font-size: 15px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.2;
+}
+
 .cleaning-overview-page__group-header span,
 .cleaning-overview-page__room-header span {
-  color: var(--app-muted);
+  color: var(--ios-pms-text-muted);
   font-size: 12px;
 }
 
 .cleaning-overview-page__date-strip {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   gap: 10px;
   overflow-x: auto;
+  overflow-y: hidden;
   padding-bottom: 4px;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .cleaning-overview-page__date-cell {
   flex: 0 0 132px;
+  min-width: 0;
   display: grid;
   gap: 10px;
   padding: 12px;
-  border-radius: 16px;
-  background: rgba(16, 35, 63, 0.04);
+  border: 1px solid rgba(130, 143, 165, 0.16);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.86);
+  overflow: hidden;
 }
 
 .cleaning-overview-page__date-title {
@@ -785,28 +969,36 @@ onIonViewWillEnter(async () => {
 }
 
 .cleaning-overview-page__date-title strong {
-  color: var(--app-heading);
+  color: var(--ios-pms-text-primary);
   font-size: 14px;
+  font-weight: var(--ios-pms-weight-medium);
 }
 
 .cleaning-overview-page__date-title span {
-  color: var(--app-muted);
+  color: var(--ios-pms-text-muted);
   font-size: 12px;
 }
 
 .cleaning-overview-page__task-stack {
   display: grid;
   gap: 8px;
+  min-width: 0;
 }
 
 .cleaning-overview-page__task-badge,
 .cleaning-overview-page__empty-action {
-  min-height: 40px;
+  min-width: 0;
+  min-height: 34px;
   padding: 8px 10px;
   border: none;
-  border-radius: 14px;
+  border-radius: 10px;
   font: inherit;
+  font-size: 12px;
+  font-weight: var(--ios-pms-weight-medium);
   color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cleaning-overview-page__task-badge.is-expired {
@@ -830,9 +1022,9 @@ onIonViewWillEnter(async () => {
 }
 
 .cleaning-overview-page__empty-action {
-  border: 1px dashed rgba(15, 23, 42, 0.12);
+  border: 1px dashed rgba(130, 143, 165, 0.24);
   background: rgba(255, 255, 255, 0.92);
-  color: var(--app-muted);
+  color: var(--ios-pms-text-muted);
 }
 
 .cleaning-overview-page__modal-page {
@@ -846,6 +1038,30 @@ onIonViewWillEnter(async () => {
   .cleaning-overview-page__filter-grid,
   .cleaning-overview-page__detail-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 374px) {
+  .cleaning-overview-page {
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
+
+  .cleaning-overview-page .mobile-stack > .mobile-card {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .cleaning-overview-page__section-header .mobile-section-title {
+    font-size: 20px;
+  }
+
+  .cleaning-overview-page__group-card {
+    padding: 13px;
+  }
+
+  .cleaning-overview-page__group-header strong {
+    font-size: 19px;
   }
 }
 </style>

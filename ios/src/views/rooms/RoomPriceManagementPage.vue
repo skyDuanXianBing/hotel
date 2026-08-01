@@ -87,7 +87,7 @@
           <p v-if="errorMessage" class="mobile-note room-price-page__error">{{ errorMessage }}</p>
         </section>
 
-        <section class="mobile-card">
+        <section class="mobile-card room-price-page__matrix-card">
           <div class="mobile-inline-row room-price-page__section-header">
             <div>
               <h2 class="mobile-section-title">{{ $t('stage5VisibleText.233') }}</h2>
@@ -127,9 +127,11 @@
                 :style="matrixGridStyle"
               >
                 <div class="room-price-page__matrix-leading room-price-page__matrix-leading--body">
-                  <strong>{{ row.roomTypeName }}</strong>
-                  <span>{{ row.pricePlanName }}</span>
-                  <small>{{ row.roomTypeCode || $t('stage5DynamicUi.51') }}</small>
+                  <strong :title="row.roomTypeName">{{ row.roomTypeName }}</strong>
+                  <span :title="row.pricePlanName">{{ row.pricePlanName }}</span>
+                  <small :title="row.roomTypeCode || $t('stage5DynamicUi.51')">
+                    {{ row.roomTypeCode || $t('stage5DynamicUi.51') }}
+                  </small>
                 </div>
 
                 <button
@@ -151,7 +153,7 @@
           <p v-else-if="!loading" class="mobile-note">{{ $t('stage5VisibleText.165') }}</p>
         </section>
 
-        <section class="mobile-card">
+        <section class="mobile-card room-price-page__tips-card">
           <h2 class="mobile-section-title">{{ $t('stage5VisibleText.220') }}</h2>
           <ul class="mobile-bullet-list">
             <li>{{ $t('stage5VisibleText.187') }}</li>
@@ -1788,7 +1790,16 @@ onIonViewWillEnter(async () => {
   margin-top: 12px;
 }
 
+.room-price-page__matrix-card,
+.room-price-page__tips-card {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .room-price-page__matrix-shell {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   margin-top: 16px;
   border: 1px solid var(--app-border);
   border-radius: 20px;
@@ -1797,12 +1808,18 @@ onIonViewWillEnter(async () => {
 }
 
 .room-price-page__matrix-scroll {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .room-price-page__matrix-row {
   display: grid;
+  width: max-content;
   min-width: max-content;
 }
 
@@ -1816,9 +1833,11 @@ onIonViewWillEnter(async () => {
 .room-price-page__matrix-header-cell,
 .room-price-page__matrix-cell {
   min-height: 88px;
+  min-width: 0;
   padding: 10px;
   border-right: 1px solid rgba(15, 23, 42, 0.08);
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  overflow: hidden;
 }
 
 .room-price-page__matrix-leading {
@@ -1850,6 +1869,22 @@ onIonViewWillEnter(async () => {
   color: var(--app-muted);
   font-size: 11px;
   line-height: 1.4;
+}
+
+.room-price-page__matrix-leading strong,
+.room-price-page__matrix-leading span,
+.room-price-page__matrix-leading small,
+.room-price-page__matrix-header-cell strong,
+.room-price-page__matrix-header-cell span,
+.room-price-page__matrix-cell strong,
+.room-price-page__matrix-cell span,
+.room-price-page__matrix-cell small {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .room-price-page__matrix-header-cell {
@@ -1900,6 +1935,19 @@ onIonViewWillEnter(async () => {
 .room-price-page__matrix-cell strong {
   color: var(--ion-color-primary);
   font-size: 14px;
+}
+
+.room-price-page__tips-card .mobile-bullet-list {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.room-price-page__tips-card .mobile-bullet-list li {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .room-price-page__group-list {
@@ -2138,6 +2186,305 @@ onIonViewWillEnter(async () => {
   flex-wrap: wrap;
 }
 
+.room-price-page .mobile-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.room-price-page .mobile-chip {
+  min-width: 0;
+  min-height: 24px;
+  padding: 2px 10px;
+  border-color: rgba(var(--ion-color-primary-rgb), 0.1);
+  background: rgba(var(--ion-color-primary-rgb), 0.07);
+  color: rgba(var(--ion-color-primary-rgb), 0.88);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.room-price-page .mobile-stack {
+  gap: 18px;
+  margin-top: 10px;
+  padding-bottom: 4px;
+}
+
+.room-price-page .mobile-stack > .mobile-card,
+.room-price-page__modal-page .room-price-page__editor-card {
+  min-width: 0;
+  padding: 22px 16px 24px;
+  border: 1px solid var(--ios-pms-dashboard-card-border);
+  border-radius: var(--ios-pms-radius-card);
+  background: var(--ios-pms-dashboard-card-background);
+  box-shadow: var(--ios-pms-dashboard-card-shadow);
+}
+
+.room-price-page__toolbar-card,
+.room-price-page__editor-card {
+  gap: 16px;
+}
+
+.room-price-page__toolbar-row ion-button,
+.room-price-page__weekday-actions ion-button,
+.room-price-page__editor-actions ion-button {
+  min-height: 29px;
+  margin: 0;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --border-radius: 9px;
+  --box-shadow: none;
+  font-size: 14px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0;
+}
+
+.room-price-page__toolbar-row ion-button::part(native),
+.room-price-page__weekday-actions ion-button::part(native),
+.room-price-page__editor-actions ion-button::part(native) {
+  min-height: 29px;
+  border: 1px solid rgba(130, 143, 165, 0.24);
+  border-radius: 9px;
+  box-shadow: none;
+  line-height: 1.2;
+}
+
+.room-price-page__toolbar-row ion-button[fill='outline'],
+.room-price-page__weekday-actions ion-button[fill='clear'],
+.room-price-page__editor-actions ion-button[fill='outline'] {
+  --background: rgba(255, 255, 255, 0.88);
+  --color: var(--ios-pms-primary);
+  --border-color: rgba(130, 143, 165, 0.24);
+}
+
+.room-price-page__preset-chip,
+.room-price-page__selection-chip,
+.room-price-page__weekday-button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(130, 143, 165, 0.24);
+  border-radius: var(--ios-pms-radius-pill);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--ios-pms-text-muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.room-price-page__preset-chip.is-active,
+.room-price-page__selection-chip.is-active,
+.room-price-page__weekday-button.is-active {
+  border-color: rgba(var(--ion-color-primary-rgb), 0.22);
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
+  color: var(--ios-pms-primary);
+  font-weight: var(--ios-pms-weight-medium);
+}
+
+.room-price-page__field span,
+.room-price-page__weekday-section span {
+  color: var(--ios-pms-text-primary);
+  font-weight: var(--ios-pms-weight-medium);
+}
+
+.room-price-page__field input,
+.room-price-page__field select,
+.room-price-page__field textarea {
+  padding: 10px 12px;
+  border: 1px solid rgba(130, 143, 165, 0.24);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--ios-pms-text-primary);
+  text-align: left;
+}
+
+.room-price-page__field input[type='date'],
+.room-price-page__field input[type='number'],
+.room-price-page__field select {
+  text-align: center;
+}
+
+.room-price-page__section-header > div {
+  min-width: 0;
+}
+
+.room-price-page__section-header .mobile-section-title,
+.room-price-page__tips-card > .mobile-section-title {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 22px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.room-price-page__section-header .mobile-note {
+  margin-top: 5px;
+  color: var(--ios-pms-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.room-price-page__section-header ion-spinner {
+  flex-shrink: 0;
+  color: var(--ios-pms-primary);
+}
+
+.room-price-page__summary-row {
+  margin-top: 14px;
+}
+
+.room-price-page__matrix-shell {
+  margin-top: 18px;
+  border: 1px solid rgba(130, 143, 165, 0.2);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.88) inset,
+    0 8px 18px rgba(77, 98, 145, 0.035);
+}
+
+.room-price-page__matrix-leading,
+.room-price-page__matrix-header-cell,
+.room-price-page__matrix-cell {
+  border-color: rgba(130, 143, 165, 0.16);
+}
+
+.room-price-page__matrix-leading,
+.room-price-page__matrix-header-cell {
+  background: rgba(248, 250, 252, 0.98);
+}
+
+.room-price-page__matrix-leading strong,
+.room-price-page__matrix-header-cell strong {
+  color: var(--ios-pms-text-primary);
+  font-weight: var(--ios-pms-weight-medium);
+}
+
+.room-price-page__matrix-cell {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.room-price-page__matrix-cell strong {
+  color: var(--ios-pms-primary);
+  font-weight: var(--ios-pms-weight-medium);
+}
+
+.room-price-page__matrix-leading span,
+.room-price-page__matrix-leading small,
+.room-price-page__matrix-header-cell span,
+.room-price-page__matrix-cell span,
+.room-price-page__matrix-cell small {
+  color: var(--ios-pms-text-muted);
+}
+
+.room-price-page__matrix-header-cell.is-today {
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
+}
+
+.room-price-page__matrix-header-cell.is-weekend strong,
+.room-price-page__matrix-header-cell.is-weekend span {
+  color: var(--ios-pms-primary);
+}
+
+.room-price-page__matrix-cell.is-empty {
+  background: rgba(248, 250, 252, 0.74);
+}
+
+.room-price-page__matrix-cell.is-unavailable {
+  background: rgba(244, 63, 94, 0.07);
+}
+
+.room-price-page__matrix-cell.is-closed {
+  box-shadow: inset 0 0 0 1px rgba(244, 63, 94, 0.2);
+}
+
+.room-price-page__matrix-cell.is-manual {
+  box-shadow: inset 0 0 0 1px rgba(var(--ion-color-primary-rgb), 0.2);
+}
+
+.room-price-page__tips-card .mobile-bullet-list {
+  margin-top: 14px;
+  color: var(--ios-pms-text-muted);
+}
+
+.room-price-page__tips-card .mobile-bullet-list li {
+  line-height: 1.45;
+}
+
+.room-price-page__editor-title {
+  min-width: 0;
+}
+
+.room-price-page__editor-title strong {
+  color: var(--ios-pms-text-primary);
+  font-size: 20px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-price-page__editor-title span,
+.room-price-page__editor-current-header span {
+  color: var(--ios-pms-text-muted);
+}
+
+.room-price-page__editor-title span,
+.room-price-page__editor-current .mobile-note,
+.room-price-page__weekday-hint,
+.room-price-page__toggle-row p {
+  overflow-wrap: anywhere;
+}
+
+.room-price-page__editor-current,
+.room-price-page__bulk-range-item,
+.room-price-page__toggle-row {
+  border: 1px solid rgba(130, 143, 165, 0.16);
+  border-radius: var(--ios-pms-radius-input);
+  background: rgba(248, 250, 252, 0.68);
+}
+
+.room-price-page__tag-row span {
+  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.1);
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
+  color: var(--ios-pms-primary);
+  font-weight: var(--ios-pms-weight-medium);
+}
+
+.room-price-page__bulk-section-header {
+  min-width: 0;
+}
+
+.room-price-page__bulk-section-header strong,
+.room-price-page__toggle-row strong {
+  min-width: 0;
+  color: var(--ios-pms-text-primary);
+  font-weight: var(--ios-pms-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.room-price-page__selection-grid,
+.room-price-page__weekday-grid {
+  min-width: 0;
+}
+
+.room-price-page__selection-chip,
+.room-price-page__weekday-button {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 520px) {
   .room-price-page__filter-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -2148,6 +2495,28 @@ onIonViewWillEnter(async () => {
   .room-price-page__matrix-cell {
     min-height: 84px;
     padding: 8px;
+  }
+}
+
+@media (max-width: 374px) {
+  .room-price-page {
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
+
+  .room-price-page .mobile-stack > .mobile-card,
+  .room-price-page__modal-page .room-price-page__editor-card {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .room-price-page__section-header .mobile-section-title,
+  .room-price-page__tips-card > .mobile-section-title {
+    font-size: 20px;
+  }
+
+  .room-price-page__editor-title strong {
+    font-size: 19px;
   }
 }
 </style>
