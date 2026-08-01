@@ -215,7 +215,8 @@ public class SuMessagingService {
             return;
         }
 
-        SuMessageThread thread = threadRepository.findByStoreIdAndChannelIdAndThreadKey(storeId, channelId, threadKey)
+        // 悲观写锁锁定 thread 行，统一并发事务加锁顺序，降低死锁概率（仅此入口加锁，其他调用点保持非锁读）
+        SuMessageThread thread = threadRepository.findForUpdateByStoreIdAndChannelIdAndThreadKey(storeId, channelId, threadKey)
                 .orElseGet(() -> {
                     SuMessageThread t = new SuMessageThread();
                     t.setStoreId(storeId);

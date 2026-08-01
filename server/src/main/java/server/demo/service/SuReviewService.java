@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -136,15 +135,14 @@ public class SuReviewService {
                 .and(channelSpecification(channelId))
                 .and(reservationSpecification(reservationId))
                 .and(searchSpecification(normalizedSearch))
-                .and(tabSpecification(normalizedTab));
+                .and(tabSpecification(normalizedTab))
+                .and(listOrderSpecification());
 
-        Sort sort = Sort.by(
-                Sort.Order.desc("receivedAt").nullsLast(),
-                Sort.Order.desc("id")
-        );
+        // 排序在 Specification 的 Criteria orderBy 中表达（nullsLast 的 Sort 走 Criteria 路径会抛
+        // UnsupportedOperationException），因此分页使用不带 Sort 的 PageRequest。
         Page<ChannelReview> result = reviewRepository.findAll(
                 specification,
-                PageRequest.of(normalizedPage, normalizedSize, sort)
+                PageRequest.of(normalizedPage, normalizedSize)
         );
 
         List<ReviewDtos.Review> items = result.getContent().stream()
@@ -875,6 +873,25 @@ public class SuReviewService {
                 cb.like(cb.lower(root.get("reviewText")), pattern),
                 cb.like(cb.lower(root.get("propertyName")), pattern)
         );
+    }
+
+    /**
+     * 列表排序：receivedAt 倒序且 NULL 排最后，id 倒序兜底。
+     * 用 Criteria selectCase 显式表达 NULLS LAST，生成等价 SQL：
+     * ORDER BY CASE WHEN received_at IS NULL THEN 1 ELSE 0 END, received_at DESC, id DESC。
+     * count 查询（resultType 为 Long）不得设置 orderBy。
+     */
+    private Specification<ChannelReview> listOrderSpecification() {
+        return (root, query, cb) -> {
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                query.orderBy(
+                        cb.asc(cb.selectCase().when(root.get("receivedAt").isNull(), 1).otherwise(0)),
+                        cb.desc(root.get("receivedAt")),
+                        cb.desc(root.get("id"))
+                );
+            }
+            return cb.conjunction();
+        };
     }
 
     private Specification<ChannelReview> tabSpecification(String tab) {

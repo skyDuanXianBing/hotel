@@ -15,6 +15,7 @@ import server.demo.entity.Store;
 import server.demo.repository.StoreRepository;
 import server.demo.service.SuMessagingService;
 import server.demo.util.BasicAuthUtil;
+import server.demo.util.DeadlockRetryExecutor;
 import server.demo.util.SuHotelIdUtil;
 
 import java.util.Map;
@@ -34,6 +35,7 @@ public class SuMessagingWebhookController {
     private final StoreRepository storeRepository;
     private final SuMessagingService suMessagingService;
     private final SuMessagingWebhookAuthConfig authConfig;
+    private final DeadlockRetryExecutor inboundRetryExecutor = new DeadlockRetryExecutor();
 
     public SuMessagingWebhookController(
             ObjectMapper objectMapper,
@@ -80,7 +82,12 @@ public class SuMessagingWebhookController {
         }
 
         try {
-            suMessagingService.handleInboundMessage(store.getId(), normalizedHotelId, root, rawBody);
+            // 在事务边界外经 Spring 代理重试：死锁/锁等待/并发撞唯一键时，
+            // 每次重试都是一个全新事务；最终仍失败走 catch 记日志并返回 Success。
+            inboundRetryExecutor.execute(
+                    "messaging webhook inbound",
+                    () -> suMessagingService.handleInboundMessage(store.getId(), normalizedHotelId, root, rawBody)
+            );
         } catch (Exception e) {
             logger.error("[SuMessagingWebhook] 入库失败（但仍返回 Success 以避免重试）. storeId={}, hotelId={}, err={}",
                     store.getId(), normalizedHotelId, e.getMessage(), e);

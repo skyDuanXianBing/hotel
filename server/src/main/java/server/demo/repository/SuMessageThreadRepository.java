@@ -1,8 +1,10 @@
 package server.demo.repository;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.QueryHints;
@@ -28,6 +30,24 @@ public interface SuMessageThreadRepository extends JpaRepository<SuMessageThread
     Optional<SuMessageThread> findByStoreIdAndId(Long storeId, Long id);
 
     Optional<SuMessageThread> findByStoreIdAndChannelIdAndThreadKey(Long storeId, Integer channelId, String threadKey);
+
+    /**
+     * 悲观写锁查询（SELECT ... FOR UPDATE）。webhook 入站消息写 thread/message 前先行锁定 thread 行，
+     * 让同一线程的并发事务统一加锁顺序，降低 InnoDB 死锁概率。
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT t
+            FROM SuMessageThread t
+            WHERE t.storeId = :storeId
+              AND t.channelId = :channelId
+              AND t.threadKey = :threadKey
+            """)
+    Optional<SuMessageThread> findForUpdateByStoreIdAndChannelIdAndThreadKey(
+            @Param("storeId") Long storeId,
+            @Param("channelId") Integer channelId,
+            @Param("threadKey") String threadKey
+    );
 
     Optional<SuMessageThread> findFirstByStoreIdAndChannelIdAndBookingIdOrderByLastActivityDesc(Long storeId, Integer channelId, String bookingId);
 

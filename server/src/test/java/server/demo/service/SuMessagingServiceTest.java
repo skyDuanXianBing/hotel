@@ -2,6 +2,7 @@ package server.demo.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -59,6 +60,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SuMessagingServiceTest {
+
+    @BeforeAll
+    static void installApiMessages() {
+        // 纯 Mockito 单测没有 Spring 上下文；与既有 handler/interceptor 测试一致，
+        // 显式安装 i18n 服务，避免 ApiMessages 退化为返回 key 导致断言依赖测试执行顺序。
+        server.demo.i18n.TestApiMessages.install();
+    }
 
     @Test
     void listAwaitingReplyThreadPageHydratesUnreadAndReservationsInBatches() {
@@ -1422,7 +1430,7 @@ class SuMessagingServiceTest {
         JsonNode root = objectMapper.readTree(raw);
 
         when(messageRepository.findByStoreIdAndExternalMessageId(10L, "M1")).thenReturn(Optional.empty());
-        when(threadRepository.findByStoreIdAndChannelIdAndThreadKey(10L, 244, "T1")).thenReturn(Optional.empty());
+        when(threadRepository.findForUpdateByStoreIdAndChannelIdAndThreadKey(10L, 244, "T1")).thenReturn(Optional.empty());
         when(threadRepository.save(any())).thenAnswer(inv -> {
             SuMessageThread savedThread = inv.getArgument(0);
             savedThread.setId(99L);
@@ -1466,6 +1474,44 @@ class SuMessagingServiceTest {
     }
 
     @Test
+    void handleInboundMessage_shouldLockThreadRowForUpdateBeforeWriting() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        SuMessagingService service = newService(threadRepository, messageRepository, reservationRepository);
+        String raw = """
+                {
+                  "message": "Lock me",
+                  "guestid": "G1",
+                  "bookingid": "B1",
+                  "messageid": "M-LOCK-1",
+                  "channel_id": "244",
+                  "threadid": "T-LOCK-1",
+                  "hotelid": "STORE10"
+                }
+                """;
+        JsonNode root = new ObjectMapper().readTree(raw);
+        SuMessageThread existing = newThread(99L, SuMessagingService.CHANNEL_AIRBNB, "T-LOCK-1", "B1", "B");
+        existing.setStoreId(10L);
+        when(messageRepository.findByStoreIdAndExternalMessageId(10L, "M-LOCK-1"))
+                .thenReturn(Optional.empty());
+        when(threadRepository.findForUpdateByStoreIdAndChannelIdAndThreadKey(10L, 244, "T-LOCK-1"))
+                .thenReturn(Optional.of(existing));
+        when(threadRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(messageRepository.save(any())).thenAnswer(inv -> {
+            SuMessage message = inv.getArgument(0);
+            message.setId(100L);
+            return message;
+        });
+
+        service.handleInboundMessage(10L, "STORE10", root, raw);
+
+        verify(threadRepository).findForUpdateByStoreIdAndChannelIdAndThreadKey(10L, 244, "T-LOCK-1");
+        verify(threadRepository, Mockito.never())
+                .findByStoreIdAndChannelIdAndThreadKey(any(), any(), any());
+    }
+
+    @Test
     void handleInboundMessage_shouldNormalizeBookingThreadIdentity() throws Exception {
         SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
         SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
@@ -1505,7 +1551,7 @@ class SuMessagingServiceTest {
         JsonNode root = objectMapper.readTree(raw);
 
         when(messageRepository.findByStoreIdAndExternalMessageId(10L, "M2")).thenReturn(Optional.empty());
-        when(threadRepository.findByStoreIdAndChannelIdAndThreadKey(10L, 19, "6022279490")).thenReturn(Optional.empty());
+        when(threadRepository.findForUpdateByStoreIdAndChannelIdAndThreadKey(10L, 19, "6022279490")).thenReturn(Optional.empty());
         when(threadRepository.save(any())).thenAnswer(inv -> {
             SuMessageThread savedThread = inv.getArgument(0);
             savedThread.setId(199L);
@@ -1813,7 +1859,7 @@ class SuMessagingServiceTest {
                 """;
         JsonNode root = new ObjectMapper().readTree(raw);
         when(messageRepository.findByStoreIdAndExternalMessageId(10L, "M9")).thenReturn(Optional.empty());
-        when(threadRepository.findByStoreIdAndChannelIdAndThreadKey(10L, 19, "B9")).thenReturn(Optional.empty());
+        when(threadRepository.findForUpdateByStoreIdAndChannelIdAndThreadKey(10L, 19, "B9")).thenReturn(Optional.empty());
         when(threadRepository.save(any())).thenAnswer(inv -> {
             SuMessageThread value = inv.getArgument(0);
             value.setId(91L);
@@ -1870,7 +1916,7 @@ class SuMessagingServiceTest {
         JsonNode root = new ObjectMapper().readTree(raw);
         when(messageRepository.findByStoreIdAndExternalMessageId(10L, "MSG-10"))
                 .thenReturn(Optional.empty());
-        when(threadRepository.findByStoreIdAndChannelIdAndThreadKey(10L, 19, "B10"))
+        when(threadRepository.findForUpdateByStoreIdAndChannelIdAndThreadKey(10L, 19, "B10"))
                 .thenReturn(Optional.empty());
         when(threadRepository.save(any())).thenAnswer(inv -> {
             SuMessageThread value = inv.getArgument(0);
