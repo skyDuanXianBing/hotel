@@ -1048,7 +1048,7 @@ async function handleOpenLinks() {
 
 .registration-review-detail-page__preview-shell {
   min-height: 100%;
-  padding: 18px 16px calc(28px + var(--app-safe-bottom));
+  padding: calc(18px + var(--app-safe-top)) 16px calc(28px + var(--app-safe-bottom));
   display: grid;
   gap: 14px;
 }
