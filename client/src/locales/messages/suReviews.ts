@@ -32,7 +32,6 @@ export const suReviewMessages = {
         eyebrow: '渠道声誉',
         title: '评价中心',
         description: '集中处理 Airbnb 与 Booking.com 客评，并查看关联订单和渠道资格。',
-        securityNote: '页面仅连接 PMS 后端；所有渠道资格和允许操作均由服务端返回。',
       },
       tabs: {
         ALL: '全部',
@@ -266,7 +265,6 @@ export const suReviewMessages = {
         eyebrow: '渠道聲譽',
         title: '評價中心',
         description: '集中處理 Airbnb 與 Booking.com 客評，並查看關聯訂單和渠道資格。',
-        securityNote: '頁面僅連線 PMS 後端；所有渠道資格和允許操作均由服務端回傳。',
       },
       tabs: {
         ALL: '全部',
@@ -501,8 +499,6 @@ export const suReviewMessages = {
         title: 'Review Center',
         description:
           'Handle Airbnb and Booking.com reviews with linked reservation context and channel eligibility.',
-        securityNote:
-          'This page only connects to the PMS backend. Eligibility and allowed actions come from the server.',
       },
       tabs: {
         ALL: 'All',
@@ -740,8 +736,6 @@ export const suReviewMessages = {
         title: 'レビューセンター',
         description:
           'Airbnb と Booking.com のレビューを、予約情報とチャネル資格とともに管理します。',
-        securityNote:
-          'この画面は PMS バックエンドのみに接続します。資格と許可された操作はサーバーから取得します。',
       },
       tabs: {
         ALL: 'すべて',

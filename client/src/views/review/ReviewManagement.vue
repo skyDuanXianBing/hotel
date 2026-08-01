@@ -400,10 +400,6 @@ const handleActionSubmitted = async () => {
           <span class="hero-eyebrow">{{ t('suReviews.page.eyebrow') }}</span>
           <h1>{{ t('suReviews.page.title') }}</h1>
           <p>{{ t('suReviews.page.description') }}</p>
-          <div class="security-note">
-            <span class="security-dot"></span>
-            <span>{{ t('suReviews.page.securityNote') }}</span>
-          </div>
         </div>
 
         <div class="hero-actions">
@@ -758,26 +754,6 @@ const handleActionSubmitted = async () => {
   color: #606762;
   font-size: 14px;
   line-height: 1.65;
-}
-
-.security-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 5px;
-  color: #7c827d;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.security-dot {
-  width: 7px;
-  height: 7px;
-  margin-top: 5px;
-  border-radius: 50%;
-  background: #65a30d;
-  box-shadow: 0 0 0 4px rgb(101 163 13 / 12%);
-  flex: 0 0 auto;
 }
 
 .hero-actions {
