@@ -144,15 +144,6 @@
           >
             AI
           </ion-button>
-          <ion-button
-            class="message-composer__quick-reply"
-            fill="solid"
-            :disabled="sending || !activeThread || activeThread.closed"
-            :aria-label="t('messageDetail.quickReplyButton')"
-            @click="handleOpenQuickReplies"
-          >
-            <ion-icon :icon="chatbubbleEllipsesOutline" />
-          </ion-button>
           <div class="message-composer__input" @click="handleFocusComposer">
             <ion-textarea
               ref="composerTextareaRef"
@@ -163,6 +154,15 @@
               :placeholder="t('messageDetail.composerPlaceholder')"
               :disabled="sending || !activeThread || activeThread.closed"
             />
+            <ion-button
+              class="message-composer__quick-reply"
+              fill="solid"
+              :disabled="sending || !activeThread || activeThread.closed"
+              :aria-label="t('messageDetail.quickReplyButton')"
+              @click.stop="handleOpenQuickReplies"
+            >
+              <ion-icon :icon="chatbubbleEllipsesOutline" />
+            </ion-button>
           </div>
           <ion-button
             class="message-composer__send"
@@ -2148,16 +2148,15 @@ ion-header::after {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 10px;
-  align-items: flex-end;
+  align-items: center;
 }
 
 .message-composer__ai,
-.message-composer__quick-reply,
 .message-composer__send {
   margin: 0;
-  min-height: 44px;
-  height: 44px;
-  font-size: 14px;
+  min-height: 36px;
+  height: 36px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -2170,21 +2169,26 @@ ion-header::after {
   --padding-start: 0;
   --padding-end: 0;
   --border-radius: 50%;
-  width: 44px;
-  min-width: 44px;
+  width: 36px;
+  min-width: 36px;
 }
 
 .message-composer__quick-reply {
-  --background: #ffffff;
+  --background: transparent;
   --background-activated: #eef4fb;
-  --background-hover: #ffffff;
-  --box-shadow: 0 4px 14px rgba(68, 91, 132, 0.06);
+  --background-hover: transparent;
+  --box-shadow: none;
   --color: #2f9cff;
   --padding-start: 0;
   --padding-end: 0;
   --border-radius: 50%;
-  width: 44px;
-  min-width: 44px;
+  flex: 0 0 36px;
+  width: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  height: 36px;
+  margin: 4px 4px 4px 0;
+  align-self: flex-end;
 }
 
 .message-composer__quick-reply ion-icon {
@@ -2196,6 +2200,8 @@ ion-header::after {
 }
 
 .message-composer__input {
+  display: flex;
+  align-items: flex-end;
   min-width: 0;
   min-height: 44px;
   border-radius: 12px;
@@ -2205,12 +2211,14 @@ ion-header::after {
 }
 
 .message-composer__textarea {
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
   min-height: 44px;
   --composer-textarea-max-height: 136px;
-  --background: #ffffff;
+  --background: transparent;
   --padding-start: 12px;
-  --padding-end: 12px;
+  --padding-end: 6px;
   --padding-top: 11px;
   --padding-bottom: 11px;
   --color: #182231;
@@ -2267,9 +2275,9 @@ ion-header::after {
   --box-shadow: none;
   --color: #ffffff;
   --border-radius: 11px;
-  --padding-start: 14px;
-  --padding-end: 14px;
-  min-width: 64px;
+  --padding-start: 10px;
+  --padding-end: 10px;
+  min-width: 52px;
 }
 
 .message-composer__send[disabled] {
