@@ -176,16 +176,11 @@ html[lang='ja'] .registration-review-list-page__filter-grid ion-select::part(pla
 
 html[lang='en']
   :is(.registration-review-list-page__channel, .registration-review-list-page__room) {
-  display: inline-block;
   text-align: center;
 }
 
-html[lang='en'] .registration-review-list-page__channel {
-  flex-shrink: 0;
-}
-
 html[lang='en'] .registration-review-list-page__room {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
 }
 

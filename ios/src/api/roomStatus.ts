@@ -10,6 +10,7 @@ export interface ReservationInfoDTO {
   checkIn: string
   checkOut: string
   orderNumber: string
+  status?: string
   totalAmount?: number
   groupOrderNo?: string
   notes?: string
