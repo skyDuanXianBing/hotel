@@ -7,6 +7,7 @@ import type { UserDTO } from '@/types/auth'
 import { getStoredUser, writeStoredJson, USER_KEY } from '@/utils/storage'
 import { clearAutoLoginCredentials } from '@/utils/autoLogin'
 import { clearCleanerSession } from '@/utils/cleanerSession'
+import { unregisterPushDeviceOnLogout } from '@/utils/pushNotifications'
 import { i18n } from '@/locales'
 
 export const useUserStore = defineStore('user', () => {
@@ -58,6 +59,7 @@ export const useUserStore = defineStore('user', () => {
 
     try {
       await logoutApi()
+      await unregisterPushDeviceOnLogout()
     } catch {
       // 忽略登出异常，保持本地状态清理
     } finally {

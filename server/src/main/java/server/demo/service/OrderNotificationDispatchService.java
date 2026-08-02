@@ -9,6 +9,7 @@ import server.demo.entity.StoreUser;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.NotificationRepository;
 import server.demo.repository.StoreUserRepository;
+import server.demo.service.push.PushDispatchService;
 import server.demo.util.StoreTimeZoneUtil;
 
 import java.time.Clock;
@@ -29,15 +30,18 @@ public class OrderNotificationDispatchService {
 
     private final NotificationRepository notificationRepository;
     private final StoreUserRepository storeUserRepository;
+    private final PushDispatchService pushDispatchService;
     private final Clock clock;
 
     public OrderNotificationDispatchService(
             NotificationRepository notificationRepository,
             StoreUserRepository storeUserRepository,
+            PushDispatchService pushDispatchService,
             Clock clock
     ) {
         this.notificationRepository = notificationRepository;
         this.storeUserRepository = storeUserRepository;
+        this.pushDispatchService = pushDispatchService;
         this.clock = clock;
     }
 
@@ -63,7 +67,7 @@ public class OrderNotificationDispatchService {
             return;
         }
 
-        String title = eventType.title;
+        String title = eventType.title();
         String content = buildContent(eventType, reservation);
         LocalDateTime nowUtc = StoreTimeZoneUtil.nowUtc(clock);
         List<Notification> notifications = new ArrayList<>(receiverIds.size());
@@ -86,6 +90,23 @@ public class OrderNotificationDispatchService {
                     e.getMessage(),
                     e
             );
+        }
+
+        // 手机推送（App 未打开也弹窗），标题/正文与 App 内订单通知完全一致
+        try {
+            pushDispatchService.dispatchToUsers(
+                    receiverIds,
+                    PushDispatchService.PushCategory.ORDER,
+                    title,
+                    content,
+                    java.util.Map.of(
+                            "type", "order",
+                            "reservationId", String.valueOf(reservation.getId())
+                    )
+            );
+        } catch (Exception e) {
+            logger.warn("Dispatch order push failed. storeId={}, reservationId={}, err={}",
+                    storeId, reservation.getId(), e.getMessage());
         }
     }
 
@@ -183,14 +204,21 @@ public class OrderNotificationDispatchService {
     }
 
     public enum OrderEventType {
-        CREATED(ApiMessages.get("api.t.f4b504a9b2bb")),
-        UPDATED(ApiMessages.get("api.t.0b99a0e5a544")),
-        CANCELLED(ApiMessages.get("api.t.24d78a40e64d"));
+        CREATED("api.t.f4b504a9b2bb"),
+        UPDATED("api.t.0b99a0e5a544"),
+        CANCELLED("api.t.24d78a40e64d");
 
-        private final String title;
+        private final String titleKey;
 
-        OrderEventType(String title) {
-            this.title = title;
+        OrderEventType(String titleKey) {
+            this.titleKey = titleKey;
+        }
+
+        /**
+         * 使用时解析，避免类加载期冻结语言环境。
+         */
+        public String title() {
+            return ApiMessages.get(titleKey);
         }
     }
 }

@@ -54,6 +54,9 @@ public class PublicRegistrationService {
     @Autowired
     private RegistrationAttachmentRepository registrationAttachmentRepository;
 
+    @Autowired
+    private RegistrationFormSubmittedNotifier registrationFormSubmittedNotifier;
+
     @Transactional
     public PublicRegistrationResponse getOrCreate(Long storeId, String orderNumber) {
         Reservation reservation = reservationRepository.findByStoreIdAndOrderNumber(storeId, orderNumber)
@@ -132,6 +135,8 @@ public class PublicRegistrationService {
         form.setSubmittedAt(LocalDateTime.now());
         form.setLastSavedAt(LocalDateTime.now());
         registrationFormRepository.save(form);
+
+        registrationFormSubmittedNotifier.notifySubmitted(storeId, form, reservation);
 
         return toResponse(form, reservation, resolveMaxGuests(storeId, reservation));
     }

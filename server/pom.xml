@@ -191,6 +191,13 @@
 			<artifactId>commons-csv</artifactId>
 			<version>1.14.1</version>
 		</dependency>
+
+		<!-- Mobile push notifications (iOS APNs; Android FCM sender reserved) -->
+		<dependency>
+			<groupId>com.eatthepath</groupId>
+			<artifactId>pushy</artifactId>
+			<version>0.15.6</version>
+		</dependency>
 	</dependencies>
 
 	<build>

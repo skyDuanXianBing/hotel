@@ -30,3 +30,6 @@ npm-debug.log*
 /platforms
 /plugins
 /www
+
+# FCM 配置文件：启用安卓推送时从 Firebase 控制台下载放到 android/app/（含项目信息，不入库）
+/android/app/google-services.json

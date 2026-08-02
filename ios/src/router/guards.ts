@@ -110,6 +110,10 @@ export const buildMessageDetailPath = (threadId: number | string) => {
   return ROUTE_PATHS.messageDetail.replace(':threadId', String(threadId))
 }
 
+export const buildRegistrationReviewPath = (formId: number | string) => {
+  return ROUTE_PATHS.reviewsDetail.replace(':formId', String(formId))
+}
+
 export const buildCleanerTaskDetailPath = (taskId: number | string) => {
   return ROUTE_PATHS.cleanerTaskDetail.replace(':id', String(taskId))
 }

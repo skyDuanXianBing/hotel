@@ -12,8 +12,10 @@ import server.demo.entity.Reservation;
 import server.demo.entity.StoreUser;
 import server.demo.entity.User;
 import server.demo.enums.ReservationStatus;
+import server.demo.i18n.TestApiMessages;
 import server.demo.repository.NotificationRepository;
 import server.demo.repository.StoreUserRepository;
+import server.demo.service.push.PushDispatchService;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -38,12 +40,16 @@ class OrderNotificationDispatchServiceTest {
     @Mock
     private StoreUserRepository storeUserRepository;
 
+    @Mock
+    private PushDispatchService pushDispatchService;
+
     private OrderNotificationDispatchService dispatchService;
 
     @BeforeEach
     void setUp() {
+        TestApiMessages.install();
         Clock clock = Clock.fixed(Instant.parse("2026-04-08T05:00:00Z"), ZoneOffset.UTC);
-        dispatchService = new OrderNotificationDispatchService(notificationRepository, storeUserRepository, clock);
+        dispatchService = new OrderNotificationDispatchService(notificationRepository, storeUserRepository, pushDispatchService, clock);
     }
 
     @Test
@@ -66,6 +72,31 @@ class OrderNotificationDispatchServiceTest {
         assertEquals("订单创建", saved.get(0).getTitle());
         assertEquals("ORDER", saved.get(0).getNotificationType());
         assertEquals(LocalDateTime.of(2026, 4, 8, 5, 0), saved.get(0).getCreatedAt());
+    }
+
+    @Test
+    void notifyOrderCreated_shouldDispatchPushWithSameTitleAndContent() {
+        when(storeUserRepository.findActiveUsersByStoreId(7L)).thenReturn(List.of(
+                storeUser(101L),
+                storeUser(102L)
+        ));
+
+        Reservation reservation = reservation("Booking.com", "Lin", "BK-123", ReservationStatus.CONFIRMED);
+        dispatchService.notifyOrderCreated(7L, reservation, 999L);
+
+        ArgumentCaptor<List<Notification>> notificationCaptor = ArgumentCaptor.forClass(List.class);
+        verify(notificationRepository).saveAll(notificationCaptor.capture());
+        Notification saved = notificationCaptor.getValue().get(0);
+
+        // 推送标题/正文必须与 App 内订单通知一致
+        verify(pushDispatchService).dispatchToUsers(
+                org.mockito.ArgumentMatchers.argThat(ids -> Set.copyOf(ids).equals(Set.of(101L, 102L))),
+                org.mockito.ArgumentMatchers.eq(PushDispatchService.PushCategory.ORDER),
+                org.mockito.ArgumentMatchers.eq(saved.getTitle()),
+                org.mockito.ArgumentMatchers.eq(saved.getContent()),
+                org.mockito.ArgumentMatchers.argThat(data ->
+                        "order".equals(data.get("type")) && "123".equals(data.get("reservationId")))
+        );
     }
 
     @Test

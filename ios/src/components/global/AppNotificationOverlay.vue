@@ -46,6 +46,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
+import { syncPushRegistration } from '@/utils/pushNotifications'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -72,6 +73,8 @@ watch(
     }
 
     notificationCenterStore.stop()
+
+    void syncPushRegistration()
 
     try {
       await notificationCenterStore.start(userId)
