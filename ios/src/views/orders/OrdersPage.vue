@@ -1515,7 +1515,7 @@ async function handleInfiniteLoad(event: CustomEvent) {
   try {
     await handleLoadMoreButton()
   } finally {
-    event.detail.complete()
+    ;(event.target as HTMLIonInfiniteScrollElement).complete()
   }
 }
 

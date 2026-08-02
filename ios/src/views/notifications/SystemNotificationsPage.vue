@@ -340,7 +340,7 @@ async function handleInfiniteLoad(event: CustomEvent) {
       await fetchNotificationsPage(currentPage.value + 1, true)
     }
   } finally {
-    ;(event.detail as { complete: () => void }).complete()
+    ;(event.target as HTMLIonInfiniteScrollElement).complete()
   }
 }
 

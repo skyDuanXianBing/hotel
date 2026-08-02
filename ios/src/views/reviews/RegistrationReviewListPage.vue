@@ -301,7 +301,7 @@ async function handleInfiniteLoad(event: CustomEvent) {
   try {
     await reviewStore.loadMoreRecords()
   } finally {
-    ;(event.detail as { complete: () => void }).complete()
+    ;(event.target as HTMLIonInfiniteScrollElement).complete()
   }
 }
 

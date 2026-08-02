@@ -1145,7 +1145,7 @@ async function handleInfiniteLoad(event: CustomEvent) {
   try {
     await loadNextThreadPage()
   } finally {
-    event.detail.complete()
+    ;(event.target as HTMLIonInfiniteScrollElement).complete()
   }
 }
 
