@@ -193,7 +193,7 @@
 
             <div class="msg-row">
               <div class="msg-label">{{ t('stage5.dataCenter.detail.messageContent') }}</div>
-              <el-input v-model="sendContent" type="textarea" :rows="5" :placeholder="t('stage5.dataCenter.detail.variablesPlaceholder')" />
+              <el-input v-model="sendContent" type="textarea" :rows="5" :placeholder="tm('stage5.dataCenter.detail.variablesPlaceholder') as string" />
             </div>
 
             <div class="msg-actions">
@@ -345,7 +345,7 @@ const MESSAGE_QUERY_PLACEHOLDER = '-'
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, tm } = useI18n()
 
 const detail = ref<Detail | null>(null)
 const loading = ref(false)
@@ -386,6 +386,10 @@ const finalizeHintText = computed(() => {
   }
   return ''
 })
+function renderGuestNamePlaceholder(template: string, guestName?: string | null) {
+  return template.replace(/{{guest_name}}/g, (guestName || '').trim())
+}
+
 function formatReviewAction(action?: string | null) {
   if (action === 'APPROVE') return t('stage5.dataCenter.detail.reviewActions.approve')
   if (action === 'REJECT') return t('stage5.dataCenter.detail.reviewActions.reject')
@@ -443,7 +447,10 @@ async function load(targetFormId?: string | number) {
     lastSendStatus.value = detail.value?.messageLogs?.[0]?.sendStatus || ''
     // 窗口外订单：预填可编辑的初审确认文案（发送前仍会按客人语言翻译）
     if (detail.value?.status === 'SUBMITTED' && isOutsideFinalizeWindow.value && !approveMessage.value.trim()) {
-      approveMessage.value = t('stage5.dataCenter.detail.defaultReviewedInfo')
+      approveMessage.value = renderGuestNamePlaceholder(
+        tm('stage5.dataCenter.detail.defaultReviewedInfo') as string,
+        detail.value?.guestName,
+      )
     }
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.dataLoadFailed'))
@@ -492,11 +499,11 @@ function applyReviewQuickReply(id: number | null) {
 function fillDefaultTemplate() {
   if (!detail.value) return
   if (sendType.value === 'APPROVED_INFO') {
-    sendContent.value = t('stage5.dataCenter.detail.defaultApprovedInfo')
+    sendContent.value = tm('stage5.dataCenter.detail.defaultApprovedInfo') as string
   } else if (sendType.value === 'REJECT_REQUEST') {
-    sendContent.value = t('stage5.dataCenter.detail.defaultRejectRequest')
+    sendContent.value = tm('stage5.dataCenter.detail.defaultRejectRequest') as string
   } else {
-    sendContent.value = t('stage5.dataCenter.detail.defaultReminder')
+    sendContent.value = tm('stage5.dataCenter.detail.defaultReminder') as string
   }
 }
 

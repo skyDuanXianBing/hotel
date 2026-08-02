@@ -391,7 +391,7 @@ import { downloadBlobFile, openBlobPreview } from '@/utils/file'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { showUnhandledRequestWarning } from '@/utils/requestError'
 
-const { t } = useI18n()
+const { t, tm } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -545,6 +545,10 @@ function handleQuickReplyChange(event: CustomEvent) {
 
   const currentMessage = guestMessage.value.trim()
   guestMessage.value = currentMessage ? `${currentMessage}\n\n${reply.message}` : reply.message
+}
+
+function renderGuestNamePlaceholder(template: string, guestName?: string) {
+  return template.replace(/{{guest_name}}/g, (guestName || '').trim())
 }
 
 function showDecisionFeedback(
@@ -848,7 +852,10 @@ async function loadRecordDetail() {
     reviewNote.value = detail.reviewNote || ''
     // 窗口外订单：预填可编辑的初审确认文案（发送前仍会按客人语言翻译）
     if (detail.status === 'pending' && detail.autoFinalizeDate && detail.autoFinalizeDate > todayYmd() && !guestMessage.value.trim()) {
-      guestMessage.value = t('stage5.dataCenter.detail.defaultReviewedInfo')
+      guestMessage.value = renderGuestNamePlaceholder(
+        tm('stage5.dataCenter.detail.defaultReviewedInfo') as string,
+        detail.guestName,
+      )
     }
     // 就地同步列表缓存，代替回列表页前的全量刷新
     reviewStore.syncRecord(detail)
