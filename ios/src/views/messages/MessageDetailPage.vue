@@ -209,9 +209,13 @@
                 }}
               </h2>
 
-              <div class="message-ai-input-frame message-ai-textarea-shell">
+              <div
+                class="message-ai-input-frame message-ai-textarea-shell"
+                @click="handleFocusAiDraft"
+              >
                 <ion-textarea
                   v-if="!isAiDraftTranslationView"
+                  ref="aiDraftTextareaRef"
                   v-model="aiDraft"
                   :rows="8"
                   class="message-ai-textarea message-ai-textarea--draft"
@@ -261,8 +265,9 @@
                 {{ t('messageDetail.requirementsDescription') }}
               </p>
 
-              <div class="message-ai-input-frame">
+              <div class="message-ai-input-frame" @click="handleFocusAiInstruction">
                 <ion-textarea
+                  ref="aiInstructionTextareaRef"
                   v-model="aiInstruction"
                   :rows="3"
                   class="message-ai-textarea message-ai-textarea--instruction"
@@ -529,6 +534,8 @@ const translationPendingMap = ref<Record<string, boolean>>({})
 const translationFailedMap = ref<Record<string, boolean>>({})
 const contentRef = ref<unknown>(null)
 const composerTextareaRef = ref<unknown>(null)
+const aiDraftTextareaRef = ref<unknown>(null)
+const aiInstructionTextareaRef = ref<unknown>(null)
 const messageStreamRef = ref<HTMLElement | null>(null)
 const messageTranslationQueue = createAsyncTaskQueue(2)
 const visibleMessageIds = new Set<number>()
@@ -692,14 +699,24 @@ function resolveComposerTextareaTarget() {
   return null
 }
 
-async function focusComposerInput() {
-  if (sending.value || !activeThread.value || activeThread.value.closed) {
-    return
+function resolveTextareaTarget(textareaRef: unknown) {
+  const textareaValue = textareaRef as { $el?: unknown } | null
+
+  if (isIonTextareaFocusTarget(textareaValue)) {
+    return textareaValue
   }
 
+  if (textareaValue?.$el && isIonTextareaFocusTarget(textareaValue.$el)) {
+    return textareaValue.$el
+  }
+
+  return null
+}
+
+async function focusTextarea(textareaRef: unknown) {
   await nextTick()
 
-  const target = resolveComposerTextareaTarget()
+  const target = resolveTextareaTarget(textareaRef)
   if (!target) {
     return
   }
@@ -719,8 +736,32 @@ async function focusComposerInput() {
   }
 }
 
+async function focusComposerInput() {
+  if (sending.value || !activeThread.value || activeThread.value.closed) {
+    return
+  }
+
+  await focusTextarea(resolveComposerTextareaTarget())
+}
+
 function handleFocusComposer() {
   void focusComposerInput()
+}
+
+function handleFocusAiDraft() {
+  if (draftLoading.value || isAiDraftTranslationView.value) {
+    return
+  }
+
+  void focusTextarea(aiDraftTextareaRef.value)
+}
+
+function handleFocusAiInstruction() {
+  if (draftLoading.value || aiPolishLoading.value || aiDraftTranslationLoading.value) {
+    return
+  }
+
+  void focusTextarea(aiInstructionTextareaRef.value)
 }
 
 async function scrollToConversationBottom(duration = 0) {
@@ -2005,6 +2046,9 @@ ion-header::after {
 
 .message-bubble__text {
   margin: 0;
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -2014,6 +2058,9 @@ ion-header::after {
 
 .message-bubble__link {
   color: #1f6feb;
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
   text-decoration: underline;
   text-decoration-thickness: 1.5px;
   text-underline-offset: 2px;
@@ -2048,6 +2095,9 @@ ion-header::after {
 
 .message-translation-card p {
   margin: 0;
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -2407,6 +2457,7 @@ ion-modal.message-ai-modal {
   border: 1px solid #c8c8ce;
   border-radius: 12px;
   background: #ffffff;
+  cursor: text;
   transition: border-color 160ms ease;
 }
 
@@ -2426,8 +2477,18 @@ ion-modal.message-ai-modal {
   --padding-bottom: var(--ios-pms-space-3);
   --placeholder-color: var(--ios-pms-text-disabled);
   --placeholder-opacity: 1;
+  caret-color: var(--ios-pms-primary);
+  cursor: text;
   font-size: 15px;
   line-height: 1.5;
+}
+
+.message-ai-textarea::part(native),
+.message-ai-textarea :deep(.native-textarea) {
+  -webkit-user-select: text;
+  user-select: text;
+  caret-color: var(--ios-pms-primary) !important;
+  cursor: text;
 }
 
 .message-ai-textarea--draft {

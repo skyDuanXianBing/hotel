@@ -115,7 +115,9 @@
                       class="registration-review-list-page__channel"
                       :style="resolveChannelBadgeStyle(record.channelName)"
                     >
-                      {{ record.channelName }}
+                      <span class="registration-review-list-page__badge-text">
+                        {{ record.channelName }}
+                      </span>
                     </span>
                     <span
                       class="registration-review-list-page__room"
@@ -124,7 +126,9 @@
                         'is-assigned': record.roomNumber && record.roomNumber !== $t('home.stat.unassigned.0'),
                       }"
                     >
-                      {{ record.roomLabel }}
+                      <span class="registration-review-list-page__badge-text">
+                        {{ record.roomLabel }}
+                      </span>
                     </span>
                   </div>
                 </div>
@@ -701,7 +705,9 @@ function resolveChannelBadgeStyle(channelName: string) {
 }
 
 .registration-review-list-page__item-heading {
+  flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
 }
 
 .registration-review-list-page__guest-name {
@@ -719,8 +725,11 @@ function resolveChannelBadgeStyle(channelName: string) {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
   min-width: 0;
+  max-width: 100%;
   margin-top: 5px;
+  overflow: hidden;
 }
 
 .registration-review-list-page__channel,
@@ -728,27 +737,36 @@ function resolveChannelBadgeStyle(channelName: string) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 1 auto;
+  box-sizing: border-box;
   min-height: 22px;
-  padding: 2px 10px;
+  min-width: 0;
+  max-width: min(132px, 48%);
+  padding: 2px 12px;
   border-radius: 5px;
   font-size: 13px;
   font-weight: 400;
   line-height: 1.2;
-  white-space: nowrap;
+  overflow: hidden;
 }
 
 .registration-review-list-page__channel {
-  max-width: 132px;
-  overflow: hidden;
   background: var(--review-channel-color, #2949ff);
   color: #ffffff;
-  text-overflow: ellipsis;
 }
 
 .registration-review-list-page__room {
-  max-width: 116px;
+  max-width: min(116px, 48%);
+  padding-inline: 13px;
+}
+
+.registration-review-list-page__badge-text {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .registration-review-list-page__room.is-unassigned {

@@ -290,6 +290,14 @@ export const getRoomStatusText = (dailyStatus?: DailyRoomStatusDTO | null) => {
 }
 
 function getReservationStatusFromDailyStatus(dailyStatus: DailyRoomStatusDTO) {
+  const explicitStatus = String(dailyStatus.reservation?.status || '')
+    .trim()
+    .toUpperCase()
+
+  if (explicitStatus) {
+    return explicitStatus
+  }
+
   const businessState = getRoomBusinessState(dailyStatus)
 
   if (businessState === 'occupied') {

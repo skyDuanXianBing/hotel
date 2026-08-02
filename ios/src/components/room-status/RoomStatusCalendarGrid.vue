@@ -179,8 +179,10 @@
                   'is-truncated-end': cell.truncatedEnd,
                   'is-compact-span': cell.span === 1,
                 }"
-                :data-tone="resolveReservationTone(cell.reservation)"
-                :style="{ gridColumn: `span ${cell.span}` }"
+                :style="[
+                  { gridColumn: `span ${cell.span}` },
+                  resolveReservationStyle(cell.reservation),
+                ]"
                 type="button"
                 @click="$emit('select-reservation', cell.reservation.id)"
               >
@@ -657,37 +659,111 @@ function getGroupAvailableLabel(group: RoomStatusRoomGroup, date: string) {
   })
 }
 
-function resolveReservationTone(reservation: ReservationDTO) {
+function normalizeHexColor(color: string | undefined | null) {
+  const value = String(color || '').trim()
+  if (!/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value)) {
+    return '#409eff'
+  }
+
+  if (value.length === 4) {
+    return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`
+  }
+
+  return value
+}
+
+function mixHexColor(color: string, target: string, ratio: number) {
+  const source = normalizeHexColor(color).slice(1)
+  const destination = normalizeHexColor(target).slice(1)
+  const clampedRatio = Math.max(0, Math.min(1, ratio))
+
+  const mixed = [0, 2, 4]
+    .map((offset) => {
+      const sourceValue = Number.parseInt(source.slice(offset, offset + 2), 16)
+      const destinationValue = Number.parseInt(destination.slice(offset, offset + 2), 16)
+      const value = Math.round(
+        sourceValue + (destinationValue - sourceValue) * clampedRatio,
+      )
+      return value.toString(16).padStart(2, '0')
+    })
+    .join('')
+
+  return `#${mixed}`
+}
+
+function getReservationFallbackColor(reservation: ReservationDTO) {
   const channelName = reservation.channelName || ''
   const normalized = channelName.toLowerCase()
 
   if (normalized.includes('airbnb')) {
-    return 'coral'
+    return '#ff2f67'
   }
   if (normalized.includes('booking')) {
-    return 'indigo'
+    return '#2f74ee'
   }
   if (normalized.includes('agoda')) {
-    return 'violet'
+    return '#b01bcf'
   }
   if (normalized.includes('trip') || channelName.includes('携程')) {
-    return 'slate'
+    return '#64748b'
   }
   if (normalized.includes('tujia') || channelName.includes('途家')) {
-    return 'azure'
+    return '#1687d9'
   }
   if (channelName.includes('美团')) {
-    return 'mint'
+    return '#22a96a'
   }
   if (channelName.includes('抖音')) {
-    return 'slate'
+    return '#475569'
   }
   if (channelName.includes('小猪')) {
-    return 'rose'
+    return '#ef4f80'
   }
 
-  const fallbackTones = ['sand', 'mint', 'rose', 'azure', 'slate']
-  return fallbackTones[reservation.id % fallbackTones.length]
+  const fallbackColors = ['#f09a44', '#22a96a', '#ef4f80', '#1687d9', '#64748b']
+  return fallbackColors[reservation.id % fallbackColors.length]
+}
+
+function getReservationChannelColor(reservation: ReservationDTO) {
+  const channelName = (reservation.channelName || '').trim().toLowerCase()
+  const channel = roomStatusStore.channels.find(
+    (item) => item.name.trim().toLowerCase() === channelName,
+  )
+
+  return normalizeHexColor(channel?.color || getReservationFallbackColor(reservation))
+}
+
+function resolveReservationStyle(reservation: ReservationDTO) {
+  const status = String(reservation.status || '').trim().toUpperCase()
+  const channelColor = getReservationChannelColor(reservation)
+
+  if (status === 'CHECKED_OUT' || status === 'CANCELLED' || status === 'NO_SHOW') {
+    return {
+      '--reservation-bg': 'linear-gradient(180deg, #ececec 0%, #dddddd 100%)',
+      '--reservation-border': '#cfcfcf',
+      '--reservation-text': '#6f6f6f',
+      '--reservation-pill-bg': '#8f8f8f',
+      '--reservation-pill-text': '#ffffff',
+    }
+  }
+
+  if (status === 'CHECKED_IN') {
+    return {
+      '--reservation-bg': `linear-gradient(180deg, ${mixHexColor(channelColor, '#ffffff', 0.18)} 0%, ${mixHexColor(channelColor, '#0f172a', 0.12)} 100%)`,
+      '--reservation-border': mixHexColor(channelColor, '#0f172a', 0.18),
+      '--reservation-text': '#ffffff',
+      '--reservation-pill-bg': mixHexColor(channelColor, '#0f172a', 0.28),
+      '--reservation-pill-text': '#ffffff',
+    }
+  }
+
+  return {
+    '--reservation-bg': `linear-gradient(180deg, ${mixHexColor(channelColor, '#ffffff', 0.72)} 0%, ${mixHexColor(channelColor, '#ffffff', 0.58)} 100%)`,
+    '--reservation-border': mixHexColor(channelColor, '#ffffff', 0.42),
+    '--reservation-text': mixHexColor(channelColor, '#111827', 0.46),
+    '--reservation-pill-bg': channelColor,
+    '--reservation-pill-text': '#ffffff',
+  }
 }
 
 function getReservationNotesText(reservation: ReservationDTO) {
@@ -1424,7 +1500,7 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   color: var(--reservation-text, #ffffff);
   overflow: hidden;
   border-radius: 5px;
-  box-shadow: none;
+  box-shadow: inset 0 0 0 1px var(--reservation-border, transparent);
 }
 
 .room-calendar__reservation.is-compact-span {
@@ -1438,54 +1514,6 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   inset: 0;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 52%);
   pointer-events: none;
-}
-
-.room-calendar__reservation[data-tone='sand'] {
-  --reservation-bg: #ffc0a8;
-  --reservation-pill-bg: #f09a44;
-  --reservation-text: #ffffff;
-}
-
-.room-calendar__reservation[data-tone='mint'] {
-  --reservation-bg: #bfead3;
-  --reservation-pill-bg: #22a96a;
-  --reservation-text: #ffffff;
-}
-
-.room-calendar__reservation[data-tone='rose'] {
-  --reservation-bg: #ffc0d1;
-  --reservation-pill-bg: #ef4f80;
-  --reservation-text: #ffffff;
-}
-
-.room-calendar__reservation[data-tone='azure'] {
-  --reservation-bg: #69b7f1;
-  --reservation-pill-bg: #fa672c;
-  --reservation-text: #ffffff;
-}
-
-.room-calendar__reservation[data-tone='indigo'] {
-  --reservation-bg: #8fb9ff;
-  --reservation-pill-bg: #2f74ee;
-  --reservation-text: #ffffff;
-}
-
-.room-calendar__reservation[data-tone='coral'] {
-  --reservation-bg: #ffc0a8;
-  --reservation-pill-bg: #ff2f67;
-  --reservation-text: #ffffff;
-}
-
-.room-calendar__reservation[data-tone='violet'] {
-  --reservation-bg: #ffc0a8;
-  --reservation-pill-bg: #b01bcf;
-  --reservation-text: #ffffff;
-}
-
-.room-calendar__reservation[data-tone='slate'] {
-  --reservation-bg: #cfcfcf;
-  --reservation-pill-bg: #2f74ee;
-  --reservation-text: #ffffff;
 }
 
 .room-calendar__reservation.is-truncated-start::before {
@@ -1550,7 +1578,7 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   padding: 0 4px;
   border-radius: 3px;
   background: var(--reservation-pill-bg, rgba(255, 255, 255, 0.28));
-  color: rgba(255, 255, 255, 0.96);
+  color: var(--reservation-pill-text, rgba(255, 255, 255, 0.96));
   font-size: 9px;
   font-weight: 400;
   line-height: 1;

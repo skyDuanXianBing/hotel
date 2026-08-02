@@ -1640,6 +1640,7 @@ onIonViewWillEnter(async () => {
 }
 
 .rooms-picker-header {
+  padding-top: calc(8px + var(--app-safe-top));
   background: #ffffff;
   box-shadow: 0 1px 6px rgba(57, 76, 108, 0.05);
 }

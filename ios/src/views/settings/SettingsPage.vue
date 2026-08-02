@@ -14,7 +14,7 @@
         <div class="settings-hero__profile">
           <div class="settings-hero__logo-shell" aria-hidden="true">
             <div class="settings-hero__logo-frame">
-              <img src="/settings-logo.png" alt="" class="settings-hero__logo" />
+              <img :src="storeHomeFilledIcon" alt="" class="settings-hero__logo" />
             </div>
           </div>
 
@@ -161,6 +161,7 @@ import { useI18n } from 'vue-i18n'
 import ContactSupportModal from '@/components/global/ContactSupportModal.vue'
 import MemoSheetModal from '@/components/global/MemoSheetModal.vue'
 import RecordTransactionModal from '@/components/notes/RecordTransactionModal.vue'
+import storeHomeFilledIcon from '@/assets/store-home-filled.svg'
 import { useRouter } from 'vue-router'
 import { ROUTE_PATHS } from '@/router/guards'
 import { SUPPORTED_LOCALES, type SupportedLocale } from '@/locales'
@@ -474,20 +475,18 @@ function handleRecordSuccess() {
   justify-content: center;
   width: 64px;
   height: 64px;
-  padding: 1px;
-  border: 1px solid rgba(216, 223, 234, 0.95);
+  border: 1px solid rgba(24, 144, 255, 0.12);
   border-radius: 14px;
-  background: #fff;
+  background: #e6f4ff;
   box-shadow:
-    0 8px 18px rgba(150, 165, 196, 0.05),
+    0 8px 18px rgba(24, 144, 255, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 .settings-hero__logo {
   display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+  width: 30px;
+  height: 30px;
 }
 
 .settings-hero__body {
@@ -687,7 +686,6 @@ function handleRecordSuccess() {
   .settings-hero__logo-frame {
     width: 60px;
     height: 60px;
-    padding: 1px;
     border-radius: 12px;
   }
 
