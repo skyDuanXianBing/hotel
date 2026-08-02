@@ -32,6 +32,7 @@
               >
                 <el-option :label="t('stage5.common.status.draft')" value="DRAFT" />
                 <el-option :label="t('stage5.common.status.submitted')" value="SUBMITTED" />
+                <el-option :label="t('stage5.common.status.reviewed')" value="REVIEWED" />
                 <el-option :label="t('stage5.common.status.approved')" value="APPROVED" />
                 <el-option :label="t('stage5.common.status.rejected')" value="REJECTED" />
               </el-select>
@@ -335,7 +336,7 @@ type Row = {
 type ReservationStatusTagType = 'success' | 'warning' | 'info' | 'danger'
 type DateRange = [string, string]
 
-const registrationReviewStatusFilterValues = ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']
+const registrationReviewStatusFilterValues = ['DRAFT', 'SUBMITTED', 'REVIEWED', 'APPROVED', 'REJECTED']
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
@@ -861,6 +862,8 @@ function getRegistrationStatusLabel(status?: string | null) {
       return t('stage5.common.status.draft')
     case 'SUBMITTED':
       return t('stage5.common.status.submitted')
+    case 'REVIEWED':
+      return t('stage5.common.status.reviewed')
     case 'APPROVED':
       return t('stage5.common.status.approved')
     case 'REJECTED':
@@ -1218,6 +1221,10 @@ onMounted(() => {
 .reservation-status--requested,
 .registration-status--submitted {
   color: #d7961d;
+}
+
+.registration-status--reviewed {
+  color: #409eff;
 }
 
 .reservation-status--checked-out,

@@ -25,6 +25,7 @@ public class AdminRegistrationDetailDTO {
     private LocalDateTime approvedAt;
     private LocalDateTime rejectedAt;
     private String reviewNote;
+    private LocalDate autoFinalizeDate;
 
     private List<PublicRegistrationGuestDTO> guests;
     private List<PublicRegistrationAttachmentDTO> attachments;
@@ -165,6 +166,14 @@ public class AdminRegistrationDetailDTO {
 
     public void setReviewNote(String reviewNote) {
         this.reviewNote = reviewNote;
+    }
+
+    public LocalDate getAutoFinalizeDate() {
+        return autoFinalizeDate;
+    }
+
+    public void setAutoFinalizeDate(LocalDate autoFinalizeDate) {
+        this.autoFinalizeDate = autoFinalizeDate;
     }
 
     public List<PublicRegistrationGuestDTO> getGuests() {

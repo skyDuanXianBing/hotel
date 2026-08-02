@@ -2,7 +2,7 @@ import type { SupportedLocale } from '@/locales'
 
 export type PublicRegistrationLanguage = SupportedLocale
 
-export type RegistrationFormStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
+export type RegistrationFormStatus = 'DRAFT' | 'SUBMITTED' | 'REVIEWED' | 'APPROVED' | 'REJECTED'
 
 export type ResidenceType = 'JAPAN' | 'OTHER'
 

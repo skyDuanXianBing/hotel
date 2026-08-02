@@ -1,5 +1,5 @@
-export type ReviewStatus = 'draft' | 'pending' | 'approved' | 'rejected'
-export type ReviewFilterStatus = 'all' | 'draft' | 'pending' | 'approved' | 'rejected'
+export type ReviewStatus = 'draft' | 'pending' | 'reviewed' | 'approved' | 'rejected'
+export type ReviewFilterStatus = 'all' | 'draft' | 'pending' | 'reviewed' | 'approved' | 'rejected'
 
 export interface ReviewAttachment {
   id: string
@@ -25,6 +25,7 @@ export interface ReviewGuest {
   relation: string
   nationality: string
   residenceType: string
+  address: string
   passportNumber: string
   priorStay: string
   nextDestination: string
@@ -65,6 +66,7 @@ export interface ReviewRecord {
   approvedAt: string
   rejectedAt: string
   updatedAt: string
+  autoFinalizeDate: string
   status: ReviewStatus
   guests: ReviewGuest[]
   attachments: ReviewAttachment[]
@@ -112,6 +114,7 @@ export const REVIEW_STATUS_OPTIONS = [
   { labelKey: 'iosStage5.cleaning.allStatuses', value: 'all' },
   { labelKey: 'stage5.common.status.draft', value: 'draft' },
   { labelKey: 'stage5.common.status.pending', value: 'pending' },
+  { labelKey: 'stage5.common.status.reviewed', value: 'reviewed' },
   { labelKey: 'stage5.common.status.approved', value: 'approved' },
   { labelKey: 'stage5.common.status.rejected', value: 'rejected' },
 ] as const
@@ -123,6 +126,10 @@ export const getReviewStatusLabel = (status: ReviewStatus) => {
 
   if (status === 'approved') {
     return i18n.global.t('stage5.common.status.approved')
+  }
+
+  if (status === 'reviewed') {
+    return i18n.global.t('stage5.common.status.reviewed')
   }
 
   if (status === 'rejected') {

@@ -255,6 +255,9 @@
         <div v-if="data?.status === 'SUBMITTED'" class="hint" style="margin-top: 8px; color: #67c23a">
           {{ t('submittedAwaitingReview') }}
         </div>
+        <div v-if="data?.status === 'REVIEWED'" class="hint" style="margin-top: 8px; color: #409eff">
+          {{ t('reviewedAwaitingFinal') }}
+        </div>
         <div v-if="data?.status === 'APPROVED'" class="success-notice">
           <div class="success-title">{{ t('approvedTitle') }}</div>
           <div v-if="checkInGuideLink" class="checkin-guide">
@@ -274,7 +277,7 @@
         </div>
         <div class="actions">
           <el-button v-if="canGoBack" @click="goPrev">{{ t('back') }}</el-button>
-          <el-button type="success" :loading="submitting" :disabled="data?.status === 'SUBMITTED' || data?.status === 'APPROVED'" @click="submit">
+          <el-button type="success" :loading="submitting" :disabled="data?.status === 'SUBMITTED' || data?.status === 'REVIEWED' || data?.status === 'APPROVED'" @click="submit">
             {{ t('send') }}
           </el-button>
         </div>
@@ -467,12 +470,15 @@ const translations: Record<LangCode, Record<string, string>> = {
     send: 'Send',
     reviewNotice: 'After review, we will automatically provide the check-in guide.',
     submittedAwaitingReview: 'Submitted, awaiting review.',
+    reviewedAwaitingFinal:
+      'Your information has been confirmed. Final approval will be completed before your check-in date, and the check-in guide will be shown here.',
     approvedTitle: 'Approved',
     checkInGuideLabel: 'Your check-in guide:',
     checkInGuide: 'Check-in Guide',
     checkInGuideMissing: 'The check-in guide is not configured yet. Please contact the hotel.',
     draft: 'Draft',
     submitted: 'Submitted',
+    reviewed: 'Reviewed',
     approved: 'Approved',
     rejected: 'Rejected',
     changeLanguage: 'Language',
@@ -545,12 +551,15 @@ const translations: Record<LangCode, Record<string, string>> = {
     send: '送信',
     reviewNotice: '審査後、自動的にチェックインガイドをご案内します。',
     submittedAwaitingReview: '提出済み、審査をお待ちください。',
+    reviewedAwaitingFinal:
+      'ご提出いただいた情報は確認済みです。チェックイン前に最終承認が行われると、こちらでチェックインガイドをご覧いただけます。',
     approvedTitle: '承認済み',
     checkInGuideLabel: '以下はチェックインガイドです：',
     checkInGuide: 'チェックインガイド',
     checkInGuideMissing: 'チェックインガイドはまだ設定されていません。ホテルへお問い合わせください。',
     draft: '未提出',
     submitted: '提出済み',
+    reviewed: '確認済み',
     approved: '承認済み',
     rejected: '要再提出',
     changeLanguage: '言語',
@@ -623,12 +632,14 @@ const translations: Record<LangCode, Record<string, string>> = {
     send: '发送',
     reviewNotice: '审核通过后，我们会自动提供入住指南。',
     submittedAwaitingReview: '已提交，等待审查。',
+    reviewedAwaitingFinal: '您提交的信息已确认无误，我们将在您入住前完成最终通过，届时可在此处查看入住指南。',
     approvedTitle: '已通过审查',
     checkInGuideLabel: '您的入住指南：',
     checkInGuide: '入住指南',
     checkInGuideMissing: '入住指南暂未配置，请联系酒店。',
     draft: '未提交',
     submitted: '已提交',
+    reviewed: '已确认',
     approved: '已通过',
     rejected: '需重填',
     changeLanguage: '语言',
@@ -701,12 +712,14 @@ const translations: Record<LangCode, Record<string, string>> = {
     send: '發送',
     reviewNotice: '審核通過後，我們會自動提供入住指南。',
     submittedAwaitingReview: '已提交，等待審查。',
+    reviewedAwaitingFinal: '您提交的資訊已確認無誤，我們將在您入住前完成最終通過，屆時可在此處查看入住指南。',
     approvedTitle: '已通過審查',
     checkInGuideLabel: '您的入住指南：',
     checkInGuide: '入住指南',
     checkInGuideMissing: '入住指南暫未配置，請聯絡飯店。',
     draft: '未提交',
     submitted: '已提交',
+    reviewed: '已確認',
     approved: '已通過',
     rejected: '需重填',
     changeLanguage: '語言',
@@ -779,12 +792,15 @@ const translations: Record<LangCode, Record<string, string>> = {
     send: '전송',
     reviewNotice: '검토 후 자동으로 체크인 가이드를 안내해 드립니다.',
     submittedAwaitingReview: '제출됨, 검토 대기 중.',
+    reviewedAwaitingFinal:
+      '제출하신 정보가 확인되었습니다. 체크인 전에 최종 승인이 완료되면 이곳에서 체크인 가이드를 확인하실 수 있습니다.',
     approvedTitle: '승인됨',
     checkInGuideLabel: '체크인 가이드:',
     checkInGuide: '체크인 가이드',
     checkInGuideMissing: '체크인 가이드가 아직 설정되지 않았습니다. 호텔로 문의해 주세요.',
     draft: '미제출',
     submitted: '제출됨',
+    reviewed: '확인됨',
     approved: '승인됨',
     rejected: '재작성 필요',
     changeLanguage: '언어',
@@ -890,7 +906,7 @@ const previewData = ref<Array<{
 
 const stepsActive = computed(() => {
   const status = String(data.value?.status || '')
-  if (status === 'SUBMITTED' || status === 'APPROVED') {
+  if (status === 'SUBMITTED' || status === 'REVIEWED' || status === 'APPROVED') {
     return stepItems.value.length
   }
   return step.value
@@ -928,7 +944,7 @@ const isSendStep = computed(() => step.value === model.guests.length + 1 || step
 const activeGuestIndex = computed(() => Math.max(0, step.value - 1))
 const activeGuest = computed(() => model.guests[activeGuestIndex.value] || null)
 const canGoBack = computed(() => {
-  return data.value?.status !== 'SUBMITTED' && data.value?.status !== 'APPROVED'
+  return data.value?.status !== 'SUBMITTED' && data.value?.status !== 'REVIEWED' && data.value?.status !== 'APPROVED'
 })
 
 function formatLastSaved(dateStr: string): string {
@@ -1135,7 +1151,7 @@ function hydrate(resp: PublicRegistrationResponse) {
     step.value = 1
   }
 
-  if (resp.status === 'SUBMITTED' || resp.status === 'APPROVED') {
+  if (resp.status === 'SUBMITTED' || resp.status === 'REVIEWED' || resp.status === 'APPROVED') {
     step.value = model.guests.length + 1
   }
 }

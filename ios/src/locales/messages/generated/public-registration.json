@@ -99,7 +99,9 @@
       "missingToken": "This registration link is missing verification information.",
       "invalidToken": "This registration link is invalid. Please check the link and try again.",
       "expiredLink": "This registration link has expired. Please contact the hotel.",
-      "invalidOrExpiredLink": "This registration link is invalid or expired. Please contact the hotel."
+      "invalidOrExpiredLink": "This registration link is invalid or expired. Please contact the hotel.",
+      "reviewed": "Reviewed",
+      "reviewedNotice": "Your information has been confirmed. The final approval will be completed before your check-in date, and the check-in guide will be shown here."
     }
   },
   "zh-CN": {
@@ -202,7 +204,9 @@
       "missingToken": "此登记链接缺少验证信息。",
       "invalidToken": "此登记链接无效，请检查链接后重试。",
       "expiredLink": "此登记链接已过期，请联系酒店。",
-      "invalidOrExpiredLink": "此登记链接无效或已过期，请联系酒店。"
+      "invalidOrExpiredLink": "此登记链接无效或已过期，请联系酒店。",
+      "reviewed": "已确认",
+      "reviewedNotice": "您提交的信息已确认无误，我们将在您入住前完成最终通过，届时可在此处查看入住指南。"
     }
   },
   "zh-TW": {
@@ -305,7 +309,9 @@
       "missingToken": "此登記鏈接缺少驗證信息。",
       "invalidToken": "此登記鏈接無效，請檢查鏈接後重試。",
       "expiredLink": "此登記鏈接已過期，請聯系酒店。",
-      "invalidOrExpiredLink": "此登記鏈接無效或已過期，請聯系酒店。"
+      "invalidOrExpiredLink": "此登記鏈接無效或已過期，請聯系酒店。",
+      "reviewed": "已確認",
+      "reviewedNotice": "您提交的資訊已確認無誤，我們將在您入住前完成最終通過，屆時可在此處查看入住指南。"
     }
   },
   "ja": {
@@ -408,7 +414,9 @@
       "missingToken": "この登録リンクには認証情報がありません。",
       "invalidToken": "この登録リンクは無効です。リンクを確認してもう一度お試しください。",
       "expiredLink": "この登録リンクの有効期限が切れています。ホテルへお問い合わせください。",
-      "invalidOrExpiredLink": "この登録リンクは無効、または有効期限が切れています。ホテルへお問い合わせください。"
+      "invalidOrExpiredLink": "この登録リンクは無効、または有効期限が切れています。ホテルへお問い合わせください。",
+      "reviewed": "確認済み",
+      "reviewedNotice": "ご提出いただいた情報は確認済みです。チェックイン前に最終承認が行われると、こちらでチェックインガイドをご覧いただけます。"
     }
   }
 }

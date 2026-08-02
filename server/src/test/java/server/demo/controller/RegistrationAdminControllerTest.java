@@ -297,6 +297,38 @@ class RegistrationAdminControllerTest {
                 .andExpect(jsonPath("$.data").isEmpty());
     }
 
+    @Test
+    void reviewSettings_shouldGetAndSaveForCurrentStore() {
+        server.demo.service.RegistrationReviewSettingsService settingsService =
+                org.mockito.Mockito.mock(server.demo.service.RegistrationReviewSettingsService.class);
+        RegistrationAdminController controller = new RegistrationAdminController();
+        ReflectionTestUtils.setField(controller, "registrationReviewSettingsService", settingsService);
+        StoreContextHolder.setContext(new StoreContext(7L, 26L, "owner"));
+
+        server.demo.dto.registration.RegistrationReviewSettingsResponse settingsResponse =
+                new server.demo.dto.registration.RegistrationReviewSettingsResponse();
+        settingsResponse.setAutoFinalizeEnabled(true);
+        settingsResponse.setLeadDays(7);
+        when(settingsService.getSettings(26L)).thenReturn(settingsResponse);
+
+        ApiResponse<server.demo.dto.registration.RegistrationReviewSettingsResponse> getResponse =
+                controller.getReviewSettings();
+        assertTrue(getResponse.isSuccess());
+        assertEquals(7, getResponse.getData().getLeadDays());
+
+        server.demo.dto.registration.RegistrationReviewSettingsRequest req =
+                new server.demo.dto.registration.RegistrationReviewSettingsRequest();
+        req.setLeadDays(6);
+        req.setFinalMessage("终审已通过");
+        when(settingsService.saveSettings(eq(26L), any(server.demo.dto.registration.RegistrationReviewSettingsRequest.class)))
+                .thenReturn(settingsResponse);
+
+        ApiResponse<server.demo.dto.registration.RegistrationReviewSettingsResponse> saveResponse =
+                controller.saveReviewSettings(req);
+        assertTrue(saveResponse.isSuccess());
+        verify(settingsService).saveSettings(eq(26L), any(server.demo.dto.registration.RegistrationReviewSettingsRequest.class));
+    }
+
     private static void assertStatsViewPermission(Method method) {
         RequirePermission permission = method.getAnnotation(RequirePermission.class);
         assertNotNull(permission);

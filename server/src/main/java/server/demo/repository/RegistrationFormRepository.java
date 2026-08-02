@@ -223,7 +223,8 @@ public interface RegistrationFormRepository extends JpaRepository<RegistrationFo
                 f.reviewNote = :note
             WHERE f.id = :formId
               AND f.storeId = :storeId
-              AND f.status = server.demo.enums.RegistrationFormStatus.SUBMITTED
+              AND (f.status = server.demo.enums.RegistrationFormStatus.SUBMITTED
+                   OR f.status = server.demo.enums.RegistrationFormStatus.REVIEWED)
             """)
     int approveSubmitted(
             @Param("storeId") Long storeId,
@@ -240,12 +241,59 @@ public interface RegistrationFormRepository extends JpaRepository<RegistrationFo
                 f.reviewNote = :note
             WHERE f.id = :formId
               AND f.storeId = :storeId
-              AND f.status = server.demo.enums.RegistrationFormStatus.SUBMITTED
+              AND (f.status = server.demo.enums.RegistrationFormStatus.SUBMITTED
+                   OR f.status = server.demo.enums.RegistrationFormStatus.REVIEWED)
             """)
     int rejectSubmitted(
             @Param("storeId") Long storeId,
             @Param("formId") Long formId,
             @Param("note") String note,
             @Param("reviewedAt") LocalDateTime reviewedAt
+    );
+
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            UPDATE RegistrationForm f
+            SET f.status = server.demo.enums.RegistrationFormStatus.REVIEWED,
+                f.reviewNote = :note
+            WHERE f.id = :formId
+              AND f.storeId = :storeId
+              AND f.status = server.demo.enums.RegistrationFormStatus.SUBMITTED
+            """)
+    int markReviewed(
+            @Param("storeId") Long storeId,
+            @Param("formId") Long formId,
+            @Param("note") String note
+    );
+
+    @Query("""
+            SELECT f FROM RegistrationForm f
+            JOIN FETCH f.reservation r
+            WHERE f.storeId = :storeId
+              AND f.status = server.demo.enums.RegistrationFormStatus.REVIEWED
+              AND (r.status IS NULL OR r.status <> server.demo.enums.ReservationStatus.CANCELLED)
+              AND r.checkInDate IS NOT NULL
+              AND r.checkInDate <= :thresholdDate
+            ORDER BY r.checkInDate ASC, f.id ASC
+            """)
+    List<RegistrationForm> findDueReviewedForFinalize(
+            @Param("storeId") Long storeId,
+            @Param("thresholdDate") LocalDate thresholdDate,
+            Pageable pageable
+    );
+
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            UPDATE RegistrationForm f
+            SET f.status = server.demo.enums.RegistrationFormStatus.APPROVED,
+                f.approvedAt = :approvedAt
+            WHERE f.id = :formId
+              AND f.storeId = :storeId
+              AND f.status = server.demo.enums.RegistrationFormStatus.REVIEWED
+            """)
+    int finalizeReviewed(
+            @Param("storeId") Long storeId,
+            @Param("formId") Long formId,
+            @Param("approvedAt") LocalDateTime approvedAt
     );
 }

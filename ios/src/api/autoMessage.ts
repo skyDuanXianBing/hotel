@@ -94,3 +94,31 @@ export const toggleAutoMessage = (messageId: number) => {
     method: 'PUT',
   })
 }
+
+export interface RegistrationReviewSettingsDTO {
+  autoFinalizeEnabled: boolean
+  leadDays: number
+  finalMessage: string | null
+  defaultFinalMessage: string
+}
+
+export interface RegistrationReviewSettingsRequest {
+  autoFinalizeEnabled?: boolean
+  leadDays?: number
+  finalMessage?: string
+}
+
+export const getRegistrationReviewSettings = () => {
+  return request<ApiResponse<RegistrationReviewSettingsDTO>>({
+    url: '/registrations/review-settings',
+    method: 'GET',
+  })
+}
+
+export const updateRegistrationReviewSettings = (data: RegistrationReviewSettingsRequest) => {
+  return request<ApiResponse<RegistrationReviewSettingsDTO>>({
+    url: '/registrations/review-settings',
+    method: 'PUT',
+    data,
+  })
+}

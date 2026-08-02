@@ -7,6 +7,50 @@
       </el-button>
     </div>
 
+    <el-card class="review-finalize-card" shadow="never" v-loading="reviewFinalizeLoading">
+      <div class="review-finalize-header">
+        <div>
+          <h3 class="review-finalize-title">{{ t('settings.autoMessage.reviewFinalize.title') }}</h3>
+          <p class="review-finalize-desc">{{ t('settings.autoMessage.reviewFinalize.desc') }}</p>
+        </div>
+        <el-switch v-model="reviewFinalizeForm.autoFinalizeEnabled" />
+      </div>
+      <div class="review-finalize-body">
+        <div class="review-finalize-row">
+          <span class="review-finalize-label">{{ t('settings.autoMessage.reviewFinalize.enabled') }}</span>
+          <span class="review-finalize-label">
+            {{ t('settings.autoMessage.reviewFinalize.leadDays') }}
+          </span>
+          <el-input-number v-model="reviewFinalizeForm.leadDays" :min="1" :max="30" size="small" />
+        </div>
+        <div class="review-finalize-row review-finalize-row--message">
+          <span class="review-finalize-label">
+            {{ t('settings.autoMessage.reviewFinalize.finalMessage') }}
+          </span>
+          <el-input
+            v-model="reviewFinalizeForm.finalMessage"
+            type="textarea"
+            :rows="3"
+            :placeholder="reviewFinalizeForm.defaultFinalMessage"
+          />
+        </div>
+        <div class="review-finalize-actions">
+          <el-button size="small" @click="resetReviewFinalizeMessage">
+            {{ t('settings.autoMessage.reviewFinalize.resetDefault') }}
+          </el-button>
+          <el-button
+            class="gradient-primary-button"
+            type="primary"
+            size="small"
+            :loading="reviewFinalizeSaving"
+            @click="saveReviewFinalizeSettings"
+          >
+            {{ t('settings.common.save') }}
+          </el-button>
+        </div>
+      </div>
+    </el-card>
+
     <el-table :data="messages" border class="auto-message-table" v-loading="loading">
       <el-table-column prop="title" :label="t('settings.autoMessage.columns.title')" min-width="120" align="center" />
       <el-table-column prop="message" :label="t('settings.autoMessage.columns.message')" min-width="240" align="center">
@@ -273,6 +317,8 @@ import {
   updateAutoMessage,
   deleteAutoMessage,
   toggleAutoMessage,
+  getRegistrationReviewSettings,
+  updateRegistrationReviewSettings,
   type AutoMessageDTO,
   type RoomSelectionType,
   type AutoMessageAction,
@@ -354,6 +400,14 @@ const messageInputRef = ref()
 const editingId = ref<number | null>(null)
 
 const messages = ref<AutoMessageListItem[]>([])
+const reviewFinalizeLoading = ref(false)
+const reviewFinalizeSaving = ref(false)
+const reviewFinalizeForm = reactive({
+  autoFinalizeEnabled: true,
+  leadDays: 7,
+  finalMessage: '',
+  defaultFinalMessage: '',
+})
 const channels = ref<ChannelDTO[]>([])
 const rooms = ref<RoomDTO[]>([])
 const roomTypes = ref<RoomTypeDTO[]>([])
@@ -1004,16 +1058,121 @@ const handleSave = async () => {
   }
 }
 
+async function loadReviewFinalizeSettings() {
+  reviewFinalizeLoading.value = true
+  try {
+    const resp = await getRegistrationReviewSettings()
+    const data = resp?.data
+    if (data) {
+      reviewFinalizeForm.autoFinalizeEnabled = data.autoFinalizeEnabled
+      reviewFinalizeForm.leadDays = data.leadDays
+      reviewFinalizeForm.finalMessage = data.finalMessage || ''
+      reviewFinalizeForm.defaultFinalMessage = data.defaultFinalMessage || ''
+    }
+  } catch (error) {
+    console.error('加载自动终审设置失败:', error)
+    ElMessage.error(t('settings.autoMessage.reviewFinalize.loadFailed'))
+  } finally {
+    reviewFinalizeLoading.value = false
+  }
+}
+
+function resetReviewFinalizeMessage() {
+  reviewFinalizeForm.finalMessage = reviewFinalizeForm.defaultFinalMessage
+}
+
+async function saveReviewFinalizeSettings() {
+  reviewFinalizeSaving.value = true
+  try {
+    const finalMessage = reviewFinalizeForm.finalMessage.trim()
+    const resp = await updateRegistrationReviewSettings({
+      autoFinalizeEnabled: reviewFinalizeForm.autoFinalizeEnabled,
+      leadDays: reviewFinalizeForm.leadDays,
+      finalMessage: finalMessage || reviewFinalizeForm.defaultFinalMessage,
+    })
+    const data = resp?.data
+    if (data) {
+      reviewFinalizeForm.autoFinalizeEnabled = data.autoFinalizeEnabled
+      reviewFinalizeForm.leadDays = data.leadDays
+      reviewFinalizeForm.finalMessage = data.finalMessage || ''
+    }
+    ElMessage.success(t('settings.autoMessage.reviewFinalize.saveSuccess'))
+  } catch (error: any) {
+    console.error('保存自动终审设置失败:', error)
+    ElMessage.error(
+      error?.response?.data?.message || t('settings.autoMessage.reviewFinalize.saveFailed'),
+    )
+  } finally {
+    reviewFinalizeSaving.value = false
+  }
+}
+
 onMounted(() => {
   loadChannels()
   loadRooms()
   loadRoomTypes()
   loadRoomGroups()
   loadAutoMessages()
+  loadReviewFinalizeSettings()
 })
 </script>
 
 <style scoped>
+.review-finalize-card {
+  margin-bottom: 16px;
+}
+
+.review-finalize-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.review-finalize-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.review-finalize-desc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.5;
+}
+
+.review-finalize-body {
+  margin-top: 12px;
+}
+
+.review-finalize-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.review-finalize-row--message {
+  align-items: flex-start;
+}
+
+.review-finalize-label {
+  font-size: 13px;
+  color: #606266;
+  white-space: nowrap;
+}
+
+.review-finalize-row--message .review-finalize-label {
+  padding-top: 6px;
+}
+
+.review-finalize-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .auto-message-container {
   --settings-control-gradient: linear-gradient(90deg, #81bfff 0%, #017cfe 100%);
   --settings-control-gradient-hover: linear-gradient(90deg, #8ec6ff 0%, #1489ff 100%);

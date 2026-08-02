@@ -3756,7 +3756,8 @@
         "pending": "保留中",
         "requested": "確認待ち",
         "rejected": "差し戻し",
-        "submitted": "提出済み"
+        "submitted": "提出済み",
+        "reviewed": "仮承認済み"
       },
       "empty": {
         "noData": "データがありません",
@@ -4032,7 +4033,14 @@
           "approvedInfo": "承認後チェックイン情報",
           "rejectRequest": "差し戻し再入力",
           "reminder": "入力リマインド"
-        }
+        },
+        "markReviewedSuccess": "仮承認しました。チェックイン前にシステムが自動で最終承認します",
+        "markReviewedWithMessageSuccess": "仮承認しました。メッセージは宿泊者の言語に自動翻訳されて送信されます",
+        "reviewedScheduledHint": "仮承認済みです。{date} にシステムが自動で最終承認します。再度「承認」で即時最終承認、「差し戻し」でゲストに差し戻します。",
+        "reviewedScheduledNoDateHint": "仮承認済みです。チェックイン前にシステムが自動で最終承認します。",
+        "outsideFinalizeWindowHint": "チェックイン日がまだ先の予約です。「承認」すると審査完了の通知だけが送られ、{date} にシステムが自動で最終承認しチェックインガイドを公開します。",
+        "withinFinalizeWindowHint": "チェックイン日が自動最終承認の対象期間内です。「承認」はそのまま最終承認となり、チェックインガイドがすぐ公開されます。",
+        "defaultReviewedInfo": "こんにちは {{guest_name}} 様、ご提出いただいたチェックイン情報に問題はありませんでした。チェックイン日の1週間前に最終承認を行いますので、しばらくお待ちください。"
       }
     },
     "cleaner": {
@@ -4987,9 +4995,9 @@
   },
   "profile": {
     "greeting": {
-      "morning": "\u304a\u306f\u3088\u3046\u3054\u3056\u3044\u307e\u3059\u3001{name}",
-      "afternoon": "\u3053\u3093\u306b\u3061\u306f\u3001{name}",
-      "evening": "\u3053\u3093\u3070\u3093\u306f\u3001{name}"
+      "morning": "おはようございます、{name}",
+      "afternoon": "こんにちは、{name}",
+      "evening": "こんばんは、{name}"
     },
     "pullToRefresh": "下に引いてプロフィールを更新",
     "unavailableEmail": "メール情報を取得できません",
@@ -6407,7 +6415,8 @@
       "loadLinksFailed": "リンク一覧を読み込めませんでした",
       "loadDetailFailed": "審査詳細を読み込めませんでした",
       "approveFailed": "審査を承認できませんでした",
-      "rejectFailed": "却下できませんでした"
+      "rejectFailed": "却下できませんでした",
+      "actionAutoApprove": "システム自動最終承認"
     },
     "roomType": {
       "sizeUnit": {
@@ -7186,5 +7195,17 @@
     "SettingsCleaningSupplies": "消耗品",
     "SettingsPricingTools": "料金設定ツール",
     "SettingsPaymentPlatforms": "決済プラットフォーム"
+  },
+  "settingsAutoMessageReviewFinalize": {
+    "title": "チェックイン登録審査の自動最終承認",
+    "desc": "登録フォームを仮承認すると、チェックイン前にシステムが自動で最終承認し、以下のメッセージをゲストへ送信します。",
+    "enabled": "仮承認済みフォームを自動で最終承認する",
+    "leadDays": "チェックイン前の日数",
+    "finalMessage": "最終承認メッセージ",
+    "resetDefault": "デフォルト文面に戻す",
+    "save": "保存",
+    "saveSuccess": "保存しました",
+    "saveFailed": "保存に失敗しました",
+    "loadFailed": "自動最終承認設定の読み込みに失敗しました"
   }
 }

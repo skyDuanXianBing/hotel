@@ -3756,7 +3756,8 @@
         "pending": "待處理",
         "requested": "待確認",
         "rejected": "已駁回",
-        "submitted": "已提交"
+        "submitted": "已提交",
+        "reviewed": "待終審"
       },
       "empty": {
         "noData": "暫無數據",
@@ -4032,7 +4033,14 @@
           "approvedInfo": "通過後入住信息",
           "rejectRequest": "駁回重新填寫",
           "reminder": "提醒填寫"
-        }
+        },
+        "markReviewedSuccess": "已初審通過，系統將在入住前自動終審",
+        "markReviewedWithMessageSuccess": "已初審通過，消息將自動翻譯為客人語言後發送",
+        "reviewedScheduledHint": "已完成初審，系統將於 {date} 自動終審。再次點「通過」可立即終審，點「駁回」則退回客人重新填寫。",
+        "reviewedScheduledNoDateHint": "已完成初審，系統將在入住前自動終審。",
+        "outsideFinalizeWindowHint": "該訂單入住日較遠。本次點「通過」只完成您的審查並通知客人；系統將於 {date} 自動終審並向客人開放入住指南。",
+        "withinFinalizeWindowHint": "該訂單入住日已在自動終審窗口內，點「通過」即為最終通過，客人立即可見入住指南。",
+        "defaultReviewedInfo": "您好 {{guest_name}}，您提交的入住資訊沒有任何錯誤。我們將在您入住前一週完成最終通過，感謝您的耐心等待。"
       }
     },
     "cleaner": {
@@ -4987,9 +4995,9 @@
   },
   "profile": {
     "greeting": {
-      "morning": "\u65e9\u4e0a\u597d\uff0c{name}",
-      "afternoon": "\u4e0b\u5348\u597d\uff0c{name}",
-      "evening": "\u665a\u4e0a\u597d\uff0c{name}"
+      "morning": "早上好，{name}",
+      "afternoon": "下午好，{name}",
+      "evening": "晚上好，{name}"
     },
     "pullToRefresh": "下拉重新整理個人資料",
     "unavailableEmail": "尚未恢復電子郵件資訊",
@@ -6407,7 +6415,8 @@
       "loadLinksFailed": "載入連結列表失敗",
       "loadDetailFailed": "載入審查詳情失敗",
       "approveFailed": "審核通過失敗",
-      "rejectFailed": "駁回失敗"
+      "rejectFailed": "駁回失敗",
+      "actionAutoApprove": "系統自動終審"
     },
     "roomType": {
       "sizeUnit": {
@@ -7186,5 +7195,17 @@
     "SettingsCleaningSupplies": "易耗品",
     "SettingsPricingTools": "定價工具",
     "SettingsPaymentPlatforms": "支付平台"
+  },
+  "settingsAutoMessageReviewFinalize": {
+    "title": "登記審查自動終審",
+    "desc": "登記表初審通過後，系統會在入住前按提前天數自動完成終審，並向客人發送以下消息。",
+    "enabled": "自動終審已初審的登記表",
+    "leadDays": "入住前提前天數",
+    "finalMessage": "終審通過消息",
+    "resetDefault": "恢復預設文案",
+    "save": "儲存",
+    "saveSuccess": "已儲存",
+    "saveFailed": "儲存失敗",
+    "loadFailed": "自動終審設定載入失敗"
   }
 }

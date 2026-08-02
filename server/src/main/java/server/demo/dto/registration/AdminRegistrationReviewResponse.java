@@ -4,6 +4,7 @@ public class AdminRegistrationReviewResponse {
     private boolean messageAttempted;
     private RegistrationMessageLogDTO messageLog;
     private String messageError;
+    private String formStatus;
 
     public boolean isMessageAttempted() {
         return messageAttempted;
@@ -27,5 +28,13 @@ public class AdminRegistrationReviewResponse {
 
     public void setMessageError(String messageError) {
         this.messageError = messageError;
+    }
+
+    public String getFormStatus() {
+        return formStatus;
+    }
+
+    public void setFormStatus(String formStatus) {
+        this.formStatus = formStatus;
     }
 }

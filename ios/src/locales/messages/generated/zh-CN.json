@@ -3756,7 +3756,8 @@
         "pending": "待处理",
         "requested": "待确认",
         "rejected": "已驳回",
-        "submitted": "已提交"
+        "submitted": "已提交",
+        "reviewed": "待终审"
       },
       "empty": {
         "noData": "暂无数据",
@@ -4032,7 +4033,14 @@
           "approvedInfo": "通过后入住信息",
           "rejectRequest": "驳回重新填写",
           "reminder": "提醒填写"
-        }
+        },
+        "markReviewedSuccess": "已初审通过，系统将在入住前自动终审",
+        "markReviewedWithMessageSuccess": "已初审通过，消息将自动翻译为客人语言后发送",
+        "reviewedScheduledHint": "已完成初审，系统将于 {date} 自动终审。再次点“通过”可立即终审，点“驳回”则退回客人重新填写。",
+        "reviewedScheduledNoDateHint": "已完成初审，系统将在入住前自动终审。",
+        "outsideFinalizeWindowHint": "该订单入住日较远。本次点“通过”只完成您的审查并通知客人；系统将于 {date} 自动终审并向客人开放入住指南。",
+        "withinFinalizeWindowHint": "该订单入住日已在自动终审窗口内，点“通过”即为最终通过，客人立即可见入住指南。",
+        "defaultReviewedInfo": "您好 {{guest_name}}，您提交的入住信息没有任何错误。我们将在您入住前一周完成最终通过，感谢您的耐心等待。"
       }
     },
     "cleaner": {
@@ -4987,9 +4995,9 @@
   },
   "profile": {
     "greeting": {
-      "morning": "\u65e9\u4e0a\u597d\uff0c{name}",
-      "afternoon": "\u4e0b\u5348\u597d\uff0c{name}",
-      "evening": "\u665a\u4e0a\u597d\uff0c{name}"
+      "morning": "早上好，{name}",
+      "afternoon": "下午好，{name}",
+      "evening": "晚上好，{name}"
     },
     "pullToRefresh": "下拉刷新个人资料",
     "unavailableEmail": "未恢复邮箱信息",
@@ -6407,7 +6415,8 @@
       "loadLinksFailed": "加载链接列表失败",
       "loadDetailFailed": "加载审查详情失败",
       "approveFailed": "审核通过失败",
-      "rejectFailed": "驳回失败"
+      "rejectFailed": "驳回失败",
+      "actionAutoApprove": "系统自动终审"
     },
     "roomType": {
       "sizeUnit": {
@@ -7186,5 +7195,17 @@
     "SettingsCleaningSupplies": "易耗品",
     "SettingsPricingTools": "定价工具",
     "SettingsPaymentPlatforms": "支付平台"
+  },
+  "settingsAutoMessageReviewFinalize": {
+    "title": "登记审查自动终审",
+    "desc": "登记表初审通过后，系统会在入住前按提前天数自动完成终审，并向客人发送以下消息。",
+    "enabled": "自动终审已初审的登记表",
+    "leadDays": "入住前提前天数",
+    "finalMessage": "终审通过消息",
+    "resetDefault": "恢复默认文案",
+    "save": "保存",
+    "saveSuccess": "已保存",
+    "saveFailed": "保存失败",
+    "loadFailed": "自动终审设置加载失败"
   }
 }

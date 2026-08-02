@@ -3756,7 +3756,8 @@
         "pending": "Pending",
         "requested": "Pending confirmation",
         "rejected": "Rejected",
-        "submitted": "Submitted"
+        "submitted": "Submitted",
+        "reviewed": "Reviewed"
       },
       "empty": {
         "noData": "No data",
@@ -4032,7 +4033,14 @@
           "approvedInfo": "Approved Check-in Info",
           "rejectRequest": "Reject and Refill",
           "reminder": "Reminder"
-        }
+        },
+        "markReviewedSuccess": "Marked as reviewed. The system will finalize automatically before check-in",
+        "markReviewedWithMessageSuccess": "Marked as reviewed. The message will be translated into the guest's language and sent",
+        "reviewedScheduledHint": "Initial review done. The system will finalize automatically on {date}. Approving again finalizes immediately; rejecting sends it back to the guest.",
+        "reviewedScheduledNoDateHint": "Initial review done. The system will finalize automatically before check-in.",
+        "outsideFinalizeWindowHint": "Check-in is still far out. Approving now only completes your review and notifies the guest; the system will finalize automatically on {date} and release the check-in guide.",
+        "withinFinalizeWindowHint": "Check-in is inside the auto-finalize window. Approving is final — the guest immediately sees the check-in guide.",
+        "defaultReviewedInfo": "Hello {{guest_name}}, the information you submitted has no issues. We will complete the final approval one week before your check-in date. Thank you for your patience."
       }
     },
     "cleaner": {
@@ -6407,7 +6415,8 @@
       "loadLinksFailed": "Could not load links",
       "loadDetailFailed": "Could not load review details",
       "approveFailed": "Could not approve the review",
-      "rejectFailed": "Could not reject the review"
+      "rejectFailed": "Could not reject the review",
+      "actionAutoApprove": "Auto final approval"
     },
     "roomType": {
       "sizeUnit": {
@@ -7186,5 +7195,17 @@
     "SettingsCleaningSupplies": "Supplies",
     "SettingsPricingTools": "Pricing tools",
     "SettingsPaymentPlatforms": "Payment platforms"
+  },
+  "settingsAutoMessageReviewFinalize": {
+    "title": "Registration Review Auto Finalize",
+    "desc": "After you mark a registration as reviewed, the system finalizes it automatically before check-in and sends this message to the guest.",
+    "enabled": "Auto finalize reviewed forms",
+    "leadDays": "Days before check-in",
+    "finalMessage": "Final approval message",
+    "resetDefault": "Reset to default",
+    "save": "Save",
+    "saveSuccess": "Saved",
+    "saveFailed": "Save failed",
+    "loadFailed": "Failed to load review finalize settings"
   }
 }

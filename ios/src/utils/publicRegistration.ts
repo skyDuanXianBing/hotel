@@ -194,6 +194,10 @@ export const resolveRegistrationStatusColor = (status?: RegistrationFormStatus) 
     return 'warning'
   }
 
+  if (status === 'REVIEWED') {
+    return 'primary'
+  }
+
   if (status === 'REJECTED') {
     return 'danger'
   }

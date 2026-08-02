@@ -1,6 +1,7 @@
 package server.demo.service;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -19,6 +20,7 @@ import server.demo.dto.registration.RegistrationSendMessageRequest;
 import server.demo.entity.Channel;
 import server.demo.entity.RegistrationForm;
 import server.demo.entity.RegistrationReviewLog;
+import server.demo.entity.RegistrationReviewSettings;
 import server.demo.entity.Reservation;
 import server.demo.enums.RegistrationFormStatus;
 import server.demo.enums.RegistrationMessageType;
@@ -31,14 +33,20 @@ import server.demo.repository.RegistrationGuestRepository;
 import server.demo.repository.RegistrationMessageLogRepository;
 import server.demo.repository.RegistrationReviewLogRepository;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.StoreRepository;
 import server.demo.util.StoreContextUtils;
+import server.demo.i18n.TestApiMessages;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -48,6 +56,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -56,6 +65,11 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class RegistrationAdminServiceTest {
+
+    @BeforeAll
+    static void installMessages() {
+        TestApiMessages.install();
+    }
 
     @Mock
     private RegistrationFormRepository registrationFormRepository;
@@ -80,6 +94,12 @@ class RegistrationAdminServiceTest {
 
     @Mock
     private SuMessagingRealtimeGateway realtimeGateway;
+
+    @Mock
+    private RegistrationReviewSettingsService registrationReviewSettingsService;
+
+    @Mock
+    private StoreRepository storeRepository;
 
     @Test
     void list_shouldForwardReservationAndRoomFiltersAndMapReservationStatus() {
@@ -704,6 +724,155 @@ class RegistrationAdminServiceTest {
         assertTrue(messageRequest.isTranslateBeforeSend());
     }
 
+    @Test
+    void approve_shouldMarkReviewedWhenCheckInOutsideFinalizeWindow() {
+        RegistrationAdminService service = createService();
+        RegistrationForm form = createForm(8L, RegistrationFormStatus.SUBMITTED, ReservationStatus.CONFIRMED);
+        form.getReservation().setCheckInDate(LocalDate.of(2026, 10, 7));
+        AdminRegistrationReviewRequest req = new AdminRegistrationReviewRequest();
+        req.setNote("looks ok");
+        req.setGuestMessage("信息无误，入住前一周将通过");
+        when(registrationFormRepository.findById(8L)).thenReturn(Optional.of(form));
+        when(reservationRepository.findById(88L)).thenReturn(Optional.of(form.getReservation()));
+        when(registrationFormRepository.markReviewed(eq(26L), eq(8L), eq("looks ok"))).thenReturn(1);
+
+        AdminRegistrationReviewResponse result;
+        try (MockedStatic<StoreContextUtils> storeContextUtils = mockStatic(StoreContextUtils.class)) {
+            storeContextUtils.when(StoreContextUtils::requireStoreId).thenReturn(26L);
+            storeContextUtils.when(StoreContextUtils::requireUserId).thenReturn(7L);
+
+            result = service.approve(8L, req);
+        }
+
+        assertEquals(RegistrationFormStatus.REVIEWED.name(), result.getFormStatus());
+        verify(registrationFormRepository, never()).approveSubmitted(
+                anyLong(), anyLong(), any(), any(LocalDateTime.class));
+        ArgumentCaptor<RegistrationSendMessageRequest> requestCaptor =
+                ArgumentCaptor.forClass(RegistrationSendMessageRequest.class);
+        verify(registrationMessageService).sendMessage(eq(26L), eq(7L), eq(8L), requestCaptor.capture());
+        assertEquals(RegistrationMessageType.REVIEWED_INFO, requestCaptor.getValue().getType());
+        assertEquals("信息无误，入住前一周将通过", requestCaptor.getValue().getContent());
+    }
+
+    @Test
+    void approve_shouldFinalizeImmediatelyWhenCheckInWithinFinalizeWindow() {
+        RegistrationAdminService service = createService();
+        RegistrationForm form = createForm(8L, RegistrationFormStatus.SUBMITTED, ReservationStatus.CONFIRMED);
+        form.getReservation().setCheckInDate(LocalDate.of(2026, 7, 5));
+        AdminRegistrationReviewRequest req = new AdminRegistrationReviewRequest();
+        req.setNote("approved");
+        req.setGuestMessage("审查已通过");
+        when(registrationFormRepository.findById(8L)).thenReturn(Optional.of(form));
+        when(reservationRepository.findById(88L)).thenReturn(Optional.of(form.getReservation()));
+        when(registrationFormRepository.approveSubmitted(
+                eq(26L), eq(8L), eq("approved"), any(LocalDateTime.class))).thenReturn(1);
+
+        AdminRegistrationReviewResponse result;
+        try (MockedStatic<StoreContextUtils> storeContextUtils = mockStatic(StoreContextUtils.class)) {
+            storeContextUtils.when(StoreContextUtils::requireStoreId).thenReturn(26L);
+            storeContextUtils.when(StoreContextUtils::requireUserId).thenReturn(7L);
+
+            result = service.approve(8L, req);
+        }
+
+        assertEquals(RegistrationFormStatus.APPROVED.name(), result.getFormStatus());
+        verify(registrationFormRepository, never()).markReviewed(anyLong(), anyLong(), any());
+        ArgumentCaptor<RegistrationSendMessageRequest> requestCaptor =
+                ArgumentCaptor.forClass(RegistrationSendMessageRequest.class);
+        verify(registrationMessageService).sendMessage(eq(26L), eq(7L), eq(8L), requestCaptor.capture());
+        assertEquals(RegistrationMessageType.APPROVED_INFO, requestCaptor.getValue().getType());
+    }
+
+    @Test
+    void approve_shouldFinalizeImmediatelyWhenFormAlreadyReviewed() {
+        RegistrationAdminService service = createService();
+        RegistrationForm form = createForm(8L, RegistrationFormStatus.REVIEWED, ReservationStatus.CONFIRMED);
+        form.getReservation().setCheckInDate(LocalDate.of(2026, 12, 1));
+        AdminRegistrationReviewRequest req = new AdminRegistrationReviewRequest();
+        req.setNote("final approve early");
+        when(registrationFormRepository.findById(8L)).thenReturn(Optional.of(form));
+        when(reservationRepository.findById(88L)).thenReturn(Optional.of(form.getReservation()));
+        when(registrationFormRepository.approveSubmitted(
+                eq(26L), eq(8L), eq("final approve early"), any(LocalDateTime.class))).thenReturn(1);
+
+        AdminRegistrationReviewResponse result;
+        try (MockedStatic<StoreContextUtils> storeContextUtils = mockStatic(StoreContextUtils.class)) {
+            storeContextUtils.when(StoreContextUtils::requireStoreId).thenReturn(26L);
+            storeContextUtils.when(StoreContextUtils::requireUserId).thenReturn(7L);
+
+            result = service.approve(8L, req);
+        }
+
+        assertEquals(RegistrationFormStatus.APPROVED.name(), result.getFormStatus());
+        verify(registrationFormRepository, never()).markReviewed(anyLong(), anyLong(), any());
+    }
+
+    @Test
+    void reject_shouldAllowReviewedForm() {
+        RegistrationAdminService service = createService();
+        RegistrationForm form = createForm(8L, RegistrationFormStatus.REVIEWED, ReservationStatus.CONFIRMED);
+        AdminRegistrationReviewRequest req = new AdminRegistrationReviewRequest();
+        req.setNote("found issue later");
+        when(registrationFormRepository.findById(8L)).thenReturn(Optional.of(form));
+        when(reservationRepository.findById(88L)).thenReturn(Optional.of(form.getReservation()));
+        when(registrationFormRepository.rejectSubmitted(
+                eq(26L), eq(8L), eq("found issue later"), any(LocalDateTime.class))).thenReturn(1);
+
+        AdminRegistrationReviewResponse result;
+        try (MockedStatic<StoreContextUtils> storeContextUtils = mockStatic(StoreContextUtils.class)) {
+            storeContextUtils.when(StoreContextUtils::requireStoreId).thenReturn(26L);
+            storeContextUtils.when(StoreContextUtils::requireUserId).thenReturn(7L);
+
+            result = service.reject(8L, req);
+        }
+
+        assertEquals(RegistrationFormStatus.REJECTED.name(), result.getFormStatus());
+        verify(registrationFormRepository).rejectSubmitted(
+                eq(26L), eq(8L), eq("found issue later"), any(LocalDateTime.class));
+    }
+
+    @Test
+    void autoFinalizeForm_shouldFinalizeAndSendConfiguredMessage() {
+        RegistrationAdminService service = createService();
+        RegistrationForm form = createForm(8L, RegistrationFormStatus.REVIEWED, ReservationStatus.CONFIRMED);
+        RegistrationReviewSettings settings = RegistrationReviewSettings.defaultsFor(26L);
+        when(registrationFormRepository.finalizeReviewed(eq(26L), eq(8L), any(LocalDateTime.class))).thenReturn(1);
+        when(registrationFormRepository.findById(8L)).thenReturn(Optional.of(form));
+        when(registrationReviewSettingsService.resolveFinalMessage(settings)).thenReturn("审查已通过，入住指南已开放");
+        when(registrationMessageService.sendMessage(
+                eq(26L), isNull(), eq(8L), any(RegistrationSendMessageRequest.class)))
+                .thenReturn(new RegistrationMessageLogDTO());
+
+        service.autoFinalizeForm(26L, 8L, settings);
+
+        ArgumentCaptor<RegistrationReviewLog> logCaptor =
+                ArgumentCaptor.forClass(RegistrationReviewLog.class);
+        verify(registrationReviewLogRepository).save(logCaptor.capture());
+        assertEquals(RegistrationReviewAction.AUTO_APPROVE, logCaptor.getValue().getAction());
+        assertNull(logCaptor.getValue().getOperatorUserId());
+        ArgumentCaptor<RegistrationSendMessageRequest> requestCaptor =
+                ArgumentCaptor.forClass(RegistrationSendMessageRequest.class);
+        verify(registrationMessageService).sendMessage(eq(26L), isNull(), eq(8L), requestCaptor.capture());
+        assertEquals(RegistrationMessageType.APPROVED_INFO, requestCaptor.getValue().getType());
+        assertEquals("审查已通过，入住指南已开放", requestCaptor.getValue().getContent());
+        assertTrue(requestCaptor.getValue().isTranslateBeforeSend());
+        verify(realtimeGateway).broadcastWorkbenchInvalidated(26L, "registration_review");
+    }
+
+    @Test
+    void autoFinalizeForm_shouldSkipWhenStateAlreadyChanged() {
+        RegistrationAdminService service = createService();
+        RegistrationReviewSettings settings = RegistrationReviewSettings.defaultsFor(26L);
+        when(registrationFormRepository.finalizeReviewed(eq(26L), eq(8L), any(LocalDateTime.class))).thenReturn(0);
+
+        service.autoFinalizeForm(26L, 8L, settings);
+
+        verify(registrationReviewLogRepository, never()).save(any(RegistrationReviewLog.class));
+        verify(registrationMessageService, never()).sendMessage(
+                anyLong(), any(), anyLong(), any(RegistrationSendMessageRequest.class));
+        verify(realtimeGateway, never()).broadcastWorkbenchInvalidated(anyLong(), any());
+    }
+
     private RegistrationAdminService createService() {
         RegistrationAdminService service = new RegistrationAdminService();
         ReflectionTestUtils.setField(service, "registrationFormRepository", registrationFormRepository);
@@ -714,6 +883,12 @@ class RegistrationAdminServiceTest {
         ReflectionTestUtils.setField(service, "reservationRepository", reservationRepository);
         ReflectionTestUtils.setField(service, "registrationMessageService", registrationMessageService);
         ReflectionTestUtils.setField(service, "realtimeGateway", realtimeGateway);
+        ReflectionTestUtils.setField(service, "registrationReviewSettingsService", registrationReviewSettingsService);
+        ReflectionTestUtils.setField(service, "storeRepository", storeRepository);
+        ReflectionTestUtils.setField(service, "clock",
+                Clock.fixed(Instant.parse("2026-07-01T00:00:00Z"), ZoneId.of("UTC")));
+        lenient().when(registrationReviewSettingsService.getEffective(anyLong()))
+                .thenAnswer(invocation -> RegistrationReviewSettings.defaultsFor(invocation.getArgument(0)));
         return service;
     }
 

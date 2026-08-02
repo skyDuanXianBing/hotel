@@ -1,5 +1,7 @@
 package server.demo.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,9 +14,12 @@ import server.demo.enums.ReservationStatus;
 import server.demo.exception.RegistrationReviewConflictException;
 import server.demo.repository.*;
 import server.demo.util.StoreContextUtils;
+import server.demo.util.StoreTimeZoneUtil;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -23,6 +28,7 @@ import org.springframework.data.domain.PageRequest;
 import server.demo.i18n.ApiMessages;
 @Service
 public class RegistrationAdminService {
+    private static final Logger logger = LoggerFactory.getLogger(RegistrationAdminService.class);
     private static final String ROOM_NUMBER_FILTER_SENTINEL = "__REGISTRATION_ADMIN_EMPTY_ROOM_NUMBER_FILTER__";
     private static final String REVIEW_CANCELLED_RESERVATION_MESSAGE_KEY = "api.t.7c4e979dd124";
     private static final String REVIEW_SUBMITTED_ONLY_MESSAGE_KEY = "api.t.3746916d6064";
@@ -49,6 +55,15 @@ public class RegistrationAdminService {
 
     @Autowired
     private RegistrationMessageService registrationMessageService;
+
+    @Autowired
+    private RegistrationReviewSettingsService registrationReviewSettingsService;
+
+    @Autowired
+    private StoreRepository storeRepository;
+
+    @Autowired
+    private Clock clock;
 
     @Autowired(required = false)
     private SuMessagingRealtimeGateway realtimeGateway;
@@ -260,6 +275,7 @@ public class RegistrationAdminService {
         dto.setApprovedAt(form.getApprovedAt());
         dto.setRejectedAt(form.getRejectedAt());
         dto.setReviewNote(form.getReviewNote());
+        dto.setAutoFinalizeDate(resolveAutoFinalizeDate(storeId, form, reservation));
 
         dto.setGuestName(reservation.getGuestName());
         dto.setCheckInDate(reservation.getCheckInDate());
@@ -407,6 +423,37 @@ public class RegistrationAdminService {
         return exactDate;
     }
 
+    private LocalDate resolveAutoFinalizeDate(Long storeId, RegistrationForm form, Reservation reservation) {
+        if (form == null || reservation == null || reservation.getCheckInDate() == null) {
+            return null;
+        }
+        if (form.getStatus() != RegistrationFormStatus.SUBMITTED
+                && form.getStatus() != RegistrationFormStatus.REVIEWED) {
+            return null;
+        }
+        int leadDays = registrationReviewSettingsService.getEffective(storeId).effectiveLeadDays();
+        return reservation.getCheckInDate().minusDays(leadDays);
+    }
+
+    /**
+     * 入住日是否已进入终审窗口（门店本地今天 >= 入住日 - leadDays）。
+     * 无入住日时保持旧行为：通过即最终通过。
+     */
+    private boolean isWithinFinalizeWindow(Long storeId, Reservation reservation) {
+        if (reservation == null || reservation.getCheckInDate() == null) {
+            return true;
+        }
+        int leadDays = registrationReviewSettingsService.getEffective(storeId).effectiveLeadDays();
+        LocalDate finalizeDate = reservation.getCheckInDate().minusDays(leadDays);
+        return !resolveStoreToday(storeId).isBefore(finalizeDate);
+    }
+
+    private LocalDate resolveStoreToday(Long storeId) {
+        Store store = storeRepository != null ? storeRepository.findById(storeId).orElse(null) : null;
+        ZoneId zone = StoreTimeZoneUtil.resolveZoneId(store);
+        return LocalDate.ofInstant(clock.instant(), zone);
+    }
+
     @Transactional
     public AdminRegistrationReviewResponse approve(Long formId, AdminRegistrationReviewRequest req) {
         Long storeId = StoreContextUtils.requireStoreId();
@@ -422,9 +469,32 @@ public class RegistrationAdminService {
         validateReviewAllowed(form, reservation);
 
         String note = req != null ? req.getNote() : null;
-        int updated = registrationFormRepository.approveSubmitted(storeId, formId, note, LocalDateTime.now());
-        if (updated != 1) {
-            throw new RegistrationReviewConflictException(ApiMessages.get(REVIEW_STATE_CHANGED_MESSAGE_KEY));
+        RegistrationMessageType messageType;
+        RegistrationFormStatus resultStatus;
+        if (form.getStatus() == RegistrationFormStatus.REVIEWED) {
+            // 已初审通过：人工再次点通过 = 立即终审
+            int updated = registrationFormRepository.approveSubmitted(storeId, formId, note, LocalDateTime.now());
+            if (updated != 1) {
+                throw new RegistrationReviewConflictException(ApiMessages.get(REVIEW_STATE_CHANGED_MESSAGE_KEY));
+            }
+            messageType = RegistrationMessageType.APPROVED_INFO;
+            resultStatus = RegistrationFormStatus.APPROVED;
+        } else if (isWithinFinalizeWindow(storeId, reservation)) {
+            // 入住日在终审窗口内：通过即最终通过
+            int updated = registrationFormRepository.approveSubmitted(storeId, formId, note, LocalDateTime.now());
+            if (updated != 1) {
+                throw new RegistrationReviewConflictException(ApiMessages.get(REVIEW_STATE_CHANGED_MESSAGE_KEY));
+            }
+            messageType = RegistrationMessageType.APPROVED_INFO;
+            resultStatus = RegistrationFormStatus.APPROVED;
+        } else {
+            // 入住日在终审窗口外：初审通过，等待系统到期自动终审
+            int updated = registrationFormRepository.markReviewed(storeId, formId, note);
+            if (updated != 1) {
+                throw new RegistrationReviewConflictException(ApiMessages.get(REVIEW_STATE_CHANGED_MESSAGE_KEY));
+            }
+            messageType = RegistrationMessageType.REVIEWED_INFO;
+            resultStatus = RegistrationFormStatus.REVIEWED;
         }
 
         RegistrationReviewLog log = new RegistrationReviewLog();
@@ -436,13 +506,15 @@ public class RegistrationAdminService {
 
         publishWorkbenchInvalidationAfterCommit(storeId);
 
-        return sendReviewMessageIfPresent(
+        AdminRegistrationReviewResponse response = sendReviewMessageIfPresent(
                 storeId,
                 userId,
                 formId,
                 req,
-                RegistrationMessageType.APPROVED_INFO
+                messageType
         );
+        response.setFormStatus(resultStatus.name());
+        return response;
     }
 
     @Transactional
@@ -474,13 +546,49 @@ public class RegistrationAdminService {
 
         publishWorkbenchInvalidationAfterCommit(storeId);
 
-        return sendReviewMessageIfPresent(
+        AdminRegistrationReviewResponse response = sendReviewMessageIfPresent(
                 storeId,
                 userId,
                 formId,
                 req,
                 RegistrationMessageType.REJECT_REQUEST
         );
+        response.setFormStatus(RegistrationFormStatus.REJECTED.name());
+        return response;
+    }
+
+    /**
+     * 定时任务入口：把到期的 REVIEWED 表单翻成 APPROVED，并向客人发送预设终审消息。
+     * 条件更新保证幂等：状态已被人工处理时直接跳过，不重复发消息。
+     */
+    @Transactional
+    public void autoFinalizeForm(Long storeId, Long formId, RegistrationReviewSettings settings) {
+        int updated = registrationFormRepository.finalizeReviewed(storeId, formId, LocalDateTime.now());
+        if (updated != 1) {
+            return;
+        }
+
+        RegistrationForm form = registrationFormRepository.findById(formId).orElse(null);
+        if (form != null) {
+            RegistrationReviewLog log = new RegistrationReviewLog();
+            log.setForm(form);
+            log.setAction(RegistrationReviewAction.AUTO_APPROVE);
+            log.setOperatorUserId(null);
+            registrationReviewLogRepository.save(log);
+        }
+
+        RegistrationSendMessageRequest messageRequest = new RegistrationSendMessageRequest();
+        messageRequest.setType(RegistrationMessageType.APPROVED_INFO);
+        messageRequest.setContent(registrationReviewSettingsService.resolveFinalMessage(settings));
+        messageRequest.setTranslateBeforeSend(true);
+        try {
+            registrationMessageService.sendMessage(storeId, null, formId, messageRequest);
+        } catch (Exception ex) {
+            logger.warn("[RegistrationAutoFinalize] send final message failed. storeId={}, formId={}, err={}",
+                    storeId, formId, ex.getMessage());
+        }
+
+        publishWorkbenchInvalidationAfterCommit(storeId);
     }
 
     private AdminRegistrationReviewResponse sendReviewMessageIfPresent(
@@ -538,7 +646,8 @@ public class RegistrationAdminService {
         if (reservation.getStatus() == ReservationStatus.CANCELLED) {
             throw new RegistrationReviewConflictException(ApiMessages.get(REVIEW_CANCELLED_RESERVATION_MESSAGE_KEY));
         }
-        if (form.getStatus() != RegistrationFormStatus.SUBMITTED) {
+        if (form.getStatus() != RegistrationFormStatus.SUBMITTED
+                && form.getStatus() != RegistrationFormStatus.REVIEWED) {
             String message = form.getStatus() == RegistrationFormStatus.APPROVED
                     || form.getStatus() == RegistrationFormStatus.REJECTED
                     ? ApiMessages.get(REVIEW_ALREADY_REVIEWED_MESSAGE_KEY)

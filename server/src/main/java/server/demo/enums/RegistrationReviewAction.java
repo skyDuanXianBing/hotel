@@ -2,5 +2,6 @@ package server.demo.enums;
 
 public enum RegistrationReviewAction {
     APPROVE,
-    REJECT
+    REJECT,
+    AUTO_APPROVE
 }

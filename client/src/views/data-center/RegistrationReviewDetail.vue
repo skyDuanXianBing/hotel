@@ -99,6 +99,7 @@
 
         <div class="section section--form">
           <div class="section-title">{{ t('stage5.dataCenter.detail.reviewAction') }}</div>
+          <div v-if="finalizeHintText" class="finalize-hint">{{ finalizeHintText }}</div>
           <el-input
             v-model="note"
             type="textarea"
@@ -154,7 +155,9 @@
           <div class="section-title">{{ t('stage5.dataCenter.detail.reviewHistory') }}</div>
           <el-table :data="detail.reviewLogs" border class="detail-table" style="width: 100%">
             <el-table-column prop="createdAt" :label="t('stage5.common.fields.time')" min-width="170" />
-            <el-table-column prop="action" :label="t('stage5.common.fields.actions')" min-width="110" />
+            <el-table-column :label="t('stage5.common.fields.actions')" min-width="110">
+              <template #default="{ row }">{{ formatReviewAction(row.action) }}</template>
+            </el-table-column>
             <el-table-column prop="operatorUserId" :label="t('stage5.common.fields.userId')" min-width="110" />
             <el-table-column prop="note" :label="t('stage5.common.fields.note')" min-width="220" />
           </el-table>
@@ -208,7 +211,9 @@
           <div class="section-title">{{ t('stage5.dataCenter.detail.messageHistory') }}</div>
           <el-table :data="detail.messageLogs" border class="detail-table" style="width: 100%">
             <el-table-column prop="createdAt" :label="t('stage5.common.fields.time')" min-width="170" />
-            <el-table-column prop="type" :label="t('stage5.common.fields.type')" min-width="140" />
+            <el-table-column :label="t('stage5.common.fields.type')" min-width="140">
+              <template #default="{ row }">{{ formatMessageType(row.type) }}</template>
+            </el-table-column>
             <el-table-column prop="sendStatus" :label="t('stage5.common.fields.status')" min-width="150" />
             <el-table-column prop="errorMessage" :label="t('stage5.common.fields.errorReason')" min-width="260" />
             <el-table-column :label="t('stage5.common.fields.content')" min-width="360">
@@ -281,6 +286,7 @@ type Detail = {
   roomTypeName?: string
   roomNumber?: string
   reviewNote?: string
+  autoFinalizeDate?: string | null
   guests: any[]
   attachments?: Array<{ id: number; guestId?: number; type: string; originalName?: string }>
   reviewLogs: any[]
@@ -318,6 +324,7 @@ type RegistrationReviewResponse = {
   messageAttempted?: boolean
   messageLog?: RegistrationReviewMessageLog | null
   messageError?: string | null
+  formStatus?: string | null
 }
 type ReviewFeedbackOptions = {
   successKey: string
@@ -347,7 +354,52 @@ const note = ref('')
 const approveMessage = ref('')
 const reviewQuickReplyId = ref<number | null>(null)
 const isCancelledReservation = computed(() => detail.value?.reservationStatus === 'CANCELLED')
-const canReview = computed(() => detail.value?.status === 'SUBMITTED' && !isCancelledReservation.value)
+const canReview = computed(
+  () =>
+    (detail.value?.status === 'SUBMITTED' || detail.value?.status === 'REVIEWED') &&
+    !isCancelledReservation.value,
+)
+const todayYmd = () => {
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
+}
+const isOutsideFinalizeWindow = computed(
+  () =>
+    detail.value?.status === 'SUBMITTED' &&
+    !!detail.value?.autoFinalizeDate &&
+    detail.value.autoFinalizeDate > todayYmd(),
+)
+const finalizeHintText = computed(() => {
+  if (!detail.value || isCancelledReservation.value) return ''
+  const autoFinalizeDate = detail.value.autoFinalizeDate
+  if (detail.value.status === 'REVIEWED') {
+    return autoFinalizeDate
+      ? t('stage5.dataCenter.detail.reviewedScheduledHint', { date: autoFinalizeDate })
+      : t('stage5.dataCenter.detail.reviewedScheduledNoDateHint')
+  }
+  if (detail.value.status === 'SUBMITTED' && autoFinalizeDate) {
+    return autoFinalizeDate > todayYmd()
+      ? t('stage5.dataCenter.detail.outsideFinalizeWindowHint', { date: autoFinalizeDate })
+      : t('stage5.dataCenter.detail.withinFinalizeWindowHint')
+  }
+  return ''
+})
+function formatReviewAction(action?: string | null) {
+  if (action === 'APPROVE') return t('stage5.dataCenter.detail.reviewActions.approve')
+  if (action === 'REJECT') return t('stage5.dataCenter.detail.reviewActions.reject')
+  if (action === 'AUTO_APPROVE') return t('stage5.dataCenter.detail.reviewActions.autoApprove')
+  return action || '-'
+}
+
+function formatMessageType(type?: string | null) {
+  if (type === 'APPROVED_INFO') return t('stage5.dataCenter.detail.messageTypes.approvedInfo')
+  if (type === 'REVIEWED_INFO') return t('stage5.dataCenter.detail.messageTypes.reviewedInfo')
+  if (type === 'REJECT_REQUEST') return t('stage5.dataCenter.detail.messageTypes.rejectRequest')
+  if (type === 'REMINDER') return t('stage5.dataCenter.detail.messageTypes.reminder')
+  return type || '-'
+}
 const canOpenMessages = computed(() => Object.keys(buildMessagesQuery()).length > 0)
 const messageButtonTooltip = computed(() => {
   if (detail.value) {
@@ -389,6 +441,10 @@ async function load(targetFormId?: string | number) {
     note.value = detail.value?.reviewNote || ''
     // keep last status hint from newest message log
     lastSendStatus.value = detail.value?.messageLogs?.[0]?.sendStatus || ''
+    // 窗口外订单：预填可编辑的初审确认文案（发送前仍会按客人语言翻译）
+    if (detail.value?.status === 'SUBMITTED' && isOutsideFinalizeWindow.value && !approveMessage.value.trim()) {
+      approveMessage.value = t('stage5.dataCenter.detail.defaultReviewedInfo')
+    }
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.dataLoadFailed'))
   } finally {
@@ -627,9 +683,14 @@ async function approve() {
     if (messageContent) {
       approveMessage.value = ''
     }
+    const markedReviewed = reviewResponse?.formStatus === 'REVIEWED'
     showReviewFeedback(reviewResponse, messageContent, {
-      successKey: 'stage5.dataCenter.detail.approveSuccess',
-      successWithMessageKey: 'stage5.dataCenter.detail.approveWithMessageSuccess',
+      successKey: markedReviewed
+        ? 'stage5.dataCenter.detail.markReviewedSuccess'
+        : 'stage5.dataCenter.detail.approveSuccess',
+      successWithMessageKey: markedReviewed
+        ? 'stage5.dataCenter.detail.markReviewedWithMessageSuccess'
+        : 'stage5.dataCenter.detail.approveWithMessageSuccess',
       messageFailedKey: 'stage5.dataCenter.detail.approveMessageFailed',
       messageStatusKey: 'stage5.dataCenter.detail.approveMessageStatus',
     })
@@ -650,7 +711,7 @@ function resolveReviewFormId(): number | null {
     ElMessage.warning(t('stage5.dataCenter.registrations.cancelled'))
     return null
   }
-  if (detail.value.status !== 'SUBMITTED') {
+  if (detail.value.status !== 'SUBMITTED' && detail.value.status !== 'REVIEWED') {
     return null
   }
   return detail.value.formId
@@ -1082,6 +1143,17 @@ onBeforeUnmount(handlePreviewDialogClosed)
   font-size: 13px;
   font-weight: 600;
 }
+.finalize-hint {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #ecf5ff;
+  border: 1px solid #d9ecff;
+  color: #409eff;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .approve-message {
   display: grid;
   gap: 8px;

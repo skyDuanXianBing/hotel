@@ -26,6 +26,7 @@ import server.demo.service.RegistrationAdminService;
 import server.demo.service.RegistrationLinkService;
 import server.demo.service.RegistrationLinkInboxService;
 import server.demo.service.RegistrationMessageService;
+import server.demo.service.RegistrationReviewSettingsService;
 import server.demo.service.RegistrationPdfService;
 import server.demo.util.StoreContextUtils;
 
@@ -67,6 +68,9 @@ public class RegistrationAdminController {
 
     @Autowired
     private RegistrationLinkInboxService registrationLinkInboxService;
+
+    @Autowired
+    private RegistrationReviewSettingsService registrationReviewSettingsService;
 
     @org.springframework.beans.factory.annotation.Value("${app.frontend.url}")
     private String frontendBaseUrl;
@@ -182,6 +186,22 @@ public class RegistrationAdminController {
         Long userId = StoreContextUtils.requireUserId();
         RegistrationMessageLogDTO dto = registrationMessageService.sendMessage(storeId, userId, formId, req);
         return ApiResponse.success("ok", dto);
+    }
+
+    @GetMapping("/review-settings")
+    @RequirePermission(module = PermissionModule.STATISTICS, action = PermissionAction.VIEW_STATS)
+    public ApiResponse<RegistrationReviewSettingsResponse> getReviewSettings() {
+        Long storeId = StoreContextUtils.requireStoreId();
+        return ApiResponse.success("ok", registrationReviewSettingsService.getSettings(storeId));
+    }
+
+    @PutMapping("/review-settings")
+    @RequirePermission(module = PermissionModule.STATISTICS, action = PermissionAction.VIEW_STATS)
+    public ApiResponse<RegistrationReviewSettingsResponse> saveReviewSettings(
+            @RequestBody RegistrationReviewSettingsRequest req
+    ) {
+        Long storeId = StoreContextUtils.requireStoreId();
+        return ApiResponse.success("ok", registrationReviewSettingsService.saveSettings(storeId, req));
     }
 
     @GetMapping("/{formId}/pdf")

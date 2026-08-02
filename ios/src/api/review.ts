@@ -15,7 +15,7 @@ import {
   formatStoreDateTime,
 } from '@/utils/storeBusinessDate'
 
-type RegistrationBackendStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
+type RegistrationBackendStatus = 'DRAFT' | 'SUBMITTED' | 'REVIEWED' | 'APPROVED' | 'REJECTED'
 
 interface RegistrationListItemDTO {
   formId: number
@@ -38,6 +38,7 @@ interface RegistrationGuestDTO {
   birthday?: string | null
   nationality?: string | null
   residenceType?: string | null
+  address?: string | null
   phone?: string | null
   passportNumber?: string | null
   priorStay?: string | null
@@ -76,6 +77,7 @@ interface RegistrationDetailDTO {
   rejectedAt?: string | null
   updatedAt?: string | null
   reviewNote?: string | null
+  autoFinalizeDate?: string | null
   guests?: RegistrationGuestDTO[] | null
   attachments?: RegistrationAttachmentDTO[] | null
   reviewLogs?: RegistrationReviewLogDTO[] | null
@@ -103,10 +105,29 @@ export interface RegistrationReviewMessageLog {
   errorMessage?: string | null
 }
 
+export type RegistrationGuestMessageType = 'APPROVED_INFO' | 'REVIEWED_INFO' | 'REJECT_REQUEST' | 'REMINDER'
+
+export interface RegistrationGuestMessageRequest {
+  type: RegistrationGuestMessageType
+  content: string
+  senderName?: string
+  translateBeforeSend?: boolean
+}
+
+export interface RegistrationGuestMessageResult {
+  id?: number | null
+  type?: RegistrationGuestMessageType | null
+  sendStatus?: string | null
+  errorMessage?: string | null
+  translated?: boolean | null
+  translationError?: string | null
+}
+
 export interface RegistrationReviewDecisionResponse {
   messageAttempted?: boolean
   messageLog?: RegistrationReviewMessageLog | null
   messageError?: string | null
+  formStatus?: string | null
 }
 
 const PUBLIC_REGISTRATION_BOOKING_PATHS = ['/rb', '/public/registration-booking'] as const
@@ -155,6 +176,10 @@ const mapBackendStatus = (status?: RegistrationBackendStatus | null): ReviewStat
     return 'approved'
   }
 
+  if (status === 'REVIEWED') {
+    return 'reviewed'
+  }
+
   if (status === 'REJECTED') {
     return 'rejected'
   }
@@ -173,6 +198,10 @@ const mapFilterStatusToBackend = (status?: Exclude<ReviewFilterStatus, 'all'>) =
 
   if (status === 'approved') {
     return 'APPROVED'
+  }
+
+  if (status === 'reviewed') {
+    return 'REVIEWED'
   }
 
   if (status === 'rejected') {
@@ -327,6 +356,10 @@ const buildHistoryAction = (action?: string | null) => {
     return reviewText('actionSubmit')
   }
 
+  if (action === 'AUTO_APPROVE') {
+    return reviewText('actionAutoApprove')
+  }
+
   return reviewText('actionUpdate')
 }
 
@@ -364,6 +397,7 @@ const mapGuests = (guests?: RegistrationGuestDTO[] | null): ReviewGuest[] => {
       relation: buildGuestRelation(guest, index),
       nationality: guest.nationality || reviewText('notProvided'),
       residenceType: guest.residenceType || reviewText('notProvided'),
+      address: guest.address || reviewText('notProvided'),
       passportNumber: guest.passportNumber || reviewText('notProvided'),
       priorStay: guest.priorStay || reviewText('notProvided'),
       nextDestination: guest.nextDestination || reviewText('notProvided'),
@@ -444,6 +478,7 @@ export const mapRegistrationListItem = (item: RegistrationListItemDTO): ReviewRe
     approvedAt: '—',
     rejectedAt: '—',
     updatedAt: formatDateTime(item.updatedAt),
+    autoFinalizeDate: '',
     status: mapBackendStatus(item.status),
     guests: [],
     attachments: [],
@@ -471,6 +506,7 @@ export const mapRegistrationDetail = (detail: RegistrationDetailDTO): ReviewReco
     approvedAt: formatDateTime(detail.approvedAt),
     rejectedAt: formatDateTime(detail.rejectedAt),
     updatedAt: formatDateTime(detail.updatedAt),
+    autoFinalizeDate: detail.autoFinalizeDate || '',
     status: mapBackendStatus(detail.status),
     guests: mapGuests(detail.guests),
     attachments: mapAttachments(detail.attachments),
@@ -571,6 +607,18 @@ export const rejectRegistrationReview = async (
 
 export const downloadRegistrationPdf = async (formId: number) => {
   return request.blob(`/registrations/${formId}/pdf`)
+}
+
+export const sendRegistrationMessage = async (
+  formId: number,
+  data: RegistrationGuestMessageRequest,
+) => {
+  const response = await request.post<ApiResponse<RegistrationGuestMessageResult>>(
+    `/registrations/${formId}/messages/send`,
+    data,
+  )
+
+  return unwrapApiResponse(response, i18n.global.t('stage5.dataCenter.detail.sendFailed'))
 }
 
 export const downloadRegistrationAttachment = async (formId: number, attachmentId: number) => {

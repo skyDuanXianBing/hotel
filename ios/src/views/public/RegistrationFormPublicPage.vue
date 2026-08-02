@@ -242,6 +242,11 @@
               </div>
             </article>
 
+            <div v-if="registration.status === 'REVIEWED'" class="public-guide-card">
+              <h3>{{ t('reviewed') }}</h3>
+              <p class="mobile-note">{{ t('reviewedNotice') }}</p>
+            </div>
+
             <div v-if="registration.status === 'APPROVED' && normalizedGuideLink" class="public-guide-card">
               <h3>{{ t('approvedTitle') }}</h3>
               <p class="mobile-note">{{ t('guideNotice') }}</p>
@@ -256,7 +261,7 @@
               </ion-button>
               <ion-button
                 color="success"
-                :disabled="submitting || registration.status === 'SUBMITTED' || registration.status === 'APPROVED'"
+                :disabled="submitting || registration.status === 'SUBMITTED' || registration.status === 'REVIEWED' || registration.status === 'APPROVED'"
                 @click="handleSubmit"
               >
                 <ion-spinner v-if="submitting" name="crescent" />
@@ -375,7 +380,7 @@ const statusLabel = (status?: RegistrationFormStatus) => {
     return '-'
   }
 
-  return t(status.toLowerCase() as 'draft' | 'submitted' | 'approved' | 'rejected')
+  return t(status.toLowerCase() as 'draft' | 'submitted' | 'reviewed' | 'approved' | 'rejected')
 }
 
 const applyRegistration = (response: PublicRegistrationResponse) => {
@@ -385,7 +390,7 @@ const applyRegistration = (response: PublicRegistrationResponse) => {
     residenceType: guest.residenceType || 'JAPAN',
   }))
 
-  if (response.status === 'SUBMITTED' || response.status === 'APPROVED') {
+  if (response.status === 'SUBMITTED' || response.status === 'REVIEWED' || response.status === 'APPROVED') {
     activeStepIndex.value = guestForms.value.length
     return
   }

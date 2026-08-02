@@ -112,6 +112,7 @@
           pending: 'Pending',
           requested: 'Pending confirmation',
           rejected: 'Rejected',
+          reviewed: 'Reviewed',
           submitted: 'Submitted',
         },
         empty: {
@@ -388,6 +389,24 @@
             'Rejected. The message will be translated into the guest\'s language and sent',
           rejectMessageFailed: 'Review rejected, but message sending failed: {message}',
           rejectMessageStatus: 'Review rejected, but the message was not sent successfully. Status: {status}',
+          markReviewedSuccess: 'Marked as reviewed. The system will finalize automatically before check-in',
+          markReviewedWithMessageSuccess:
+            'Marked as reviewed. The message will be translated into the guest\'s language and sent',
+          reviewedScheduledHint:
+            'Initial review done. The system will finalize automatically on {date}. Approving again finalizes immediately; rejecting sends it back to the guest.',
+          reviewedScheduledNoDateHint:
+            'Initial review done. The system will finalize automatically before check-in.',
+          outsideFinalizeWindowHint:
+            'Check-in is still far out. Approving now only completes your review and notifies the guest; the system will finalize automatically on {date} and release the check-in guide.',
+          withinFinalizeWindowHint:
+            'Check-in is inside the auto-finalize window. Approving is final — the guest immediately sees the check-in guide.',
+          defaultReviewedInfo:
+            'Hello {{guest_name}}, the information you submitted has no issues. We will complete the final approval one week before your check-in date. Thank you for your patience.',
+          reviewActions: {
+            approve: 'Approve',
+            reject: 'Reject',
+            autoApprove: 'Auto final approval',
+          },
           defaultApprovedInfo:
             'Hello {{guest_name}}, your check-in registration has been approved.\nOrder number: {{order_number}}\nCheck-in: {{checkin_date}}, check-out: {{checkout_date}}\nReply to this message if you need to add information.\n\nRegistration link: {{registration_link}}',
           defaultRejectRequest:
@@ -396,6 +415,7 @@
             'Hello {{guest_name}}, please complete check-in registration before arrival: {{registration_link}}\nOrder number: {{order_number}}\nCheck-in date: {{checkin_date}}',
           messageTypes: {
             approvedInfo: 'Approved Check-in Info',
+            reviewedInfo: 'Review Confirmation',
             rejectRequest: 'Reject and Refill',
             reminder: 'Reminder',
           },
@@ -910,6 +930,7 @@
           pending: '待处理',
           requested: '待确认',
           rejected: '已驳回',
+          reviewed: '待终审',
           submitted: '已提交',
         },
         empty: {
@@ -1183,6 +1204,22 @@
           rejectWithMessageSuccess: '已驳回，消息将自动翻译为客人语言后发送',
           rejectMessageFailed: '审核已驳回，但消息发送失败：{message}',
           rejectMessageStatus: '审核已驳回，但消息尚未发送成功。状态：{status}',
+          markReviewedSuccess: '已初审通过，系统将在入住前自动终审',
+          markReviewedWithMessageSuccess: '已初审通过，消息将自动翻译为客人语言后发送',
+          reviewedScheduledHint:
+            '已完成初审，系统将于 {date} 自动终审。再次点“通过”可立即终审，点“驳回”则退回客人重新填写。',
+          reviewedScheduledNoDateHint: '已完成初审，系统将在入住前自动终审。',
+          outsideFinalizeWindowHint:
+            '该订单入住日较远。本次点“通过”只完成您的审查并通知客人；系统将于 {date} 自动终审并向客人开放入住指南。',
+          withinFinalizeWindowHint:
+            '该订单入住日已在自动终审窗口内，点“通过”即为最终通过，客人立即可见入住指南。',
+          defaultReviewedInfo:
+            '您好 {{guest_name}}，您提交的入住信息没有任何错误。我们将在您入住前一周完成最终通过，感谢您的耐心等待。',
+          reviewActions: {
+            approve: '人工通过',
+            reject: '驳回',
+            autoApprove: '系统自动终审',
+          },
           defaultApprovedInfo:
             '您好 {{guest_name}}，您的入住登记已通过。\n订单号：{{order_number}}\n入住：{{checkin_date}}，退房：{{checkout_date}}\n如需补充信息请回复本消息。\n\n登记链接：{{registration_link}}',
           defaultRejectRequest:
@@ -1191,6 +1228,7 @@
             '您好 {{guest_name}}，入住前请完成入住登记：{{registration_link}}\n订单号：{{order_number}}\n入住日期：{{checkin_date}}',
           messageTypes: {
             approvedInfo: '通过后入住信息',
+            reviewedInfo: '初审确认通知',
             rejectRequest: '驳回重新填写',
             reminder: '提醒填写',
           },
@@ -3977,6 +4015,7 @@ const stage5JaMessages = mergeMessages(stage5BaseMessages.en, {
         pending: '保留中',
         requested: '確認待ち',
         rejected: '差し戻し',
+        reviewed: '仮承認済み',
         submitted: '提出済み',
       },
       empty: {
@@ -4251,6 +4290,23 @@ const stage5JaMessages = mergeMessages(stage5BaseMessages.en, {
         rejectWithMessageSuccess: '差し戻しました。メッセージは宿泊者の言語に自動翻訳されて送信されます',
         rejectMessageFailed: '審査は差し戻されましたが、メッセージ送信に失敗しました：{message}',
         rejectMessageStatus: '審査は差し戻されましたが、メッセージは正常に送信されていません。状態：{status}',
+        markReviewedSuccess: '仮承認しました。チェックイン前にシステムが自動で最終承認します',
+        markReviewedWithMessageSuccess:
+          '仮承認しました。メッセージは宿泊者の言語に自動翻訳されて送信されます',
+        reviewedScheduledHint:
+          '仮承認済みです。{date} にシステムが自動で最終承認します。再度「承認」で即時最終承認、「差し戻し」でゲストに差し戻します。',
+        reviewedScheduledNoDateHint: '仮承認済みです。チェックイン前にシステムが自動で最終承認します。',
+        outsideFinalizeWindowHint:
+          'チェックイン日がまだ先の予約です。「承認」すると審査完了の通知だけが送られ、{date} にシステムが自動で最終承認しチェックインガイドを公開します。',
+        withinFinalizeWindowHint:
+          'チェックイン日が自動最終承認の対象期間内です。「承認」はそのまま最終承認となり、チェックインガイドがすぐ公開されます。',
+        defaultReviewedInfo:
+          'こんにちは {{guest_name}} 様、ご提出いただいたチェックイン情報に問題はありませんでした。チェックイン日の1週間前に最終承認を行いますので、しばらくお待ちください。',
+        reviewActions: {
+          approve: '手動承認',
+          reject: '差し戻し',
+          autoApprove: 'システム自動最終承認',
+        },
         defaultApprovedInfo:
           'こんにちは {{guest_name}} 様、チェックイン登録が承認されました。\n注文番号：{{order_number}}\nチェックイン：{{checkin_date}}、チェックアウト：{{checkout_date}}\n追加情報が必要な場合はこのメッセージに返信してください。\n\n登録リンク：{{registration_link}}',
         defaultRejectRequest:
@@ -4259,6 +4315,7 @@ const stage5JaMessages = mergeMessages(stage5BaseMessages.en, {
           'こんにちは {{guest_name}} 様、到着前にチェックイン登録を完了してください：{{registration_link}}\n注文番号：{{order_number}}\nチェックイン日：{{checkin_date}}',
         messageTypes: {
           approvedInfo: '承認後チェックイン情報',
+          reviewedInfo: '審査完了通知',
           rejectRequest: '差し戻し再入力',
           reminder: '入力リマインド',
         },

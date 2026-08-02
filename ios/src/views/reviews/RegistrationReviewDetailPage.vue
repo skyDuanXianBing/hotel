@@ -156,6 +156,9 @@
               <h2 class="mobile-section-title">{{ $t('stage5SourceText.47') }}</h2>
               <p class="mobile-note">{{ $t('stage5SourceText.120') }}</p>
             </div>
+            <p v-if="finalizeHintText" class="mobile-note registration-review-detail-page__finalize-hint">
+              {{ finalizeHintText }}
+            </p>
             <div class="registration-review-detail-page__guest-message">
               <div class="mobile-inline-row">
                 <strong>{{ $t('stage5.dataCenter.detail.approveMessageLabel') }}</strong>
@@ -197,6 +200,16 @@
               <ion-button color="success" :disabled="!canReview || isSubmitting" @click="handleApprove">{{ $t('stage5.common.actions.approve') }}</ion-button>
               <ion-button color="danger" fill="outline" :disabled="!canReview || isSubmitting" @click="handleReject">{{ $t('stage5.common.actions.reject') }}</ion-button>
             </div>
+            <ion-button
+              class="registration-review-detail-page__quick-message-trigger"
+              expand="block"
+              :disabled="isSubmitting || isSendingGuestMessage || !guestMessage.trim()"
+              @click="handleSendGuestMessage"
+            >
+              <ion-spinner v-if="isSendingGuestMessage" name="crescent" />
+              <ion-icon v-else :icon="paperPlaneOutline" />
+              {{ isSendingGuestMessage ? $t('messageDetail.sending') : $t('stage5.dataCenter.detail.sendMessageToGuest') }}
+            </ion-button>
             <p v-if="!canReview" class="mobile-note">{{ $t('stage5SourceText.92') }}</p>
           </section>
 
@@ -268,14 +281,34 @@
                     <span>{{ $t('roomStatus.sampleLogs.labels.phone') }}</span>
                     <strong>{{ resolveGuestPreviewValue(guest.phone) }}</strong>
                   </div>
-                  <div class="registration-review-detail-page__preview-field">
-                    <span>{{ $t('stage5.publicRegistration.form.passportNumber') }}</span>
-                    <strong>{{ resolveGuestPreviewValue(guest.passportNumber) }}</strong>
-                  </div>
-                  <div class="registration-review-detail-page__preview-field">
-                    <span>{{ $t('settingsStage4.autoCheckin.fields.nationality') }}</span>
-                    <strong>{{ resolveGuestPreviewValue(guest.nationality) }}</strong>
-                  </div>
+                  <template v-if="isJapanResidence(guest)">
+                    <div class="registration-review-detail-page__preview-field">
+                      <span>{{ $t('stage5.publicRegistration.form.address') }}</span>
+                      <strong>{{ resolveGuestPreviewValue(guest.address) }}</strong>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div class="registration-review-detail-page__preview-field">
+                      <span>{{ $t('stage5.publicRegistration.form.passportNumber') }}</span>
+                      <strong>{{ resolveGuestPreviewValue(guest.passportNumber) }}</strong>
+                    </div>
+                    <div class="registration-review-detail-page__preview-field">
+                      <span>{{ $t('settingsStage4.autoCheckin.fields.nationality') }}</span>
+                      <strong>{{ resolveGuestPreviewValue(guest.nationality) }}</strong>
+                    </div>
+                    <div class="registration-review-detail-page__preview-field">
+                      <span>{{ $t('stage5.publicRegistration.form.address') }}</span>
+                      <strong>{{ resolveGuestPreviewValue(guest.address) }}</strong>
+                    </div>
+                    <div class="registration-review-detail-page__preview-field">
+                      <span>{{ $t('stage5.publicRegistration.form.priorStay') }}</span>
+                      <strong>{{ resolveGuestPreviewValue(guest.priorStay) }}</strong>
+                    </div>
+                    <div class="registration-review-detail-page__preview-field">
+                      <span>{{ $t('stage5.publicRegistration.form.nextDestination') }}</span>
+                      <strong>{{ resolveGuestPreviewValue(guest.nextDestination) }}</strong>
+                    </div>
+                  </template>
                 </div>
 
                 <div v-if="findPassportAttachment(guest.id)" class="registration-review-detail-page__preview-passport">
@@ -327,6 +360,7 @@ import {
   IonButtons,
   IonContent,
   IonHeader,
+  IonIcon,
   IonModal,
   IonPage,
   IonSelect,
@@ -339,12 +373,14 @@ import {
 } from '@ionic/vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { paperPlaneOutline } from 'ionicons/icons'
 import {
   approveRegistrationReview,
   downloadRegistrationAttachment,
   downloadRegistrationPdf,
   getRegistrationReviewDetail,
   rejectRegistrationReview,
+  sendRegistrationMessage,
 } from '@/api/review'
 import { getAllQuickReplies, type QuickReplyDTO } from '@/api/quickReply'
 import ImageViewerModal from '@/components/global/ImageViewerModal.vue'
@@ -373,6 +409,7 @@ const guestMessage = ref('')
 const quickReplies = ref<QuickReplyDTO[]>([])
 const quickReplyLoading = ref(false)
 const selectedQuickReplyId = ref<number | null>(null)
+const isSendingGuestMessage = ref(false)
 
 type GuestPassportState = {
   url?: string
@@ -406,7 +443,41 @@ const canReview = computed(() => {
     return false
   }
 
-  return record.value.status === 'pending' || record.value.status === 'draft'
+  return (
+    record.value.status === 'pending' ||
+    record.value.status === 'draft' ||
+    record.value.status === 'reviewed'
+  )
+})
+
+const todayYmd = () => {
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
+}
+
+const isOutsideFinalizeWindow = computed(
+  () =>
+    record.value?.status === 'pending' &&
+    !!record.value?.autoFinalizeDate &&
+    record.value.autoFinalizeDate > todayYmd(),
+)
+
+const finalizeHintText = computed(() => {
+  if (!record.value) return ''
+  const autoFinalizeDate = record.value.autoFinalizeDate
+  if (record.value.status === 'reviewed') {
+    return autoFinalizeDate
+      ? t('stage5.dataCenter.detail.reviewedScheduledHint', { date: autoFinalizeDate })
+      : t('stage5.dataCenter.detail.reviewedScheduledNoDateHint')
+  }
+  if (record.value.status === 'pending' && autoFinalizeDate) {
+    return autoFinalizeDate > todayYmd()
+      ? t('stage5.dataCenter.detail.outsideFinalizeWindowHint', { date: autoFinalizeDate })
+      : t('stage5.dataCenter.detail.withinFinalizeWindowHint')
+  }
+  return ''
 })
 
 const hasGuestPreview = computed(() => Boolean(record.value?.guests.length))
@@ -530,6 +601,10 @@ function resolveGuestLabel(guestId: string) {
   }
 
   return `${targetGuest.sortOrder}. ${targetGuest.name}`
+}
+
+function isJapanResidence(guest: ReviewGuest) {
+  return guest.residenceType === 'JAPAN'
 }
 
 function resolveGuestPreviewValue(value?: string) {
@@ -771,6 +846,10 @@ async function loadRecordDetail() {
     const detail = await getRegistrationReviewDetail(formId.value)
     record.value = detail
     reviewNote.value = detail.reviewNote || ''
+    // 窗口外订单：预填可编辑的初审确认文案（发送前仍会按客人语言翻译）
+    if (detail.status === 'pending' && detail.autoFinalizeDate && detail.autoFinalizeDate > todayYmd() && !guestMessage.value.trim()) {
+      guestMessage.value = t('stage5.dataCenter.detail.defaultReviewedInfo')
+    }
     // 就地同步列表缓存，代替回列表页前的全量刷新
     reviewStore.syncRecord(detail)
     return true
@@ -795,10 +874,13 @@ async function handleApprove() {
       record.value.formNumericId,
       buildDecisionPayload(t('stage5Final.review.approveNote')),
     )
+    const markedReviewed = response?.formStatus === 'REVIEWED'
     showDecisionFeedback(
       response,
-      'stage5Final.review.approved',
-      'stage5.dataCenter.detail.approveWithMessageSuccess',
+      markedReviewed ? 'stage5.dataCenter.detail.markReviewedSuccess' : 'stage5Final.review.approved',
+      markedReviewed
+        ? 'stage5.dataCenter.detail.markReviewedWithMessageSuccess'
+        : 'stage5.dataCenter.detail.approveWithMessageSuccess',
     )
     await loadRecordDetail()
   } catch (error) {
@@ -839,6 +921,46 @@ async function handleReload() {
 
 async function handleBackToList() {
   await router.push(ROUTE_PATHS.reviews)
+}
+
+async function handleSendGuestMessage() {
+  if (!record.value) {
+    return
+  }
+
+  const message = guestMessage.value.trim()
+  if (!message) {
+    showWarningToast(t('stage5.dataCenter.detail.contentRequired'))
+    return
+  }
+
+  isSendingGuestMessage.value = true
+
+  try {
+    const result = await sendRegistrationMessage(record.value.formNumericId, {
+      type: 'REMINDER',
+      content: message,
+      senderName: t('stage5.dataCenter.detail.frontDesk'),
+      translateBeforeSend: true,
+    })
+
+    const sendStatus = result?.sendStatus?.trim() || ''
+    if (sendStatus === 'SENT') {
+      guestMessage.value = ''
+      showSuccessToast(t('stage5.dataCenter.detail.messageSubmitted', { status: sendStatus }))
+      return
+    }
+
+    // WAITING_* / FAILED：保留已编辑内容，方便重试或复制
+    showWarningToast(
+      result?.errorMessage ||
+        t('stage5.dataCenter.detail.messageSubmitted', { status: sendStatus || 'FAILED' }),
+    )
+  } catch (error) {
+    showUnhandledRequestWarning(error, t('stage5.dataCenter.detail.sendFailed'))
+  } finally {
+    isSendingGuestMessage.value = false
+  }
 }
 
 async function handleOpenLinks() {
@@ -935,6 +1057,17 @@ async function handleOpenLinks() {
   margin-top: 12px;
 }
 
+.registration-review-detail-page__finalize-hint {
+  display: block;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(56, 128, 255, 0.08);
+  border: 1px solid rgba(56, 128, 255, 0.22);
+  color: var(--ion-color-primary, #3880ff);
+  line-height: 1.5;
+}
+
 .registration-review-detail-page__section-card > .mobile-inline-row {
   align-items: flex-start;
 }
@@ -1028,6 +1161,40 @@ async function handleOpenLinks() {
 .registration-review-detail-page__guest-message ion-textarea {
   --background: #fff;
   --border-radius: 8px;
+}
+
+.registration-review-detail-page__quick-message-trigger {
+  --background: linear-gradient(135deg, #2f9cff 0%, #1f6feb 100%);
+  --background-activated: #1f6feb;
+  --background-hover: #2f9cff;
+  --border-radius: 12px;
+  --box-shadow: 0 10px 20px rgba(31, 111, 235, 0.22);
+  --color: #ffffff;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  min-height: 48px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.registration-review-detail-page__quick-message-trigger ion-icon {
+  margin-right: 6px;
+  font-size: 18px;
+}
+
+.registration-review-detail-page__quick-message-trigger ion-spinner {
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  color: #ffffff;
+}
+
+.registration-review-detail-page__quick-message-trigger.button-disabled {
+  opacity: 0.52;
+  --box-shadow: none;
 }
 
 .registration-review-detail-page__loading-state {

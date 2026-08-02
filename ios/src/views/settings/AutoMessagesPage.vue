@@ -31,6 +31,50 @@
         <section class="mobile-card mobile-dashboard-surface settings-auto-messages-list-card">
           <div class="mobile-inline-row settings-auto-messages-page__section-header">
             <div>
+              <h2 class="mobile-section-title">{{ $t('settingsAutoMessageReviewFinalize.title') }}</h2>
+              <p class="mobile-note">{{ $t('settingsAutoMessageReviewFinalize.desc') }}</p>
+            </div>
+            <ion-spinner v-if="reviewFinalizeLoading" name="crescent" />
+          </div>
+          <div class="settings-form-grid settings-auto-messages-page__review-finalize-form">
+            <label class="settings-form-field settings-auto-messages-page__review-finalize-toggle">
+              <span>{{ $t('settingsAutoMessageReviewFinalize.enabled') }}</span>
+              <ion-toggle v-model="reviewFinalizeForm.autoFinalizeEnabled" />
+            </label>
+            <label class="settings-form-field">
+              <span>{{ $t('settingsAutoMessageReviewFinalize.leadDays') }}</span>
+              <ion-input
+                v-model.number="reviewFinalizeForm.leadDays"
+                type="number"
+                min="1"
+                max="30"
+                fill="outline"
+              />
+            </label>
+            <label class="settings-form-field">
+              <span>{{ $t('settingsAutoMessageReviewFinalize.finalMessage') }}</span>
+              <ion-textarea
+                v-model="reviewFinalizeForm.finalMessage"
+                auto-grow
+                :rows="3"
+                fill="outline"
+                :placeholder="reviewFinalizeForm.defaultFinalMessage"
+              />
+            </label>
+            <div class="settings-auto-messages-page__review-finalize-actions">
+              <ion-button size="small" fill="outline" @click="resetReviewFinalizeMessage">
+                {{ $t('settingsAutoMessageReviewFinalize.resetDefault') }}
+              </ion-button>
+              <ion-button size="small" :disabled="reviewFinalizeSaving" @click="saveReviewFinalizeSettings">
+                <ion-spinner v-if="reviewFinalizeSaving" name="crescent" />
+                <span v-else>{{ $t('settingsAutoMessageReviewFinalize.save') }}</span>
+              </ion-button>
+            </div>
+          </div>
+        </section>
+        <section class="mobile-card mobile-dashboard-surface settings-auto-messages-list-card">
+          <div class="mobile-inline-row settings-auto-messages-page__section-header">
+            <div>
               <h2 class="mobile-section-title">{{ $t('stage5SourceText.161') }}</h2>
             </div>
             <ion-spinner v-if="loading" name="crescent" />
@@ -247,8 +291,10 @@ import {
   createAutoMessage,
   deleteAutoMessage,
   getAllAutoMessages,
+  getRegistrationReviewSettings,
   toggleAutoMessage,
   updateAutoMessage,
+  updateRegistrationReviewSettings,
   type AutoMessageAction,
   type AutoMessageDTO,
   type RoomSelectionType,
@@ -304,6 +350,14 @@ const messageVariables = computed(() => [
 ])
 
 const loading = ref(false)
+const reviewFinalizeLoading = ref(false)
+const reviewFinalizeSaving = ref(false)
+const reviewFinalizeForm = ref({
+  autoFinalizeEnabled: true,
+  leadDays: 7,
+  finalMessage: '',
+  defaultFinalMessage: '',
+})
 const submitting = ref(false)
 const editorOpen = ref(false)
 const editingMessageId = ref<number | null>(null)
@@ -804,17 +858,83 @@ async function handleDeleteMessage(message: AutoMessageDTO) {
   }
 }
 
+async function loadReviewFinalizeSettings() {
+  reviewFinalizeLoading.value = true
+  try {
+    const response = await getRegistrationReviewSettings()
+    if (!response.success || !response.data) {
+      throw new Error(response.message || t('settingsAutoMessageReviewFinalize.loadFailed'))
+    }
+    reviewFinalizeForm.value = {
+      autoFinalizeEnabled: response.data.autoFinalizeEnabled,
+      leadDays: response.data.leadDays,
+      finalMessage: response.data.finalMessage || '',
+      defaultFinalMessage: response.data.defaultFinalMessage || '',
+    }
+  } catch (error) {
+    showWarningToast(resolveWarningMessage(error, t('settingsAutoMessageReviewFinalize.loadFailed')))
+  } finally {
+    reviewFinalizeLoading.value = false
+  }
+}
+
+function resetReviewFinalizeMessage() {
+  reviewFinalizeForm.value.finalMessage = reviewFinalizeForm.value.defaultFinalMessage
+}
+
+async function saveReviewFinalizeSettings() {
+  reviewFinalizeSaving.value = true
+  try {
+    const finalMessage = reviewFinalizeForm.value.finalMessage.trim()
+    const response = await updateRegistrationReviewSettings({
+      autoFinalizeEnabled: reviewFinalizeForm.value.autoFinalizeEnabled,
+      leadDays: reviewFinalizeForm.value.leadDays,
+      finalMessage: finalMessage || reviewFinalizeForm.value.defaultFinalMessage,
+    })
+    if (!response.success || !response.data) {
+      throw new Error(response.message || t('settingsAutoMessageReviewFinalize.saveFailed'))
+    }
+    reviewFinalizeForm.value.autoFinalizeEnabled = response.data.autoFinalizeEnabled
+    reviewFinalizeForm.value.leadDays = response.data.leadDays
+    reviewFinalizeForm.value.finalMessage = response.data.finalMessage || ''
+    showSuccessToast(t('settingsAutoMessageReviewFinalize.saveSuccess'))
+  } catch (error) {
+    showWarningToast(resolveWarningMessage(error, t('settingsAutoMessageReviewFinalize.saveFailed')))
+  } finally {
+    reviewFinalizeSaving.value = false
+  }
+}
+
 async function handleRefresh(event: CustomEvent) {
   await loadPageData()
+  await loadReviewFinalizeSettings()
   event.detail.complete()
 }
 
 onIonViewWillEnter(async () => {
   await loadPageData()
+  await loadReviewFinalizeSettings()
 })
 </script>
 
 <style scoped>
+.settings-auto-messages-page__review-finalize-form {
+  margin-top: 12px;
+}
+
+.settings-auto-messages-page__review-finalize-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-auto-messages-page__review-finalize-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .settings-auto-messages-page {
   display: block;
   --background: var(--ios-pms-dashboard-page-background);

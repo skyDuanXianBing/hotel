@@ -142,3 +142,35 @@ export const toggleAutoMessage = async (
 ): Promise<ApiResponse<AutoMessageDTO>> => {
   return await request.put(`/auto-messages/${id}/toggle`)
 }
+
+// 登记审查自动终审设置
+export interface RegistrationReviewSettingsDTO {
+  autoFinalizeEnabled: boolean
+  leadDays: number
+  finalMessage: string | null
+  defaultFinalMessage: string
+}
+
+export interface RegistrationReviewSettingsRequest {
+  autoFinalizeEnabled?: boolean
+  leadDays?: number
+  finalMessage?: string
+}
+
+/**
+ * 获取登记审查自动终审设置
+ */
+export const getRegistrationReviewSettings = async (): Promise<
+  ApiResponse<RegistrationReviewSettingsDTO>
+> => {
+  return await request.get('/registrations/review-settings')
+}
+
+/**
+ * 保存登记审查自动终审设置
+ */
+export const updateRegistrationReviewSettings = async (
+  data: RegistrationReviewSettingsRequest
+): Promise<ApiResponse<RegistrationReviewSettingsDTO>> => {
+  return await request.put('/registrations/review-settings', data)
+}

@@ -2,9 +2,6 @@
   <ion-page class="registration-review-list-route">
     <ion-header translucent>
       <ion-toolbar class="app-page-header__toolbar">
-        <ion-buttons slot="start">
-          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.statistics" />
-        </ion-buttons>
         <ion-title class="app-page-header__title">{{ $t('routes.RegistrationReviews') }}</ion-title>
       </ion-toolbar>
     </ion-header>
@@ -181,9 +178,7 @@
 
 <script setup lang="ts">
 import {
-  IonBackButton,
   IonButton,
-  IonButtons,
   IonContent,
   IonHeader,
   IonIcon,
@@ -203,7 +198,6 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { type RegistrationReviewListParams } from '@/api/review'
 import { REVIEW_STATUS_OPTIONS, getReviewStatusLabel, type ReviewFilterStatus } from '@/constants/reviews'
-import { ROUTE_PATHS } from '@/router/guards'
 import { useReviewStore } from '@/stores/reviews'
 
 const router = useRouter()
@@ -876,6 +870,11 @@ function resolveChannelBadgeStyle(channelName: string) {
 .registration-review-list-page__status.is-draft {
   background: #e3e3e3;
   color: #666666;
+}
+
+.registration-review-list-page__status.is-reviewed {
+  background: #dbeafe;
+  color: #1d6fe0;
 }
 
 .registration-review-list-page__status.is-approved {
