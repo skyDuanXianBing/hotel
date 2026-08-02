@@ -84,6 +84,37 @@ export function resolveMessageTranslationLanguageLabel(language: MessageTranslat
   return '中文(简体)'
 }
 
+export type GuestMessageLanguageCode = 'zh' | 'ja' | 'ko' | 'en'
+
+/**
+ * 检测最新一条客人消息的语言（与 Web 端 MessagesPage 的 detectTextLanguageCode 对齐）。
+ * 拉丁字母语言无法区分时默认按英语处理。
+ */
+export function detectGuestMessageLanguageCode(text?: string): GuestMessageLanguageCode {
+  const normalized = (text || '').trim()
+  if (!normalized) {
+    return 'en'
+  }
+  if (/[\u3040-\u30ff]/.test(normalized)) {
+    return 'ja'
+  }
+  if (/[\uac00-\ud7af]/.test(normalized)) {
+    return 'ko'
+  }
+  if (/[\u4e00-\u9fff]/.test(normalized)) {
+    return 'zh'
+  }
+  return 'en'
+}
+
+/**
+ * 把客人消息语言映射为 AI 草稿/翻译使用的目标语言值（中文固定为 zh-CN）。
+ */
+export function resolveGuestMessageTargetLanguage(text?: string): MessageTranslationLanguageValue {
+  const code = detectGuestMessageLanguageCode(text)
+  return code === 'zh' ? 'zh-CN' : code
+}
+
 export function normalizeTranslatedText(text: string) {
   return text.replace(/^译文[:：]\s*/i, '').replace(/^translation[:：]\s*/i, '').trim()
 }

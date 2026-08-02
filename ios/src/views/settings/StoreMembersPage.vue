@@ -1123,12 +1123,12 @@ async function handleEditMember(member: StoreMember) {
   }
 
   try {
-    const response = await getStoreMemberDetail(storeId, member.id)
+    const response = await getStoreMemberDetail(storeId, member.user.id)
     if (!response.success || !response.data) {
       throw new Error(response.message || t('stage5Pattern.loadFailed'))
     }
 
-    editingMemberId.value = member.id
+    editingMemberId.value = member.user.id
     memberEditorSegment.value = 'basic'
     memberForm.value = {
       email: response.data.user.email,
@@ -1230,7 +1230,7 @@ async function handleToggleMember(member: StoreMember) {
   }
 
   try {
-    const response = await updateStoreMemberPermission(storeId, member.id, {
+    const response = await updateStoreMemberPermission(storeId, member.user.id, {
       isActive: nextStatus,
       role: (member.role as MemberBaseRole) || 'member',
       roleIds: normalizeRoleIds(member.roles.map((item) => item.id)),
@@ -1268,7 +1268,7 @@ async function handleRemoveMember(member: StoreMember) {
   }
 
   try {
-    const response = await removeStoreMember(storeId, member.id)
+    const response = await removeStoreMember(storeId, member.user.id)
     if (!response.success) {
       throw new Error(response.message || t('settingsStage4.accountList.messages.removeMemberFailed'))
     }

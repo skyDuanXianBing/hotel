@@ -200,7 +200,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Message, Lock, Key } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
@@ -216,6 +216,7 @@ import {
   type LoginTarget,
 } from '@/api/auth'
 import { normalizePreferredLoginTarget, resolveLoginTarget } from '@/utils/loginTargetResolver'
+import { readLoginPrefs, saveLoginPrefs } from '@/utils/loginPrefs'
 
 const router = useRouter()
 const route = useRoute()
@@ -235,6 +236,16 @@ const loginForm = reactive({
   verificationCode: '',
   rememberMe: false,
   agreeToTerms: false,
+})
+
+onMounted(() => {
+  const prefs = readLoginPrefs()
+  if (!prefs) {
+    return
+  }
+  loginForm.email = prefs.email
+  loginForm.rememberMe = prefs.rememberMe
+  loginForm.agreeToTerms = prefs.agreeToTerms
 })
 
 const loginRules = computed<FormRules>(() => ({
@@ -286,6 +297,11 @@ const finishLogin = async (response: ApiResponse<LoginResponse>) => {
   if (!response.success || !response.data) {
     throw new Error(response.message || t('auth.login.failed'))
   }
+  saveLoginPrefs({
+    email: loginForm.email,
+    rememberMe: loginForm.rememberMe,
+    agreeToTerms: loginForm.agreeToTerms,
+  })
   await resolveLoginTarget(response.data, router)
   ElMessage.success(t('auth.login.success'))
 }

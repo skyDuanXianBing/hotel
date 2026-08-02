@@ -117,6 +117,7 @@ import {
   IonTitle,
   IonToolbar,
   onIonViewWillEnter,
+  useIonRouter,
 } from '@ionic/vue'
 import { useRouter } from 'vue-router'
 import { useReviewStore } from '@/stores/reviews'
@@ -128,6 +129,7 @@ import { copyTextToClipboard } from '@/utils/file'
 const { t } = useI18n()
 
 const router = useRouter()
+const ionRouter = useIonRouter()
 const reviewStore = useReviewStore()
 
 onIonViewWillEnter(async () => {
@@ -135,7 +137,8 @@ onIonViewWillEnter(async () => {
 })
 
 async function handleBack() {
-  if (window.history.length > 1) {
+  // window.history.length 是整个浏览器会话的历史长度，不能用来判断应用内是否可回退
+  if (ionRouter.canGoBack()) {
     await router.back()
     return
   }

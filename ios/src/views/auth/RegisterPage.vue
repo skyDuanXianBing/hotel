@@ -84,7 +84,18 @@
         <span class="auth-agreement-row__box">
           <span class="auth-agreement-row__check">✓</span>
         </span>
-        <span class="auth-agreement-row__text">{{ t('auth.register.agreement') }}</span>
+        <i18n-t keypath="auth.agreement" tag="span" class="auth-agreement-row__text" scope="global">
+          <template #terms>
+            <button type="button" class="auth-agreement-link" @click.stop.prevent="goToTermsOfService">
+              {{ t('auth.termsOfService') }}
+            </button>
+          </template>
+          <template #privacy>
+            <button type="button" class="auth-agreement-link" @click.stop.prevent="goToPrivacyPolicy">
+              {{ t('auth.privacyPolicy') }}
+            </button>
+          </template>
+        </i18n-t>
       </label>
 
       <ion-button
@@ -104,7 +115,9 @@
 import { IonButton, IonInput, IonItem, IonList, IonSpinner } from '@ionic/vue'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { register, sendVerificationCode } from '@/api/auth'
+import { ROUTE_PATHS } from '@/router/guards'
 import type { RegisterRequest } from '@/types/auth'
 import { showErrorToast, showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
@@ -115,6 +128,15 @@ const VERIFICATION_CODE_LENGTH = 6
 const VERIFICATION_CODE_SECONDS = 60
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const { t } = useI18n()
+const router = useRouter()
+
+const goToTermsOfService = async () => {
+  await router.push(ROUTE_PATHS.legalTerms)
+}
+
+const goToPrivacyPolicy = async () => {
+  await router.push(ROUTE_PATHS.legalPrivacy)
+}
 
 type FocusedField =
   | 'email'

@@ -9,6 +9,8 @@ export const ROUTE_PATHS = {
   loginCodeVerify: '/auth/login/code-verify',
   register: '/auth/register',
   forgotPassword: '/auth/forgot-password',
+  legalTerms: '/legal/terms',
+  legalPrivacy: '/legal/privacy',
   publicRegistrationBooking: '/public/registration-booking/:bookingKey',
   publicRegistrationForm: '/public/registration/:orderNumber',
   publicRoomStatusShare: '/public/share/:token',

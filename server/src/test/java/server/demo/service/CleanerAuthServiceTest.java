@@ -48,7 +48,7 @@ class CleanerAuthServiceTest {
         Mockito.when(cleanerRepository.findByEmail("cleaner@example.com")).thenReturn(Optional.of(cleaner));
         Mockito.when(passwordEncoder.matches("plain-password", "encoded-password")).thenReturn(true);
         Mockito.when(cleanerIdentityService.ensureCleanerIdentity(cleaner)).thenReturn(cleaner);
-        Mockito.when(jwtUtil.generateToken(88L, "cleaner@example.com")).thenReturn("token-123");
+        Mockito.when(jwtUtil.generateToken(88L, "cleaner@example.com", false)).thenReturn("token-123");
         LoginResponse unifiedResponse = new LoginResponse();
         unifiedResponse.setLoginTarget(LoginTarget.CLEANER);
         unifiedResponse.setCleaner(new CleanerDTO(cleaner));
@@ -58,7 +58,49 @@ class CleanerAuthServiceTest {
 
         assertEquals("token-123", response.getToken());
         assertEquals(88L, response.getCleaner().getUserId());
-        Mockito.verify(jwtUtil).generateToken(88L, "cleaner@example.com");
+        Mockito.verify(jwtUtil).generateToken(88L, "cleaner@example.com", false);
         Mockito.verify(authService).buildAuthenticatedLoginResponse(88L, "token-123");
+    }
+
+    @Test
+    void loginByPassword_rememberMe_shouldRequestLongLivedToken() {
+        CleanerRepository cleanerRepository = Mockito.mock(CleanerRepository.class);
+        PasswordEncoder passwordEncoder = Mockito.mock(PasswordEncoder.class);
+        JwtUtil jwtUtil = Mockito.mock(JwtUtil.class);
+        CleanerIdentityService cleanerIdentityService = Mockito.mock(CleanerIdentityService.class);
+        AuthService authService = Mockito.mock(AuthService.class);
+
+        CleanerAuthService service = new CleanerAuthService();
+        ReflectionTestUtils.setField(service, "cleanerRepository", cleanerRepository);
+        ReflectionTestUtils.setField(service, "passwordEncoder", passwordEncoder);
+        ReflectionTestUtils.setField(service, "jwtUtil", jwtUtil);
+        ReflectionTestUtils.setField(service, "cleanerIdentityService", cleanerIdentityService);
+        ReflectionTestUtils.setField(service, "authService", authService);
+
+        Cleaner cleaner = new Cleaner();
+        cleaner.setId(3L);
+        cleaner.setUserId(88L);
+        cleaner.setEmail("cleaner@example.com");
+        cleaner.setPassword("encoded-password");
+        cleaner.setIsActive(true);
+
+        CleanerLoginRequest request = new CleanerLoginRequest();
+        request.setEmail("cleaner@example.com");
+        request.setPassword("plain-password");
+        request.setRememberMe(true);
+
+        Mockito.when(cleanerRepository.findByEmail("cleaner@example.com")).thenReturn(Optional.of(cleaner));
+        Mockito.when(passwordEncoder.matches("plain-password", "encoded-password")).thenReturn(true);
+        Mockito.when(cleanerIdentityService.ensureCleanerIdentity(cleaner)).thenReturn(cleaner);
+        Mockito.when(jwtUtil.generateToken(88L, "cleaner@example.com", true)).thenReturn("long-token");
+        LoginResponse unifiedResponse = new LoginResponse();
+        unifiedResponse.setLoginTarget(LoginTarget.CLEANER);
+        unifiedResponse.setCleaner(new CleanerDTO(cleaner));
+        Mockito.when(authService.buildAuthenticatedLoginResponse(88L, "long-token")).thenReturn(unifiedResponse);
+
+        CleanerLoginResponse response = service.loginByPassword(request);
+
+        assertEquals("long-token", response.getToken());
+        Mockito.verify(jwtUtil).generateToken(88L, "cleaner@example.com", true);
     }
 }

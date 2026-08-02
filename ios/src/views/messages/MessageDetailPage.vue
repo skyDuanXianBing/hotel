@@ -439,6 +439,7 @@ import {
   loadMessageTranslationSettings,
   normalizeTranslatedText,
   requestAiMessageTranslation,
+  resolveGuestMessageTargetLanguage,
   resolveMessageTranslationLanguageLabel,
   type MessageTranslationLanguageValue,
 } from '@/utils/messageTranslation'
@@ -488,7 +489,7 @@ const TRAILING_URL_PUNCTUATION_PATTERN = /[),.!?\]}]+$/
 
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 function resolveRouteThreadId() {
   return Number(route.params.threadId || 0)
 }
@@ -1596,7 +1597,7 @@ async function handleGenerateAiDraft() {
         linkedReservation.value?.roomTypeName || activeThread.value.roomTypeName || undefined,
       latestGuestMessageId: latestGuestMessage?.id,
       recentMessages,
-      language: locale.value,
+      language: resolveGuestMessageTargetLanguage(latestGuestMessage?.content),
     })
     const draftReply = response.data?.draftReply?.trim()
     if (!response.success || !draftReply) {
@@ -1754,9 +1755,19 @@ async function handlePolishAiDraft() {
   aiPolishLoading.value = true
 
   try {
+    const latestGuestMessage = [...messages.value]
+      .reverse()
+      .find((message) => message.senderType === MessageSenderType.GUEST)
+    const guestLanguageLabel = resolveMessageTranslationLanguageLabel(
+      resolveGuestMessageTargetLanguage(latestGuestMessage?.content),
+    )
+    const staffLanguageLabel = resolveMessageTranslationLanguageLabel(
+      translationTargetLanguage.value,
+    )
     const promptLines = [
       '你是酒店客服改写助手，请根据要求改进下面这条客服回复草稿。',
       '请直接返回可发送给住客的完整回复正文，不要附加解释。',
+      `语言要求：必须始终使用客人消息的语言（${guestLanguageLabel}）返回完整回复；除非客人消息本身就是${staffLanguageLabel}，否则不要切换成${staffLanguageLabel}或其他语言。`,
       '',
       `会话上下文总结：${aiContextSummary.value || '暂无上下文总结'}`,
       '',

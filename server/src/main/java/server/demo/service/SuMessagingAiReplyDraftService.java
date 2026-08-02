@@ -12,6 +12,7 @@ import server.demo.entity.SuMessageThread;
 import server.demo.enums.SuMessagingSenderType;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
+import server.demo.util.GuestLanguageDetector;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -101,13 +102,17 @@ public class SuMessagingAiReplyDraftService {
                 searchResult.getWarnings()
         );
 
+        String effectiveLanguage = resolveEffectiveLanguage(
+                safeRequest.getLanguage(),
+                latestGuestMessage.content()
+        );
         String prompt = promptBuilder.buildPrompt(
                 context,
                 recentMessages,
                 safeRequest.getRecentMessages(),
                 latestGuestMessage.content(),
                 searchResult,
-                safeRequest.getLanguage()
+                effectiveLanguage
         );
 
         String draftReply = generateDraftReply(prompt, latestGuestMessage.content(), searchResult, warnings);
@@ -119,6 +124,17 @@ public class SuMessagingAiReplyDraftService {
                 searchResult.getMatches().size(),
                 processingTimeMs
         );
+    }
+
+    /**
+     * 客户端明确传了语言时优先使用；未传时根据最后一轮客人消息粗检测，
+     * 检测不到（如纯拉丁字母语言）则返回 null，由 prompt 通用指令兜底。
+     */
+    private static String resolveEffectiveLanguage(String requestLanguage, String latestGuestMessage) {
+        if (requestLanguage != null && !requestLanguage.isBlank()) {
+            return requestLanguage;
+        }
+        return GuestLanguageDetector.detectLanguageName(latestGuestMessage);
     }
 
     private MessageKnowledgeSearchResult searchSimilarSafely(

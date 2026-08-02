@@ -75,7 +75,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
 import type { LoginResponse, LoginTarget } from '@/types/auth'
-import { clearAutoLoginCredentials } from '@/utils/autoLogin'
+import { clearAutoLoginCredentials, syncAutoLoginToken } from '@/utils/autoLogin'
+import { saveLoginPrefs } from '@/utils/loginPrefs'
 import {
   applyUnifiedLoginResponse,
   normalizeAvailableLoginTargets,
@@ -194,7 +195,19 @@ const validateEmail = () => {
 }
 
 const finishCodeLogin = async (responseData: LoginResponse) => {
-  clearAutoLoginCredentials()
+  // 勾选“记住登录状态”时保留既有免登凭据并同步新 token 的有效期；未勾选才清除
+  if (rememberMe.value) {
+    await syncAutoLoginToken(responseData.token)
+  } else {
+    clearAutoLoginCredentials()
+  }
+
+  saveLoginPrefs({
+    email: email.value,
+    rememberMe: rememberMe.value,
+    agreeToTerms: true,
+  })
+
   const sessionResult = applyUnifiedLoginResponse(responseData, {
     resetPmsCurrentStore: true,
   })

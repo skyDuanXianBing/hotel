@@ -32,6 +32,12 @@ public class JwtUtil {
     private Long expiration;
 
     /**
+     * 勾选“记住登录状态”时签发的长效 token 有效期（默认 30 天）。
+     */
+    @Value("${jwt.remember-me-expiration:2592000000}")
+    private Long rememberMeExpiration;
+
+    /**
      * 获取签名密钥
      */
     private SecretKey getSigningKey() {
@@ -39,13 +45,29 @@ public class JwtUtil {
     }
 
     /**
-     * 生成JWT token
+     * 生成JWT token（默认有效期）
      *
      * @param userId 用户ID
      * @param email 用户邮箱
      * @return JWT token
      */
     public String generateToken(Long userId, String email) {
+        return generateToken(userId, email, expiration);
+    }
+
+    /**
+     * 按“记住登录状态”生成JWT token：rememberMe=true 时使用长效有效期，否则使用默认有效期。
+     *
+     * @param userId 用户ID
+     * @param email 用户邮箱
+     * @param rememberMe 是否记住登录状态
+     * @return JWT token
+     */
+    public String generateToken(Long userId, String email, boolean rememberMe) {
+        return generateToken(userId, email, rememberMe ? rememberMeExpiration : expiration);
+    }
+
+    private String generateToken(Long userId, String email, long expirationMs) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("email", email);
@@ -53,7 +75,7 @@ public class JwtUtil {
         claims.put("aud", TENANT_TOKEN_AUDIENCE);
 
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + expiration);
+        Date expiryDate = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
                 .claims(claims)

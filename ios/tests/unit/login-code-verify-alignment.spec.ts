@@ -120,6 +120,7 @@ vi.mock('@/stores/user', () => ({
 
 vi.mock('@/utils/autoLogin', () => ({
   clearAutoLoginCredentials: vi.fn(),
+  syncAutoLoginToken: vi.fn(),
 }))
 
 vi.mock('@/utils/loginSessionResolver', async () => {

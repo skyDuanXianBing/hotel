@@ -250,6 +250,7 @@ const mountLoginPage = () =>
 describe('LoginPage Web alignment', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    window.localStorage.clear()
     routeState.query = {}
     apiMocks.loginByPassword.mockResolvedValue(buildPmsLoginResponse())
     apiMocks.sendVerificationCode.mockResolvedValue({ success: true })

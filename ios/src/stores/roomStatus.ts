@@ -1004,6 +1004,63 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     return response.data.rooms
   }
 
+  // 相邻窗口预取缓存：窗口加载完成后后台预取左右邻居，滑到边缘时可即时切换。
+  // refreshAll/initialize 等强制刷新会清空缓存，变更类操作（关房/开房/下单）后不会拿到旧数据。
+  const PREFETCHED_WINDOW_TTL_MS = 90000
+  const prefetchedCalendarRooms = new Map<
+    string,
+    { fetchedAt: number; promise: Promise<CalendarRoomDataDTO[]> }
+  >()
+
+  function rememberPrefetchedRooms(target: string, promise: Promise<CalendarRoomDataDTO[]>) {
+    prefetchedCalendarRooms.set(target, { fetchedAt: Date.now(), promise })
+    promise.catch(() => {
+      if (prefetchedCalendarRooms.get(target)?.promise === promise) {
+        prefetchedCalendarRooms.delete(target)
+      }
+    })
+  }
+
+  function clearPrefetchedCalendarRooms() {
+    prefetchedCalendarRooms.clear()
+  }
+
+  function requestCalendarRooms(targetWindowStartDate: string) {
+    const cached = prefetchedCalendarRooms.get(targetWindowStartDate)
+    if (cached && Date.now() - cached.fetchedAt <= PREFETCHED_WINDOW_TTL_MS) {
+      return cached.promise
+    }
+
+    const promise = fetchCalendarRooms(targetWindowStartDate)
+    rememberPrefetchedRooms(targetWindowStartDate, promise)
+    return promise
+  }
+
+  function prefetchAdjacentCalendarWindows(centerWindowStart: string) {
+    const keepKeys = new Set([centerWindowStart])
+
+    for (const shift of [ROOM_STATUS_VIEWPORT_DAYS, -ROOM_STATUS_VIEWPORT_DAYS]) {
+      const target = addDays(centerWindowStart, shift)
+      keepKeys.add(target)
+
+      const cached = prefetchedCalendarRooms.get(target)
+      if (cached && Date.now() - cached.fetchedAt <= PREFETCHED_WINDOW_TTL_MS) {
+        continue
+      }
+
+      const promise = fetchCalendarRooms(target)
+      promise.catch(() => {})
+      rememberPrefetchedRooms(target, promise)
+    }
+
+    // 只保留当前窗口和左右邻居，避免缓存膨胀
+    for (const key of [...prefetchedCalendarRooms.keys()]) {
+      if (!keepKeys.has(key)) {
+        prefetchedCalendarRooms.delete(key)
+      }
+    }
+  }
+
   async function fetchRoomStatusPricing(
     targetWindowStartDate = windowStartDate.value,
     source = cellPriceSource.value,
@@ -1039,7 +1096,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       : Promise.resolve({})
 
     try {
-      const rooms = await fetchCalendarRooms(targetWindowStartDate)
+      const rooms = await requestCalendarRooms(targetWindowStartDate)
       return {
         rooms,
         pricingMapPromise,
@@ -1083,6 +1140,9 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
       roomTypeDailyPricingMap.value = pricingMap
     })
+
+    // 当前窗口就绪后静默预取左右相邻窗口，滑到边缘时无需再等网络
+    prefetchAdjacentCalendarWindows(targetWindowStartDate)
   }
 
   function getCalendarRoomTypeIds() {
@@ -1237,6 +1297,8 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
   }
 
   async function loadCalendar() {
+    // 强制刷新（手动刷新/回页刷新/关房开房下单后）必须绕过预取缓存，避免展示旧数据
+    clearPrefetchedCalendarRooms()
     applyCalendarWindow(await fetchCalendarWindow())
   }
 

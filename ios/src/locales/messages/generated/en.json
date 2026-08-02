@@ -40,12 +40,9 @@
       "pmsIntent": "You will enter the hotel management workspace after signing in.",
       "codeHint": "A 6-digit verification code will be sent to this email.",
       "rememberPassword": "Keep me signed in",
-      "rememberCode": "Keep this device signed in",
-      "agreement": "I agree to the Terms of Service and Privacy Policy"
+      "rememberCode": "Keep this device signed in"
     },
-    "register": {
-      "agreement": "I agree to the Terms of Service and Privacy Policy"
-    },
+    "register": {},
     "forgot": {
       "title": "Reset password"
     },
@@ -91,7 +88,10 @@
       "registerFailed": "Registration failed",
       "resetSuccess": "Password reset. Sign in with your new password",
       "resetFailed": "Password reset failed"
-    }
+    },
+    "agreement": "I agree to the {terms} and {privacy}",
+    "termsOfService": "Terms of Service",
+    "privacyPolicy": "Privacy Policy"
   },
   "home": {
     "title": "Home",
@@ -4008,7 +4008,7 @@
         "selectQuickReply": "Select a quick reply to insert",
         "fillDefaultTemplate": "Fill Default Template",
         "approveMessageLabel": "Message to the guest (optional)",
-        "approveMessagePlaceholder": "Optional. It is sent with Approve or Reject and automatically translated into the guest's language before delivery.",
+        "approveMessagePlaceholder": "Optional. Sent with Approve or Reject, or directly via the button below; automatically translated into the guest's language before delivery.",
         "notePlaceholder": "Note (optional)",
         "variablesPlaceholder": "Variables: {{guest_name}} {{order_number}} {{checkin_date}} {{checkout_date}} {{room_number}} {{registration_link}}",
         "lastSendResult": "Last send result: {status}",
@@ -7194,7 +7194,165 @@
     "SettingsCleaningSettings": "Housekeeping settings",
     "SettingsCleaningSupplies": "Supplies",
     "SettingsPricingTools": "Pricing tools",
-    "SettingsPaymentPlatforms": "Payment platforms"
+    "SettingsPaymentPlatforms": "Payment platforms",
+    "LegalTerms": "Terms of Service",
+    "LegalPrivacy": "Privacy Policy"
+  },
+  "legal": {
+    "common": {
+      "effectiveDate": "Effective date: 2026-04-17"
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "intro": "Welcome to THE HOST HUB. These terms are entered into by the platform operator and you, including hotels, homestays, apartments, and their authorized users, and have legal effect.",
+      "sections": [
+        {
+          "title": "1. Scope",
+          "paragraphs": [
+            "These terms apply when you access, register for, sign in to, and use store management, room status management, order processing, channel management, account permission management, notifications, and related services."
+          ]
+        },
+        {
+          "title": "2. Account Registration and Use",
+          "paragraphs": [
+            "1. You must provide true, accurate, and complete registration information and keep it updated.",
+            "2. You must properly keep your account, password, verification code, and login credentials, and are responsible for all actions under your account.",
+            "3. Without our written permission, you may not rent, lend, transfer, or otherwise illegally obtain or use another person's account."
+          ]
+        },
+        {
+          "title": "3. Services and Use Rules",
+          "paragraphs": [
+            "1. During the valid service period, you may use enabled modules actually provided by the system.",
+            "2. You must comply with applicable laws and may not use the system for illegal activities, including publishing illegal information, maliciously attacking systems, or disrupting normal network order.",
+            "3. You may not reverse engineer, decompile, crack, scrape, or otherwise damage the security or stability of the system."
+          ]
+        },
+        {
+          "title": "4. Store and Data Management",
+          "paragraphs": [
+            "1. Data entered, uploaded, and maintained through the system, including orders, room status, customer information, and channel information, is managed by you and you are responsible for its legality.",
+            "2. You must ensure necessary authorization has been obtained for processing relevant information and establish internal permission controls and audit mechanisms.",
+            "3. To protect system operations, we will take reasonable technical measures for data isolation, backup, and recovery, but do not promise absolute uninterrupted or error-free service."
+          ]
+        },
+        {
+          "title": "5. Fees and Service Changes",
+          "paragraphs": [
+            "1. For paid services, specific prices, billing rules, and invoice methods are subject to separate agreements or page disclosures.",
+            "2. We may optimize or adjust functions, APIs, and billing models based on business development, and will notify you reasonably in advance."
+          ]
+        },
+        {
+          "title": "6. Intellectual Property",
+          "paragraphs": [
+            "1. The intellectual property rights of the system and related software, pages, documents, trademarks, and logos belong to us or relevant rights holders.",
+            "2. Without permission, you may not copy, distribute, adapt, sell, license, or otherwise use the above content."
+          ]
+        },
+        {
+          "title": "7. Disclaimer and Liability Limitation",
+          "paragraphs": [
+            "1. For service interruption or data exceptions caused by force majeure, network failures, third-party service exceptions, or regulatory requirements beyond our control, we will assist within a reasonable scope.",
+            "2. You are responsible for losses caused by your own reasons, such as account disclosure, mistaken operations, or improper use.",
+            "3. To the extent permitted by law, our total liability is capped at the service fees actually paid by you in the twelve months before the relevant dispute occurred."
+          ]
+        },
+        {
+          "title": "8. Termination",
+          "paragraphs": [
+            "1. If you seriously violate these terms or relevant laws, we may suspend or terminate all or part of the services.",
+            "2. After termination, unless otherwise required by law, we will process relevant data according to the data retention policy."
+          ]
+        },
+        {
+          "title": "9. Governing Law and Dispute Resolution",
+          "paragraphs": [
+            "1. The formation, performance, and interpretation of these terms are governed by the laws of the People's Republic of China.",
+            "2. Disputes arising from these terms should first be resolved through friendly negotiation. If negotiation fails, either party may file a lawsuit with a competent court where the platform operator is located."
+          ]
+        },
+        {
+          "title": "10. Contact Us",
+          "paragraphs": [
+            "If you have questions about these terms, contact us through in-system customer service or the contact method published by the operator."
+          ]
+        }
+      ]
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "intro": "This Privacy Policy explains how THE HOST HUB collects, uses, stores, shares, and protects your personal information, and how you may exercise related rights.",
+      "sections": [
+        {
+          "title": "1. Information We Collect",
+          "paragraphs": [
+            "1. Account information, such as email, encrypted password, login credentials, and account identifiers.",
+            "2. Business information, such as orders, room status, channel configuration, store information, and operation logs.",
+            "3. Device and log information, such as IP address, browser type, access time, error logs, and device identifiers.",
+            "4. Information you submit voluntarily, such as support inquiries, feedback, and service tickets."
+          ]
+        },
+        {
+          "title": "2. How We Use Information",
+          "paragraphs": [
+            "1. To provide and maintain core system functions, including identity verification, business processing, data synchronization, and notifications.",
+            "2. To protect account and system security, including risk identification, troubleshooting, audit tracing, and anomaly alerts.",
+            "3. To improve product experience and service quality, including feature optimization, performance analysis, and usage statistics.",
+            "4. To fulfill legal obligations and cooperate with lawful requests from competent authorities."
+          ]
+        },
+        {
+          "title": "3. Sharing, Transfer, and Disclosure",
+          "paragraphs": [
+            "1. We do not sell your personal information to unrelated third parties.",
+            "2. We may share necessary information in the following scenarios:",
+            "(1) To enable service functions, we share necessary data with authorized technical service providers.",
+            "(2) We may disclose information as required by laws, regulations, judicial, or administrative authorities.",
+            "(3) In a merger, division, or asset transfer, we will notify you according to law and require the recipient to continue fulfilling its protection obligations."
+          ]
+        },
+        {
+          "title": "4. Cookies and Similar Technologies",
+          "paragraphs": [
+            "To maintain sign-in status and service experience, the system may use cookies or local storage such as localStorage to save necessary session information. You may manage this data through browser settings, but some functions may be affected."
+          ]
+        },
+        {
+          "title": "5. Storage and Security",
+          "paragraphs": [
+            "1. We store and process personal information in China unless otherwise required by laws and regulations.",
+            "2. We use access control, permission isolation, transmission encryption, log audits, backup, and recovery measures to protect information security.",
+            "3. Although reasonable measures are taken, the Internet is not absolutely secure. Please keep your account and password safe."
+          ]
+        },
+        {
+          "title": "6. Your Rights",
+          "paragraphs": [
+            "Where permitted by law, you have the right to access, correct, or delete your personal information, and may request withdrawal of authorization, account cancellation, or copies of relevant information.",
+            "After verifying your identity, we will process and respond to your request within a reasonable period."
+          ]
+        },
+        {
+          "title": "7. Protection of Minors",
+          "paragraphs": [
+            "The system is mainly intended for business entities with full civil capacity and their authorized personnel. If you are a minor, use the system under guardian guidance and ensure guardian consent has been obtained."
+          ]
+        },
+        {
+          "title": "8. Policy Updates",
+          "paragraphs": [
+            "We may update this policy based on business changes or legal requirements. Updates will be announced through system notices or page prompts. Major changes will be presented more prominently."
+          ]
+        },
+        {
+          "title": "9. Contact Us",
+          "paragraphs": [
+            "If you have questions, comments, complaints, or suggestions about this Privacy Policy, contact us through in-system customer service or the contact method published by the operator."
+          ]
+        }
+      ]
+    }
   },
   "settingsAutoMessageReviewFinalize": {
     "title": "Registration Review Auto Finalize",

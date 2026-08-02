@@ -156,7 +156,7 @@ import {
   swapHorizontalOutline,
   walletOutline,
 } from 'ionicons/icons'
-import { computed } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ContactSupportModal from '@/components/global/ContactSupportModal.vue'
 import MemoSheetModal from '@/components/global/MemoSheetModal.vue'
@@ -169,6 +169,8 @@ import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
 import { useVisibleToolsStore } from '@/stores/visibleTools'
 import { showSuccessToast } from '@/utils/notify'
+import { PermissionAction, PermissionModule } from '@/api/role'
+import { hasCurrentStoreManagerRole, hasCurrentStorePermission } from '@/utils/permissions'
 
 type SettingsEntryKey =
   | 'storeProfile'
@@ -212,6 +214,28 @@ const languageStore = useLanguageStore()
 const storeStore = useStoreStore()
 const userStore = useUserStore()
 const visibleToolsStore = useVisibleToolsStore()
+
+// 与外部端一致：owner/admin 始终可见“门店成员”；普通成员需要员工账号管理权限
+const canManageStoreMembers = ref(hasCurrentStoreManagerRole())
+
+async function refreshStoreMembersPermission() {
+  if (hasCurrentStoreManagerRole()) {
+    canManageStoreMembers.value = true
+    return
+  }
+
+  try {
+    canManageStoreMembers.value = await hasCurrentStorePermission({
+      module: PermissionModule.SETTINGS,
+      action: PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS,
+    })
+  } catch {
+    canManageStoreMembers.value = false
+  }
+}
+
+onMounted(refreshStoreMembersPermission)
+watch(() => storeStore.currentStore?.id, refreshStoreMembersPermission)
 
 const currentUserLabel = computed(() => {
   if (!userStore.currentUser) {
@@ -266,7 +290,9 @@ const entryGroups = computed<SettingsGroup[]>(() => {
       items: [
         entry('storeProfile', ROUTE_PATHS.settingsStoreProfile, storefrontOutline, storeStore.currentStore?.city || ''),
         entry('storeDetails', ROUTE_PATHS.settingsStoreDetails, buildOutline),
-        entry('storeMembers', ROUTE_PATHS.settingsStoreMembers, peopleOutline),
+        ...(canManageStoreMembers.value
+          ? [entry('storeMembers', ROUTE_PATHS.settingsStoreMembers, peopleOutline)]
+          : []),
       ],
     },
     {

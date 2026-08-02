@@ -59,8 +59,8 @@ public class CleanerAuthService {
             throw new RuntimeException(ApiMessages.get("api.t.ada30da82f84"));
         }
 
-        // 生成token (使用真实 userId 作为用户ID)
-        String token = jwtUtil.generateToken(cleaner.getUserId(), cleaner.getEmail());
+        // 生成token (使用真实 userId 作为用户ID；勾选“记住登录状态”时签发长效 token)
+        String token = jwtUtil.generateToken(cleaner.getUserId(), cleaner.getEmail(), Boolean.TRUE.equals(request.getRememberMe()));
 
         LoginResponse unifiedResponse = authService.buildAuthenticatedLoginResponse(cleaner.getUserId(), token);
         if (unifiedResponse.getLoginTarget() != LoginTarget.CLEANER || unifiedResponse.getCleaner() == null) {

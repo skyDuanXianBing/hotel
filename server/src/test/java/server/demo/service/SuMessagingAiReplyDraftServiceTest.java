@@ -81,7 +81,7 @@ class SuMessagingAiReplyDraftServiceTest {
         String prompt = promptCaptor.getValue();
         assertTrue(prompt.contains("Last guest turn to reply to:"));
         assertTrue(prompt.contains("Can I check in early?"));
-        assertTrue(prompt.contains("- 客户：Can I check in early?"));
+        assertTrue(prompt.contains("- Guest: Can I check in early?"));
     }
 
     @Test
@@ -133,9 +133,9 @@ class SuMessagingAiReplyDraftServiceTest {
         assertTrue(targetSection.contains("Could you bring toilet paper to room 301?"));
         assertTrue(targetSection.contains("Thank you"));
         assertTrue(prompt.contains("Do not answer only the final courtesy message"));
-        assertTrue(prompt.contains("- 员工：Welcome to the hotel."));
-        assertTrue(prompt.contains("- 客户：Could you bring toilet paper to room 301?"));
-        assertTrue(prompt.contains("- 客户：Thank you"));
+        assertTrue(prompt.contains("- Staff: Welcome to the hotel."));
+        assertTrue(prompt.contains("- Guest: Could you bring toilet paper to room 301?"));
+        assertTrue(prompt.contains("- Guest: Thank you"));
     }
 
     @Test
@@ -353,6 +353,111 @@ class SuMessagingAiReplyDraftServiceTest {
         assertTrue(response.getWarnings().contains("MODEL_GENERATION_FAILED"));
         assertFalse(response.getDraftReply().contains("12:30"));
         assertFalse(response.getDraftReply().contains("1500 JPY"));
+    }
+
+    @Test
+    void generateDraft_shouldDetectGuestLanguageWhenRequestLanguageMissing() {
+        TestFixture fixture = new TestFixture();
+        SuMessageThread thread = newThread(77L, 26L);
+        SuMessage latestGuest = newMessage(
+                201L,
+                thread,
+                SuMessagingSenderType.GUEST,
+                "チェックイン時間を教えてください"
+        );
+
+        when(fixture.threadRepository.findByStoreIdAndId(26L, 77L)).thenReturn(Optional.of(thread));
+        when(fixture.contextResolver.resolve(eq(26L), eq(thread), any())).thenReturn(newContext());
+        when(fixture.messageRepository.findRecentByStoreIdAndThreadIdDesc(
+                eq(26L),
+                eq(77L),
+                any(Pageable.class)
+        )).thenReturn(List.of(latestGuest));
+        when(fixture.searchService.searchSimilar(eq(26L), eq(77L), any(), any(String.class), eq(3)))
+                .thenReturn(new MessageKnowledgeSearchResult(
+                        MessageKnowledgeSearchService.STATUS_NO_MATCH,
+                        List.of(),
+                        List.of()
+                ));
+        when(fixture.chatLanguageModel.generate(any(String.class)))
+                .thenReturn("チェックインは15時からです。");
+
+        fixture.service.generateDraft(26L, 77L, new SuMessagingAiReplyDraftRequest());
+
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(fixture.chatLanguageModel).generate(promptCaptor.capture());
+        String prompt = promptCaptor.getValue();
+        assertTrue(prompt.contains("- Target language: Japanese"));
+        assertTrue(prompt.contains("Always write the draft in the language of the final guest turn."));
+    }
+
+    @Test
+    void generateDraft_shouldNotForceTargetLanguageForLatinScriptGuest() {
+        TestFixture fixture = new TestFixture();
+        SuMessageThread thread = newThread(77L, 26L);
+        SuMessage latestGuest = newMessage(201L, thread, SuMessagingSenderType.GUEST, "Can I check in early?");
+
+        when(fixture.threadRepository.findByStoreIdAndId(26L, 77L)).thenReturn(Optional.of(thread));
+        when(fixture.contextResolver.resolve(eq(26L), eq(thread), any())).thenReturn(newContext());
+        when(fixture.messageRepository.findRecentByStoreIdAndThreadIdDesc(
+                eq(26L),
+                eq(77L),
+                any(Pageable.class)
+        )).thenReturn(List.of(latestGuest));
+        when(fixture.searchService.searchSimilar(eq(26L), eq(77L), any(), any(String.class), eq(3)))
+                .thenReturn(new MessageKnowledgeSearchResult(
+                        MessageKnowledgeSearchService.STATUS_NO_MATCH,
+                        List.of(),
+                        List.of()
+                ));
+        when(fixture.chatLanguageModel.generate(any(String.class)))
+                .thenReturn("Early check-in is subject to availability.");
+
+        fixture.service.generateDraft(26L, 77L, new SuMessagingAiReplyDraftRequest());
+
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(fixture.chatLanguageModel).generate(promptCaptor.capture());
+        String prompt = promptCaptor.getValue();
+        assertFalse(prompt.contains("Target language"));
+        assertTrue(prompt.contains("Always write the draft in the language of the final guest turn."));
+    }
+
+    @Test
+    void generateDraft_shouldPreferRequestLanguageOverDetection() {
+        TestFixture fixture = new TestFixture();
+        SuMessageThread thread = newThread(77L, 26L);
+        SuMessage latestGuest = newMessage(
+                201L,
+                thread,
+                SuMessagingSenderType.GUEST,
+                "チェックイン時間を教えてください"
+        );
+        SuMessagingAiReplyDraftRequest request = new SuMessagingAiReplyDraftRequest();
+        request.setLanguage("zh-CN");
+
+        when(fixture.threadRepository.findByStoreIdAndId(26L, 77L)).thenReturn(Optional.of(thread));
+        when(fixture.contextResolver.resolve(eq(26L), eq(thread), any())).thenReturn(newContext());
+        when(fixture.messageRepository.findRecentByStoreIdAndThreadIdDesc(
+                eq(26L),
+                eq(77L),
+                any(Pageable.class)
+        )).thenReturn(List.of(latestGuest));
+        when(fixture.searchService.searchSimilar(eq(26L), eq(77L), any(), any(String.class), eq(3)))
+                .thenReturn(new MessageKnowledgeSearchResult(
+                        MessageKnowledgeSearchService.STATUS_NO_MATCH,
+                        List.of(),
+                        List.of()
+                ));
+        when(fixture.chatLanguageModel.generate(any(String.class)))
+                .thenReturn("下午三点开始办理入住。");
+
+        fixture.service.generateDraft(26L, 77L, request);
+
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(fixture.chatLanguageModel).generate(promptCaptor.capture());
+        String prompt = promptCaptor.getValue();
+        assertTrue(prompt.contains("- Target language: zh-CN"));
+        assertFalse(prompt.contains("- Target language: Japanese"));
     }
 
     private static SuMessagingThreadContext newContext() {

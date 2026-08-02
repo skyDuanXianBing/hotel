@@ -1,5 +1,6 @@
 package server.demo.service;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -34,6 +35,11 @@ import static org.mockito.Mockito.when;
 
 class AuthServicePmsLoginAccessTest {
 
+    @BeforeAll
+    static void installMessages() {
+        server.demo.i18n.TestApiMessages.install();
+    }
+
     private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
 
     @Test
@@ -46,7 +52,7 @@ class AuthServicePmsLoginAccessTest {
         StoreDTO storeDTO = buildStoreDTO(7L, "Target Store");
 
         when(fixture.userRepository.findByEmail("cleaner@example.com")).thenReturn(Optional.of(user));
-        when(fixture.jwtUtil.generateToken(6L, "cleaner@example.com")).thenReturn("token-123");
+        when(fixture.jwtUtil.generateToken(6L, "cleaner@example.com", false)).thenReturn("token-123");
         when(fixture.storeService.getUserStores(6L)).thenReturn(List.of(storeDTO));
         when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(6L)).thenReturn(List.of(storeUser));
         when(fixture.cleanerIdentityService.findCleanerByUserIdAndStoreId(6L, 7L))
@@ -79,7 +85,7 @@ class AuthServicePmsLoginAccessTest {
         Cleaner secondCleaner = buildCleaner(5L, 6L, 9L, true);
 
         when(fixture.userRepository.findByEmail("multi.cleaner@example.com")).thenReturn(Optional.of(user));
-        when(fixture.jwtUtil.generateToken(6L, "multi.cleaner@example.com")).thenReturn("token-multi");
+        when(fixture.jwtUtil.generateToken(6L, "multi.cleaner@example.com", false)).thenReturn("token-multi");
         when(fixture.storeService.getUserStores(6L)).thenReturn(List.of(
                 buildStoreDTO(7L, "First Store"), buildStoreDTO(9L, "Second Store")));
         when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(6L))
@@ -105,7 +111,7 @@ class AuthServicePmsLoginAccessTest {
         Cleaner cleaner = buildCleaner(80L, 50L, 60L, true);
         StoreDTO storeDTO = buildStoreDTO(60L, "Owner Store");
         when(fixture.userRepository.findByEmail("owner.cleaner@example.com")).thenReturn(Optional.of(user));
-        when(fixture.jwtUtil.generateToken(50L, "owner.cleaner@example.com")).thenReturn("token-owner-cleaner");
+        when(fixture.jwtUtil.generateToken(50L, "owner.cleaner@example.com", false)).thenReturn("token-owner-cleaner");
         when(fixture.storeService.getUserStores(50L)).thenReturn(List.of(storeDTO));
         when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(50L)).thenReturn(List.of(membership));
         when(fixture.cleanerIdentityService.findCleanerByUserIdAndStoreId(50L, 60L))
@@ -135,7 +141,7 @@ class AuthServicePmsLoginAccessTest {
         StoreUser staffMembership = buildStoreUser(72L, staffStore, "member");
         Cleaner cleaner = buildCleaner(81L, 51L, 61L, true);
         when(fixture.userRepository.findByEmail("mixed@example.com")).thenReturn(Optional.of(user));
-        when(fixture.jwtUtil.generateToken(51L, "mixed@example.com")).thenReturn("token-mixed");
+        when(fixture.jwtUtil.generateToken(51L, "mixed@example.com", false)).thenReturn("token-mixed");
         when(fixture.storeService.getUserStores(51L)).thenReturn(List.of(
                 buildStoreDTO(61L, "Cleaner Store"), buildStoreDTO(62L, "Staff Store")));
         when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(51L))
@@ -173,7 +179,7 @@ class AuthServicePmsLoginAccessTest {
         Store store = buildStore(63L); StoreUser membership = buildStoreUser(73L, store, "member");
         membership.setIsActive(false);
         when(fixture.userRepository.findByEmail("inactive.membership@example.com")).thenReturn(Optional.of(user));
-        when(fixture.jwtUtil.generateToken(53L, "inactive.membership@example.com")).thenReturn("token-inactive");
+        when(fixture.jwtUtil.generateToken(53L, "inactive.membership@example.com", false)).thenReturn("token-inactive");
         when(fixture.storeService.getUserStores(53L)).thenReturn(List.of());
         when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(53L)).thenReturn(List.of(membership));
 
@@ -197,7 +203,7 @@ class AuthServicePmsLoginAccessTest {
         storeUser.getRoles().add(role);
 
         when(fixture.userRepository.findByEmail("role.manager@example.com")).thenReturn(Optional.of(user));
-        when(fixture.jwtUtil.generateToken(8L, "role.manager@example.com")).thenReturn("token-role");
+        when(fixture.jwtUtil.generateToken(8L, "role.manager@example.com", false)).thenReturn("token-role");
         when(fixture.storeService.getUserStores(8L)).thenReturn(List.of(buildStoreDTO(10L, "Role Store")));
         when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(8L)).thenReturn(List.of(storeUser));
         when(fixture.rolePermissionRepository.existsByRoleIdInAndModuleAndAction(
@@ -225,7 +231,7 @@ class AuthServicePmsLoginAccessTest {
         StoreUser storeUser = buildStoreUser(18L, store, "owner");
 
         when(fixture.userRepository.findByEmail("owner@example.com")).thenReturn(Optional.of(user));
-        when(fixture.jwtUtil.generateToken(2L, "owner@example.com")).thenReturn("token-owner");
+        when(fixture.jwtUtil.generateToken(2L, "owner@example.com", false)).thenReturn("token-owner");
         when(fixture.storeService.getUserStores(2L)).thenReturn(List.of(buildStoreDTO(7L, "Owner Store")));
         when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(2L)).thenReturn(List.of(storeUser));
         when(fixture.cleanerIdentityService.findCleanerByUserIdAndStoreId(2L, 7L))
@@ -247,7 +253,7 @@ class AuthServicePmsLoginAccessTest {
         Cleaner cleaner = buildCleaner(9L, 11L, 12L, false);
 
         when(fixture.userRepository.findByEmail("plain.member@example.com")).thenReturn(Optional.of(user));
-        when(fixture.jwtUtil.generateToken(11L, "plain.member@example.com")).thenReturn("token-member");
+        when(fixture.jwtUtil.generateToken(11L, "plain.member@example.com", false)).thenReturn("token-member");
         when(fixture.storeService.getUserStores(11L)).thenReturn(List.of(buildStoreDTO(12L, "Member Store")));
         when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(11L)).thenReturn(List.of(storeUser));
         when(fixture.cleanerIdentityService.findCleanerByUserIdAndStoreId(11L, 12L))
@@ -270,7 +276,7 @@ class AuthServicePmsLoginAccessTest {
         StoreUser storeUser = buildStoreUser(22L, store, "member");
 
         when(fixture.userRepository.findByEmail("task.manager@example.com")).thenReturn(Optional.of(user));
-        when(fixture.jwtUtil.generateToken(20L, "task.manager@example.com")).thenReturn("token-task");
+        when(fixture.jwtUtil.generateToken(20L, "task.manager@example.com", false)).thenReturn("token-task");
         when(fixture.storeService.getUserStores(20L)).thenReturn(List.of(buildStoreDTO(21L, "Broken Store")));
         when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(20L)).thenReturn(List.of(storeUser));
         when(fixture.storeUserPermissionRepository.existsByStoreUser_IdAndModuleAndAction(
@@ -298,7 +304,7 @@ class AuthServicePmsLoginAccessTest {
 
         when(fixture.redisUtil.verifyCode("code.user@example.com", "123456", "login")).thenReturn(true);
         when(fixture.userRepository.findByEmail("code.user@example.com")).thenReturn(Optional.of(user));
-        when(fixture.jwtUtil.generateToken(40L, "code.user@example.com")).thenReturn("token-code");
+        when(fixture.jwtUtil.generateToken(40L, "code.user@example.com", false)).thenReturn("token-code");
         when(fixture.storeService.getUserStores(40L)).thenReturn(List.of());
         when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(40L)).thenReturn(List.of());
 

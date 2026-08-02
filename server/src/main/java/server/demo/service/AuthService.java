@@ -151,8 +151,8 @@ public class AuthService {
             throw new RuntimeException(ApiMessages.get("api.t.e64880a1b110"));
         }
 
-        // 生成token
-        String token = jwtUtil.generateToken(user.getId(), user.getEmail());
+        // 生成token（勾选“记住登录状态”时签发长效 token）
+        String token = jwtUtil.generateToken(user.getId(), user.getEmail(), Boolean.TRUE.equals(request.getRememberMe()));
 
         // 返回登录响应 - 管理员的isCleaner固定为false
         UserDTO userDTO = new UserDTO(user);
@@ -181,8 +181,8 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException(ApiMessages.get("api.t.a2e2252e8fb7")));
         requireActiveUser(user);
 
-        // 生成token
-        String token = jwtUtil.generateToken(user.getId(), user.getEmail());
+        // 生成token（勾选“记住登录状态”时签发长效 token）
+        String token = jwtUtil.generateToken(user.getId(), user.getEmail(), Boolean.TRUE.equals(request.getRememberMe()));
 
         // 返回登录响应 - 管理员的isCleaner固定为false
         UserDTO userDTO = new UserDTO(user);

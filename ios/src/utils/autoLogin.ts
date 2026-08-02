@@ -8,7 +8,8 @@ const AUTO_LOGIN_SECRET = 'the-host-ios-auto-login-v1'
 const AUTO_LOGIN_IV_LENGTH = 12
 const AUTO_LOGIN_RENEW_WINDOW_MS = 5 * 60 * 1000
 const AUTO_LOGIN_ACTIVITY_THROTTLE_MS = 60 * 1000
-const AUTO_LOGIN_MAX_IDLE_MS = 24 * 60 * 60 * 1000
+// 与后端“记住登录状态”签发的 30 天长效 token 对齐，避免隔天就被强制登出
+const AUTO_LOGIN_MAX_IDLE_MS = 30 * 24 * 60 * 60 * 1000
 
 interface AutoLoginCredentialsPayload {
   email: string

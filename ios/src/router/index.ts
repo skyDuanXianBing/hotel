@@ -47,6 +47,24 @@ const routes: RouteRecordRaw[] = [
     },
   },
   {
+    path: ROUTE_PATHS.legalTerms,
+    name: 'LegalTerms',
+    component: () => import('@/views/legal/TermsOfServicePage.vue'),
+    meta: {
+      titleKey: 'routes.LegalTerms',
+      publicAccess: true,
+    },
+  },
+  {
+    path: ROUTE_PATHS.legalPrivacy,
+    name: 'LegalPrivacy',
+    component: () => import('@/views/legal/PrivacyPolicyPage.vue'),
+    meta: {
+      titleKey: 'routes.LegalPrivacy',
+      publicAccess: true,
+    },
+  },
+  {
     path: ROUTE_PATHS.publicRegistrationBooking,
     alias: '/rb/:bookingKey',
     name: 'PublicRegistrationBooking',

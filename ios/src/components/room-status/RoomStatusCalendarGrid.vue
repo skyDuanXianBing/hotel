@@ -40,22 +40,17 @@
       >
         <div class="room-calendar__inner" :style="{ minWidth: `${totalMinWidth}px` }">
           <div class="room-calendar__row room-calendar__row--header" :style="gridStyle">
-            <button
-              class="room-calendar__corner"
-              type="button"
-              :aria-label="$t('accommodation.roomPrice.selectDate')"
-              @click="openDatePicker"
-            >
+            <div class="room-calendar__corner">
               <input
-                ref="stickyDatePickerInput"
                 class="room-calendar__date-input"
                 :value="selectedDateValue"
                 type="date"
+                :aria-label="$t('accommodation.roomPrice.selectDate')"
                 @change="handleDateInputChange"
               />
-              <strong class="room-calendar__corner-date">{{ selectedDateLabel }}</strong>
+              <strong class="room-calendar__corner-date">{{ cornerDateLabel }}</strong>
               <ion-icon :icon="caretDownOutline" class="room-calendar__corner-caret" />
-            </button>
+            </div>
 
             <button
               v-for="day in days"
@@ -86,22 +81,17 @@
     >
       <div class="room-calendar__inner" :style="{ minWidth: `${totalMinWidth}px` }">
         <div class="room-calendar__row room-calendar__row--header" :style="gridStyle">
-          <button
-            class="room-calendar__corner"
-            type="button"
-            :aria-label="$t('accommodation.roomPrice.selectDate')"
-            @click="openDatePicker"
-          >
+          <div class="room-calendar__corner">
             <input
-              ref="datePickerInput"
               class="room-calendar__date-input"
               :value="selectedDateValue"
               type="date"
+              :aria-label="$t('accommodation.roomPrice.selectDate')"
               @change="handleDateInputChange"
             />
-            <strong class="room-calendar__corner-date">{{ selectedDateLabel }}</strong>
+            <strong class="room-calendar__corner-date">{{ cornerDateLabel }}</strong>
             <ion-icon :icon="caretDownOutline" class="room-calendar__corner-caret" />
-          </button>
+          </div>
 
           <button
             v-for="day in days"
@@ -320,8 +310,6 @@ const emit = defineEmits<{
   'load-next-window': []
 }>()
 
-const datePickerInput = ref<HTMLInputElement | null>(null)
-const stickyDatePickerInput = ref<HTMLInputElement | null>(null)
 const headerScrollContainer = ref<HTMLDivElement | null>(null)
 const scrollContainer = ref<HTMLDivElement | null>(null)
 let syncingScroll = false
@@ -344,9 +332,13 @@ const selectedDay = computed(() => props.days.find((item) => item.isSelected) ||
 
 const selectedDateValue = computed(() => props.selectedDate || selectedDay.value?.date || todayDate.value)
 
-const selectedDateLabel = computed(() => {
-  if (selectedDay.value) {
-    return selectedDay.value.label
+// 左上角标签跟随横向滚动：实时显示视口最左侧可见日期的 月-日，滑动时一眼看出滑到了几月几号
+const firstVisibleDayIndex = ref(0)
+
+const cornerDateLabel = computed(() => {
+  const firstVisibleDay = props.days[firstVisibleDayIndex.value]
+  if (firstVisibleDay) {
+    return firstVisibleDay.label
   }
 
   return getMonthDayLabel(selectedDateValue.value)
@@ -430,22 +422,6 @@ function getMonthDayLabel(date: string) {
   return `${month}-${day}`
 }
 
-function openDatePicker() {
-  const input = stickyDatePickerInput.value || datePickerInput.value
-  if (!input) {
-    return
-  }
-
-  const pickerInput = input as HTMLInputElement & { showPicker?: () => void }
-
-  if (typeof pickerInput.showPicker === 'function') {
-    pickerInput.showPicker()
-    return
-  }
-
-  input.click()
-}
-
 function syncScrollLeft(left: number) {
   if (headerScrollContainer.value) {
     headerScrollContainer.value.scrollLeft = left
@@ -454,6 +430,23 @@ function syncScrollLeft(left: number) {
   if (scrollContainer.value) {
     scrollContainer.value.scrollLeft = left
   }
+
+  updateFirstVisibleDayIndex(scrollContainer.value)
+}
+
+function getDayColumnWidth(container: HTMLDivElement) {
+  const dayCount = Math.max(props.days.length, 1)
+  return Math.max((container.scrollWidth - ROOM_COLUMN_WIDTH) / dayCount, 1)
+}
+
+function updateFirstVisibleDayIndex(container: HTMLDivElement | null) {
+  if (!container || props.days.length === 0) {
+    return
+  }
+
+  const dayWidth = getDayColumnWidth(container)
+  const index = Math.round(container.scrollLeft / dayWidth)
+  firstVisibleDayIndex.value = Math.min(Math.max(index, 0), props.days.length - 1)
 }
 
 function syncScrollContainers(source: HTMLDivElement | null, target: HTMLDivElement | null) {
@@ -521,12 +514,14 @@ function requestNextWindowIfNeeded(container: HTMLDivElement | null) {
 
 function handleHeaderScroll() {
   syncScrollContainers(headerScrollContainer.value, scrollContainer.value)
+  updateFirstVisibleDayIndex(headerScrollContainer.value)
   requestPreviousWindowIfNeeded(headerScrollContainer.value)
   requestNextWindowIfNeeded(headerScrollContainer.value)
 }
 
 function handleBodyScroll() {
   syncScrollContainers(scrollContainer.value, headerScrollContainer.value)
+  updateFirstVisibleDayIndex(scrollContainer.value)
   requestPreviousWindowIfNeeded(scrollContainer.value)
   requestNextWindowIfNeeded(scrollContainer.value)
 }
@@ -1010,11 +1005,18 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 
 .room-calendar__date-input {
   position: absolute;
-  inset: auto;
-  width: 1px;
-  height: 1px;
+  inset: 0;
+  z-index: 2;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
   opacity: 0;
-  pointer-events: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
 }
 
 .room-calendar__corner-date {

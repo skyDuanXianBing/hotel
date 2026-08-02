@@ -86,28 +86,28 @@ export const addStoreMember = (storeId: number, data: AddStoreMemberRequest) => 
   })
 }
 
-export const getStoreMemberDetail = (storeId: number, memberId: number) => {
+export const getStoreMemberDetail = (storeId: number, userId: number) => {
   return request<ApiResponse<StoreMember>>({
-    url: `/stores/${storeId}/members/${memberId}`,
+    url: `/stores/${storeId}/members/${userId}`,
     method: 'GET',
   })
 }
 
 export const updateStoreMemberPermission = (
   storeId: number,
-  memberId: number,
+  userId: number,
   data: UpdateStoreMemberPermissionRequest,
 ) => {
   return request<ApiResponse<StoreMember>>({
-    url: `/stores/${storeId}/members/${memberId}`,
+    url: `/stores/${storeId}/members/${userId}`,
     method: 'PUT',
     data,
   })
 }
 
-export const removeStoreMember = (storeId: number, memberId: number) => {
+export const removeStoreMember = (storeId: number, userId: number) => {
   return request<ApiResponse<void>>({
-    url: `/stores/${storeId}/members/${memberId}`,
+    url: `/stores/${storeId}/members/${userId}`,
     method: 'DELETE',
   })
 }

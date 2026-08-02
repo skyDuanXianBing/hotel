@@ -135,7 +135,7 @@ describe('RegisterPage', () => {
     expect(wrapper.text()).toContain('邮箱验证码')
     expect(wrapper.text()).toContain('密码')
     expect(wrapper.text()).toContain('确认密码')
-    expect(wrapper.text()).toContain('我已阅读并同意用户协议和隐私协议')
+    expect(wrapper.text()).toContain('我已阅读并同意《用户服务协议》与《隐私政策》')
     expect(wrapper.text()).not.toContain('品牌名或姓名')
     expect(wrapper.text()).not.toContain('继续')
     expect(wrapper.find<HTMLInputElement>('input[placeholder="请输入邮箱"]').element.value).toBe(

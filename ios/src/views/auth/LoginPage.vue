@@ -79,9 +79,26 @@
               <span class="auth-agreement-row__box" aria-hidden="true">
                 <span class="auth-agreement-row__check">✓</span>
               </span>
-              <span class="auth-agreement-row__text">
-                {{ t('auth.login.agreement') }}
-              </span>
+              <i18n-t keypath="auth.agreement" tag="span" class="auth-agreement-row__text" scope="global">
+                <template #terms>
+                  <button
+                    type="button"
+                    class="auth-agreement-link"
+                    @click.stop.prevent="goToTermsOfService"
+                  >
+                    {{ t('auth.termsOfService') }}
+                  </button>
+                </template>
+                <template #privacy>
+                  <button
+                    type="button"
+                    class="auth-agreement-link"
+                    @click.stop.prevent="goToPrivacyPolicy"
+                  >
+                    {{ t('auth.privacyPolicy') }}
+                  </button>
+                </template>
+              </i18n-t>
             </label>
 
             <ion-button
@@ -156,7 +173,7 @@ import {
   IonSegmentButton,
   IonSpinner,
 } from '@ionic/vue'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { loginByPassword, sendVerificationCode } from '@/api/auth'
@@ -168,6 +185,7 @@ import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
 import type { LoginByPasswordRequest, LoginResponse, LoginTarget } from '@/types/auth'
 import { clearAutoLoginCredentials, saveAutoLoginCredentials } from '@/utils/autoLogin'
+import { readLoginPrefs, saveLoginPrefs } from '@/utils/loginPrefs'
 import {
   applyUnifiedLoginResponse,
   normalizeAvailableLoginTargets,
@@ -207,6 +225,22 @@ const form = reactive({
   password: '',
   rememberMe: false,
   agreeToTerms: false,
+})
+
+onMounted(() => {
+  const prefs = readLoginPrefs()
+
+  if (!prefs) {
+    return
+  }
+
+  // 路由 query 中的邮箱优先级更高（注册/忘记密码回填场景），仅在无回填时预填偏好邮箱
+  if (!form.email && prefs.email) {
+    form.email = prefs.email
+  }
+
+  form.rememberMe = prefs.rememberMe
+  form.agreeToTerms = prefs.agreeToTerms
 })
 
 const rememberMeLabel = computed(() => {
@@ -341,6 +375,12 @@ const finishPasswordLogin = async (
     resetPmsCurrentStore: true,
   })
   hydrateRuntimeStores()
+
+  saveLoginPrefs({
+    email: payload.email,
+    rememberMe: payload.rememberMe === true,
+    agreeToTerms: form.agreeToTerms,
+  })
 
   if (!payload.rememberMe) {
     clearAutoLoginCredentials()
@@ -490,6 +530,14 @@ const handleRegistrationComplete = async (email: string) => {
     path: ROUTE_PATHS.login,
     query: buildAccountTabQuery('login', normalizedEmail),
   })
+}
+
+const goToTermsOfService = async () => {
+  await router.push(ROUTE_PATHS.legalTerms)
+}
+
+const goToPrivacyPolicy = async () => {
+  await router.push(ROUTE_PATHS.legalPrivacy)
 }
 
 const handleGoToForgotPassword = async () => {

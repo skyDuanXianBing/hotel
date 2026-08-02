@@ -520,6 +520,16 @@
   line-height: 1.45;
 }
 
+.auth-agreement-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #078ff4;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
 .verify-code-row {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));

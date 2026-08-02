@@ -10,7 +10,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import server.demo.i18n.ApiMessages;
 @Service
 public class SuMessagingAiPromptBuilder {
     private static final int MAX_RECENT_MESSAGES = 30;
@@ -44,7 +43,9 @@ public class SuMessagingAiPromptBuilder {
         prompt.append("Reply to every item in the final consecutive guest turn that needs a response.\n");
         prompt.append("If the final sentence is only thanks or greeting, still check earlier guest messages in the same turn for unanswered requests.\n");
         prompt.append("Do not answer only the final courtesy message when the same guest turn contains another request.\n");
-        prompt.append("Use the same language as the final guest turn unless a target language is provided.\n");
+        prompt.append("Always write the draft in the language of the final guest turn.\n");
+        prompt.append("Never switch to the language of staff messages, historical examples, or these instructions.\n");
+        prompt.append("When a target language is specified in the thread context, it identifies the guest's language; write the entire draft in that language.\n");
         prompt.append("Return plain text only. No markdown, no JSON, no explanation.\n\n");
 
         appendLatestGuestTurn(prompt, latestGuestTurn);
@@ -132,7 +133,7 @@ public class SuMessagingAiPromptBuilder {
             }
             prompt.append("- ")
                     .append(formatStoredRole(message.getSenderType()))
-                    .append("：")
+                    .append(": ")
                     .append(redactor.redact(message.getContent()))
                     .append("\n");
             appended++;
@@ -157,7 +158,7 @@ public class SuMessagingAiPromptBuilder {
             }
             prompt.append("- ")
                     .append(formatRequestRole(message.getDirection()))
-                    .append("：")
+                    .append(": ")
                     .append(redactor.redact(message.getContent()))
                     .append("\n");
             appended++;
@@ -226,32 +227,32 @@ public class SuMessagingAiPromptBuilder {
 
     private static String formatStoredRole(SuMessagingSenderType senderType) {
         if (senderType == SuMessagingSenderType.GUEST) {
-            return ApiMessages.get("api.t.f20687060126");
+            return "Guest";
         }
         if (senderType == SuMessagingSenderType.STAFF) {
-            return ApiMessages.get("api.t.9834f85de584");
+            return "Staff";
         }
-        return ApiMessages.get("api.t.d9c32a4c3dda");
+        return "System";
     }
 
     private static String formatRequestRole(String direction) {
         if (direction == null || direction.isBlank()) {
-            return ApiMessages.get("api.t.d9c32a4c3dda");
+            return "Unknown";
         }
         String normalized = direction.trim();
         if ("GUEST".equalsIgnoreCase(normalized)
                 || "CUSTOMER".equalsIgnoreCase(normalized)
                 || "USER".equalsIgnoreCase(normalized)) {
-            return ApiMessages.get("api.t.f20687060126");
+            return "Guest";
         }
         if ("STAFF".equalsIgnoreCase(normalized)
                 || "HOST".equalsIgnoreCase(normalized)
                 || "EMPLOYEE".equalsIgnoreCase(normalized)) {
-            return ApiMessages.get("api.t.9834f85de584");
+            return "Staff";
         }
         if ("SYSTEM".equalsIgnoreCase(normalized)) {
-            return ApiMessages.get("api.t.1a1f6dff7826");
+            return "System";
         }
-        return ApiMessages.get("api.t.d9c32a4c3dda");
+        return "Unknown";
     }
 }
