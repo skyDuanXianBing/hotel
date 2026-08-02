@@ -85,8 +85,10 @@ class RegistrationFormSubmittedNotifierTest {
         verify(pushDispatchService).dispatchToUsers(
                 org.mockito.ArgumentMatchers.argThat(ids -> Set.copyOf(ids).equals(Set.of(101L))),
                 eq(PushDispatchService.PushCategory.TASK),
-                eq(saved.get(0).getTitle()),
-                eq(saved.get(0).getContent()),
+                org.mockito.ArgumentMatchers.argThat((PushDispatchService.PushText text) ->
+                        "api.t.3e12ce3ea24a".equals(text.titleKey())
+                                && "api.t.cef9db967247".equals(text.bodyKey())
+                                && java.util.Arrays.equals(new Object[]{"Lin", "RSV-1"}, text.bodyArgs())),
                 org.mockito.ArgumentMatchers.argThat(data ->
                         "task".equals(data.get("type")) && "55".equals(data.get("formId")) && "RSV-1".equals(data.get("orderNumber")))
         );
@@ -114,7 +116,7 @@ class RegistrationFormSubmittedNotifierTest {
         notifier.notifySubmitted(7L, form(55L), reservation("Lin", "RSV-1"));
 
         verify(notificationRepository, never()).saveAll(any());
-        verify(pushDispatchService, never()).dispatchToUsers(anyCollection(), any(), anyString(), anyString(), anyMap());
+        verify(pushDispatchService, never()).dispatchToUsers(anyCollection(), any(), any(), anyMap());
     }
 
     private StoreUser storeUser(Long userId) {

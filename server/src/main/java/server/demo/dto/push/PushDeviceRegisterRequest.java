@@ -15,6 +15,11 @@ public class PushDeviceRegisterRequest {
     @NotBlank(message = "{api.t.8a30ccf0610b}")
     private String deviceToken;
 
+    /**
+     * 设备 App 当前语言（可选，zh-CN/zh-TW/en/ja），缺省回退 zh-CN。
+     */
+    private String locale;
+
     public PushPlatform getPlatform() {
         return platform;
     }
@@ -29,5 +34,13 @@ public class PushDeviceRegisterRequest {
 
     public void setDeviceToken(String deviceToken) {
         this.deviceToken = deviceToken;
+    }
+
+    public String getLocale() {
+        return locale;
+    }
+
+    public void setLocale(String locale) {
+        this.locale = locale;
     }
 }

@@ -32,7 +32,8 @@ public class PushDeviceController {
                 StoreContextUtils.requireUserId(),
                 StoreContextUtils.requireStoreId(),
                 request.getPlatform(),
-                request.getDeviceToken()
+                request.getDeviceToken(),
+                request.getLocale()
         );
         return ApiResponse.success(ApiMessages.get("api.t.26a4ff97ecfc"), null);
     }

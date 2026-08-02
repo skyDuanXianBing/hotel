@@ -9,7 +9,6 @@ import org.springframework.web.socket.WebSocketSession;
 import server.demo.dto.SuMessagingMessageDTO;
 import server.demo.dto.SuMessagingRealtimeEvent;
 import server.demo.enums.SuMessagingSenderType;
-import server.demo.i18n.ApiMessages;
 import server.demo.service.push.PushDispatchService;
 
 import java.util.Map;
@@ -66,6 +65,7 @@ public class SuMessagingRealtimeGateway {
 
     /**
      * 客人新消息 → 手机推送（App 未打开也能收到系统弹窗）。员工消息不推。
+     * 标题/正文为业务原文（客人名、消息内容），兜底文案按设备语言渲染。
      */
     private void dispatchGuestMessagePush(Long storeId, Long threadId, SuMessagingMessageDTO message) {
         if (message.getSenderType() != SuMessagingSenderType.GUEST) {
@@ -73,19 +73,21 @@ public class SuMessagingRealtimeGateway {
         }
         try {
             String senderName = message.getSenderName() != null ? message.getSenderName().trim() : "";
-            String title = senderName.isEmpty() ? ApiMessages.get(NEW_MESSAGE_TITLE_KEY) : senderName;
             String content = message.getContent() != null ? message.getContent().trim() : "";
-            if (content.isEmpty()) {
-                content = ApiMessages.get(IMAGE_SUMMARY_KEY);
-            }
             if (content.length() > PUSH_BODY_MAX_LENGTH) {
                 content = content.substring(0, PUSH_BODY_MAX_LENGTH) + "...";
             }
+            PushDispatchService.PushText text = new PushDispatchService.PushText(
+                    senderName.isEmpty() ? NEW_MESSAGE_TITLE_KEY : null,
+                    senderName.isEmpty() ? null : senderName,
+                    content.isEmpty() ? IMAGE_SUMMARY_KEY : null,
+                    content.isEmpty() ? null : content,
+                    null
+            );
             pushDispatchService.dispatchToStoreUsers(
                     storeId,
                     PushDispatchService.PushCategory.CHAT,
-                    title,
-                    content,
+                    text,
                     Map.of("type", "chat", "threadId", String.valueOf(threadId))
             );
         } catch (Exception e) {

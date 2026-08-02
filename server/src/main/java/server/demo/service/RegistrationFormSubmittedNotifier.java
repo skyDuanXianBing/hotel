@@ -91,14 +91,13 @@ public class RegistrationFormSubmittedNotifier {
                     storeId, form.getId(), e.getMessage(), e);
         }
 
-        // 推送在事务提交后触发，避免事务回滚却发出推送
+        // 推送在事务提交后触发，避免事务回滚却发出推送；文案按设备语言渲染
         Runnable pushTask = () -> {
             try {
                 pushDispatchService.dispatchToUsers(
                         receiverIds,
                         PushDispatchService.PushCategory.TASK,
-                        title,
-                        content,
+                        PushDispatchService.PushText.keyed(TITLE_KEY, CONTENT_KEY, guestName, orderNumber),
                         Map.of(
                                 "type", "task",
                                 "formId", String.valueOf(form.getId()),

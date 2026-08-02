@@ -46,6 +46,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
+import { i18n } from '@/locales'
 import { syncPushRegistration } from '@/utils/pushNotifications'
 
 const router = useRouter()
@@ -88,6 +89,14 @@ watch(
 onBeforeUnmount(() => {
   notificationCenterStore.stop()
 })
+
+// App 内切换语言后重新上传设备令牌语言，后续推送按新语言渲染
+watch(
+  () => i18n.global.locale.value,
+  () => {
+    void syncPushRegistration()
+  },
+)
 </script>
 
 <style scoped>

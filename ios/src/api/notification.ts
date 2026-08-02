@@ -3,6 +3,23 @@ import type { ApiResponse } from '@/types/api'
 import type { NotificationMessageDTO, NotificationPageResponse } from '@/types/notification'
 import type { NotificationSettingDTO, NotificationSettingRequest } from '@/types/settings'
 
+export interface NotificationBadgeSummaryDTO {
+  unreadMessages: number
+  pendingReviews: number
+  total: number
+}
+
+/**
+ * App 图标角标汇总：未读聊天消息数 + 待审查表格数（服务端按审核权限过滤）。
+ */
+export const getNotificationBadgeSummary = () => {
+  return request<ApiResponse<NotificationBadgeSummaryDTO>>({
+    url: '/notifications/badge-summary',
+    method: 'GET',
+    suppressErrorToast: true,
+  })
+}
+
 export const getNotificationSettings = (userId: number) => {
   return request<ApiResponse<NotificationSettingDTO>>({
     url: `/notification-settings/user/${userId}`,

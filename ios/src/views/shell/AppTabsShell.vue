@@ -34,6 +34,9 @@
           <span class="mobile-tabbar__content">
             <span class="mobile-tabbar__icon-wrap" aria-hidden="true">
               <span class="mobile-tabbar__icon mobile-tabbar__icon--reviews" />
+              <span v-if="notificationCenterStore.pendingReviewCount > 0" class="mobile-tabbar__badge">
+                {{ notificationCenterStore.pendingReviewCount }}
+              </span>
             </span>
             <span class="mobile-tabbar__label">{{ t('nav.reviews') }}</span>
           </span>

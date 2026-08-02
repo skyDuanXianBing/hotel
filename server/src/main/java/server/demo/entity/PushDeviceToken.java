@@ -36,6 +36,12 @@ public class PushDeviceToken {
     @Column(name = "platform", nullable = false, length = 20)
     private PushPlatform platform;
 
+    /**
+     * 设备 App 当前语言（zh-CN/zh-TW/en/ja），推送文案按此语言渲染。
+     */
+    @Column(name = "locale", nullable = false, length = 10)
+    private String locale = "zh-CN";
+
     @NotBlank(message = "{api.t.8a30ccf0610b}")
     @Column(name = "device_token", nullable = false, unique = true, length = 512)
     private String deviceToken;
@@ -115,6 +121,14 @@ public class PushDeviceToken {
 
     public void setEnabled(Boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public String getLocale() {
+        return locale;
+    }
+
+    public void setLocale(String locale) {
+        this.locale = locale;
     }
 
     public LocalDateTime getLastSeenAt() {

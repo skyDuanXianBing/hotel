@@ -1,9 +1,11 @@
 import { App } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
+import { Badge } from '@capawesome/capacitor-badge'
 import { LocalNotifications } from '@capacitor/local-notifications'
 import type { ActionPerformed as LocalActionPerformed } from '@capacitor/local-notifications'
 import { PushNotifications } from '@capacitor/push-notifications'
 import type { ActionPerformed, PushNotificationSchema, Token } from '@capacitor/push-notifications'
+import { LOCALE_STORAGE_KEY, resolveLocale } from '@/locales'
 import { buildMessageDetailPath, buildRegistrationReviewPath, ROUTE_PATHS } from '@/router/guards'
 import { registerPushDevice, unregisterPushDevice, type PushPlatform } from '@/api/push'
 import { getStoredCurrentStoreId, getStoredToken, readStoredValue, writeStoredValue } from '@/utils/storage'
@@ -24,6 +26,7 @@ const LOCAL_NOTIFICATION_ID_BASE = 910000000
 let listenersReady = false
 let registering = false
 let lastUploadedToken: string | null = null
+let lastUploadedLocale: string | null = null
 let localNotificationSeq = 0
 
 type PushPayloadType = 'chat' | 'order' | 'task'
@@ -43,6 +46,30 @@ const resolvePlatform = (): PushPlatform => {
 }
 
 const hasAuthContext = () => Boolean(getStoredToken() && getStoredCurrentStoreId())
+
+/**
+ * 设备当前 App 语言（用户在 App 内选择的语言），服务端按它渲染推送文案。
+ */
+const currentAppLocale = () => resolveLocale(localStorage.getItem(LOCALE_STORAGE_KEY))
+
+/**
+ * 设置桌面图标角标（未读聊天 + 待审查）。0 或负数时清除角标；非原生环境为空操作。
+ */
+export const setAppIconBadge = async (count: number) => {
+  if (!isNative()) {
+    return
+  }
+  try {
+    const normalized = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0
+    if (normalized <= 0) {
+      await Badge.clear()
+    } else {
+      await Badge.set({ count: normalized })
+    }
+  } catch {
+    // 角标失败不影响主流程
+  }
+}
 
 const normalizePayload = (data: unknown): PushPayload => {
   if (!data || typeof data !== 'object') {
@@ -108,13 +135,18 @@ const showForegroundBanner = async (notification: PushNotificationSchema) => {
 }
 
 const uploadTokenIfPossible = async (token: string) => {
-  if (!token || token === lastUploadedToken || !hasAuthContext()) {
+  const locale = currentAppLocale()
+  if (!token || !hasAuthContext()) {
+    return
+  }
+  if (token === lastUploadedToken && locale === lastUploadedLocale) {
     return
   }
   try {
-    const response = await registerPushDevice(resolvePlatform(), token)
+    const response = await registerPushDevice(resolvePlatform(), token, locale)
     if (response.success !== false) {
       lastUploadedToken = token
+      lastUploadedLocale = locale
     }
   } catch {
     // 网络失败时保留本地 token，下次 sync 重试
@@ -207,14 +239,16 @@ export const syncPushRegistration = async () => {
 }
 
 /**
- * 退出登录时调用：解绑服务端设备令牌并清理本地记录。
+ * 退出登录时调用：解绑服务端设备令牌、清理本地记录并清除桌面图标角标。
  */
 export const unregisterPushDeviceOnLogout = async () => {
+  void setAppIconBadge(0)
   if (!isNative()) {
     return
   }
   const token = readStoredValue(PUSH_TOKEN_STORAGE_KEY)
   lastUploadedToken = null
+  lastUploadedLocale = null
   writeStoredValue(PUSH_TOKEN_STORAGE_KEY, null)
   if (!token) {
     return

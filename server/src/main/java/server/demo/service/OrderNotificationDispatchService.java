@@ -92,13 +92,16 @@ public class OrderNotificationDispatchService {
             );
         }
 
-        // 手机推送（App 未打开也弹窗），标题/正文与 App 内订单通知完全一致
+        // 手机推送（App 未打开也弹窗），标题/正文与 App 内订单通知一致（按设备语言渲染）
         try {
             pushDispatchService.dispatchToUsers(
                     receiverIds,
                     PushDispatchService.PushCategory.ORDER,
-                    title,
-                    content,
+                    PushDispatchService.PushText.keyed(
+                            eventType.titleKey(),
+                            eventType.contentKey(),
+                            contentArgs(reservation)
+                    ),
                     java.util.Map.of(
                             "type", "order",
                             "reservationId", String.valueOf(reservation.getId())
@@ -125,7 +128,7 @@ public class OrderNotificationDispatchService {
         return receiverIds;
     }
 
-    private String buildContent(OrderEventType eventType, Reservation reservation) {
+    private Object[] contentArgs(Reservation reservation) {
         String channelName = reservation.getChannel() != null
                 ? safeText(reservation.getChannel().getName(), ApiMessages.get("api.t.d0f332397a79"))
                 : ApiMessages.get("api.t.d0f332397a79");
@@ -134,27 +137,11 @@ public class OrderNotificationDispatchService {
                 reservation.getChannelOrderNumber(),
                 safeText(reservation.getOrderNumber(), "-")
         );
+        return new Object[]{channelName, guestName, channelOrderNumber};
+    }
 
-        return switch (eventType) {
-            case CREATED -> String.format(
-                    ApiMessages.get("api.t.2c2418e78214"),
-                    channelName,
-                    guestName,
-                    channelOrderNumber
-            );
-            case UPDATED -> String.format(
-                    ApiMessages.get("api.t.62907a62c644"),
-                    channelName,
-                    guestName,
-                    channelOrderNumber
-            );
-            case CANCELLED -> String.format(
-                    ApiMessages.get("api.t.6d0473de4212"),
-                    channelName,
-                    guestName,
-                    channelOrderNumber
-            );
-        };
+    private String buildContent(OrderEventType eventType, Reservation reservation) {
+        return String.format(ApiMessages.get(eventType.contentKey()), contentArgs(reservation));
     }
 
     private String safeText(String value, String fallback) {
@@ -204,14 +191,24 @@ public class OrderNotificationDispatchService {
     }
 
     public enum OrderEventType {
-        CREATED("api.t.f4b504a9b2bb"),
-        UPDATED("api.t.0b99a0e5a544"),
-        CANCELLED("api.t.24d78a40e64d");
+        CREATED("api.t.f4b504a9b2bb", "api.t.2c2418e78214"),
+        UPDATED("api.t.0b99a0e5a544", "api.t.62907a62c644"),
+        CANCELLED("api.t.24d78a40e64d", "api.t.6d0473de4212");
 
         private final String titleKey;
+        private final String contentKey;
 
-        OrderEventType(String titleKey) {
+        OrderEventType(String titleKey, String contentKey) {
             this.titleKey = titleKey;
+            this.contentKey = contentKey;
+        }
+
+        public String titleKey() {
+            return titleKey;
+        }
+
+        public String contentKey() {
+            return contentKey;
         }
 
         /**

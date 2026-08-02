@@ -75,7 +75,7 @@ class OrderNotificationDispatchServiceTest {
     }
 
     @Test
-    void notifyOrderCreated_shouldDispatchPushWithSameTitleAndContent() {
+    void notifyOrderCreated_shouldDispatchPushWithKeyedText() {
         when(storeUserRepository.findActiveUsersByStoreId(7L)).thenReturn(List.of(
                 storeUser(101L),
                 storeUser(102L)
@@ -84,16 +84,14 @@ class OrderNotificationDispatchServiceTest {
         Reservation reservation = reservation("Booking.com", "Lin", "BK-123", ReservationStatus.CONFIRMED);
         dispatchService.notifyOrderCreated(7L, reservation, 999L);
 
-        ArgumentCaptor<List<Notification>> notificationCaptor = ArgumentCaptor.forClass(List.class);
-        verify(notificationRepository).saveAll(notificationCaptor.capture());
-        Notification saved = notificationCaptor.getValue().get(0);
-
-        // 推送标题/正文必须与 App 内订单通知一致
+        // 推送传 i18n key + 参数（按设备语言渲染），与 App 内订单通知同源
         verify(pushDispatchService).dispatchToUsers(
                 org.mockito.ArgumentMatchers.argThat(ids -> Set.copyOf(ids).equals(Set.of(101L, 102L))),
                 org.mockito.ArgumentMatchers.eq(PushDispatchService.PushCategory.ORDER),
-                org.mockito.ArgumentMatchers.eq(saved.getTitle()),
-                org.mockito.ArgumentMatchers.eq(saved.getContent()),
+                org.mockito.ArgumentMatchers.argThat((PushDispatchService.PushText text) ->
+                        OrderNotificationDispatchService.OrderEventType.CREATED.titleKey().equals(text.titleKey())
+                                && OrderNotificationDispatchService.OrderEventType.CREATED.contentKey().equals(text.bodyKey())
+                                && java.util.Arrays.equals(new Object[]{"Booking.com", "Lin", "BK-123"}, text.bodyArgs())),
                 org.mockito.ArgumentMatchers.argThat(data ->
                         "order".equals(data.get("type")) && "123".equals(data.get("reservationId")))
         );

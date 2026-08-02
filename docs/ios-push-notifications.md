@@ -15,6 +15,15 @@
 - 接收人遵循 App 内通知设置：聊天看"聊天弹框提醒"，订单/任务看"订单弹框提醒"（`notification_settings`）。
 - 住宿者表格提交同时创建 TASK 类型站内通知（系统通知组可见），接收人为有表格审核权限的在职用户（无人有权限时回退全体在职用户）。
 
+## 推送语言与图标角标
+
+- **推送语言跟随设备 App 语言**：设备注册令牌时上传当前 `app_language`（zh-CN/zh-TW/en/ja，存 `push_device_tokens.locale`），服务端按每个设备的语言渲染标题/正文（`V067` 迁移）。客名、消息原文、渠道名等业务数据保持原文不翻译。App 内切换语言后自动重新上传。
+- **桌面图标角标（红点）= 未读聊天消息数 + 待审查住宿者表格数**：
+  - APNs payload 携带 `badge`，App 未打开时角标随每次推送刷新；
+  - App 内通知中心每 15 秒轮询 `GET /api/v1/notifications/badge-summary`（`@capawesome/capacitor-badge` 写图标角标），读完消息后角标随之清除；
+  - 待审查数只对拥有表格审核权限（STATISTICS/VIEW_STATS）的用户计入，与审核列表入口一致；
+  - App 底部"审查"tab 同步显示待处理数红点；退出登录时角标清零。
+
 ## 一、服务端配置（APNs）
 
 需要 Apple Developer 账号的 **APNs Auth Key（.p8）**：Apple Developer → Certificates, Identifiers & Profiles → Keys → 新建 APNs Key。

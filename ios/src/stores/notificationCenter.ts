@@ -1,9 +1,9 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { getMessageUnreadSummary } from '@/api/message'
-import { getNotificationSettings } from '@/api/notification'
+import { getNotificationBadgeSummary, getNotificationSettings } from '@/api/notification'
 import { i18n } from '@/locales'
 import { buildMessageDetailPath } from '@/router/guards'
+import { setAppIconBadge } from '@/utils/pushNotifications'
 import type { MessageThreadDTO } from '@/types/message'
 import type { NotificationSettingDTO, NotificationSettingRequest } from '@/types/settings'
 import { getStoredCurrentStoreId, getStoredToken } from '@/utils/storage'
@@ -61,6 +61,7 @@ function hasAuthenticatedNotificationContext() {
 export const useNotificationCenterStore = defineStore('notificationCenter', () => {
   const items = ref<InAppNotificationItem[]>([])
   const unreadMessageCount = ref(0)
+  const pendingReviewCount = ref(0)
   const messageThreads = ref<MessageThreadDTO[]>([])
   const activeUserId = ref<number | null>(null)
   const started = ref(false)
@@ -119,6 +120,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     shownKeys.clear()
     items.value = []
     unreadMessageCount.value = 0
+    pendingReviewCount.value = 0
     messageThreads.value = []
   }
 
@@ -156,6 +158,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     started.value = false
     settings.value = null
     resetRuntimeState()
+    void setAppIconBadge(0)
   }
 
   const loadSettings = async (userId: number) => {
@@ -198,13 +201,15 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     }
 
     try {
-      // 轮询只需要未读角标数量，改用轻量汇总接口，避免每 15 秒拉一次全量会话列表
-      const nextResponse = await getMessageUnreadSummary()
+      // 轮询角标汇总：一次请求同时拿未读聊天数、待审查数和桌面图标角标总数
+      const nextResponse = await getNotificationBadgeSummary()
       if (!nextResponse.success || !nextResponse.data) {
         return
       }
 
-      unreadMessageCount.value = Number(nextResponse.data.totalUnread) || 0
+      unreadMessageCount.value = Number(nextResponse.data.unreadMessages) || 0
+      pendingReviewCount.value = Number(nextResponse.data.pendingReviews) || 0
+      void setAppIconBadge(Number(nextResponse.data.total) || 0)
       return
     } catch {
       return
@@ -249,6 +254,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
   return {
     items,
     unreadMessageCount,
+    pendingReviewCount,
     messageThreads,
     started,
     enqueue,

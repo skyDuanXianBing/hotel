@@ -3,8 +3,8 @@ import type { ApiResponse } from '@/types/api'
 
 export type PushPlatform = 'IOS' | 'ANDROID'
 
-export const registerPushDevice = (platform: PushPlatform, deviceToken: string) => {
-  return request.post<ApiResponse<void>>('/push/devices', { platform, deviceToken })
+export const registerPushDevice = (platform: PushPlatform, deviceToken: string, locale: string) => {
+  return request.post<ApiResponse<void>>('/push/devices', { platform, deviceToken, locale })
 }
 
 export const unregisterPushDevice = (deviceToken: string) => {

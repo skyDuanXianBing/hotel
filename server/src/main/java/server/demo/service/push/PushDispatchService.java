@@ -8,14 +8,20 @@ import server.demo.entity.NotificationSetting;
 import server.demo.entity.PushDeviceToken;
 import server.demo.entity.StoreUser;
 import server.demo.enums.PushPlatform;
+import server.demo.i18n.ApiMessageService;
+import server.demo.i18n.AppLocale;
 import server.demo.repository.NotificationSettingRepository;
 import server.demo.repository.PushDeviceTokenRepository;
 import server.demo.repository.StoreUserRepository;
+import server.demo.service.NotificationBadgeService;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -24,6 +30,9 @@ import java.util.Set;
  *
  * <p>iOS 走 APNs；Android 设备在此预留 FCM 发送位（FCM 未配置前仅记录日志）。
  * 接收人遵循 App 内通知设置：聊天类看 chatPopup，订单/任务类看 orderPopup。
+ *
+ * <p>文案按每个设备令牌注册的 locale 渲染（App 内选择的语言）；推送同时携带
+ * App 图标角标数（未读聊天 + 待审查表格，按门店与审核权限计算）。
  */
 @Service
 public class PushDispatchService {
@@ -38,22 +47,28 @@ public class PushDispatchService {
     private final PushDeviceTokenRepository pushDeviceTokenRepository;
     private final NotificationSettingRepository notificationSettingRepository;
     private final ApnsPushService apnsPushService;
+    private final ApiMessageService apiMessageService;
+    private final NotificationBadgeService notificationBadgeService;
 
     public PushDispatchService(StoreUserRepository storeUserRepository,
                                PushDeviceTokenRepository pushDeviceTokenRepository,
                                NotificationSettingRepository notificationSettingRepository,
-                               ApnsPushService apnsPushService) {
+                               ApnsPushService apnsPushService,
+                               ApiMessageService apiMessageService,
+                               NotificationBadgeService notificationBadgeService) {
         this.storeUserRepository = storeUserRepository;
         this.pushDeviceTokenRepository = pushDeviceTokenRepository;
         this.notificationSettingRepository = notificationSettingRepository;
         this.apnsPushService = apnsPushService;
+        this.apiMessageService = apiMessageService;
+        this.notificationBadgeService = notificationBadgeService;
     }
 
     /**
      * 推送给门店全部在职用户（按通知设置过滤）。
      */
     @Async
-    public void dispatchToStoreUsers(Long storeId, PushCategory category, String title, String body,
+    public void dispatchToStoreUsers(Long storeId, PushCategory category, PushText text,
                                      Map<String, String> customData) {
         if (storeId == null) {
             return;
@@ -65,16 +80,16 @@ public class PushDispatchService {
                 receiverIds.add(member.getUser().getId());
             }
         }
-        dispatchToUsers(receiverIds, category, title, body, customData);
+        dispatchToUsers(receiverIds, category, text, customData);
     }
 
     /**
-     * 推送给指定用户集合（按通知设置过滤）。
+     * 推送给指定用户集合（按通知设置过滤，按设备 locale 渲染文案）。
      */
     @Async
-    public void dispatchToUsers(Collection<Long> userIds, PushCategory category, String title, String body,
+    public void dispatchToUsers(Collection<Long> userIds, PushCategory category, PushText text,
                                 Map<String, String> customData) {
-        if (userIds == null || userIds.isEmpty()) {
+        if (userIds == null || userIds.isEmpty() || text == null) {
             return;
         }
 
@@ -89,18 +104,62 @@ public class PushDispatchService {
             return;
         }
 
+        Map<String, List<PushDeviceToken>> tokensByLocale = new LinkedHashMap<>();
         for (PushDeviceToken token : tokens) {
-            if (token.getPlatform() == PushPlatform.IOS) {
-                sendViaApns(token, title, body, customData);
-            } else if (token.getPlatform() == PushPlatform.ANDROID) {
-                // FCM 发送位：配置 Firebase 服务账号后在此接入 FCM HTTP v1 发送
-                logger.debug("Skip Android push (FCM not configured yet). tokenId={}", token.getId());
+            if (token != null) {
+                tokensByLocale.computeIfAbsent(normalizeLocaleKey(token.getLocale()), k -> new ArrayList<>()).add(token);
+            }
+        }
+
+        // 角标数按（门店, 用户）计算一次，同用户多设备复用
+        Map<String, Integer> badgeCache = new HashMap<>();
+
+        for (Map.Entry<String, List<PushDeviceToken>> entry : tokensByLocale.entrySet()) {
+            Locale locale = AppLocale.fromTag(entry.getKey());
+            if (locale == null) {
+                locale = AppLocale.DEFAULT;
+            }
+            String title = text.resolveTitle(apiMessageService, locale);
+            String body = text.resolveBody(apiMessageService, locale);
+            for (PushDeviceToken token : entry.getValue()) {
+                if (token.getPlatform() == PushPlatform.IOS) {
+                    sendViaApns(token, title, body, customData, badgeFor(token, badgeCache));
+                } else if (token.getPlatform() == PushPlatform.ANDROID) {
+                    // FCM 发送位：配置 Firebase 服务账号后在此接入 FCM HTTP v1 发送
+                    logger.debug("Skip Android push (FCM not configured yet). tokenId={}", token.getId());
+                }
             }
         }
     }
 
-    private void sendViaApns(PushDeviceToken token, String title, String body, Map<String, String> customData) {
-        apnsPushService.send(token.getDeviceToken(), title, body, customData)
+    private int badgeFor(PushDeviceToken token, Map<String, Integer> badgeCache) {
+        String key = token.getStoreId() + ":" + token.getUserId();
+        Integer cached = badgeCache.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        int badge = 0;
+        try {
+            badge = (int) Math.min(Integer.MAX_VALUE,
+                    notificationBadgeService.summaryFor(token.getStoreId(), token.getUserId()).total());
+        } catch (Exception e) {
+            logger.warn("Resolve push badge failed. storeId={}, userId={}, err={}",
+                    token.getStoreId(), token.getUserId(), e.getMessage());
+        }
+        badgeCache.put(key, badge);
+        return badge;
+    }
+
+    private String normalizeLocaleKey(String locale) {
+        if (locale == null || locale.isBlank()) {
+            return AppLocale.DEFAULT.toLanguageTag();
+        }
+        return locale.trim();
+    }
+
+    private void sendViaApns(PushDeviceToken token, String title, String body, Map<String, String> customData,
+                             int badge) {
+        apnsPushService.send(token.getDeviceToken(), title, body, customData, badge)
                 .thenAccept(result -> {
                     if (result.status() == ApnsPushService.ApnsSendResult.Status.REJECTED
                             && result.rejectionReason() != null
@@ -151,5 +210,34 @@ public class PushDispatchService {
         CHAT,
         ORDER,
         TASK
+    }
+
+    /**
+     * 推送文案描述：key（按设备 locale 渲染）与原文（客人名、消息正文等业务数据）可自由组合；
+     * 同一段文案 literal 优先于 key。
+     */
+    public record PushText(String titleKey, String titleLiteral, String bodyKey, String bodyLiteral,
+                           Object[] bodyArgs) {
+
+        /**
+         * 标题和正文都来自 i18n key。
+         */
+        public static PushText keyed(String titleKey, String bodyKey, Object... bodyArgs) {
+            return new PushText(titleKey, null, bodyKey, null, bodyArgs);
+        }
+
+        String resolveTitle(ApiMessageService messages, Locale locale) {
+            if (titleLiteral != null) {
+                return titleLiteral;
+            }
+            return titleKey != null ? messages.resolve(locale, titleKey) : "";
+        }
+
+        String resolveBody(ApiMessageService messages, Locale locale) {
+            if (bodyLiteral != null) {
+                return bodyLiteral;
+            }
+            return bodyKey != null ? messages.resolve(locale, bodyKey, bodyArgs) : "";
+        }
     }
 }

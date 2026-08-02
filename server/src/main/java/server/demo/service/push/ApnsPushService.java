@@ -92,9 +92,10 @@ public class ApnsPushService {
 
     /**
      * 发送一条带标题/正文/声音的提醒推送；customData 会放入 payload 顶层供 App 点击路由。
+     * badgeNumber 为 App 图标角标数，null 表示不更新角标。
      */
     public CompletableFuture<ApnsSendResult> send(String deviceToken, String title, String body,
-                                                  Map<String, String> customData) {
+                                                  Map<String, String> customData, Integer badgeNumber) {
         ApnsClient client = apnsClient;
         if (client == null) {
             return CompletableFuture.completedFuture(ApnsSendResult.disabled(deviceToken));
@@ -104,6 +105,9 @@ public class ApnsPushService {
         payloadBuilder.setAlertTitle(title);
         payloadBuilder.setAlertBody(body);
         payloadBuilder.setSound("default");
+        if (badgeNumber != null) {
+            payloadBuilder.setBadgeNumber(badgeNumber);
+        }
         if (customData != null) {
             customData.forEach(payloadBuilder::addCustomProperty);
         }
