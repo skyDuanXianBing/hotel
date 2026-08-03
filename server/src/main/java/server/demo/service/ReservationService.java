@@ -525,6 +525,17 @@ public class ReservationService {
         return convertToDTO(savedReservation);
     }
 
+    /**
+     * 更新订单内部备注（全店员工可见，不影响库存/价格同步）。
+     */
+    public ReservationDTO updateReservationNotes(Long reservationId, String notes) {
+        Reservation reservation = loadReservationInStore(reservationId);
+        String normalized = notes == null ? null : notes.trim();
+        reservation.setNotes(normalized == null || normalized.isEmpty() ? null : normalized);
+        Reservation savedReservation = reservationRepository.save(reservation);
+        return convertToDTO(savedReservation);
+    }
+
     private void scheduleAutoMessageDispatchAfterCommit(Long storeId) {
         if (storeId == null || autoMessageTriggerService == null) {
             return;

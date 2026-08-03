@@ -12,6 +12,16 @@
         <ion-buttons slot="end">
           <ion-button
             v-if="reservationMatched"
+            class="message-detail-header__action message-detail-header__note"
+            :class="{ 'message-detail-header__note--active': hasReservationNotes }"
+            fill="clear"
+            :aria-label="t('messageDetail.reservationNotes')"
+            @click="openReservationNotes"
+          >
+            <ion-icon :icon="hasReservationNotes ? documentText : documentTextOutline" />
+          </ion-button>
+          <ion-button
+            v-if="reservationMatched"
             class="message-detail-header__action"
             fill="clear"
             @click="handleOpenReservation"
@@ -353,6 +363,55 @@
         </div>
       </ion-content>
     </ion-modal>
+    <ion-modal
+      class="message-ai-modal message-notes-modal"
+      :is-open="notesModalOpen"
+      @didDismiss="closeReservationNotes"
+    >
+      <ion-header translucent class="message-ai-page__header">
+        <ion-toolbar class="message-ai-page__toolbar">
+          <ion-buttons slot="start">
+            <ion-button
+              class="message-ai-page__back"
+              fill="clear"
+              :aria-label="t('messageDetail.backToConversation')"
+              @click="closeReservationNotes"
+            >
+              <ion-icon :icon="chevronBackOutline" />
+              <span>{{ t('messageDetail.back') }}</span>
+            </ion-button>
+          </ion-buttons>
+          <ion-title>{{ t('messageDetail.reservationNotesTitle') }}</ion-title>
+          <ion-buttons slot="end">
+            <ion-button
+              class="message-ai-page__back"
+              fill="clear"
+              :disabled="notesSaving"
+              @click="saveReservationNotes"
+            >
+              {{ notesSaving ? t('messageDetail.sending') : t('messageDetail.reservationNotesSave') }}
+            </ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="mobile-page mobile-page--dashboard message-ai-page">
+        <div class="message-ai-page-shell">
+          <section class="message-ai-page-card message-notes-card">
+            <p class="message-notes-card__hint">{{ t('messageDetail.reservationNotesHint') }}</p>
+            <ion-textarea
+              v-model="notesDraft"
+              class="message-notes-card__textarea"
+              :placeholder="t('messageDetail.reservationNotesPlaceholder')"
+              :auto-grow="true"
+              :maxlength="1000"
+              :disabled="notesSaving"
+              @ionInput="notesDraftTouched = true"
+            />
+          </section>
+        </div>
+      </ion-content>
+    </ion-modal>
   </ion-page>
 </template>
 
@@ -378,7 +437,7 @@ import {
   onIonViewWillEnter,
   onIonViewWillLeave,
 } from '@ionic/vue'
-import { chatbubbleEllipsesOutline, chevronBackOutline, languageOutline, refreshOutline } from 'ionicons/icons'
+import { chatbubbleEllipsesOutline, chevronBackOutline, documentText, documentTextOutline, languageOutline, refreshOutline } from 'ionicons/icons'
 import { computed, nextTick, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -394,7 +453,12 @@ import {
   translateThreadMessage,
 } from '@/api/message'
 import { getAllQuickReplies, type QuickReplyDTO } from '@/api/quickReply'
-import { getReservationsWithFilters, type ReservationDTO } from '@/api/reservation'
+import {
+  getReservationById,
+  getReservationsWithFilters,
+  updateReservationNotes,
+  type ReservationDTO,
+} from '@/api/reservation'
 import { ROUTE_PATHS } from '@/router/guards'
 import { LOCALE_STORAGE_KEY, resolveLocale, type SupportedLocale } from '@/locales'
 import type { MessageDTO, MessageThreadDTO } from '@/types/message'
@@ -477,6 +541,10 @@ const hasMoreMessagesBefore = ref(false)
 const nextBeforeMessageId = ref<number | null>(null)
 const reservationId = ref<number | null>(null)
 const linkedReservation = ref<ReservationDTO | null>(null)
+const notesModalOpen = ref(false)
+const notesDraft = ref('')
+const notesDraftTouched = ref(false)
+const notesSaving = ref(false)
 const aiDraftOpen = ref(false)
 const aiDraft = ref('')
 const aiContextSummary = ref('')
@@ -565,6 +633,64 @@ const threadTitle = computed(() => {
 })
 
 const reservationMatched = computed(() => reservationId.value !== null)
+const hasReservationNotes = computed(() => Boolean(linkedReservation.value?.notes?.trim()))
+
+function openReservationNotes() {
+  const id = reservationId.value
+  if (!id) {
+    showWarningToast(t('messageDetail.reservationMissing'))
+    return
+  }
+  notesDraft.value = linkedReservation.value?.notes || ''
+  notesDraftTouched.value = false
+  notesModalOpen.value = true
+  refreshLinkedReservationNotes(id)
+}
+
+async function refreshLinkedReservationNotes(id: number) {
+  try {
+    const response = await getReservationById(id)
+    if (!response.success || !response.data) {
+      return
+    }
+    if (reservationId.value !== id) {
+      return
+    }
+    linkedReservation.value = response.data
+    if (!notesSaving.value && !notesDraftTouched.value) {
+      notesDraft.value = response.data.notes || ''
+    }
+  } catch {
+    // 保留缓存值，打开弹窗时不打断编辑
+  }
+}
+
+function closeReservationNotes() {
+  notesModalOpen.value = false
+}
+
+async function saveReservationNotes() {
+  const id = reservationId.value
+  if (!id || notesSaving.value) {
+    return
+  }
+  notesSaving.value = true
+  try {
+    const response = await updateReservationNotes(id, notesDraft.value.trim())
+    if (!response.success || !response.data) {
+      throw new Error(response.message || t('messageDetail.reservationNotesSaveFailed'))
+    }
+    linkedReservation.value = response.data
+    showSuccessToast(t('messageDetail.reservationNotesSaved'))
+    notesModalOpen.value = false
+  } catch (error) {
+    if (!isHandledRequestError(error)) {
+      showWarningToast(resolveWarningMessage(error, t('messageDetail.reservationNotesSaveFailed')))
+    }
+  } finally {
+    notesSaving.value = false
+  }
+}
 const activeThreadAvatarVars = computed(() => {
   if (!activeThread.value) {
     return undefined
@@ -1872,6 +1998,29 @@ ion-header::after {
   --padding-end: 8px;
   font-size: 14px;
   font-weight: 600;
+}
+
+.message-detail-header__note {
+  --padding-start: 6px;
+  --padding-end: 6px;
+  font-size: 19px;
+}
+
+.message-detail-header__note--active {
+  --color: var(--ios-pms-primary);
+}
+
+.message-notes-card__hint {
+  margin: 0;
+  color: var(--ios-pms-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.message-notes-card__textarea {
+  min-height: 160px;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 .message-detail-page__status {

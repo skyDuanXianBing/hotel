@@ -177,6 +177,12 @@ export const cancelReservation = async (reservationId: number) => {
   return request.post<ApiResponse<ReservationDTO>>(`/reservations/${reservationId}/cancel`)
 }
 
+export const updateReservationNotes = async (reservationId: number, notes: string) => {
+  return request.post<ApiResponse<ReservationDTO>>(`/reservations/${reservationId}/notes`, {
+    notes,
+  })
+}
+
 export const updateReservationSettlementStatus = async (
   reservationId: number,
   settled: boolean,

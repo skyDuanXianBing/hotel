@@ -352,6 +352,14 @@ export const assignReservationRoom = async (
   })
 }
 
+// 更新订单备注（全店员工可见的内部备注）
+export const updateReservationNotes = async (
+  reservationId: number,
+  notes: string,
+): Promise<ApiResponse<ReservationDTO>> => {
+  return await request.post(`/reservations/${reservationId}/notes`, { notes })
+}
+
 export const updateReservationSettlementStatus = async (
   reservationId: number,
   data: UpdateReservationSettlementStatusRequest,

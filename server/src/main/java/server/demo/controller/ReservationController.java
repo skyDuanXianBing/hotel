@@ -19,6 +19,7 @@ import server.demo.dto.ReservationDTO;
 import server.demo.dto.ReservationHoverSummaryRequest;
 import server.demo.dto.ReservationHoverSummaryResponseDTO;
 import server.demo.dto.ReservationStatistics;
+import server.demo.dto.UpdateReservationNotesRequest;
 import server.demo.dto.UpdateReservationSettlementStatusRequest;
 import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
@@ -104,6 +105,20 @@ public class ReservationController extends BaseStoreController {
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error(ApiMessages.get("api.t.407b32fbf214") + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/notes")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.MODIFY_ORDER)
+    public ResponseEntity<ApiResponse<ReservationDTO>> updateReservationNotes(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateReservationNotesRequest request) {
+        try {
+            ReservationDTO reservation = reservationService.updateReservationNotes(id, request.getNotes());
+            return ResponseEntity.ok(ApiResponse.success(ApiMessages.get("api.t.809cf0541b36"), reservation));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(ApiMessages.get("api.t.483e861c2c64") + e.getMessage()));
         }
     }
 

@@ -232,6 +232,15 @@
             </div>
             <div class="header-actions">
               <el-button
+                v-if="selectedReservationId"
+                size="small"
+                :type="hasActiveReservationNotes ? 'primary' : 'default'"
+                :plain="hasActiveReservationNotes"
+                @click="openReservationNotesDialog"
+              >
+                {{ t('stage6.components.messagesPage.reservationNotes.button') }}
+              </el-button>
+              <el-button
                 size="small"
                 :loading="isResolvingReservation"
                 :disabled="!activeConversation"
@@ -646,6 +655,37 @@
       </template>
     </el-dialog>
 
+    <el-dialog
+      v-model="reservationNotesDialogVisible"
+      :title="t('stage6.components.messagesPage.reservationNotes.title')"
+      width="520px"
+      :close-on-click-modal="false"
+    >
+      <p class="reservation-notes-hint">
+        {{ t('stage6.components.messagesPage.reservationNotes.hint') }}
+      </p>
+      <div v-loading="isLoadingReservationNotes">
+        <el-input
+          v-model="reservationNotesDraft"
+          type="textarea"
+          :rows="6"
+          maxlength="1000"
+          show-word-limit
+          :placeholder="t('stage6.components.messagesPage.reservationNotes.placeholder')"
+          @input="reservationNotesDraftTouched = true"
+        />
+      </div>
+
+      <template #footer>
+        <el-button @click="reservationNotesDialogVisible = false">{{
+          t('stage6.common.actions.cancel')
+        }}</el-button>
+        <el-button type="primary" :loading="isSavingReservationNotes" @click="saveReservationNotes">
+          {{ t('stage6.common.actions.save') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
     <ReservationDetailDrawer
       v-model="showOrderDetailDrawer"
       :reservation-id="selectedReservationId"
@@ -701,6 +741,7 @@ import { sendChatMessage } from '@/api/chat'
 import {
   getReservationById,
   getReservationsWithFilters,
+  updateReservationNotes,
   type ReservationDTO,
 } from '@/api/reservation'
 import { getAllQuickReplies, type QuickReplyDTO } from '@/api/quickReply'
@@ -921,6 +962,13 @@ const aiAssistantSessionId = ref<string>()
 const showOrderDetailDrawer = ref(false)
 const selectedReservationId = ref<number | null>(null)
 const isResolvingReservation = ref(false)
+const activeReservationNotes = ref('')
+const reservationNotesDialogVisible = ref(false)
+const reservationNotesDraft = ref('')
+const reservationNotesDraftTouched = ref(false)
+const reservationNotesTargetId = ref<number | null>(null)
+const isLoadingReservationNotes = ref(false)
+const isSavingReservationNotes = ref(false)
 
 const storeStore = useStoreStore()
 const notificationCenterStore = useNotificationCenterStore()
@@ -3433,6 +3481,7 @@ const preloadActiveReservationId = async () => {
   const conversation = activeConversation.value
   if (!conversation) {
     selectedReservationId.value = null
+    activeReservationNotes.value = ''
     return
   }
 
@@ -3441,6 +3490,85 @@ const preloadActiveReservationId = async () => {
     selectedReservationId.value = await findReservationIdForConversation(conversation)
   } finally {
     isResolvingReservation.value = false
+  }
+
+  await refreshActiveReservationNotes(selectedReservationId.value)
+}
+
+const refreshActiveReservationNotes = async (reservationId: number | null) => {
+  if (!reservationId) {
+    activeReservationNotes.value = ''
+    return
+  }
+
+  try {
+    const response = await getReservationById(reservationId)
+    // 会话切换后旧请求返回时避免覆盖新会话的备注
+    if (selectedReservationId.value !== reservationId) {
+      return
+    }
+    if (response.success && response.data) {
+      activeReservationNotes.value = response.data.notes || ''
+    }
+  } catch (error) {
+    console.error('Failed to load reservation notes:', error)
+  }
+}
+
+const hasActiveReservationNotes = computed(() => Boolean(activeReservationNotes.value.trim()))
+
+const openReservationNotesDialog = async () => {
+  const reservationId = selectedReservationId.value
+  if (!reservationId || !activeConversation.value) {
+    return
+  }
+
+  reservationNotesTargetId.value = reservationId
+  reservationNotesDraft.value = activeReservationNotes.value
+  reservationNotesDraftTouched.value = false
+  reservationNotesDialogVisible.value = true
+
+  // 打开弹窗时刷新一次，其他员工可能刚更新过这条共享备注
+  isLoadingReservationNotes.value = true
+  try {
+    await refreshActiveReservationNotes(reservationId)
+    if (!reservationNotesDraftTouched.value) {
+      reservationNotesDraft.value = activeReservationNotes.value
+    }
+  } finally {
+    isLoadingReservationNotes.value = false
+  }
+}
+
+const saveReservationNotes = async () => {
+  const reservationId = reservationNotesTargetId.value
+  if (!reservationId || isSavingReservationNotes.value) {
+    return
+  }
+
+  isSavingReservationNotes.value = true
+  try {
+    const response = await updateReservationNotes(reservationId, reservationNotesDraft.value.trim())
+    if (response.success === false) {
+      throw new Error(
+        sanitizeUserFacingMessage(response.message) ||
+          t('stage6.components.messagesPage.reservationNotes.saveFailed'),
+      )
+    }
+    if (selectedReservationId.value === reservationId) {
+      activeReservationNotes.value = response.data?.notes || ''
+    }
+    ElMessage.success(
+      sanitizeUserFacingMessage(response.message) ||
+        t('stage6.components.messagesPage.reservationNotes.saved'),
+    )
+    reservationNotesDialogVisible.value = false
+  } catch (error) {
+    ElMessage.error(
+      resolveAiErrorMessage(error, t('stage6.components.messagesPage.reservationNotes.saveFailed')),
+    )
+  } finally {
+    isSavingReservationNotes.value = false
   }
 }
 
@@ -4095,6 +4223,13 @@ onUnmounted(() => {
   flex-shrink: 0;
   display: flex;
   align-items: center;
+}
+
+.reservation-notes-hint {
+  margin: 0 0 10px;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .messages-list {
