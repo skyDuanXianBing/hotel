@@ -202,11 +202,7 @@
           <section class="message-ai-page-card">
             <section class="message-ai-section message-ai-section--draft">
               <h2 class="message-ai-section__title">
-                {{
-                  isAiDraftTranslationView
-                    ? t('messageDetail.staffTranslation', { language: aiDraftTranslationLanguageLabel })
-                    : t('messageDetail.initialDraft')
-                }}
+                {{ t('messageDetail.initialDraft') }}
               </h2>
 
               <div
@@ -214,7 +210,6 @@
                 @click="handleFocusAiDraft"
               >
                 <ion-textarea
-                  v-if="!isAiDraftTranslationView"
                   ref="aiDraftTextareaRef"
                   v-model="aiDraft"
                   :rows="8"
@@ -223,39 +218,10 @@
                     draftLoading ? t('messageDetail.draftGenerating') : t('messageDetail.draftPlaceholder')
                   "
                 />
-                <ion-textarea
-                  v-else
-                  :value="aiDraftTranslation"
-                  :rows="8"
-                  class="message-ai-textarea message-ai-textarea--draft message-ai-textarea--translation"
-                  readonly
-                />
                 <div v-if="draftLoading" class="message-ai-textarea-shell__loading">
                   <ion-spinner name="crescent" />
                   <span>{{ t('messageDetail.generating') }}</span>
                 </div>
-              </div>
-
-              <div class="message-ai-section__actions">
-                <ion-button
-                  class="message-ai-action-button"
-                  :class="{ 'message-ai-action-button--return': isAiDraftTranslationView }"
-                  :disabled="
-                    draftLoading ||
-                    aiPolishLoading ||
-                    aiDraftTranslationLoading ||
-                    !aiDraft.trim()
-                  "
-                  @click="handleToggleAiDraftTranslation"
-                >
-                  {{
-                    aiDraftTranslationLoading
-                      ? t('messageDetail.translationLoading')
-                      : isAiDraftTranslationView
-                        ? t('messageDetail.back')
-                        : t('messageDetail.translate')
-                  }}
-                </ion-button>
               </div>
             </section>
 
@@ -281,7 +247,7 @@
                   :disabled="
                     draftLoading ||
                     aiPolishLoading ||
-                    aiDraftTranslationLoading ||
+                    aiFillLoading ||
                     !aiDraft.trim() ||
                     !aiInstruction.trim()
                   "
@@ -296,11 +262,11 @@
               class="message-ai-fill-button"
               expand="block"
               :disabled="
-                draftLoading || aiPolishLoading || aiDraftTranslationLoading || !aiDraft.trim()
+                draftLoading || aiPolishLoading || aiFillLoading || !aiDraft.trim()
               "
               @click="handleUseAiDraft"
             >
-              {{ t('messageDetail.useDraft') }}
+              {{ aiFillLoading ? t('messageDetail.translating') : t('messageDetail.useDraft') }}
             </ion-button>
           </section>
         </div>
@@ -430,6 +396,7 @@ import {
 import { getAllQuickReplies, type QuickReplyDTO } from '@/api/quickReply'
 import { getReservationsWithFilters, type ReservationDTO } from '@/api/reservation'
 import { ROUTE_PATHS } from '@/router/guards'
+import { LOCALE_STORAGE_KEY, resolveLocale, type SupportedLocale } from '@/locales'
 import type { MessageDTO, MessageThreadDTO } from '@/types/message'
 import { MessageSenderType } from '@/types/message'
 import { createAsyncTaskQueue } from '@/utils/asyncTaskQueue'
@@ -445,7 +412,6 @@ import {
   normalizeTranslatedText,
   requestAiMessageTranslation,
   resolveGuestMessageTargetLanguage,
-  resolveMessageTranslationLanguageLabel,
   type MessageTranslationLanguageValue,
 } from '@/utils/messageTranslation'
 import {
@@ -517,11 +483,7 @@ const aiContextSummary = ref('')
 const aiInstruction = ref('')
 const aiSessionId = ref('')
 const aiPolishLoading = ref(false)
-const aiDraftTranslationLoading = ref(false)
-const aiDraftTranslation = ref('')
-const aiDraftTranslationSource = ref('')
-const aiDraftTranslationTarget = ref<MessageTranslationLanguageValue | null>(null)
-const isAiDraftTranslationView = ref(false)
+const aiFillLoading = ref(false)
 const quickReplyOpen = ref(false)
 const quickReplyLoading = ref(false)
 const quickReplyLoadFailed = ref(false)
@@ -610,9 +572,20 @@ const activeThreadAvatarVars = computed(() => {
 
   return resolveMessageThreadAvatarVars(activeThread.value)
 })
-const aiDraftTranslationLanguageLabel = computed(() =>
-  resolveMessageTranslationLanguageLabel(translationTargetLanguage.value),
-)
+const STAFF_DRAFT_LANGUAGE_LABELS: Record<SupportedLocale, string> = {
+  'zh-CN': '中文(简体)',
+  'zh-TW': '中文(繁體)',
+  en: 'English',
+  ja: '日本語',
+}
+
+function resolveStaffDraftLanguage(): SupportedLocale {
+  return resolveLocale(localStorage.getItem(LOCALE_STORAGE_KEY))
+}
+
+function resolveStaffDraftLanguageLabel() {
+  return STAFF_DRAFT_LANGUAGE_LABELS[resolveStaffDraftLanguage()]
+}
 
 const filteredQuickReplies = computed(() => {
   const keyword = quickReplyKeyword.value.trim().toLowerCase()
@@ -749,7 +722,7 @@ function handleFocusComposer() {
 }
 
 function handleFocusAiDraft() {
-  if (draftLoading.value || isAiDraftTranslationView.value) {
+  if (draftLoading.value) {
     return
   }
 
@@ -757,7 +730,7 @@ function handleFocusAiDraft() {
 }
 
 function handleFocusAiInstruction() {
-  if (draftLoading.value || aiPolishLoading.value || aiDraftTranslationLoading.value) {
+  if (draftLoading.value || aiPolishLoading.value || aiFillLoading.value) {
     return
   }
 
@@ -922,7 +895,6 @@ function syncTranslationSettingsFromStorage() {
 
   if (shouldClearCaches) {
     clearTranslationCaches()
-    clearAiDraftTranslation()
   }
 }
 
@@ -942,7 +914,6 @@ async function syncTranslationSettingsFromServer() {
 
     if (shouldClearCaches) {
       clearTranslationCaches()
-      clearAiDraftTranslation()
     }
   } catch (error) {
     console.warn('Failed to load server translation settings, using local fallback:', error)
@@ -1638,7 +1609,7 @@ async function handleGenerateAiDraft() {
         linkedReservation.value?.roomTypeName || activeThread.value.roomTypeName || undefined,
       latestGuestMessageId: latestGuestMessage?.id,
       recentMessages,
-      language: resolveGuestMessageTargetLanguage(latestGuestMessage?.content),
+      language: resolveStaffDraftLanguageLabel(),
     })
     const draftReply = response.data?.draftReply?.trim()
     if (!response.success || !draftReply) {
@@ -1647,7 +1618,6 @@ async function handleGenerateAiDraft() {
 
     aiContextSummary.value = t('messageDetail.contextSummary')
     aiDraft.value = draftReply
-    clearAiDraftTranslation()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, t('messageDetail.draftFailed')))
@@ -1658,21 +1628,50 @@ async function handleGenerateAiDraft() {
 }
 
 async function handleOpenAiDraft() {
-  isAiDraftTranslationView.value = false
   aiDraftOpen.value = true
   if (!aiDraft.value.trim()) {
     await handleGenerateAiDraft()
   }
 }
 
-function handleUseAiDraft() {
-  composerValue.value = aiDraft.value.trim()
-  aiDraftOpen.value = false
+async function handleUseAiDraft() {
+  const draft = aiDraft.value.trim()
+  if (!draft || aiFillLoading.value) {
+    return
+  }
+
+  const latestGuestMessage = [...messages.value]
+    .reverse()
+    .find((message) => message.senderType === MessageSenderType.GUEST)
+  const guestTargetLanguage = resolveGuestMessageTargetLanguage(latestGuestMessage?.content)
+
+  // 员工操作语言与客人语言一致时直接回填，无需调用翻译
+  if (resolveStaffDraftLanguage() === guestTargetLanguage) {
+    composerValue.value = draft
+    aiDraftOpen.value = false
+    return
+  }
+
+  aiFillLoading.value = true
+  try {
+    const translatedDraft = await requestAiMessageTranslation(draft, guestTargetLanguage)
+    if (!translatedDraft) {
+      throw new Error(t('messageDetail.emptyTranslation'))
+    }
+
+    composerValue.value = translatedDraft
+    aiDraftOpen.value = false
+  } catch (error) {
+    if (!isHandledRequestError(error)) {
+      showWarningToast(resolveWarningMessage(error, t('messageDetail.draftTranslationFailed')))
+    }
+  } finally {
+    aiFillLoading.value = false
+  }
 }
 
 function handleDismissAiDraft() {
   aiDraftOpen.value = false
-  isAiDraftTranslationView.value = false
 }
 
 let quickReplyFocusComposerOnDismiss = false
@@ -1730,57 +1729,6 @@ function handleSelectQuickReply(reply: QuickReplyDTO) {
   quickReplyOpen.value = false
 }
 
-function clearAiDraftTranslation() {
-  aiDraftTranslation.value = ''
-  aiDraftTranslationSource.value = ''
-  aiDraftTranslationTarget.value = null
-  isAiDraftTranslationView.value = false
-}
-
-async function handleToggleAiDraftTranslation() {
-  if (isAiDraftTranslationView.value) {
-    isAiDraftTranslationView.value = false
-    return
-  }
-
-  const draft = aiDraft.value.trim()
-  if (!draft) {
-    showWarningToast(t('messageDetail.noDraftToTranslate'))
-    return
-  }
-
-  if (
-    aiDraftTranslation.value &&
-    aiDraftTranslationSource.value === draft &&
-    aiDraftTranslationTarget.value === translationTargetLanguage.value
-  ) {
-    isAiDraftTranslationView.value = true
-    return
-  }
-
-  aiDraftTranslationLoading.value = true
-  try {
-    const translatedDraft = await requestAiMessageTranslation(
-      draft,
-      translationTargetLanguage.value,
-    )
-    if (!translatedDraft) {
-      throw new Error(t('messageDetail.emptyTranslation'))
-    }
-
-    aiDraftTranslation.value = translatedDraft
-    aiDraftTranslationSource.value = draft
-    aiDraftTranslationTarget.value = translationTargetLanguage.value
-    isAiDraftTranslationView.value = true
-  } catch (error) {
-    if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, t('messageDetail.draftTranslationFailed')))
-    }
-  } finally {
-    aiDraftTranslationLoading.value = false
-  }
-}
-
 async function handlePolishAiDraft() {
   const instruction = aiInstruction.value.trim()
   if (!instruction) {
@@ -1796,19 +1744,11 @@ async function handlePolishAiDraft() {
   aiPolishLoading.value = true
 
   try {
-    const latestGuestMessage = [...messages.value]
-      .reverse()
-      .find((message) => message.senderType === MessageSenderType.GUEST)
-    const guestLanguageLabel = resolveMessageTranslationLanguageLabel(
-      resolveGuestMessageTargetLanguage(latestGuestMessage?.content),
-    )
-    const staffLanguageLabel = resolveMessageTranslationLanguageLabel(
-      translationTargetLanguage.value,
-    )
+    const staffLanguageLabel = resolveStaffDraftLanguageLabel()
     const promptLines = [
       '你是酒店客服改写助手，请根据要求改进下面这条客服回复草稿。',
       '请直接返回可发送给住客的完整回复正文，不要附加解释。',
-      `语言要求：必须始终使用客人消息的语言（${guestLanguageLabel}）返回完整回复；除非客人消息本身就是${staffLanguageLabel}，否则不要切换成${staffLanguageLabel}或其他语言。`,
+      `语言要求：必须始终使用${staffLanguageLabel}返回完整回复，不要切换成其他语言；发送给住客前会统一翻译成客人语言。`,
       '',
       `会话上下文总结：${aiContextSummary.value || '暂无上下文总结'}`,
       '',
@@ -1829,7 +1769,6 @@ async function handlePolishAiDraft() {
 
     aiSessionId.value = response.data.sessionId || aiSessionId.value
     aiDraft.value = response.data.reply.trim()
-    clearAiDraftTranslation()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, t('messageDetail.polishFailed')))
@@ -2506,11 +2445,6 @@ ion-modal.message-ai-modal {
   line-height: 1.5;
 }
 
-.message-ai-textarea--translation {
-  --background: #f8fafc;
-  --color: #666666;
-}
-
 .message-ai-textarea-shell__loading {
   position: absolute;
   inset: 0;
@@ -2563,12 +2497,6 @@ ion-modal.message-ai-modal {
   padding: 0 12px;
   border-radius: 8px;
   box-shadow: none;
-}
-
-.message-ai-action-button--return {
-  --background: #004c8f;
-  --background-activated: #003f78;
-  --background-hover: #004c8f;
 }
 
 .message-ai-fill-button {
