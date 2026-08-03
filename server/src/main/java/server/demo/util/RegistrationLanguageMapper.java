@@ -44,6 +44,14 @@ public final class RegistrationLanguageMapper {
     private RegistrationLanguageMapper() {
     }
 
+    /**
+     * 判断国家/国籍文本是否指向日本（复用 JAPANESE_COUNTRIES 集合与归一化规则）。
+     */
+    public static boolean isJapaneseCountry(String value) {
+        String normalized = normalize(value);
+        return !normalized.isBlank() && JAPANESE_COUNTRIES.contains(normalized);
+    }
+
     public static RegistrationTargetLanguage resolve(
             String nationality,
             String country,

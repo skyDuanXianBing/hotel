@@ -504,4 +504,53 @@ class SuReservationParserTest {
                 )
         );
     }
+
+    @Test
+    void extractGuestCountryCodeAndLang_readCustomerFields() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "customer": {
+                      "countrycode": "JP",
+                      "guest_lang": "ja",
+                      "first_name": "Taro",
+                      "last_name": "Tanaka"
+                    }
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+
+        assertEquals("JP", SuReservationParser.extractGuestCountryCode(reservation));
+        assertEquals("ja", SuReservationParser.extractGuestLang(reservation));
+    }
+
+    @Test
+    void extractGuestCountryCodeAndLang_missingCustomer_returnsNull() throws Exception {
+        JsonNode reservation = objectMapper.readTree("{\"reservation\":{}}")
+                .get("reservation");
+
+        assertNull(SuReservationParser.extractGuestCountryCode(reservation));
+        assertNull(SuReservationParser.extractGuestLang(reservation));
+    }
+
+    @Test
+    void extractGuestCountryCodeAndLang_blankValues_returnsNull() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "customer": {
+                      "countrycode": "  ",
+                      "guest_lang": ""
+                    }
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+
+        assertNull(SuReservationParser.extractGuestCountryCode(reservation));
+        assertNull(SuReservationParser.extractGuestLang(reservation));
+    }
 }

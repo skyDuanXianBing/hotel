@@ -114,6 +114,7 @@ public class AutoMessageService {
 
         message.setTitle(autoMessage.getTitle());
         message.setMessage(autoMessage.getMessage());
+        message.setMessageJa(autoMessage.getMessageJa());
         message.setAutomationRule(autoMessage.getAutomationRule());
         message.setChannel(autoMessage.getChannel());
         message.setChannels(autoMessage.getChannels());

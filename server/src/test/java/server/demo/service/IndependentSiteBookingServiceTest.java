@@ -748,7 +748,7 @@ class IndependentSiteBookingServiceTest {
         private final List<Event> events = new ArrayList<>();
 
         private RecordingLifecycleService() {
-            super(null, null, Optional.empty(), Optional.empty(), null, null);
+            super(null, null, Optional.empty(), Optional.empty(), null, null, null);
         }
 
         @Override

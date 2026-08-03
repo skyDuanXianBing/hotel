@@ -47,6 +47,18 @@ public class Reservation implements StoreScopedEntity {
     @Column(name = "guest_id_card", length = 50)
     private String guestIdCard;
 
+    /**
+     * 客人国家（来自渠道订单 customer.countrycode，如 "JP"），用于客人消息语言判定
+     */
+    @Column(name = "guest_country", length = 100)
+    private String guestCountry;
+
+    /**
+     * 客人语言（来自渠道订单 customer.guest_lang，如 "ja"），用于客人消息语言判定
+     */
+    @Column(name = "guest_language", length = 20)
+    private String guestLanguage;
+
     @NotNull(message = "{api.t.a36570cba9be}")
     @Column(name = "check_in_date", nullable = false)
     private LocalDate checkInDate;
@@ -263,6 +275,22 @@ public class Reservation implements StoreScopedEntity {
 
     public void setGuestIdCard(String guestIdCard) {
         this.guestIdCard = guestIdCard;
+    }
+
+    public String getGuestCountry() {
+        return guestCountry;
+    }
+
+    public void setGuestCountry(String guestCountry) {
+        this.guestCountry = guestCountry;
+    }
+
+    public String getGuestLanguage() {
+        return guestLanguage;
+    }
+
+    public void setGuestLanguage(String guestLanguage) {
+        this.guestLanguage = guestLanguage;
     }
 
     public LocalDate getCheckInDate() {

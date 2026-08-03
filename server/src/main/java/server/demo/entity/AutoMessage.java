@@ -44,6 +44,12 @@ public class AutoMessage implements StoreScopedEntity {
     private String message;
 
     /**
+     * 日文消息内容（可选）：日本客人优先使用；为空时回退到 message（英文）
+     */
+    @Column(name = "message_ja", columnDefinition = "TEXT")
+    private String messageJa;
+
+    /**
      * 自动化规则: 订单确认时, 入住前24小时, 入住当天, 退房当天, 退房后
      */
     @Column(nullable = false, length = 50)
@@ -169,6 +175,14 @@ public class AutoMessage implements StoreScopedEntity {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getMessageJa() {
+        return messageJa;
+    }
+
+    public void setMessageJa(String messageJa) {
+        this.messageJa = messageJa;
     }
 
     public String getAutomationRule() {

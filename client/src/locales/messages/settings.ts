@@ -694,6 +694,7 @@ export const settingsMessages = {
         fields: {
           title: 'Title',
           message: 'Message',
+          messageJa: 'Japanese Message (Optional)',
           variables: 'Insert Variables',
           channel: 'Channel',
           resendOnExpire: 'Resend if Expired',
@@ -707,9 +708,12 @@ export const settingsMessages = {
         placeholders: {
           title: 'Enter title',
           message: 'Enter message content',
+          messageJa: 'Enter Japanese message content',
           channel: 'Select channels',
           select: 'Select',
         },
+        messageJaHint:
+          'Sent to Japanese guests (determined by guest language, country, or +81 phone number). Other guests receive the default message above.',
         variableDesc: 'Choose a shortcode and add it to your message. The correct details will be filled automatically each time you use the message.',
         legacySmartLockPasscodeNotice:
           'uses the legacy static smart lock passcode saved on the room. It is not the new temporary door-lock passcode.',
@@ -1500,6 +1504,7 @@ export const settingsMessages = {
         fields: {
           title: '标题',
           message: '消息',
+          messageJa: '日文消息（可选）',
           variables: '插入变量',
           channel: '渠道',
           resendOnExpire: '过时补发',
@@ -1513,9 +1518,12 @@ export const settingsMessages = {
         placeholders: {
           title: '请输入标题',
           message: '请输入消息内容',
+          messageJa: '请输入日文消息内容',
           channel: '请选择渠道',
           select: '请选择',
         },
+        messageJaHint:
+          '日本客人将收到此日文消息（根据客人语言、国家属性或 +81 手机号判定）；其他客人收到上方默认消息。',
         variableDesc: '选择一个短代码并将其添加到您的消息中。每次您使用该消息时，正确的详细信息都会自动填充。',
         legacySmartLockPasscodeNotice:
           '来自房间资料中的旧静态智能锁密码，不是新门锁临时密码。',
@@ -2306,6 +2314,7 @@ export const settingsMessages = {
         fields: {
           title: '標題',
           message: '訊息',
+          messageJa: '日文訊息（可選）',
           variables: '插入變數',
           channel: '渠道',
           resendOnExpire: '過時補發',
@@ -2319,9 +2328,12 @@ export const settingsMessages = {
         placeholders: {
           title: '請輸入標題',
           message: '請輸入訊息內容',
+          messageJa: '請輸入日文訊息內容',
           channel: '請選擇渠道',
           select: '請選擇',
         },
+        messageJaHint:
+          '日本客人將收到此日文訊息（依據客人語言、國家屬性或 +81 手機號判定）；其他客人收到上方預設訊息。',
         variableDesc: '選擇一個短代碼並將其新增到您的訊息中。每次使用該訊息時，正確的詳細資訊都會自動填入。',
         legacySmartLockPasscodeNotice:
           '來自房間資料中的舊靜態智慧鎖密碼，不是新門鎖臨時密碼。',
@@ -3112,6 +3124,7 @@ export const settingsMessages = {
         fields: {
           title: 'タイトル',
           message: 'メッセージ',
+          messageJa: '日本語メッセージ（任意）',
           variables: '変数を挿入',
           channel: 'チャネル',
           resendOnExpire: '期限切れ時に再送',
@@ -3125,9 +3138,12 @@ export const settingsMessages = {
         placeholders: {
           title: 'タイトルを入力してください',
           message: 'メッセージ内容を入力してください',
+          messageJa: '日本語のメッセージ内容を入力してください',
           channel: 'チャネルを選択してください',
           select: '選択してください',
         },
+        messageJaHint:
+          '日本のゲスト（言語・国属性・+81の電話番号で判定）にはこの日本語メッセージが送信されます。その他のゲストには上のデフォルトメッセージが送信されます。',
         variableDesc: 'ショートコードを選択してメッセージに追加します。このメッセージを使用するたびに正しい情報が自動入力されます。',
         legacySmartLockPasscodeNotice:
           'は客室に保存された旧来の固定スマートロック暗証番号です。新しい一時ドアロック暗証番号ではありません。',

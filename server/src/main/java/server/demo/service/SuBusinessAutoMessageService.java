@@ -33,6 +33,7 @@ import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 import server.demo.repository.SuReservationWebhookEventRepository;
 import server.demo.util.AutoMessageTemplateRenderer;
+import server.demo.util.GuestMessageLanguageUtil;
 import server.demo.util.StoreTimeZoneUtil;
 import server.demo.util.SuReservationParser;
 import server.demo.util.UtcTimeUtil;
@@ -234,7 +235,8 @@ public class SuBusinessAutoMessageService {
                 return;
             }
 
-            String rendered = renderTemplate(store, reservation, template.getMessage());
+            String templateContent = resolveTemplateContentForGuest(reservation, template);
+            String rendered = renderTemplate(store, reservation, templateContent);
             if (rendered == null || rendered.isBlank()) {
                 markFailed(sendLogId, "template rendered empty");
                 return;
@@ -1039,6 +1041,21 @@ public class SuBusinessAutoMessageService {
             return room.getRoomType().getId();
         }
         return reservation.getOtaRoomTypeId();
+    }
+
+    /**
+     * 按客人语言选择模板内容：日本客人且配置了日文内容时使用日文模板，
+     * 否则使用默认模板（英文）。判定依据：客人语言/国家属性，缺失时回退手机号区号（+81/0081）。
+     */
+    static String resolveTemplateContentForGuest(Reservation reservation, AutoMessage template) {
+        if (template == null) {
+            return null;
+        }
+        String messageJa = template.getMessageJa();
+        if (messageJa != null && !messageJa.isBlank() && GuestMessageLanguageUtil.isJapaneseGuest(reservation)) {
+            return messageJa;
+        }
+        return template.getMessage();
     }
 
     private String renderTemplate(Store store, Reservation reservation, String template) {

@@ -518,6 +518,42 @@ public final class SuReservationParser {
         return null;
     }
 
+    /**
+     * 客人国家码：customer.countrycode（如 "JP"），兼容 customer.country。
+     */
+    public static String extractGuestCountryCode(JsonNode reservation) {
+        JsonNode customer = reservation != null ? reservation.get("customer") : null;
+        if (customer == null || !customer.isObject()) {
+            return null;
+        }
+        String country = text(customer, "countrycode")
+                .or(() -> text(customer, "country"))
+                .orElse(null);
+        if (country == null || country.isBlank()) {
+            return null;
+        }
+        String normalized = country.trim();
+        return normalized.length() > 100 ? normalized.substring(0, 100) : normalized;
+    }
+
+    /**
+     * 客人语言：customer.guest_lang（如 "ja"）。
+     */
+    public static String extractGuestLang(JsonNode reservation) {
+        JsonNode customer = reservation != null ? reservation.get("customer") : null;
+        if (customer == null || !customer.isObject()) {
+            return null;
+        }
+        String lang = text(customer, "guest_lang")
+                .or(() -> text(customer, "language"))
+                .orElse(null);
+        if (lang == null || lang.isBlank()) {
+            return null;
+        }
+        String normalized = lang.trim();
+        return normalized.length() > 20 ? normalized.substring(0, 20) : normalized;
+    }
+
     public static int extractAdults(JsonNode reservation, JsonNode roomStay) {
         Integer v = parseInt(text(roomStay, "numberofadults")
                 .or(() -> text(roomStay, "adults"))

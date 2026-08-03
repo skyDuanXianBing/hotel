@@ -130,7 +130,21 @@
             type="textarea"
             :rows="5"
             :placeholder="t('settings.autoMessage.placeholders.message')"
+            @focus="lastMessageTarget = 'message'"
           />
+        </el-form-item>
+
+        <!-- 日文消息（可选） -->
+        <el-form-item :label="t('settings.autoMessage.fields.messageJa')" prop="messageJa">
+          <el-input
+            ref="messageJaInputRef"
+            v-model="form.messageJa"
+            type="textarea"
+            :rows="5"
+            :placeholder="t('settings.autoMessage.placeholders.messageJa')"
+            @focus="lastMessageTarget = 'messageJa'"
+          />
+          <div class="message-ja-hint">{{ t('settings.autoMessage.messageJaHint') }}</div>
         </el-form-item>
 
         <!-- 插入变量 -->
@@ -366,6 +380,7 @@ interface AutoMessageForm {
   id: number
   title: string
   message: string
+  messageJa: string
   selectedChannels: number[]
   resendOnExpire: boolean
   roomSelectionType: RoomSelectionType
@@ -397,6 +412,8 @@ const loading = ref(false)
 const dialogVisible = ref(false)
 const formRef = ref<FormInstance>()
 const messageInputRef = ref()
+const messageJaInputRef = ref()
+const lastMessageTarget = ref<'message' | 'messageJa'>('message')
 const editingId = ref<number | null>(null)
 
 const messages = ref<AutoMessageListItem[]>([])
@@ -418,6 +435,7 @@ const form = reactive<AutoMessageForm>({
   id: 0,
   title: '',
   message: '',
+  messageJa: '',
   selectedChannels: [],
   resendOnExpire: false,
   roomSelectionType: 'ALL_LOCAL',
@@ -566,21 +584,23 @@ const formRules: FormRules = {
   time: [{ required: true, message: t('settings.autoMessage.validation.timeRequired'), trigger: 'change' }],
 }
 
-/** 插入变量到消息内容 */
+/** 插入变量到最近聚焦的消息内容（默认消息或日文消息） */
 const insertVariable = (code: string) => {
-  const textarea = messageInputRef.value?.$el?.querySelector('textarea')
+  const targetKey = lastMessageTarget.value
+  const inputRef = targetKey === 'messageJa' ? messageJaInputRef : messageInputRef
+  const textarea = inputRef.value?.$el?.querySelector('textarea')
   if (textarea) {
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
-    const text = form.message
-    form.message = text.substring(0, start) + code + text.substring(end)
+    const text = form[targetKey]
+    form[targetKey] = text.substring(0, start) + code + text.substring(end)
     // 设置光标位置
     setTimeout(() => {
       textarea.focus()
       textarea.setSelectionRange(start + code.length, start + code.length)
     }, 0)
   } else {
-    form.message += code
+    form[targetKey] += code
   }
 }
 
@@ -807,6 +827,7 @@ const resetForm = () => {
   form.id = 0
   form.title = ''
   form.message = ''
+  form.messageJa = ''
   form.selectedChannels = []
   form.resendOnExpire = false
   form.roomSelectionType = 'ALL_LOCAL'
@@ -836,6 +857,7 @@ const fillFormFromDTO = async (id: number) => {
         form.id = dto.id
         form.title = dto.title
         form.message = dto.message
+        form.messageJa = dto.messageJa || ''
         form.enabled = dto.enabled
         form.resendOnExpire = dto.resendOnExpire || false
 
@@ -1014,6 +1036,7 @@ const handleSave = async () => {
       const data = {
         title: form.title,
         message: form.message,
+        messageJa: form.messageJa.trim() ? form.messageJa : null,
         // 新字段
         channels: JSON.stringify(form.selectedChannels),
         resendOnExpire: form.resendOnExpire,
@@ -1446,6 +1469,13 @@ onMounted(() => {
   font-size: 12px;
   color: #909399;
   margin-bottom: 12px;
+}
+
+.message-ja-hint {
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.5;
+  margin-top: 6px;
 }
 
 .variable-tags {

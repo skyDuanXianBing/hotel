@@ -925,6 +925,8 @@ public class OtaReservationSyncService {
 
                     reservation.setGuestName(SuReservationParser.extractGuestName(reservationNode, roomStay));
                     reservation.setGuestPhone(limitGuestPhone(SuReservationParser.extractGuestPhone(reservationNode, roomStay)));
+                    reservation.setGuestCountry(SuReservationParser.extractGuestCountryCode(reservationNode));
+                    reservation.setGuestLanguage(SuReservationParser.extractGuestLang(reservationNode));
                     reservation.setCheckInDate(checkIn);
                     reservation.setCheckOutDate(checkOut);
                     reservation.setAdults(SuReservationParser.extractAdults(reservationNode, roomStay));

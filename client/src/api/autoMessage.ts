@@ -34,6 +34,8 @@ export interface AutoMessageDTO {
   userId: number
   title: string
   message: string
+  /** 日文消息（可选）：日本客人优先使用；为空时回退 message */
+  messageJa?: string | null
   /** @deprecated 使用 action 替代 */
   automationRule: string
   /** @deprecated 使用 channels 替代 */
@@ -61,6 +63,8 @@ export interface AutoMessageDTO {
 export interface AutoMessageRequest {
   title: string
   message: string
+  /** 日文消息（可选）：日本客人优先使用；为空时回退 message */
+  messageJa?: string | null
   /** @deprecated 保留兼容性 */
   automationRule?: string
   /** @deprecated 保留兼容性 */

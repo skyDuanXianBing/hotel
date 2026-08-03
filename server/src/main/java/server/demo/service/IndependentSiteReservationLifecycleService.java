@@ -33,6 +33,7 @@ public class IndependentSiteReservationLifecycleService {
     private final Optional<SuAriAutoSyncService> suAriAutoSyncService;
     private final AutoMessageTriggerService autoMessageTriggerService;
     private final OrderNotificationDispatchService orderNotificationDispatchService;
+    private final IndependentSiteBookingConfirmationService bookingConfirmationService;
 
     public IndependentSiteReservationLifecycleService(
             CleaningTaskAutoService cleaningTaskAutoService,
@@ -40,7 +41,8 @@ public class IndependentSiteReservationLifecycleService {
             Optional<PriceLabsCalendarSyncDebouncer> priceLabsCalendarSyncDebouncer,
             Optional<SuAriAutoSyncService> suAriAutoSyncService,
             AutoMessageTriggerService autoMessageTriggerService,
-            OrderNotificationDispatchService orderNotificationDispatchService
+            OrderNotificationDispatchService orderNotificationDispatchService,
+            IndependentSiteBookingConfirmationService bookingConfirmationService
     ) {
         this.cleaningTaskAutoService = cleaningTaskAutoService;
         this.priceLabsReservationSyncService = priceLabsReservationSyncService;
@@ -48,6 +50,7 @@ public class IndependentSiteReservationLifecycleService {
         this.suAriAutoSyncService = suAriAutoSyncService;
         this.autoMessageTriggerService = autoMessageTriggerService;
         this.orderNotificationDispatchService = orderNotificationDispatchService;
+        this.bookingConfirmationService = bookingConfirmationService;
     }
 
     public void onChanged(List<Reservation> reservations, Event event, Long fallbackUserId) {
@@ -64,6 +67,7 @@ public class IndependentSiteReservationLifecycleService {
             enqueueSuAvailability(reservations, event);
             if (event == Event.PAYMENT_SUCCEEDED) {
                 notifyCreated(reservations, fallbackUserId);
+                bookingConfirmationService.sendBookingConfirmations(reservations);
                 Long storeId = reservations.get(0).getStoreId();
                 autoMessageTriggerService.dispatchStoreOnce(storeId);
             }
