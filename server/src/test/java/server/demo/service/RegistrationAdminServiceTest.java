@@ -456,6 +456,9 @@ class RegistrationAdminServiceTest {
         reservation.setGuestName("Test Guest");
         reservation.setCheckInDate(LocalDate.of(2026, 5, 1));
         reservation.setCheckOutDate(LocalDate.of(2026, 5, 3));
+        Channel channel = new Channel();
+        channel.setName("Booking.com");
+        reservation.setChannel(channel);
 
         when(registrationFormRepository.findById(8L)).thenReturn(Optional.of(form));
         when(reservationRepository.findById(88L)).thenReturn(Optional.of(reservation));
@@ -471,6 +474,7 @@ class RegistrationAdminServiceTest {
 
             assertEquals(88L, result.getReservationId());
             assertEquals(ReservationStatus.CANCELLED, result.getReservationStatus());
+            assertEquals("Booking.com", result.getChannelName());
         }
     }
 

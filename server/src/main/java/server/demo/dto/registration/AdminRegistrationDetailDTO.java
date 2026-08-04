@@ -12,6 +12,7 @@ public class AdminRegistrationDetailDTO {
     private Long reservationId;
     private String orderNumber;
     private String channelOrderNumber;
+    private String channelName;
     private RegistrationFormStatus status;
     private ReservationStatus reservationStatus;
     private LocalDate checkInDate;
@@ -62,6 +63,14 @@ public class AdminRegistrationDetailDTO {
 
     public void setChannelOrderNumber(String channelOrderNumber) {
         this.channelOrderNumber = channelOrderNumber;
+    }
+
+    public String getChannelName() {
+        return channelName;
+    }
+
+    public void setChannelName(String channelName) {
+        this.channelName = channelName;
     }
 
     public RegistrationFormStatus getStatus() {

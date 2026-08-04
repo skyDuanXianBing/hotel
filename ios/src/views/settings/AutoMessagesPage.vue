@@ -865,11 +865,13 @@ async function loadReviewFinalizeSettings() {
     if (!response.success || !response.data) {
       throw new Error(response.message || t('settingsAutoMessageReviewFinalize.loadFailed'))
     }
+    const defaultFinalMessage = response.data.defaultFinalMessage || ''
     reviewFinalizeForm.value = {
       autoFinalizeEnabled: response.data.autoFinalizeEnabled,
       leadDays: response.data.leadDays,
-      finalMessage: response.data.finalMessage || '',
-      defaultFinalMessage: response.data.defaultFinalMessage || '',
+      // 未自定义时把默认文案填为可编辑内容，避免 placeholder 无法点选编辑
+      finalMessage: response.data.finalMessage || defaultFinalMessage,
+      defaultFinalMessage,
     }
   } catch (error) {
     showWarningToast(resolveWarningMessage(error, t('settingsAutoMessageReviewFinalize.loadFailed')))

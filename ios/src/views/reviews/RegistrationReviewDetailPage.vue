@@ -543,8 +543,8 @@ function handleQuickReplyChange(event: CustomEvent) {
     return
   }
 
-  const currentMessage = guestMessage.value.trim()
-  guestMessage.value = currentMessage ? `${currentMessage}\n\n${reply.message}` : reply.message
+  // 覆盖而非追加：避免自动预填的文案与快捷回复拼成两段
+  guestMessage.value = reply.message
 }
 
 function renderGuestNamePlaceholder(template: string, guestName?: string) {

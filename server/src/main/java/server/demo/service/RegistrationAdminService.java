@@ -269,6 +269,7 @@ public class RegistrationAdminService {
         dto.setReservationId(reservation.getId());
         dto.setOrderNumber(form.getOrderNumber());
         dto.setChannelOrderNumber(reservation.getChannelOrderNumber());
+        dto.setChannelName(reservation.getChannel() != null ? reservation.getChannel().getName() : null);
         dto.setStatus(form.getStatus());
         dto.setReservationStatus(reservation.getStatus());
         dto.setSubmittedAt(form.getSubmittedAt());
