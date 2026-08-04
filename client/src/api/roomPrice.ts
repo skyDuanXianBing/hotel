@@ -117,27 +117,6 @@ export const deleteRoomPriceRange = async (
   })
 }
 
-// 批量改价请求接口
-export interface BulkPriceChangeRequest {
-  roomTypeIds: number[]
-  dateRanges: Array<{
-    startDate: string
-    endDate: string
-  }>
-  weekdays?: number[] // 1=周一, ..., 6=周六, 0=周日
-  weekendDifferentiation: boolean
-  weekdayPrice: number
-  weekendPrice?: number
-  notes?: string
-}
-
-// 批量改价
-export const bulkPriceChange = async (
-  requestData: BulkPriceChangeRequest
-): Promise<ApiResponse<RoomPriceDTO[]>> => {
-  return await request.post('/room-prices/bulk-change', requestData)
-}
-
 export type PricePlanBindingState = 'BOUND' | 'UNBOUND'
 
 export interface ChannelRefDTO {

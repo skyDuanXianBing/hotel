@@ -32,42 +32,6 @@ export interface RevenuePrecisionDTO {
   residualConflictDetected?: boolean
 }
 
-// ==================== 营业汇总统计 ====================
-export interface BusinessSummaryDTO {
-  totalRevenue: number
-  totalOrders: number
-  totalRoomNights?: number
-  averageRoomRate?: number
-  averageOrderValue?: number
-  occupancyRate: number
-  revenuePrecision?: RevenuePrecisionDTO
-  topChannels?: ChannelStat[]
-  revenueByChannel?: ChannelStat[]
-  revenueByRoomType?: RoomTypeRevenueStat[]
-  revenueByDate: DailyRevenueStat[]
-}
-
-export interface ChannelStat {
-  channelName: string
-  revenue: number
-  orderCount: number
-  roomNights?: number
-}
-
-export interface RoomTypeRevenueStat {
-  roomTypeName: string
-  revenue: number
-  orderCount: number
-  roomNights: number
-}
-
-export interface DailyRevenueStat {
-  date: string
-  revenue: number
-  orderCount: number
-  roomNights?: number
-}
-
 // ==================== 每日入住率统计 ====================
 export interface DailyOccupancyDTO {
   date: string
@@ -304,15 +268,6 @@ export interface OperationalRoomDetailDTO {
 }
 
 // ==================== API 调用方法 ====================
-
-/**
- * 获取营业汇总统计
- */
-export const getBusinessSummary = async (
-  params: DateRangeParams
-): Promise<ApiResponse<BusinessSummaryDTO>> => {
-  return await request.get('/statistics/business/summary', { params })
-}
 
 /**
  * 获取每日入住率统计

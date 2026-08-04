@@ -137,28 +137,10 @@ const router = createRouter({
               meta: { title: 'Rate Change History', requiresAuth: true },
             },
             {
-              path: 'room-price/bulk-change',
-              name: 'BulkPriceChange',
-              component: () => import('@/views/accommodation/BulkPriceChange.vue'),
-              meta: { title: 'Bulk Rate Change', requiresAuth: true },
-            },
-            {
               path: 'room-table',
               name: 'RoomTable',
               component: () => import('@/views/accommodation/RoomTable.vue'),
               meta: { title: 'Room Overview', requiresAuth: true },
-            },
-            {
-              path: 'meals-management',
-              name: 'MealsManagement',
-              component: () => import('@/views/accommodation/MealsManagement.vue'),
-              meta: { title: 'Meals', requiresAuth: true },
-            },
-            {
-              path: 'breakfast-package',
-              name: 'BreakfastPackage',
-              component: () => import('@/views/accommodation/BreakfastPackage.vue'),
-              meta: { title: 'Breakfast Bundle', requiresAuth: true },
             },
             {
               path: 'housekeeping-list',
@@ -762,14 +744,6 @@ const routePermissionConfig = new Map<
     },
   ],
   [
-    'BulkPriceChange',
-    {
-      requirements: [
-        { module: PermissionModule.ACCOMMODATION, action: PermissionAction.BATCH_CHANGE_PRICE },
-      ],
-    },
-  ],
-  [
     'RoomTable',
     {
       requirements: [
@@ -1239,10 +1213,7 @@ const routeTitleKeyByName = new Map<string, string>([
   ['RoomPriceManagement', 'routeTitles.roomPriceManagement'],
   ['RoomPriceBulkUpdate', 'routeTitles.bulkUpdate'],
   ['PriceChangeHistory', 'routeTitles.priceChangeHistory'],
-  ['BulkPriceChange', 'routeTitles.bulkPriceChange'],
   ['RoomTable', 'routeTitles.roomOverview'],
-  ['MealsManagement', 'routeTitles.meals'],
-  ['BreakfastPackage', 'routeTitles.breakfastBundle'],
   ['HousekeepingList', 'routeTitles.housekeepingList'],
   ['HousekeeperList', 'routeTitles.cleanerList'],
   ['CleaningOverview', 'routeTitles.taskOverview'],

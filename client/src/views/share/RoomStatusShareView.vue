@@ -121,53 +121,6 @@
         </div>
       </div>
 
-      <!-- 订单信息（如果配置显示）
-      <div v-if="shouldShowOrderInfo" class="order-section">
-        <div class="section-header">
-          <h2 class="section-title">预订信息</h2>
-        </div>
-        
-        <div class="order-list">
-          <div 
-            v-for="order in visibleOrders"
-            :key="order.id"
-            class="order-card"
-          >
-            <div class="order-header">
-              <span class="order-id">订单号: {{ order.orderNumber }}</span>
-              <span class="order-status" :class="`status-${order.status}`">
-                {{ getOrderStatusText(order.status) }}
-              </span>
-            </div>
-            <div class="order-details">
-              <div v-if="orderFields.includes('预订人姓名')" class="order-field">
-                <span class="field-label">预订人:</span>
-                <span class="field-value">{{ formatGuestName(order.guestName) }}</span>
-              </div>
-              <div v-if="orderFields.includes('渠道企业')" class="order-field">
-                <span class="field-label">渠道:</span>
-                <span class="field-value">{{ order.channel }}</span>
-              </div>
-              <div v-if="orderFields.includes('房间信息')" class="order-field">
-                <span class="field-label">房间:</span>
-                <span class="field-value">{{ order.roomInfo }}</span>
-              </div>
-              <div v-if="orderFields.includes('房费')" class="order-field">
-                <span class="field-label">房费:</span>
-                <span class="field-value">¥{{ order.roomFee }}</span>
-              </div>
-              <div v-if="orderFields.includes('订单金额')" class="order-field">
-                <span class="field-label">总金额:</span>
-                <span class="field-value">¥{{ order.totalAmount }}</span>
-              </div>
-              <div v-if="orderFields.includes('订单备注') && order.notes" class="order-field">
-                <span class="field-label">备注:</span>
-                <span class="field-value">{{ order.notes }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div> -->
     </div>
 
     <!-- 房间详情弹窗 -->
@@ -287,10 +240,6 @@ const shouldShowStatistics = computed(() => {
   return shareData.value?.filterItems && shareData.value.filterItems.length > 0
 })
 
-const shouldShowOrderInfo = computed(() => {
-  return shareData.value?.orderItems && shareData.value.orderItems.length > 0
-})
-
 const visibleStatistics = computed(() => {
   if (!shareData.value?.filterItems || !statisticsData.value) return []
   
@@ -348,27 +297,6 @@ const visibleStatistics = computed(() => {
   }
   
   return stats
-})
-
-const orderFields = computed(() => {
-  return shareData.value?.orderItems || []
-})
-
-const visibleOrders = computed(() => {
-  // 模拟订单数据
-  return [
-    {
-      id: 1,
-      orderNumber: 'ORD202501001',
-      status: 'confirmed',
-      guestName: '张三',
-      channel: '携程',
-      roomInfo: '大床房 - a01',
-      roomFee: 300,
-      totalAmount: 300,
-      notes: '客人要求高层'
-    }
-  ]
 })
 
 const filteredRoomTypes = computed(() => {
@@ -608,16 +536,6 @@ const getRoomStatusText = (room: any, date: string) => {
     default:
       return t('pages.roomStatusShare.roomStatus.unknown')
   }
-}
-
-const getOrderStatusText = (status: string) => {
-  const statusMap: Record<string, string> = {
-    confirmed: t('pages.roomStatusShare.orderStatus.confirmed'),
-    checked_in: t('pages.roomStatusShare.orderStatus.checkedIn'),
-    checked_out: t('pages.roomStatusShare.orderStatus.checkedOut'),
-    cancelled: t('pages.roomStatusShare.orderStatus.cancelled')
-  }
-  return statusMap[status] || status
 }
 
 const formatGuestName = (name: string) => {
