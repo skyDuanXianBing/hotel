@@ -92,13 +92,13 @@
         <div class="charts-row business-charts-row">
           <div class="chart-card trend-card">
             <div class="chart-card-header">
-              <h3 class="chart-title">营业额趋势</h3>
+              <h3 class="chart-title">{{ t('stage5.dataCenter.overview.accommodationSpendTrend') }}</h3>
             </div>
             <div ref="businessBarChart" class="chart-container business-trend-chart"></div>
           </div>
 
           <div class="chart-card distribution-card">
-            <h3 class="chart-title">消费分布</h3>
+            <h3 class="chart-title">{{ t('stage5.dataCenter.overview.spendCategoryDistribution') }}</h3>
             <div ref="businessPieChart" class="chart-container business-distribution-chart"></div>
           </div>
         </div>
@@ -1701,7 +1701,7 @@ const initBusinessPieChart = (data?: BusinessOverviewDTO) => {
     },
     series: [
       {
-        name: '消费分布',
+        name: t('stage5.dataCenter.overview.spendCategoryDistribution'),
         type: 'pie',
         radius: ['56%', '76%'],
         center: ['50%', '45%'],
