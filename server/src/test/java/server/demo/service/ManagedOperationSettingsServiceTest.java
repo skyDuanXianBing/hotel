@@ -8,6 +8,8 @@ import org.springframework.web.multipart.MultipartFile;
 import server.demo.dto.ManagedOperationDtos;
 import server.demo.entity.ManagedOperationSettings;
 import server.demo.exception.ManagedOperationValidationException;
+import server.demo.repository.ManagedOperationMonthlyDataRepository;
+import server.demo.repository.ManagedOperationMonthlyFeeRepository;
 import server.demo.repository.ManagedOperationRoomRepository;
 import server.demo.repository.ManagedOperationSettingsRepository;
 import server.demo.repository.RoomRepository;
@@ -23,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -69,25 +72,86 @@ class ManagedOperationSettingsServiceTest {
     }
 
     @Test
-    void getSettings_shouldReportWhetherConfigurationIsPersistedWithoutImplicitSave() {
+    void listProperties_shouldReturnRoomCountsAndStampFlag() {
+        ManagedOperationSettingsRepository repository = mock(ManagedOperationSettingsRepository.class);
+        ManagedOperationRoomRepository roomRepository = mock(ManagedOperationRoomRepository.class);
+        ManagedOperationSettingsService service = service(repository, mock(ManagedOperationPrivateStampStorage.class),
+                mock(ManagedOperationSheetStorage.class), roomRepository,
+                mock(ManagedOperationMonthlyDataRepository.class));
+        ManagedOperationSettings first = persistedSettings("1/stamp.png");
+        ManagedOperationSettings second = completeSettings();
+        second.setId(10L);
+        second.setStoreId(1L);
+        when(repository.findByStoreIdOrderByIdAsc(1L)).thenReturn(List.of(first, second));
+        when(roomRepository.countByStoreIdGroupBySettings(1L))
+                .thenReturn(java.util.Arrays.<Object[]>asList(new Object[]{9L, 3L}));
+
+        List<ManagedOperationDtos.PropertySummary> summaries = service.listProperties(1L);
+
+        assertEquals(2, summaries.size());
+        assertEquals(9L, summaries.get(0).id());
+        assertEquals(3, summaries.get(0).roomCount());
+        assertTrue(summaries.get(0).hasStamp());
+        assertEquals(10L, summaries.get(1).id());
+        assertEquals(0, summaries.get(1).roomCount());
+        assertFalse(summaries.get(1).hasStamp());
+    }
+
+    @Test
+    void createProperty_shouldRejectDuplicateNameAndBlankName() {
+        ManagedOperationSettingsRepository repository = mock(ManagedOperationSettingsRepository.class);
+        ManagedOperationSettingsService service = service(repository, mock(ManagedOperationPrivateStampStorage.class));
+        when(repository.existsByStoreIdAndPropertyName(1L, "物业A")).thenReturn(true);
+
+        assertThrows(ManagedOperationValidationException.class,
+                () -> service.createProperty(1L, new ManagedOperationDtos.CreatePropertyRequest("物业A")));
+        assertThrows(ManagedOperationValidationException.class,
+                () -> service.createProperty(1L, new ManagedOperationDtos.CreatePropertyRequest("  ")));
+        verify(repository, never()).save(any(ManagedOperationSettings.class));
+    }
+
+    @Test
+    void createProperty_shouldPersistDefaultsWithNameOnly() {
+        ManagedOperationSettingsRepository repository = mock(ManagedOperationSettingsRepository.class);
+        ManagedOperationSettingsService service = service(repository, mock(ManagedOperationPrivateStampStorage.class));
+        when(repository.existsByStoreIdAndPropertyName(anyLong(), anyString())).thenReturn(false);
+        when(repository.save(any(ManagedOperationSettings.class))).thenAnswer(invocation -> {
+            ManagedOperationSettings saved = invocation.getArgument(0);
+            saved.setId(11L);
+            return saved;
+        });
+
+        ManagedOperationDtos.SettingsResponse response =
+                service.createProperty(1L, new ManagedOperationDtos.CreatePropertyRequest("新物业"));
+
+        assertTrue(response.persisted());
+        assertEquals(11L, response.settings().id());
+        assertEquals("新物业", response.settings().propertyName());
+        assertEquals(ManagedOperationSettingsService.DEFAULT_INVOICE_ISSUE_DAY,
+                response.settings().invoiceIssueDay());
+        assertEquals(ManagedOperationSettingsService.DEFAULT_RECEIPT_ISSUE_DAY,
+                response.settings().receiptIssueDay());
+    }
+
+    @Test
+    void getSettings_shouldRequireExistingConfigurationBelongingToStore() {
         ManagedOperationSettingsRepository repository = mock(ManagedOperationSettingsRepository.class);
         ManagedOperationPrivateStampStorage storage = mock(ManagedOperationPrivateStampStorage.class);
         ManagedOperationSettingsService service = service(repository, storage);
-        when(repository.findByStoreId(1L)).thenReturn(Optional.empty());
+        when(repository.findByStoreIdAndId(1L, 9L)).thenReturn(Optional.empty());
 
-        ManagedOperationDtos.SettingsResponse defaults = service.getSettings(1L);
-
-        assertFalse(defaults.persisted());
+        assertThrows(ManagedOperationValidationException.class, () -> service.getSettings(1L, 9L));
         verify(repository, never()).save(any(ManagedOperationSettings.class));
 
         ManagedOperationSettings persisted = completeSettings();
         persisted.setId(9L);
         persisted.setStoreId(1L);
-        when(repository.findByStoreId(1L)).thenReturn(Optional.of(persisted));
+        when(repository.findByStoreIdAndId(1L, 9L)).thenReturn(Optional.of(persisted));
 
-        ManagedOperationDtos.SettingsResponse existing = service.getSettings(1L);
+        ManagedOperationDtos.SettingsResponse existing = service.getSettings(1L, 9L);
 
         assertTrue(existing.persisted());
+        assertEquals(9L, existing.settings().id());
     }
 
     @Test
@@ -95,22 +159,92 @@ class ManagedOperationSettingsServiceTest {
         ManagedOperationSettingsRepository repository = mock(ManagedOperationSettingsRepository.class);
         ManagedOperationPrivateStampStorage storage = mock(ManagedOperationPrivateStampStorage.class);
         ManagedOperationSettingsService service = service(repository, storage);
-        when(repository.findByStoreId(1L)).thenReturn(Optional.empty());
-        when(repository.save(any(ManagedOperationSettings.class))).thenAnswer(invocation -> {
-            ManagedOperationSettings saved = invocation.getArgument(0);
-            saved.setId(9L);
-            return saved;
-        });
+        ManagedOperationSettings existing = completeSettings();
+        existing.setId(9L);
+        existing.setStoreId(1L);
+        when(repository.findByStoreIdAndId(1L, 9L)).thenReturn(Optional.of(existing));
+        when(repository.save(any(ManagedOperationSettings.class))).thenAnswer(invocation -> invocation.getArgument(0));
         ManagedOperationDtos.SettingsRequest request = new ManagedOperationDtos.SettingsRequest(
                 "物业A", List.of(), new BigDecimal("0.10"), new BigDecimal("0.10"),
-                new BigDecimal("8000"), new BigDecimal("2000"), "房东公司", "联系人",
+                new BigDecimal("8000"), new BigDecimal("2000"), 9, 10, "房东公司", "联系人",
                 "100-0001", "房东地址", "运营公司", "100-0002", "运营地址",
                 "T123", "03-0000-0000", "issuer@example.test", "测试银行", "本店",
                 "普通", "1234567", "ウンエイ");
 
-        ManagedOperationDtos.SettingsResponse response = service.saveSettings(1L, request);
+        ManagedOperationDtos.SettingsResponse response = service.saveSettings(1L, 9L, request);
 
         assertTrue(response.persisted());
+    }
+
+    @Test
+    void saveSettings_shouldRejectDuplicateNameFromAnotherConfiguration() {
+        ManagedOperationSettingsRepository repository = mock(ManagedOperationSettingsRepository.class);
+        ManagedOperationSettingsService service = service(repository, mock(ManagedOperationPrivateStampStorage.class));
+        ManagedOperationSettings existing = completeSettings();
+        existing.setId(9L);
+        existing.setStoreId(1L);
+        existing.setPropertyName("物业B");
+        when(repository.findByStoreIdAndId(1L, 9L)).thenReturn(Optional.of(existing));
+        when(repository.existsByStoreIdAndPropertyName(1L, "物业A")).thenReturn(true);
+        ManagedOperationDtos.SettingsRequest request = new ManagedOperationDtos.SettingsRequest(
+                "物业A", List.of(), new BigDecimal("0.10"), new BigDecimal("0.10"),
+                new BigDecimal("8000"), new BigDecimal("2000"), 9, 10, "房东公司", "联系人",
+                "100-0001", "房东地址", "运营公司", "100-0002", "运营地址",
+                "T123", "03-0000-0000", "issuer@example.test", "测试银行", "本店",
+                "普通", "1234567", "ウンエイ");
+
+        assertThrows(ManagedOperationValidationException.class, () -> service.saveSettings(1L, 9L, request));
+        verify(repository, never()).save(any(ManagedOperationSettings.class));
+    }
+
+    @Test
+    void updateIssueDay_shouldValidateRangeAndPersist() {
+        ManagedOperationSettingsRepository repository = mock(ManagedOperationSettingsRepository.class);
+        ManagedOperationSettingsService service = service(repository, mock(ManagedOperationPrivateStampStorage.class));
+        ManagedOperationSettings existing = completeSettings();
+        existing.setId(9L);
+        existing.setStoreId(1L);
+        when(repository.findByStoreIdAndId(1L, 9L)).thenReturn(Optional.of(existing));
+        when(repository.save(any(ManagedOperationSettings.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThrows(ManagedOperationValidationException.class,
+                () -> service.updateIssueDay(1L, 9L, new ManagedOperationDtos.IssueDayRequest(0, 10)));
+        assertThrows(ManagedOperationValidationException.class,
+                () -> service.updateIssueDay(1L, 9L, new ManagedOperationDtos.IssueDayRequest(9, 29)));
+        assertThrows(ManagedOperationValidationException.class,
+                () -> service.updateIssueDay(1L, 9L, new ManagedOperationDtos.IssueDayRequest(9, null)));
+
+        ManagedOperationDtos.SettingsResponse response =
+                service.updateIssueDay(1L, 9L, new ManagedOperationDtos.IssueDayRequest(25, 26));
+
+        assertEquals(25, response.settings().invoiceIssueDay());
+        assertEquals(26, response.settings().receiptIssueDay());
+    }
+
+    @Test
+    void deleteProperty_shouldCleanFilesOnlyAfterCommit() {
+        ManagedOperationSettingsRepository repository = mock(ManagedOperationSettingsRepository.class);
+        ManagedOperationPrivateStampStorage stampStorage = mock(ManagedOperationPrivateStampStorage.class);
+        ManagedOperationSheetStorage sheetStorage = mock(ManagedOperationSheetStorage.class);
+        ManagedOperationMonthlyDataRepository monthlyRepository = mock(ManagedOperationMonthlyDataRepository.class);
+        ManagedOperationSettingsService service = service(repository, stampStorage, sheetStorage,
+                mock(ManagedOperationRoomRepository.class), monthlyRepository);
+        ManagedOperationSettings settings = persistedSettings("1/stamp.png");
+        when(repository.findByStoreIdAndId(1L, 9L)).thenReturn(Optional.of(settings));
+        when(monthlyRepository.findByStoreIdAndSettingsId(1L, 9L)).thenReturn(List.of());
+        TransactionSynchronizationManager.initSynchronization();
+
+        service.deleteProperty(1L, 9L);
+
+        verify(repository, times(1)).delete(settings);
+        verify(stampStorage, never()).deleteQuietly(1L, "1/stamp.png");
+
+        for (TransactionSynchronization synchronization
+                : TransactionSynchronizationManager.getSynchronizations()) {
+            synchronization.afterCommit();
+        }
+
+        verify(stampStorage, times(1)).deleteQuietly(1L, "1/stamp.png");
     }
 
     @Test
@@ -120,14 +254,14 @@ class ManagedOperationSettingsServiceTest {
         ManagedOperationSettingsService service = service(repository, storage);
         MultipartFile file = mock(MultipartFile.class);
 
-        when(repository.findByStoreId(1L)).thenReturn(Optional.empty());
-        assertThrows(ManagedOperationValidationException.class, () -> service.uploadStamp(1L, file));
+        when(repository.findByStoreIdAndId(1L, 9L)).thenReturn(Optional.empty());
+        assertThrows(ManagedOperationValidationException.class, () -> service.uploadStamp(1L, 9L, file));
 
         ManagedOperationSettings invalid = new ManagedOperationSettings();
         invalid.setId(9L);
         invalid.setStoreId(1L);
-        when(repository.findByStoreId(1L)).thenReturn(Optional.of(invalid));
-        assertThrows(ManagedOperationValidationException.class, () -> service.uploadStamp(1L, file));
+        when(repository.findByStoreIdAndId(1L, 9L)).thenReturn(Optional.of(invalid));
+        assertThrows(ManagedOperationValidationException.class, () -> service.uploadStamp(1L, 9L, file));
 
         verify(storage, never()).store(anyLong(), any(MultipartFile.class));
         verify(repository, never()).save(any(ManagedOperationSettings.class));
@@ -140,10 +274,10 @@ class ManagedOperationSettingsServiceTest {
         ManagedOperationSettingsService service = service(repository, storage);
         ManagedOperationSettings settings = persistedSettings("1/old.png");
         MultipartFile file = mock(MultipartFile.class);
-        when(repository.findByStoreId(1L)).thenReturn(Optional.of(settings));
+        when(repository.findByStoreIdAndId(1L, 9L)).thenReturn(Optional.of(settings));
         when(storage.store(1L, file)).thenReturn("2/foreign.png");
 
-        assertThrows(ManagedOperationValidationException.class, () -> service.uploadStamp(1L, file));
+        assertThrows(ManagedOperationValidationException.class, () -> service.uploadStamp(1L, 9L, file));
 
         verify(repository, never()).save(any(ManagedOperationSettings.class));
         verify(storage, never()).deleteQuietly(2L, "2/foreign.png");
@@ -156,12 +290,12 @@ class ManagedOperationSettingsServiceTest {
         ManagedOperationSettingsService service = service(repository, storage);
         ManagedOperationSettings settings = persistedSettings("1/old.png");
         MultipartFile file = mock(MultipartFile.class);
-        when(repository.findByStoreId(1L)).thenReturn(Optional.of(settings));
+        when(repository.findByStoreIdAndId(1L, 9L)).thenReturn(Optional.of(settings));
         when(storage.store(1L, file)).thenReturn("1/new.png");
         when(repository.save(settings)).thenReturn(settings);
         TransactionSynchronizationManager.initSynchronization();
 
-        ManagedOperationDtos.StampResponse response = service.uploadStamp(1L, file);
+        ManagedOperationDtos.StampResponse response = service.uploadStamp(1L, 9L, file);
 
         assertTrue(response.hasStamp());
         assertEquals(1, TransactionSynchronizationManager.getSynchronizations().size());
@@ -185,11 +319,11 @@ class ManagedOperationSettingsServiceTest {
         ManagedOperationSettingsService service = service(repository, storage);
         ManagedOperationSettings settings = persistedSettings("1/old.png");
         MultipartFile file = mock(MultipartFile.class);
-        when(repository.findByStoreId(1L)).thenReturn(Optional.of(settings));
+        when(repository.findByStoreIdAndId(1L, 9L)).thenReturn(Optional.of(settings));
         when(storage.store(1L, file)).thenReturn("1/new.png");
         when(repository.save(settings)).thenReturn(settings);
 
-        service.uploadStamp(1L, file);
+        service.uploadStamp(1L, 9L, file);
 
         verify(storage, never()).deleteQuietly(1L, "1/old.png");
         verify(storage, never()).deleteQuietly(1L, "1/new.png");
@@ -202,12 +336,12 @@ class ManagedOperationSettingsServiceTest {
         ManagedOperationSettingsService service = service(repository, storage);
         ManagedOperationSettings settings = persistedSettings("1/old.png");
         MultipartFile file = mock(MultipartFile.class);
-        when(repository.findByStoreId(1L)).thenReturn(Optional.of(settings));
+        when(repository.findByStoreIdAndId(1L, 9L)).thenReturn(Optional.of(settings));
         when(storage.store(1L, file)).thenReturn("1/new.png");
         when(repository.save(settings)).thenReturn(settings);
         TransactionSynchronizationManager.initSynchronization();
 
-        service.uploadStamp(1L, file);
+        service.uploadStamp(1L, 9L, file);
         for (TransactionSynchronization synchronization
                 : TransactionSynchronizationManager.getSynchronizations()) {
             synchronization.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK);
@@ -224,12 +358,12 @@ class ManagedOperationSettingsServiceTest {
         ManagedOperationSettingsService service = service(repository, storage);
         ManagedOperationSettings settings = persistedSettings("1/old.png");
         MultipartFile file = mock(MultipartFile.class);
-        when(repository.findByStoreId(1L)).thenReturn(Optional.of(settings));
+        when(repository.findByStoreIdAndId(1L, 9L)).thenReturn(Optional.of(settings));
         when(storage.store(1L, file)).thenReturn("1/new.png");
         when(repository.save(settings)).thenThrow(new IllegalStateException("database failed"));
         TransactionSynchronizationManager.initSynchronization();
 
-        assertThrows(IllegalStateException.class, () -> service.uploadStamp(1L, file));
+        assertThrows(IllegalStateException.class, () -> service.uploadStamp(1L, 9L, file));
 
         verify(storage, times(1)).deleteQuietly(1L, "1/new.png");
         verify(storage, never()).deleteQuietly(1L, "1/old.png");
@@ -238,13 +372,23 @@ class ManagedOperationSettingsServiceTest {
     private static ManagedOperationSettingsService service(
             ManagedOperationSettingsRepository repository,
             ManagedOperationPrivateStampStorage storage) {
-        ManagedOperationRoomRepository managedRoomRepository = mock(ManagedOperationRoomRepository.class);
+        return service(repository, storage, mock(ManagedOperationSheetStorage.class),
+                mock(ManagedOperationRoomRepository.class), mock(ManagedOperationMonthlyDataRepository.class));
+    }
+
+    private static ManagedOperationSettingsService service(
+            ManagedOperationSettingsRepository repository,
+            ManagedOperationPrivateStampStorage storage,
+            ManagedOperationSheetStorage sheetStorage,
+            ManagedOperationRoomRepository managedRoomRepository,
+            ManagedOperationMonthlyDataRepository monthlyDataRepository) {
         RoomRepository roomRepository = mock(RoomRepository.class);
         when(managedRoomRepository.findByStoreIdAndSettingsIdWithRoom(anyLong(), anyLong()))
                 .thenReturn(List.of());
         when(roomRepository.findByStoreIdWithRoomType(anyLong())).thenReturn(List.of());
         return new ManagedOperationSettingsService(
-                repository, managedRoomRepository, roomRepository, storage);
+                repository, managedRoomRepository, monthlyDataRepository,
+                mock(ManagedOperationMonthlyFeeRepository.class), roomRepository, storage, sheetStorage);
     }
 
     private static ManagedOperationSettings persistedSettings(String stampKey) {

@@ -2,6 +2,7 @@ package server.demo.service;
 
 import org.springframework.stereotype.Service;
 import server.demo.dto.ManagedOperationDtos;
+import server.demo.enums.ManagedOperationFeeType;
 import server.demo.exception.ManagedOperationValidationException;
 import server.demo.service.managedoperation.ManagedOperationImportRow;
 
@@ -44,7 +45,7 @@ public class ManagedOperationCalculationService {
             BigDecimal managementFeeRate,
             BigDecimal taxRate,
             BigDecimal registrationFeeNetUnit,
-            List<ManagedOperationDtos.DeductionInput> deductions) {
+            List<ManagedOperationDtos.FeeInput> fees) {
         validateRate(managementFeeRate, ApiMessages.get("api.t.b457f2525d4d"));
         validateRate(taxRate, ApiMessages.get("api.t.49afb4e7bdf8"));
         validateNonNegative(cleaningFeeGross, ApiMessages.get("api.t.ca2708ecfc3b"));
@@ -69,13 +70,21 @@ public class ManagedOperationCalculationService {
                 .subtract(cleaningTax).subtract(managementTax);
         BigDecimal registrationFeeNet = registrationFeeNetUnit.multiply(BigDecimal.valueOf(selectedRoomCount));
         BigDecimal registrationFeeGross = yen(registrationFeeNet.multiply(ONE.add(taxRate)));
-        BigDecimal otherDeductionsGross = deductions == null ? BigDecimal.ZERO : deductions.stream()
-                .map(deduction -> {
-                    validateDeduction(deduction);
-                    return deduction.amountGross();
-                }).reduce(BigDecimal.ZERO, BigDecimal::add);
+        // 费用净额：扣款为正（减少转账），赠款为负（增加转账）
+        BigDecimal otherDeductionsGross = BigDecimal.ZERO;
+        BigDecimal feesNet = BigDecimal.ZERO;
+        if (fees != null) {
+            for (ManagedOperationDtos.FeeInput fee : fees) {
+                ManagedOperationRunFieldsValidator.validateFee(fee);
+                boolean credit = fee.feeType() == ManagedOperationFeeType.CREDIT;
+                BigDecimal signedGross = credit ? fee.amountGross().negate() : fee.amountGross();
+                otherDeductionsGross = otherDeductionsGross.add(signedGross);
+                BigDecimal net = fee.amountGross().divide(ONE.add(taxRate), 0, RoundingMode.HALF_UP);
+                feesNet = feesNet.add(credit ? net.negate() : net);
+            }
+        }
         BigDecimal finalTransfer = settlementSubtotal.subtract(registrationFeeGross).subtract(otherDeductionsGross);
-        BigDecimal invoiceSubtotalNet = managementFeeNet.add(cleaningFeeNetTotal).add(registrationFeeNet);
+        BigDecimal invoiceSubtotalNet = managementFeeNet.add(cleaningFeeNetTotal).add(registrationFeeNet).add(feesNet);
         BigDecimal invoiceTax = invoiceSubtotalNet.multiply(taxRate).setScale(0, RoundingMode.DOWN);
         BigDecimal invoiceTotalGross = invoiceSubtotalNet.add(invoiceTax);
         if (invoiceSubtotalNet.signum() < 0 || invoiceTotalGross.signum() < 0) {
@@ -114,14 +123,6 @@ public class ManagedOperationCalculationService {
             throw new ManagedOperationValidationException(field + ApiMessages.get("api.t.3e2ad38e6ee2"));
         }
         ManagedOperationMoneyRules.requireWholeYen(value, field);
-    }
-
-    private static void validateDeduction(ManagedOperationDtos.DeductionInput deduction) {
-        if (deduction == null || deduction.description() == null || deduction.description().isBlank()
-                || deduction.description().strip().length() > 200) {
-            throw new ManagedOperationValidationException(ApiMessages.get("api.t.1269ec40efd9"));
-        }
-        validateNonNegative(deduction.amountGross(), ApiMessages.get("api.t.9b5c1b5cbd69"));
     }
 
     public record RowAmounts(BigDecimal receivedAmount, BigDecimal managementFee, BigDecimal scheduledTransfer) {}

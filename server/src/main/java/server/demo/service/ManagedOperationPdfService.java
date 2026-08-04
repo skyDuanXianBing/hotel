@@ -136,9 +136,12 @@ public class ManagedOperationPdfService {
                 .append(summaryRow("管理費消費税", s.managementTax()))
                 .append(summaryRow("精算小計", s.settlementSubtotal()))
                 .append(summaryRow("宿泊者名簿作成費（税込）", s.registrationFeeGross()));
-        if (result.request().deductions() != null) {
-            for (ManagedOperationDtos.DeductionInput deduction : result.request().deductions()) {
-                html.append(summaryRow(escape(deduction.description()), deduction.amountGross()));
+        if (result.request().fees() != null) {
+            for (ManagedOperationDtos.FeeInput fee : result.request().fees()) {
+                // 扣款正数列示（减少转账），赠款负数列示（增加转账）
+                BigDecimal signed = fee.feeType() == server.demo.enums.ManagedOperationFeeType.CREDIT
+                        ? fee.amountGross().negate() : fee.amountGross();
+                html.append(summaryRow(escape(fee.description()), signed));
             }
         }
         html.append(summaryRow("振込確定金額", s.finalTransfer()))
@@ -178,8 +181,18 @@ public class ManagedOperationPdfService {
                 .append(itemRow(settings.getPropertyName() + " 管理手数料", 1, s.managementFeeNet(), s.managementFeeNet()))
                 .append(itemRow("清掃費", s.includedReservationCount(), s.cleaningFeeNetUnit(), s.cleaningFeeNetTotal()))
                 .append(itemRow("宿泊者名簿作成費", s.selectedRoomCount(),
-                        settings.getRegistrationFeeNet(), s.registrationFeeNet()))
-                .append("</tbody></table><div class='summary'><table>")
+                        settings.getRegistrationFeeNet(), s.registrationFeeNet()));
+        if (result.request().fees() != null) {
+            java.math.RoundingMode feeRounding = java.math.RoundingMode.HALF_UP;
+            for (ManagedOperationDtos.FeeInput fee : result.request().fees()) {
+                boolean credit = fee.feeType() == server.demo.enums.ManagedOperationFeeType.CREDIT;
+                java.math.BigDecimal net = fee.amountGross()
+                        .divide(java.math.BigDecimal.ONE.add(settings.getTaxRate()), 0, feeRounding);
+                java.math.BigDecimal signed = credit ? net.negate() : net;
+                html.append(itemRow(fee.description(), 1, signed, signed));
+            }
+        }
+        html.append("</tbody></table><div class='summary'><table>")
                 .append(summaryRow("小計（税抜）", s.invoiceSubtotalNet()))
                 .append(summaryRow("消費税", s.invoiceTax()))
                 .append(summaryRow("合計（税込）", s.invoiceTotalGross()))

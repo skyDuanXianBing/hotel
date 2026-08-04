@@ -1,7 +1,10 @@
 package server.demo.dto;
 
+import server.demo.enums.ManagedOperationFeeType;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -11,12 +14,15 @@ public final class ManagedOperationDtos {
     public record RoomOption(Long id, String roomNumber, String roomTypeName) {}
 
     public record Settings(
+            Long id,
             String propertyName,
             List<Long> selectedRoomIds,
             BigDecimal managementFeeRate,
             BigDecimal taxRate,
             BigDecimal cleaningFeeGross,
             BigDecimal registrationFeeNet,
+            Integer invoiceIssueDay,
+            Integer receiptIssueDay,
             String ownerCompanyName,
             String ownerContactName,
             String ownerPostalCode,
@@ -44,6 +50,8 @@ public final class ManagedOperationDtos {
             BigDecimal taxRate,
             BigDecimal cleaningFeeGross,
             BigDecimal registrationFeeNet,
+            Integer invoiceIssueDay,
+            Integer receiptIssueDay,
             String ownerCompanyName,
             String ownerContactName,
             String ownerPostalCode,
@@ -61,17 +69,63 @@ public final class ManagedOperationDtos {
             String bankAccountHolder
     ) {}
 
-    public record DeductionInput(String description, BigDecimal amountGross) {}
+    public record PropertySummary(
+            Long id,
+            String propertyName,
+            int roomCount,
+            boolean hasStamp,
+            LocalDateTime updatedAt
+    ) {}
+
+    public record CreatePropertyRequest(String propertyName) {}
+
+    public record IssueDayRequest(Integer invoiceIssueDay, Integer receiptIssueDay) {}
+
+    public record FeeInput(ManagedOperationFeeType feeType, String description, BigDecimal amountGross) {}
 
     public record RunRequest(
             String settlementMonth,
-            List<DeductionInput> deductions,
+            List<FeeInput> fees,
             String invoiceNumber,
             LocalDate invoiceDate,
             LocalDate paymentDueDate,
             String receiptNumber,
             LocalDate receiptDate,
             String note
+    ) {}
+
+    public record MonthlyDataRequest(
+            String settlementMonth,
+            List<FeeInput> fees,
+            String invoiceNumber,
+            LocalDate invoiceDate,
+            LocalDate paymentDueDate,
+            String receiptNumber,
+            LocalDate receiptDate,
+            String note
+    ) {}
+
+    public record MonthlyDataResponse(
+            String settlementMonth,
+            List<FeeInput> fees,
+            String invoiceNumber,
+            LocalDate invoiceDate,
+            LocalDate paymentDueDate,
+            String receiptNumber,
+            LocalDate receiptDate,
+            String note,
+            String airbnbFileName,
+            String bookingFileName,
+            boolean persisted
+    ) {}
+
+    public record DocumentNumberSuggestion(
+            String invoiceNumber,
+            String receiptNumber,
+            LocalDate invoiceDate,
+            LocalDate receiptDate,
+            int invoiceIssueDay,
+            int receiptIssueDay
     ) {}
 
     public enum LineStatus {

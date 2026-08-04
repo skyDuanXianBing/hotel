@@ -16,7 +16,6 @@ import server.demo.service.managedoperation.ManagedOperationImportRow;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -50,23 +49,25 @@ public class ManagedOperationSettlementService {
     @Transactional(readOnly = true)
     public CalculationResult calculate(
             Long storeId,
+            Long settingsId,
             MultipartFile airbnbFile,
             MultipartFile bookingFile,
             ManagedOperationDtos.RunRequest request) {
         YearMonth settlementMonth = validateRunRequest(request);
-        ManagedOperationSettingsService.SettingsSnapshot snapshot = settingsService.requireSnapshot(storeId);
+        ManagedOperationSettingsService.SettingsSnapshot snapshot = settingsService.requireSnapshot(storeId, settingsId);
         List<ManagedOperationImportRow> airbnbRows = importParser.parseAirbnb(airbnbFile);
         List<ManagedOperationImportRow> bookingRows = importParser.parseBooking(bookingFile);
         List<ManagedOperationImportRow> imports = new ArrayList<>(airbnbRows.size() + bookingRows.size());
         imports.addAll(bookingRows);
         imports.addAll(airbnbRows);
 
+        // 入金在结算月之后到账的订单可能属于前几个月退房，候选窗口向前扩展 3 个月
         List<Reservation> candidates = reservationRepository.findByStoreIdAndCheckOutMonthWithRoomTypeAndChannel(
-                storeId, settlementMonth.atDay(1), settlementMonth.plusMonths(1).atDay(1));
+                storeId, settlementMonth.minusMonths(3).atDay(1), settlementMonth.plusMonths(1).atDay(1));
         Map<String, List<Reservation>> byKey = indexCandidates(candidates);
 
         Map<String, Long> relevantKeyCounts = imports.stream()
-                .filter(row -> YearMonth.from(row.checkOutDate()).equals(settlementMonth))
+                .filter(row -> isRelevantForMonth(row, settlementMonth))
                 .collect(Collectors.groupingBy(
                         row -> row.platform() + ":" + row.bookingKey(), LinkedHashMap::new, Collectors.counting()));
         Map<Long, Integer> selectedRoomIndexes = new HashMap<>();
@@ -92,7 +93,7 @@ public class ManagedOperationSettlementService {
         ManagedOperationDtos.PreviewSummary summary = calculationService.summarize(
                 includedAmounts, snapshot.rooms().size(), snapshot.settings().getCleaningFeeGross(),
                 snapshot.settings().getManagementFeeRate(), snapshot.settings().getTaxRate(),
-                snapshot.settings().getRegistrationFeeNet(), request.deductions());
+                snapshot.settings().getRegistrationFeeNet(), request.fees());
 
         EnumMap<ManagedOperationDtos.LineStatus, Integer> counts = new EnumMap<>(ManagedOperationDtos.LineStatus.class);
         for (ManagedOperationDtos.LineStatus status : ManagedOperationDtos.LineStatus.values()) counts.put(status, 0);
@@ -132,9 +133,13 @@ public class ManagedOperationSettlementService {
             BigDecimal cleaningFeeNet,
             BigDecimal managementFeeRate) {
         List<String> warnings = new ArrayList<>();
-        if (!YearMonth.from(row.checkOutDate()).equals(month)) {
+        if (!isRelevantForMonth(row, month)) {
+            String reason = row.platform() == ManagedOperationImportRow.Platform.AIRBNB
+                    && row.payoutDate() == null
+                    ? ApiMessages.get("api.t.9cfb658147bd")
+                    : ApiMessages.get("api.t.247e1414e189");
             return excluded(row, null, "", cleaningFeeNet, ManagedOperationDtos.LineStatus.PERIOD_EXCLUDED,
-                    ApiMessages.get("api.t.247e1414e189"));
+                    reason);
         }
         if (relevantKeyCounts.getOrDefault(row.platform() + ":" + row.bookingKey(), 0L) > 1) {
             return excluded(row, null, "", cleaningFeeNet, ManagedOperationDtos.LineStatus.AMBIGUOUS,
@@ -274,26 +279,25 @@ public class ManagedOperationSettlementService {
     }
 
     private static YearMonth validateRunRequest(ManagedOperationDtos.RunRequest request) {
-        if (request == null || request.settlementMonth() == null) {
+        if (request == null) {
             throw new ManagedOperationValidationException(ApiMessages.get("api.t.7e604be81e55"));
         }
-        try {
-            YearMonth month = YearMonth.parse(request.settlementMonth());
-            if (request.deductions() != null && request.deductions().size() > 100) {
-                throw new ManagedOperationValidationException(ApiMessages.get("api.t.04e6bbd990ff"));
-            }
-            if (request.note() != null && request.note().length() > 1000) {
-                throw new ManagedOperationValidationException(ApiMessages.get("api.t.aa5c0fd385c7"));
-            }
-            for (String value : List.of(
-                    request.invoiceNumber() == null ? "" : request.invoiceNumber(),
-                    request.receiptNumber() == null ? "" : request.receiptNumber())) {
-                if (value.length() > 100) throw new ManagedOperationValidationException(ApiMessages.get("api.t.2cd27799cc05"));
-            }
-            return month;
-        } catch (DateTimeParseException ex) {
-            throw new ManagedOperationValidationException(ApiMessages.get("api.t.19b040f67f48"));
+        YearMonth month = ManagedOperationRunFieldsValidator.requireMonth(request.settlementMonth());
+        ManagedOperationRunFieldsValidator.validateFees(request.fees());
+        ManagedOperationRunFieldsValidator.validateNote(request.note());
+        ManagedOperationRunFieldsValidator.validateDocumentNumbers(request.invoiceNumber(), request.receiptNumber());
+        return month;
+    }
+
+    /**
+     * 结算归属判断：Airbnb 按入金予定日截取（用户会故意多导出行，系统只取入金日落在结算月的行）；
+     * Booking 月结账单全部纳入，不再按入住/退房月过滤。
+     */
+    static boolean isRelevantForMonth(ManagedOperationImportRow row, YearMonth month) {
+        if (row.platform() == ManagedOperationImportRow.Platform.BOOKING) {
+            return true;
         }
+        return row.payoutDate() != null && YearMonth.from(row.payoutDate()).equals(month);
     }
 
     private static String normalizeRoomNumber(String value) {

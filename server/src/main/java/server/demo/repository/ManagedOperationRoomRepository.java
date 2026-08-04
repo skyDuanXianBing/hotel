@@ -17,4 +17,8 @@ public interface ManagedOperationRoomRepository extends JpaRepository<ManagedOpe
     @Modifying
     @Query("delete from ManagedOperationRoom mor where mor.storeId=:storeId and mor.settings.id=:settingsId")
     int deleteByStoreIdAndSettingsId(@Param("storeId") Long storeId, @Param("settingsId") Long settingsId);
+
+    @Query("select mor.settings.id, count(mor) from ManagedOperationRoom mor " +
+            "where mor.storeId=:storeId group by mor.settings.id")
+    List<Object[]> countByStoreIdGroupBySettings(@Param("storeId") Long storeId);
 }

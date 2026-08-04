@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import server.demo.entity.base.StoreScopedEntity;
 import server.demo.entity.listener.StoreScopedEntityListener;
 
@@ -17,13 +18,16 @@ import java.time.LocalDateTime;
 
 @Entity
 @EntityListeners(StoreScopedEntityListener.class)
-@Table(name = "managed_operation_settings")
+@Table(name = "managed_operation_settings",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_managed_operation_settings_store_name",
+                columnNames = {"store_id", "property_name"}))
 public class ManagedOperationSettings implements StoreScopedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "store_id", nullable = false, unique = true)
+    @Column(name = "store_id", nullable = false)
     private Long storeId;
 
     @Column(name = "property_name", nullable = false, length = 200)
@@ -40,6 +44,12 @@ public class ManagedOperationSettings implements StoreScopedEntity {
 
     @Column(name = "registration_fee_net", nullable = false, precision = 14, scale = 2)
     private BigDecimal registrationFeeNet = new BigDecimal("2000");
+
+    @Column(name = "invoice_issue_day", nullable = false)
+    private Integer invoiceIssueDay = 9;
+
+    @Column(name = "receipt_issue_day", nullable = false)
+    private Integer receiptIssueDay = 10;
 
     @Column(name = "owner_company_name", nullable = false, length = 200)
     private String ownerCompanyName = "";
@@ -105,6 +115,10 @@ public class ManagedOperationSettings implements StoreScopedEntity {
     public void setCleaningFeeGross(BigDecimal cleaningFeeGross) { this.cleaningFeeGross = cleaningFeeGross; }
     public BigDecimal getRegistrationFeeNet() { return registrationFeeNet; }
     public void setRegistrationFeeNet(BigDecimal registrationFeeNet) { this.registrationFeeNet = registrationFeeNet; }
+    public Integer getInvoiceIssueDay() { return invoiceIssueDay; }
+    public void setInvoiceIssueDay(Integer invoiceIssueDay) { this.invoiceIssueDay = invoiceIssueDay; }
+    public Integer getReceiptIssueDay() { return receiptIssueDay; }
+    public void setReceiptIssueDay(Integer receiptIssueDay) { this.receiptIssueDay = receiptIssueDay; }
     public String getOwnerCompanyName() { return ownerCompanyName; }
     public void setOwnerCompanyName(String value) { ownerCompanyName = value; }
     public String getOwnerContactName() { return ownerContactName; }

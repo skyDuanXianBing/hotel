@@ -6,10 +6,13 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import server.demo.dto.ManagedOperationDtos;
+import server.demo.entity.ManagedOperationMonthlyData;
 import server.demo.entity.ManagedOperationRoom;
 import server.demo.entity.ManagedOperationSettings;
 import server.demo.entity.Room;
 import server.demo.exception.ManagedOperationValidationException;
+import server.demo.repository.ManagedOperationMonthlyDataRepository;
+import server.demo.repository.ManagedOperationMonthlyFeeRepository;
 import server.demo.repository.ManagedOperationRoomRepository;
 import server.demo.repository.ManagedOperationSettingsRepository;
 import server.demo.repository.RoomRepository;
@@ -18,51 +21,103 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 import server.demo.i18n.ApiMessages;
 @Service
 public class ManagedOperationSettingsService {
+    public static final int MIN_ISSUE_DAY = 1;
+    public static final int MAX_ISSUE_DAY = 28;
+    public static final int DEFAULT_INVOICE_ISSUE_DAY = 9;
+    public static final int DEFAULT_RECEIPT_ISSUE_DAY = 10;
+
     private final ManagedOperationSettingsRepository settingsRepository;
     private final ManagedOperationRoomRepository managedRoomRepository;
+    private final ManagedOperationMonthlyDataRepository monthlyDataRepository;
+    private final ManagedOperationMonthlyFeeRepository monthlyFeeRepository;
     private final RoomRepository roomRepository;
     private final ManagedOperationPrivateStampStorage stampStorage;
+    private final ManagedOperationSheetStorage sheetStorage;
 
     public ManagedOperationSettingsService(
             ManagedOperationSettingsRepository settingsRepository,
             ManagedOperationRoomRepository managedRoomRepository,
+            ManagedOperationMonthlyDataRepository monthlyDataRepository,
+            ManagedOperationMonthlyFeeRepository monthlyFeeRepository,
             RoomRepository roomRepository,
-            ManagedOperationPrivateStampStorage stampStorage) {
+            ManagedOperationPrivateStampStorage stampStorage,
+            ManagedOperationSheetStorage sheetStorage) {
         this.settingsRepository = settingsRepository;
         this.managedRoomRepository = managedRoomRepository;
+        this.monthlyDataRepository = monthlyDataRepository;
+        this.monthlyFeeRepository = monthlyFeeRepository;
         this.roomRepository = roomRepository;
         this.stampStorage = stampStorage;
+        this.sheetStorage = sheetStorage;
     }
 
     @Transactional(readOnly = true)
-    public ManagedOperationDtos.SettingsResponse getSettings(Long storeId) {
-        Optional<ManagedOperationSettings> persistedSettings = settingsRepository.findByStoreId(storeId);
-        ManagedOperationSettings settings = persistedSettings.orElseGet(() -> defaultSettings(storeId));
-        List<Long> selected = settings.getId() == null ? List.of()
-                : managedRoomRepository.findByStoreIdAndSettingsIdWithRoom(storeId, settings.getId())
-                .stream().map(link -> link.getRoom().getId()).toList();
-        return new ManagedOperationDtos.SettingsResponse(
-                toDto(settings, selected), availableRooms(storeId), persistedSettings.isPresent());
+    public List<ManagedOperationDtos.PropertySummary> listProperties(Long storeId) {
+        Map<Long, Integer> roomCounts = managedRoomRepository.countByStoreIdGroupBySettings(storeId)
+                .stream().collect(Collectors.toMap(
+                        row -> ((Number) row[0]).longValue(),
+                        row -> ((Number) row[1]).intValue()));
+        return settingsRepository.findByStoreIdOrderByIdAsc(storeId).stream()
+                .map(settings -> new ManagedOperationDtos.PropertySummary(
+                        settings.getId(),
+                        settings.getPropertyName(),
+                        roomCounts.getOrDefault(settings.getId(), 0),
+                        settings.getStampStorageKey() != null && !settings.getStampStorageKey().isBlank(),
+                        settings.getUpdatedAt()))
+                .toList();
     }
 
     @Transactional
-    public ManagedOperationDtos.SettingsResponse saveSettings(Long storeId, ManagedOperationDtos.SettingsRequest request) {
+    public ManagedOperationDtos.SettingsResponse createProperty(Long storeId, ManagedOperationDtos.CreatePropertyRequest request) {
+        String name = request == null ? "" : text(request.propertyName(), 200);
+        requireText(name, ApiMessages.get("api.t.0d86438422da"));
+        if (settingsRepository.existsByStoreIdAndPropertyName(storeId, name)) {
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.3b4bd940ec55"));
+        }
+        ManagedOperationSettings settings = defaultSettings(storeId);
+        settings.setPropertyName(name);
+        settings = settingsRepository.save(settings);
+        return new ManagedOperationDtos.SettingsResponse(toDto(settings, List.of()), availableRooms(storeId), true);
+    }
+
+    @Transactional(readOnly = true)
+    public ManagedOperationDtos.SettingsResponse getSettings(Long storeId, Long settingsId) {
+        ManagedOperationSettings settings = requirePersistedSettings(storeId, settingsId);
+        List<Long> selected = managedRoomRepository
+                .findByStoreIdAndSettingsIdWithRoom(storeId, settings.getId())
+                .stream().map(link -> link.getRoom().getId()).toList();
+        return new ManagedOperationDtos.SettingsResponse(toDto(settings, selected), availableRooms(storeId), true);
+    }
+
+    @Transactional
+    public ManagedOperationDtos.SettingsResponse saveSettings(
+            Long storeId, Long settingsId, ManagedOperationDtos.SettingsRequest request) {
         if (request == null) {
             throw new ManagedOperationValidationException(ApiMessages.get("api.t.26f60647de6f"));
         }
-        requireText(request.propertyName(), ApiMessages.get("api.t.0d86438422da"));
+        String propertyName = text(request.propertyName(), 200);
+        requireText(propertyName, ApiMessages.get("api.t.0d86438422da"));
         requireText(request.ownerCompanyName(), ApiMessages.get("api.t.1e81fa8e9c37"));
         requireText(request.issuerCompanyName(), ApiMessages.get("api.t.ad9f84bcbe1a"));
         validateRate(request.managementFeeRate(), ApiMessages.get("api.t.b457f2525d4d"));
         validateRate(request.taxRate(), ApiMessages.get("api.t.49afb4e7bdf8"));
         validateMoney(request.cleaningFeeGross(), ApiMessages.get("api.t.ca2708ecfc3b"));
         validateMoney(request.registrationFeeNet(), ApiMessages.get("api.t.1fda0430b730"));
+        validateIssueDay(request.invoiceIssueDay());
+        validateIssueDay(request.receiptIssueDay());
+
+        ManagedOperationSettings settings = requirePersistedSettings(storeId, settingsId);
+        if (!settings.getPropertyName().equals(propertyName)
+                && settingsRepository.existsByStoreIdAndPropertyName(storeId, propertyName)) {
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.3b4bd940ec55"));
+        }
 
         List<Long> roomIds = request.selectedRoomIds() == null ? List.of()
                 : new ArrayList<>(new LinkedHashSet<>(request.selectedRoomIds()));
@@ -74,8 +129,6 @@ public class ManagedOperationSettingsService {
             throw new ManagedOperationValidationException(ApiMessages.get("api.t.a3269b668450"));
         }
 
-        ManagedOperationSettings settings = settingsRepository.findByStoreId(storeId)
-                .orElseGet(() -> defaultSettings(storeId));
         apply(settings, request);
         settings = settingsRepository.save(settings);
 
@@ -92,8 +145,50 @@ public class ManagedOperationSettingsService {
     }
 
     @Transactional
-    public ManagedOperationDtos.StampResponse uploadStamp(Long storeId, MultipartFile file) {
-        ManagedOperationSettings settings = requirePersistedSettings(storeId);
+    public ManagedOperationDtos.SettingsResponse updateIssueDay(
+            Long storeId, Long settingsId, ManagedOperationDtos.IssueDayRequest request) {
+        Integer invoiceDay = request == null ? null : request.invoiceIssueDay();
+        Integer receiptDay = request == null ? null : request.receiptIssueDay();
+        validateIssueDay(invoiceDay);
+        validateIssueDay(receiptDay);
+        ManagedOperationSettings settings = requirePersistedSettings(storeId, settingsId);
+        settings.setInvoiceIssueDay(invoiceDay);
+        settings.setReceiptIssueDay(receiptDay);
+        settings = settingsRepository.save(settings);
+        List<Long> selected = managedRoomRepository
+                .findByStoreIdAndSettingsIdWithRoom(storeId, settings.getId())
+                .stream().map(link -> link.getRoom().getId()).toList();
+        return new ManagedOperationDtos.SettingsResponse(toDto(settings, selected), availableRooms(storeId), true);
+    }
+
+    @Transactional
+    public void deleteProperty(Long storeId, Long settingsId) {
+        ManagedOperationSettings settings = requirePersistedSettings(storeId, settingsId);
+        List<String> fileKeys = new ArrayList<>();
+        if (settings.getStampStorageKey() != null && !settings.getStampStorageKey().isBlank()) {
+            fileKeys.add(settings.getStampStorageKey());
+        }
+        List<ManagedOperationMonthlyData> monthlyRows =
+                monthlyDataRepository.findByStoreIdAndSettingsId(storeId, settingsId);
+        for (ManagedOperationMonthlyData monthly : monthlyRows) {
+            if (monthly.getAirbnbFileKey() != null && !monthly.getAirbnbFileKey().isBlank()) {
+                fileKeys.add(monthly.getAirbnbFileKey());
+            }
+            if (monthly.getBookingFileKey() != null && !monthly.getBookingFileKey().isBlank()) {
+                fileKeys.add(monthly.getBookingFileKey());
+            }
+            monthlyFeeRepository.deleteByStoreIdAndMonthlyDataId(storeId, monthly.getId());
+        }
+        // 显式删除子表，兼容外键缺少 ON DELETE CASCADE 的环境
+        monthlyDataRepository.deleteByStoreIdAndSettingsId(storeId, settingsId);
+        managedRoomRepository.deleteByStoreIdAndSettingsId(storeId, settingsId);
+        settingsRepository.delete(settings);
+        registerFileCleanupAfterCommit(storeId, fileKeys);
+    }
+
+    @Transactional
+    public ManagedOperationDtos.StampResponse uploadStamp(Long storeId, Long settingsId, MultipartFile file) {
+        ManagedOperationSettings settings = requirePersistedSettings(storeId, settingsId);
         validateSnapshotSettings(settings);
         String oldKey = settings.getStampStorageKey();
         String newKey = stampStorage.store(storeId, file);
@@ -135,15 +230,31 @@ public class ManagedOperationSettingsService {
         });
     }
 
+    private void registerFileCleanupAfterCommit(Long storeId, List<String> keys) {
+        if (keys.isEmpty() || !TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+        List<String> immutableKeys = List.copyOf(keys);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                for (String key : immutableKeys) {
+                    stampStorage.deleteQuietly(storeId, key);
+                    sheetStorage.deleteQuietly(storeId, key);
+                }
+            }
+        });
+    }
+
     @Transactional(readOnly = true)
-    public ManagedOperationPrivateStampStorage.StoredStamp loadStamp(Long storeId) {
-        ManagedOperationSettings settings = requirePersistedSettings(storeId);
+    public ManagedOperationPrivateStampStorage.StoredStamp loadStamp(Long storeId, Long settingsId) {
+        ManagedOperationSettings settings = requirePersistedSettings(storeId, settingsId);
         return stampStorage.load(storeId, settings.getStampStorageKey());
     }
 
     @Transactional(readOnly = true)
-    public SettingsSnapshot requireSnapshot(Long storeId) {
-        ManagedOperationSettings settings = requirePersistedSettings(storeId);
+    public SettingsSnapshot requireSnapshot(Long storeId, Long settingsId) {
+        ManagedOperationSettings settings = requirePersistedSettings(storeId, settingsId);
         validateSnapshotSettings(settings);
         List<Room> rooms = managedRoomRepository.findByStoreIdAndSettingsIdWithRoom(storeId, settings.getId())
                 .stream().map(ManagedOperationRoom::getRoom).toList();
@@ -163,9 +274,12 @@ public class ManagedOperationSettingsService {
         validateMoney(settings.getRegistrationFeeNet(), ApiMessages.get("api.t.1fda0430b730"));
     }
 
-    private ManagedOperationSettings requirePersistedSettings(Long storeId) {
-        return settingsRepository.findByStoreId(storeId)
-                .orElseThrow(() -> new ManagedOperationValidationException(ApiMessages.get("api.t.3767788d9e41")));
+    private ManagedOperationSettings requirePersistedSettings(Long storeId, Long settingsId) {
+        if (settingsId == null || settingsId <= 0) {
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.c6b7d11d8389"));
+        }
+        return settingsRepository.findByStoreIdAndId(storeId, settingsId)
+                .orElseThrow(() -> new ManagedOperationValidationException(ApiMessages.get("api.t.c6b7d11d8389")));
     }
 
     private List<ManagedOperationDtos.RoomOption> availableRooms(Long storeId) {
@@ -177,9 +291,9 @@ public class ManagedOperationSettingsService {
 
     private static ManagedOperationDtos.Settings toDto(ManagedOperationSettings s, List<Long> selected) {
         return new ManagedOperationDtos.Settings(
-                s.getPropertyName(), selected, s.getManagementFeeRate(), s.getTaxRate(),
-                s.getCleaningFeeGross(), s.getRegistrationFeeNet(), s.getOwnerCompanyName(),
-                s.getOwnerContactName(), s.getOwnerPostalCode(), s.getOwnerAddress(),
+                s.getId(), s.getPropertyName(), selected, s.getManagementFeeRate(), s.getTaxRate(),
+                s.getCleaningFeeGross(), s.getRegistrationFeeNet(), s.getInvoiceIssueDay(), s.getReceiptIssueDay(),
+                s.getOwnerCompanyName(), s.getOwnerContactName(), s.getOwnerPostalCode(), s.getOwnerAddress(),
                 s.getIssuerCompanyName(), s.getIssuerPostalCode(), s.getIssuerAddress(),
                 s.getIssuerRegistrationNumber(), s.getIssuerPhone(), s.getIssuerEmail(),
                 s.getBankName(), s.getBankBranch(), s.getBankAccountType(), s.getBankAccountNumber(),
@@ -189,6 +303,8 @@ public class ManagedOperationSettingsService {
     private static ManagedOperationSettings defaultSettings(Long storeId) {
         ManagedOperationSettings settings = new ManagedOperationSettings();
         settings.setStoreId(storeId);
+        settings.setInvoiceIssueDay(DEFAULT_INVOICE_ISSUE_DAY);
+        settings.setReceiptIssueDay(DEFAULT_RECEIPT_ISSUE_DAY);
         return settings;
     }
 
@@ -198,6 +314,8 @@ public class ManagedOperationSettingsService {
         s.setTaxRate(r.taxRate());
         s.setCleaningFeeGross(r.cleaningFeeGross());
         s.setRegistrationFeeNet(r.registrationFeeNet());
+        s.setInvoiceIssueDay(r.invoiceIssueDay());
+        s.setReceiptIssueDay(r.receiptIssueDay());
         s.setOwnerCompanyName(text(r.ownerCompanyName(), 200));
         s.setOwnerContactName(text(r.ownerContactName(), 100));
         s.setOwnerPostalCode(text(r.ownerPostalCode(), 30));
@@ -240,6 +358,12 @@ public class ManagedOperationSettingsService {
             throw new ManagedOperationValidationException(field + ApiMessages.get("api.t.b8be414d90f8"));
         }
         ManagedOperationMoneyRules.requireWholeYen(amount, field);
+    }
+
+    static void validateIssueDay(Integer day) {
+        if (day == null || day < MIN_ISSUE_DAY || day > MAX_ISSUE_DAY) {
+            throw new ManagedOperationValidationException(ApiMessages.get("api.t.a5cb079905bc"));
+        }
     }
 
     public record SettingsSnapshot(ManagedOperationSettings settings, List<Room> rooms) {}

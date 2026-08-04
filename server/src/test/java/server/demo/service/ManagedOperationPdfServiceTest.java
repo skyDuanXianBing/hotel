@@ -49,9 +49,11 @@ class ManagedOperationPdfServiceTest {
                     assertTrue(text.contains("精算書"));
                     assertTrue(text.contains("クリーニング代"));
                     assertTrue(text.contains("入金番号"));
+                    assertTrue(text.contains("修理費"));
                 } else {
                     assertTrue(height > width);
                     assertTrue(text.contains(entry.name().contains("請求書") ? "請求書" : "領収書"));
+                    assertTrue(text.contains("修理費"));
                     assertTrue(text.contains("たんぽぽ株式会社 管理手数料"));
                     assertTrue(text.contains("Tanpopo株式会社"));
                     assertTrue(text.contains("平山 様"));
@@ -156,15 +158,17 @@ class ManagedOperationPdfServiceTest {
                 1, 1, new BigDecimal("4364"), new BigDecimal("436"), new BigDecimal("7273"),
                 new BigDecimal("7273"), new BigDecimal("727"), new BigDecimal("44"),
                 new BigDecimal("3157"), new BigDecimal("2000"), new BigDecimal("2200"),
-                BigDecimal.ZERO, new BigDecimal("957"), new BigDecimal("9709"),
-                new BigDecimal("970"), new BigDecimal("10679"));
+                new BigDecimal("550"), new BigDecimal("407"), new BigDecimal("10209"),
+                new BigDecimal("1020"), new BigDecimal("11229"));
         EnumMap<ManagedOperationDtos.LineStatus, Integer> counts = new EnumMap<>(ManagedOperationDtos.LineStatus.class);
         for (ManagedOperationDtos.LineStatus status : ManagedOperationDtos.LineStatus.values()) counts.put(status, 0);
         counts.put(ManagedOperationDtos.LineStatus.INCLUDED, 1);
         ManagedOperationDtos.PreviewResponse preview = new ManagedOperationDtos.PreviewResponse(
                 List.of(line), new ManagedOperationDtos.PreviewStats(0, 1, counts), summary, true, List.of());
         ManagedOperationDtos.RunRequest request = new ManagedOperationDtos.RunRequest(
-                "2026-05", List.of(), "INV-1", LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30),
+                "2026-05", List.of(new ManagedOperationDtos.FeeInput(
+                        server.demo.enums.ManagedOperationFeeType.DEDUCTION, "修理費", new BigDecimal("550"))),
+                "INV-1", LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30),
                 "REC-1", LocalDate.of(2026, 6, 1), "テスト備考");
         return new ManagedOperationSettlementService.CalculationResult(
                 preview, settings, List.of(new server.demo.entity.Room()), request, YearMonth.of(2026, 5));
