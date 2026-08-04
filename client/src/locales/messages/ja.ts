@@ -45,6 +45,9 @@ const ja = mergeLocaleMessages(
     },
     common: {
       close: '閉じる',
+      cancel: 'キャンセル',
+      save: '保存',
+      delete: '削除',
       email: 'メールアドレス',
       password: 'パスワード',
       verificationCode: '認証コード',

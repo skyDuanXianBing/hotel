@@ -291,12 +291,7 @@ const loadHistory = async () => {
     }
   } catch (error) {
     console.error('Failed to load price change history:', error)
-    const loadFailedMessage = t('accommodation.priceHistory.messages.loadFailed')
-    ElMessage.error(
-      loadFailedMessage === 'accommodation.priceHistory.messages.loadFailed'
-        ? t('accommodation.priceHistory.loadFailed')
-        : loadFailedMessage,
-    )
+    ElMessage.error(t('accommodation.priceHistory.messages.loadFailed'))
   } finally {
     loading.value = false
   }

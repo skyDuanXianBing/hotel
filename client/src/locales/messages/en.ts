@@ -45,6 +45,9 @@ const en = mergeLocaleMessages(
     },
     common: {
       close: 'Close',
+      cancel: 'Cancel',
+      save: 'Save',
+      delete: 'Delete',
       email: 'Email',
       password: 'Password',
       verificationCode: 'Verification Code',

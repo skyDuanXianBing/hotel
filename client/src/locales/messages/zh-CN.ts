@@ -45,6 +45,9 @@ const zhCN = mergeLocaleMessages(
     },
     common: {
       close: '关闭',
+      cancel: '取消',
+      save: '保存',
+      delete: '删除',
       email: '邮箱',
       password: '密码',
       verificationCode: '验证码',

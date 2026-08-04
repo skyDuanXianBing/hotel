@@ -45,6 +45,9 @@ const zhTW = mergeLocaleMessages(
     },
     common: {
       close: '關閉',
+      cancel: '取消',
+      save: '保存',
+      delete: '刪除',
       email: '電子郵件',
       password: '密碼',
       verificationCode: '驗證碼',

@@ -38,6 +38,7 @@ export const accommodationRoomStatusMessages = {
         jpy: 'JPY',
         rangeTo: 'to',
         totalCount: 'Total {count} items',
+        item: 'Item',
       },
       weekdays: {
         short: {
@@ -414,6 +415,11 @@ export const accommodationRoomStatusMessages = {
     roomStatus: {
       layout: {
         calendar: 'Calendar',
+      },
+      batchDateSelector: {
+        all: 'All',
+        weekday: 'Weekdays',
+        weekend: 'Weekends',
       },
       common: {
         today: 'Today',
@@ -1122,6 +1128,7 @@ export const accommodationRoomStatusMessages = {
         jpy: 'JPY',
         rangeTo: '至',
         totalCount: '共 {count} 条',
+        item: '项目',
       },
       weekdays: {
         short: {
@@ -1495,6 +1502,11 @@ export const accommodationRoomStatusMessages = {
     roomStatus: {
       layout: {
         calendar: '日历',
+      },
+      batchDateSelector: {
+        all: '全部',
+        weekday: '平日',
+        weekend: '周末',
       },
       common: {
         today: '今日',
@@ -2193,6 +2205,7 @@ export const accommodationRoomStatusMessages = {
         jpy: 'JPY',
         rangeTo: '至',
         totalCount: '共 {count} 筆',
+        item: '項目',
       },
       weekdays: {
         short: {
@@ -2566,6 +2579,11 @@ export const accommodationRoomStatusMessages = {
     roomStatus: {
       layout: {
         calendar: '日曆',
+      },
+      batchDateSelector: {
+        all: '全部',
+        weekday: '平日',
+        weekend: '週末',
       },
       common: {
         today: '今日',
@@ -3264,6 +3282,7 @@ export const accommodationRoomStatusMessages = {
         jpy: 'JPY',
         rangeTo: 'から',
         totalCount: '合計 {count} 件',
+        item: '項目',
       },
       weekdays: {
         short: {
@@ -3640,6 +3659,11 @@ export const accommodationRoomStatusMessages = {
     roomStatus: {
       layout: {
         calendar: 'カレンダー',
+      },
+      batchDateSelector: {
+        all: 'すべて',
+        weekday: '平日',
+        weekend: '週末',
       },
       common: {
         today: '今日',

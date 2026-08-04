@@ -192,7 +192,7 @@ onMounted(loadFeatures)
             <el-option :label="t('admin.enums.resetCycle.MONTHLY')" value="MONTHLY" />
             <el-option :label="t('admin.enums.resetCycle.NONE')" value="NONE" />
           </el-select>
-          <p class="field-hint">{{ t('admin.features.form.resetCycleQuotaHint') }}</p>
+          <p class="field-hint">{{ t('admin.features.resetCycleQuotaHint') }}</p>
         </el-form-item>
         <el-form-item :label="t('admin.features.form.description')">
           <el-input
