@@ -18,6 +18,30 @@ const simulatorFixedNow = process.env.SIMULATOR_FIXED_NOW ? String(process.env.S
 const autoMessageMarker = 'LOCAL_E2E_AUTO_BOOKING_CONFIRM'
 const autoMessageAction = 'BOOKING_CONFIRM'
 const autoMessageSendTiming = 'IMMEDIATELY'
+const VALID_CHANNEL_FILTERS = ['BOOKING', 'AIRBNB', 'EXPEDIA', 'TRIP_COM', 'AGODA'] as const
+type ChannelFilter = (typeof VALID_CHANNEL_FILTERS)[number]
+
+// 支持 --channel EXPEDIA 或 --channel=EXPEDIA 按渠道筛选用例
+function parseChannelFilter(argv: string[]): ChannelFilter | null {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index]
+    let value: string | null = null
+    if (arg === '--channel') {
+      value = argv[index + 1] || null
+    } else if (arg.startsWith('--channel=')) {
+      value = arg.slice('--channel='.length)
+    }
+
+    if (value !== null) {
+      const normalized = value.trim().toUpperCase()
+      if (!VALID_CHANNEL_FILTERS.includes(normalized as ChannelFilter)) {
+        throw new Error(`Invalid --channel value: ${value}. Expected one of ${VALID_CHANNEL_FILTERS.join(', ')}`)
+      }
+      return normalized as ChannelFilter
+    }
+  }
+  return null
+}
 
 function joinUrl(baseUrl: string, path: string): string {
   return `${baseUrl}/${path.replace(/^\/+/, '')}`
@@ -313,6 +337,7 @@ async function waitForBookingAutoMessage(
 
 async function main(): Promise<void> {
   const steps: StepResult[] = []
+  const channelFilter = parseChannelFilter(process.argv.slice(2))
 
   const setup = await runStep('pms setup-local', async () => {
     const response = await axios.post(joinUrl(pmsBaseUrl, '/api/v1/test-support/channel-e2e/setup-local'), {}, {
@@ -388,9 +413,15 @@ async function main(): Promise<void> {
     { name: 'booking pull new', body: { mode: 'PULL', channel: 'BOOKING', scenario: 'NEW' } },
     { name: 'booking push multi-room', body: { mode: 'PUSH', channel: 'BOOKING', scenario: 'MULTI_ROOM' } },
     { name: 'airbnb push new', body: { mode: 'PUSH', channel: 'AIRBNB', scenario: 'AIRBNB_NEW' } },
+    { name: 'expedia pull new', body: { mode: 'PULL', channel: 'EXPEDIA', scenario: 'EXPEDIA_NEW' } },
+    { name: 'tripcom push new', body: { mode: 'PUSH', channel: 'TRIP_COM', scenario: 'TRIP_COM_NEW' } },
+    { name: 'agoda push new', body: { mode: 'PUSH', channel: 'AGODA', scenario: 'AGODA_NEW' } },
   ]
+  const filteredRunCases = channelFilter
+    ? runCases.filter((runCase) => runCase.body.channel === channelFilter)
+    : runCases
 
-  for (const runCase of runCases) {
+  for (const runCase of filteredRunCases) {
     steps.push(await runStep(runCase.name, async () => {
       let data = await postSimulator('/api/e2e/runs', runCase.body, simulatorHeaders)
       assertCondition(getReservationMatches(data) > 0, 'reservation lookup returned no matches')
@@ -415,7 +446,9 @@ async function main(): Promise<void> {
     }))
   }
 
-  for (const mode of ['PUSH', 'PULL']) {
+  const shouldRunBookingLifecycle = !channelFilter || channelFilter === 'BOOKING'
+  const lifecycleModes = shouldRunBookingLifecycle ? ['PUSH', 'PULL'] : []
+  for (const mode of lifecycleModes) {
     steps.push(await runStep(`booking lifecycle ${mode.toLowerCase()}`, async () => {
       const data = await postSimulator('/api/e2e/lifecycle', { mode, channel: 'BOOKING' }, simulatorHeaders)
       const lifecycleSteps = Array.isArray(data?.steps) ? data.steps : []
@@ -437,7 +470,9 @@ async function main(): Promise<void> {
     }))
   }
 
-  steps.push(await runStep('airbnb messaging webhook', async () => {
+  const shouldRunAirbnbMessaging = !channelFilter || channelFilter === 'AIRBNB'
+  if (shouldRunAirbnbMessaging) {
+    steps.push(await runStep('airbnb messaging webhook', async () => {
     const data = await postSimulator('/api/e2e/messaging', { channel: 'AIRBNB' }, simulatorHeaders)
     assertCondition(getMessagingMatches(data) > 0, 'messaging lookup returned no matches')
     const thread = getFirstMessagingThread(data)
@@ -465,6 +500,7 @@ async function main(): Promise<void> {
       messagingMatches: getMessagingMatches(data),
     }
   }))
+  }
 
   const failed = steps.filter((step) => !step.ok)
   // eslint-disable-next-line no-console
@@ -472,6 +508,7 @@ async function main(): Promise<void> {
     ok: failed.length === 0,
     pmsBaseUrl,
     simulatorBaseUrl,
+    channelFilter,
     simulatorTime: {
       storeTimeZone: simulatorStoreTimeZone,
       fixedNow: simulatorFixedNow,

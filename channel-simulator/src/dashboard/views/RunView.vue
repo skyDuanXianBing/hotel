@@ -42,6 +42,9 @@ const {
           <select v-model="runForm.channel">
             <option value="BOOKING">BOOKING</option>
             <option value="AIRBNB">AIRBNB</option>
+            <option value="EXPEDIA">EXPEDIA</option>
+            <option value="TRIP_COM">TRIP_COM</option>
+            <option value="AGODA">AGODA</option>
           </select>
         </label>
         <label class="field">
@@ -50,6 +53,9 @@ const {
             <option value="NEW">单房新预订</option>
             <option value="MULTI_ROOM">多房新预订</option>
             <option value="AIRBNB_NEW">Airbnb 新预订</option>
+            <option value="EXPEDIA_NEW">Expedia 新预订</option>
+            <option value="TRIP_COM_NEW">Trip.com 新预订</option>
+            <option value="AGODA_NEW">Agoda 新预订</option>
           </select>
         </label>
         <label class="field">

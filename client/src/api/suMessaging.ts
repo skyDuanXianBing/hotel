@@ -10,7 +10,7 @@ export enum SuMessagingSenderType {
   STAFF = 'STAFF',
 }
 
-export type SuMessagingChannelCode = 'AIRBNB' | 'BOOKING'
+export type SuMessagingChannelCode = 'AIRBNB' | 'BOOKING' | 'EXPEDIA'
 
 export type SuMessagingOrderKind =
   | 'INQUIRY'

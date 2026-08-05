@@ -6,6 +6,7 @@ import server.demo.entity.Channel;
 import server.demo.entity.ChannelMappingPriceSetting;
 import server.demo.repository.ChannelMappingPriceSettingRepository;
 import server.demo.repository.ChannelRepository;
+import server.demo.util.SuChannelCatalog;
 import server.demo.util.SuHotelIdUtil;
 
 import java.util.HashMap;
@@ -23,10 +24,8 @@ import server.demo.i18n.ApiMessages;
 @Component
 public class SuReviewWebhookMappingValidator {
 
-    private static final List<Integer> SUPPORTED_CHANNEL_IDS = List.of(
-            ReviewChannelCodePolicy.CHANNEL_BOOKING,
-            ReviewChannelCodePolicy.CHANNEL_AIRBNB
-    );
+    // 评论映射快照加载范围以目录 review 能力集为准（Su 官方 Review API：19/244/9；TRIP/AGODA 不支持）
+    private static final List<Integer> SUPPORTED_CHANNEL_IDS = SuChannelCatalog.reviewSupportedSuIds();
 
     private final ChannelRepository channelRepository;
     private final ChannelMappingPriceSettingRepository mappingRepository;

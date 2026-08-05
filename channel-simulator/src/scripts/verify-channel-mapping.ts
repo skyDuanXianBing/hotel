@@ -2,8 +2,11 @@ import assert from 'node:assert/strict'
 import { inflateSync } from 'node:zlib'
 
 import {
+  AGODA_CHANNEL_ID,
   AIRBNB_CHANNEL_ID,
   BOOKING_CHANNEL_ID,
+  EXPEDIA_CHANNEL_ID,
+  TRIP_COM_CHANNEL_ID,
   buildLanguageFileResponse,
   buildMasterDataResponse,
   buildOtaRatePlanPullResponse,
@@ -17,7 +20,13 @@ function assertChannelResolution() {
   )
   assert.equal(resolveChannelId({ channelid: AIRBNB_CHANNEL_ID }), AIRBNB_CHANNEL_ID)
   assert.equal(resolveChannelId({ channel_code: BOOKING_CHANNEL_ID }), BOOKING_CHANNEL_ID)
-  assert.equal(resolveChannelId({ channel_code: '999' }), BOOKING_CHANNEL_ID)
+  assert.equal(resolveChannelId({ channel_code: EXPEDIA_CHANNEL_ID }), EXPEDIA_CHANNEL_ID)
+  assert.equal(resolveChannelId({ channelid: TRIP_COM_CHANNEL_ID }), TRIP_COM_CHANNEL_ID)
+  assert.equal(resolveChannelId({ channel_code: AGODA_CHANNEL_ID }), AGODA_CHANNEL_ID)
+  // 未知 channel id 必须显式报错，禁止静默回落默认渠道
+  assert.throws(() => resolveChannelId({ channel_code: '999' }), /Unknown channel id: 999/)
+  // 完全未指定渠道时才回落默认渠道
+  assert.equal(resolveChannelId({}), BOOKING_CHANNEL_ID)
 }
 
 function assertBookingPayload() {
@@ -46,6 +55,46 @@ function assertAirbnbPayload() {
   assert.equal(masterData.data.mapping[0].rateplan_id, 'LOCAL-244-STD')
   assert.equal(ratePlans.success, true)
   assert.equal(ratePlans.data[0].mappingformula, 'LOCAL-244-LISTING####LOCAL-244-STD')
+}
+
+function assertNewChannelPayloads() {
+  const cases = [
+    {
+      channelId: EXPEDIA_CHANNEL_ID,
+      name: 'Expedia',
+      roomTypeId: 'LOCAL-9-ROOM',
+      ratePlanId: 'LOCAL-9-STD',
+      flexRatePlanId: 'LOCAL-9-FLEX',
+    },
+    {
+      channelId: TRIP_COM_CHANNEL_ID,
+      name: 'Trip.com',
+      roomTypeId: 'LOCAL-339-ROOM',
+      ratePlanId: 'LOCAL-339-STD',
+      flexRatePlanId: 'LOCAL-339-FLEX',
+    },
+    {
+      channelId: AGODA_CHANNEL_ID,
+      name: 'Agoda',
+      roomTypeId: 'LOCAL-189-ROOM',
+      ratePlanId: 'LOCAL-189-STD',
+      flexRatePlanId: 'LOCAL-189-FLEX',
+    },
+  ]
+
+  for (const testCase of cases) {
+    const masterData = buildMasterDataResponse({ hotelid: 'HOTEL-3' }, testCase.channelId)
+    const ratePlans = buildOtaRatePlanPullResponse({ channel_code: testCase.channelId })
+
+    assert.equal(masterData.success, true)
+    assert.equal(masterData.data.channelinfo.id, testCase.channelId)
+    assert.equal(masterData.data.channelinfo.name, testCase.name)
+    assert.equal(masterData.data.mapping[0].roomtype_id, testCase.roomTypeId)
+    assert.equal(masterData.data.mapping[0].rateplan_id, testCase.ratePlanId)
+    assert.equal(ratePlans.success, true)
+    assert.equal(ratePlans.data[0].mappingformula, `${testCase.roomTypeId}####${testCase.ratePlanId}`)
+    assert.equal(ratePlans.data[1].rateplan_id, testCase.flexRatePlanId)
+  }
 }
 
 function assertLanguageFilePayload() {
@@ -83,6 +132,7 @@ function decodeLanguageFileData(data: string) {
 assertChannelResolution()
 assertBookingPayload()
 assertAirbnbPayload()
+assertNewChannelPayloads()
 assertLanguageFilePayload()
 
 // eslint-disable-next-line no-console

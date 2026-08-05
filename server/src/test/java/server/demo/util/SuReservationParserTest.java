@@ -16,10 +16,19 @@ class SuReservationParserTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void mapOtaChannelCode_supportsAirbnbAndBooking() {
+    void mapOtaChannelCode_supportsFiveChannelsAndReturnsNullForUnknown() {
         assertEquals("AIRBNB", SuReservationParser.mapOtaChannelCode("244"));
         assertEquals("BOOKING", SuReservationParser.mapOtaChannelCode("19"));
+        assertEquals("EXPEDIA", SuReservationParser.mapOtaChannelCode("9"));
+        assertEquals("TRIP", SuReservationParser.mapOtaChannelCode("339"));
+        assertEquals("AGODA", SuReservationParser.mapOtaChannelCode("189"));
+        assertEquals("TRIP", SuReservationParser.mapOtaChannelCode(" 339 "));
         assertNull(SuReservationParser.mapOtaChannelCode("999"));
+        assertNull(SuReservationParser.mapOtaChannelCode("150"));
+        assertNull(SuReservationParser.mapOtaChannelCode("EXPEDIA"));
+        assertNull(SuReservationParser.mapOtaChannelCode("19.0"));
+        assertNull(SuReservationParser.mapOtaChannelCode(""));
+        assertNull(SuReservationParser.mapOtaChannelCode("   "));
         assertNull(SuReservationParser.mapOtaChannelCode(null));
     }
 

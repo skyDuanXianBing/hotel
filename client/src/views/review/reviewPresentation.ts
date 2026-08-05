@@ -17,6 +17,9 @@ export const normalizeChannelCode = (value?: string | null) => {
   if (normalized === 'BOOKING_COM' || normalized === 'BOOKING.COM') {
     return REVIEW_CHANNEL.BOOKING
   }
+  if (normalized === 'EXPEDIA_COM' || normalized === 'EXPEDIA.COM') {
+    return REVIEW_CHANNEL.EXPEDIA
+  }
   return normalized
 }
 
@@ -25,6 +28,9 @@ export const isAirbnbReview = (review?: SuReviewDTO | null) =>
 
 export const isBookingReview = (review?: SuReviewDTO | null) =>
   normalizeChannelCode(review?.channelCode) === REVIEW_CHANNEL.BOOKING
+
+export const isExpediaReview = (review?: SuReviewDTO | null) =>
+  normalizeChannelCode(review?.channelCode) === REVIEW_CHANNEL.EXPEDIA
 
 export const hasAllowedReviewAction = (
   review: SuReviewDTO | null | undefined,

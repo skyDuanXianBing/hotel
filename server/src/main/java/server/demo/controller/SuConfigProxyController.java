@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.HandlerMapping;
 import server.demo.config.SuApiConfig;
+import server.demo.util.SuChannelCatalog;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -24,6 +25,8 @@ import java.io.IOException;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -55,8 +58,9 @@ public class SuConfigProxyController {
     private static final String SU_UPSTREAM_APP_ID_HEADER = "app-id";
     private static final String SU_UPSTREAM_CLIENT_ID_HEADER = "client-id";
     private static final String SU_UPSTREAM_CLIENT_SECRET_HEADER = "client-secret";
-    private static final String BOOKING_CHANNEL_ID = "19";
-    private static final String AIRBNB_CHANNEL_ID = "244";
+    // 本地 mock 白名单：目录内全部 Su channel id（BOOKING/AIRBNB/EXPEDIA/TRIP/AGODA），保证模拟器联调不被拒
+    private static final Set<String> ALLOWED_LOCAL_MOCK_CHANNEL_IDS =
+            SuChannelCatalog.allSuIds().stream().map(String::valueOf).collect(Collectors.toUnmodifiableSet());
 
     private final RestTemplate restTemplate;
     private final SuApiConfig suApiConfig;
@@ -357,8 +361,8 @@ public class SuConfigProxyController {
         return !TargetType.LOCAL_MOCK.equals(targetType);
     }
 
-    private boolean isAllowedLocalMockChannelId(String channelId) {
-        return BOOKING_CHANNEL_ID.equals(channelId) || AIRBNB_CHANNEL_ID.equals(channelId);
+    boolean isAllowedLocalMockChannelId(String channelId) {
+        return channelId != null && ALLOWED_LOCAL_MOCK_CHANNEL_IDS.contains(channelId);
     }
 
     private void logProxyRequest(String targetUrl, HttpServletRequest request, HttpHeaders outgoingHeaders) {

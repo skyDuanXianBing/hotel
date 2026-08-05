@@ -20,7 +20,7 @@ import server.demo.i18n.ApiMessages;
 @Service
 public class ChannelService {
     private static final Set<String> PROTECTED_CHANNEL_CODES =
-            Set.of("DIRECT", "BOOKING_ENGINE", "AIRBNB", "BOOKING");
+            Set.of("DIRECT", "BOOKING_ENGINE", "AIRBNB", "BOOKING", "EXPEDIA", "TRIP", "AGODA");
 
     @Autowired
     private ChannelRepository channelRepository;

@@ -37,6 +37,7 @@ import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 import server.demo.util.StoreTimeZoneUtil;
 import server.demo.util.StoreContextUtils;
+import server.demo.util.SuChannelCatalog;
 import server.demo.util.SuReservationParser;
 import server.demo.util.UtcTimeUtil;
 
@@ -67,6 +68,8 @@ public class SuMessagingService {
 
     public static final int CHANNEL_BOOKING = 19;
     public static final int CHANNEL_AIRBNB = 244;
+    // Su 官方 OTA Messages API 支持 19/244/9/253(VRBO)；VRBO 未接入，TRIP/AGODA 官方不支持消息
+    public static final int CHANNEL_EXPEDIA = 9;
     private static final String OTA_CODE_AIRBNB = "AIRBNB";
     private static final int DEFAULT_THREAD_PAGE_SIZE = 20;
     private static final int MAX_THREAD_PAGE_SIZE = 100;
@@ -179,7 +182,7 @@ public class SuMessagingService {
             logger.warn("[SuMessaging] inbound missing channel_id. storeId={}, hotelId={}", storeId, suHotelId);
             return;
         }
-        if (channelId != CHANNEL_BOOKING && channelId != CHANNEL_AIRBNB) {
+        if (!SuChannelCatalog.isMessagingSupportedSuId(channelId)) {
             logger.info("[SuMessaging] inbound channel not supported, ignored. storeId={}, channelId={}", storeId, channelId);
             return;
         }
@@ -573,6 +576,10 @@ public class SuMessagingService {
             return ORDER_KIND_UNMATCHED_ORDER;
         }
         if (thread.getChannelId() == CHANNEL_BOOKING) {
+            return ORDER_KIND_UNMATCHED_ORDER;
+        }
+        if (thread.getChannelId() == CHANNEL_EXPEDIA) {
+            // Expedia 消息以 bookingid 为会话键（官方必填），无 Airbnb 式 inquiry 线程；未匹配订单按未匹配归类
             return ORDER_KIND_UNMATCHED_ORDER;
         }
         return null;
@@ -1268,6 +1275,13 @@ public class SuMessagingService {
                 throw new IllegalStateException("Booking.com reply requires bookingid");
             }
             payload.put("bookingid", bookingId);
+        } else if (channelId == CHANNEL_EXPEDIA) {
+            // 官方：Expedia 回复 bookingid 必填；附件（attachment_content）与 ota_tracking_id 本期未接线
+            String bookingId = thread.getBookingId();
+            if (bookingId == null || bookingId.isBlank()) {
+                throw new IllegalStateException(ApiMessages.get("api.t.3f8a2c1d9e47"));
+            }
+            payload.put("bookingid", bookingId);
         } else {
             throw new IllegalStateException("Missing channelId, cannot send");
         }
@@ -1523,7 +1537,8 @@ public class SuMessagingService {
         if (channelId == CHANNEL_AIRBNB) {
             return threadId != null && !threadId.isBlank() ? threadId.trim() : null;
         }
-        if (channelId == CHANNEL_BOOKING) {
+        if (channelId == CHANNEL_BOOKING || channelId == CHANNEL_EXPEDIA) {
+            // Booking / Expedia 均以 bookingid 为会话键（Expedia 官方 bookingid 必填），threadid 兜底
             if (bookingId != null && !bookingId.isBlank()) {
                 return bookingId.trim();
             }
@@ -1547,23 +1562,18 @@ public class SuMessagingService {
         if (channelId == null) {
             return "UNKNOWN";
         }
-        if (channelId == CHANNEL_AIRBNB) {
-            return "Airbnb";
-        }
-        if (channelId == CHANNEL_BOOKING) {
-            return "Booking.com";
-        }
-        return "CHANNEL_" + channelId;
+        return SuChannelCatalog.bySuId(channelId)
+                .map(SuChannelCatalog.SuChannel::displayName)
+                .orElse("CHANNEL_" + channelId);
     }
 
     private static String resolveChannelCode(Integer channelId) {
-        if (channelId != null && channelId == CHANNEL_AIRBNB) {
-            return "AIRBNB";
+        if (channelId == null) {
+            return "UNKNOWN";
         }
-        if (channelId != null && channelId == CHANNEL_BOOKING) {
-            return "BOOKING";
-        }
-        return channelId == null ? "UNKNOWN" : String.valueOf(channelId);
+        return SuChannelCatalog.bySuId(channelId)
+                .map(SuChannelCatalog.SuChannel::code)
+                .orElse(String.valueOf(channelId));
     }
 
     private static int normalizePage(Integer page) {
@@ -1595,6 +1605,8 @@ public class SuMessagingService {
                 channelIds.add(CHANNEL_AIRBNB);
             } else if ("BOOKING".equals(value) || "BOOKING_COM".equals(value) || "BOOKING.COM".equals(value)) {
                 channelIds.add(CHANNEL_BOOKING);
+            } else if ("EXPEDIA".equals(value)) {
+                channelIds.add(CHANNEL_EXPEDIA);
             } else {
                 try {
                     channelIds.add(Integer.parseInt(value));

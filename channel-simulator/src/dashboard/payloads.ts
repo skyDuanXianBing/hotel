@@ -12,6 +12,15 @@ export function buildRunBody(runForm: RunForm): JsonObject {
   if (runForm.scenario === 'MULTI_ROOM') {
     body.channel = 'BOOKING'
   }
+  if (runForm.scenario === 'EXPEDIA_NEW') {
+    body.channel = 'EXPEDIA'
+  }
+  if (runForm.scenario === 'TRIP_COM_NEW') {
+    body.channel = 'TRIP_COM'
+  }
+  if (runForm.scenario === 'AGODA_NEW') {
+    body.channel = 'AGODA'
+  }
   if (runForm.roomTypeId) {
     body.roomTypeId = Number(runForm.roomTypeId)
   }

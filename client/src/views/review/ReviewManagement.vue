@@ -128,6 +128,9 @@ const getChannelClass = (row: SuReviewDTO) => {
   if (channelCode === 'BOOKING') {
     return 'is-booking'
   }
+  if (channelCode === 'EXPEDIA') {
+    return 'is-expedia'
+  }
   return ''
 }
 
@@ -443,6 +446,7 @@ const handleActionSubmitted = async () => {
               <el-option :label="t('suReviews.filters.allChannels')" value="" />
               <el-option :label="t('suReviews.channels.AIRBNB')" value="AIRBNB" />
               <el-option :label="t('suReviews.channels.BOOKING')" value="BOOKING" />
+              <el-option :label="t('suReviews.channels.EXPEDIA')" value="EXPEDIA" />
             </el-select>
           </div>
 
@@ -938,6 +942,11 @@ const handleActionSubmitted = async () => {
 .channel-chip.is-booking {
   background: #edf4ff;
   color: #003b95;
+}
+
+.channel-chip.is-expedia {
+  background: #fff8d9;
+  color: #8a6d00;
 }
 
 .order-cell strong {

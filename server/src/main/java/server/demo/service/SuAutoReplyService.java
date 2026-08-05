@@ -24,6 +24,7 @@ import server.demo.repository.StoreRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 import server.demo.util.AutoMessageTemplateRenderer;
+import server.demo.util.SuChannelCatalog;
 import server.demo.util.UtcTimeUtil;
 
 import java.time.LocalDateTime;
@@ -41,9 +42,6 @@ public class SuAutoReplyService {
 
     public static final String ACTION_GUEST_MESSAGE = "GUEST_MESSAGE";
     private static final String TARGET_TYPE_SU_THREAD = "SU_THREAD";
-
-    private static final String CHANNEL_CODE_BOOKING = "BOOKING";
-    private static final String CHANNEL_CODE_AIRBNB = "AIRBNB";
 
     private final SuMessageThreadRepository threadRepository;
     private final SuMessageRepository messageRepository;
@@ -100,7 +98,8 @@ public class SuAutoReplyService {
         SuMessageThread thread = threadOpt.get();
 
         Integer suChannelId = thread.getChannelId();
-        if (suChannelId == null || (suChannelId != SuMessagingService.CHANNEL_BOOKING && suChannelId != SuMessagingService.CHANNEL_AIRBNB)) {
+        // 入口放行目录 messaging 能力集（BOOKING/AIRBNB/EXPEDIA）；TRIP/AGODA 官方不支持消息，直接跳过
+        if (suChannelId == null || !SuChannelCatalog.isMessagingSupportedSuId(suChannelId)) {
             return;
         }
 
@@ -191,9 +190,16 @@ public class SuAutoReplyService {
         }
     }
 
-    private Optional<AutoMessage> findMatchingTemplate(Long storeId, int suChannelId) {
-        String channelCode = suChannelId == SuMessagingService.CHANNEL_BOOKING ? CHANNEL_CODE_BOOKING : CHANNEL_CODE_AIRBNB;
-        Optional<Channel> channelOpt = channelRepository.findByStoreIdAndCode(storeId, channelCode);
+    Optional<AutoMessage> findMatchingTemplate(Long storeId, int suChannelId) {
+        // 按目录解析渠道 code；未识别的 Su channelId 不再默认错标为 AIRBNB，记日志并跳过
+        Optional<String> channelCode = SuChannelCatalog.bySuId(suChannelId)
+                .map(SuChannelCatalog.SuChannel::code);
+        if (channelCode.isEmpty()) {
+            logger.warn("[SuAutoReply] 未识别的 Su channelId，跳过自动回复模板匹配. storeId={}, suChannelId={}",
+                    storeId, suChannelId);
+            return Optional.empty();
+        }
+        Optional<Channel> channelOpt = channelRepository.findByStoreIdAndCode(storeId, channelCode.get());
         if (channelOpt.isEmpty()) {
             return Optional.empty();
         }
@@ -297,6 +303,13 @@ public class SuAutoReplyService {
             payload.put("guestid", guestId);
             payload.put("bookingid", thread.getBookingId() != null ? thread.getBookingId() : threadId);
         } else if (channelId == SuMessagingService.CHANNEL_BOOKING) {
+            String bookingId = thread.getBookingId();
+            if (bookingId == null || bookingId.isBlank()) {
+                throw new IllegalStateException(ApiMessages.get("api.t.9eb669aa5a72"));
+            }
+            payload.put("bookingid", bookingId);
+        } else if (channelId == SuMessagingService.CHANNEL_EXPEDIA) {
+            // 官方：Expedia 回复 bookingid 必填，不需要 threadid/guestid
             String bookingId = thread.getBookingId();
             if (bookingId == null || bookingId.isBlank()) {
                 throw new IllegalStateException(ApiMessages.get("api.t.9eb669aa5a72"));

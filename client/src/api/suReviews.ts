@@ -9,6 +9,7 @@ export interface ApiResponse<T> {
 export const REVIEW_CHANNEL = {
   AIRBNB: 'AIRBNB',
   BOOKING: 'BOOKING',
+  EXPEDIA: 'EXPEDIA',
 } as const
 
 export type ReviewChannelCode = (typeof REVIEW_CHANNEL)[keyof typeof REVIEW_CHANNEL] | string

@@ -248,6 +248,15 @@ export function resolveSuChannelId(code?: string) {
   if (normalized === 'AIRBNB') {
     return '244'
   }
+  if (normalized === 'EXPEDIA') {
+    return '9'
+  }
+  if (normalized === 'TRIP' || normalized === 'CTRIP') {
+    return '339'
+  }
+  if (normalized === 'AGODA') {
+    return '189'
+  }
   return null
 }
 

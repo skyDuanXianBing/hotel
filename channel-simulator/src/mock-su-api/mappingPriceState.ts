@@ -1,7 +1,16 @@
 export const BOOKING_CHANNEL_ID = '19'
 export const AIRBNB_CHANNEL_ID = '244'
+export const EXPEDIA_CHANNEL_ID = '9'
+export const TRIP_COM_CHANNEL_ID = '339'
+export const AGODA_CHANNEL_ID = '189'
 export const DEFAULT_CHANNEL_ID = BOOKING_CHANNEL_ID
-export const KNOWN_CHANNEL_IDS = [BOOKING_CHANNEL_ID, AIRBNB_CHANNEL_ID]
+export const KNOWN_CHANNEL_IDS = [
+  BOOKING_CHANNEL_ID,
+  AIRBNB_CHANNEL_ID,
+  EXPEDIA_CHANNEL_ID,
+  TRIP_COM_CHANNEL_ID,
+  AGODA_CHANNEL_ID,
+]
 export const DEFAULT_ROOM_ID = 'E2ELOCAL'
 export const DEFAULT_RATE_PLAN_ID = 'Local E2E Standard Rate'
 export const DEFAULT_HOTEL_ID = 'LOCALE2EHOTEL'
@@ -13,20 +22,88 @@ export const LOCAL_BOOKING_FLEX_RATE_PLAN_ID = 'LOCAL-19-FLEX'
 export const LOCAL_AIRBNB_LISTING_ID = 'LOCAL-244-LISTING'
 export const LOCAL_AIRBNB_SECOND_LISTING_ID = 'LOCAL-244-LISTING-DELUXE'
 export const LOCAL_AIRBNB_RATE_PLAN_ID = 'LOCAL-244-STD'
+export const LOCAL_EXPEDIA_ROOM_TYPE_ID = 'LOCAL-9-ROOM'
+export const LOCAL_EXPEDIA_RATE_PLAN_ID = 'LOCAL-9-STD'
+export const LOCAL_EXPEDIA_FLEX_RATE_PLAN_ID = 'LOCAL-9-FLEX'
+export const LOCAL_TRIP_COM_ROOM_TYPE_ID = 'LOCAL-339-ROOM'
+export const LOCAL_TRIP_COM_RATE_PLAN_ID = 'LOCAL-339-STD'
+export const LOCAL_TRIP_COM_FLEX_RATE_PLAN_ID = 'LOCAL-339-FLEX'
+export const LOCAL_AGODA_ROOM_TYPE_ID = 'LOCAL-189-ROOM'
+export const LOCAL_AGODA_RATE_PLAN_ID = 'LOCAL-189-STD'
+export const LOCAL_AGODA_FLEX_RATE_PLAN_ID = 'LOCAL-189-FLEX'
 
 const DEFAULT_SCENARIO = 'default-multi'
 const MAX_WRITE_HISTORY = 200
+
+interface BookingStyleChannelDefinition {
+  channelId: string
+  channelCode: MappingChannelCode
+  displayName: string
+  roomTypeId: string
+  ratePlanId: string
+  flexRatePlanId: string
+}
+
+// Booking 系（OTA_RatePlanMap 形态）渠道定义；Airbnb 走独立 listing 形态，不在此表。
+const BOOKING_STYLE_CHANNEL_DEFINITIONS: Record<string, BookingStyleChannelDefinition> = {
+  [BOOKING_CHANNEL_ID]: {
+    channelId: BOOKING_CHANNEL_ID,
+    channelCode: 'BOOKING',
+    displayName: 'Booking.com',
+    roomTypeId: LOCAL_BOOKING_ROOM_TYPE_ID,
+    ratePlanId: LOCAL_BOOKING_RATE_PLAN_ID,
+    flexRatePlanId: LOCAL_BOOKING_FLEX_RATE_PLAN_ID,
+  },
+  [EXPEDIA_CHANNEL_ID]: {
+    channelId: EXPEDIA_CHANNEL_ID,
+    channelCode: 'EXPEDIA',
+    displayName: 'Expedia',
+    roomTypeId: LOCAL_EXPEDIA_ROOM_TYPE_ID,
+    ratePlanId: LOCAL_EXPEDIA_RATE_PLAN_ID,
+    flexRatePlanId: LOCAL_EXPEDIA_FLEX_RATE_PLAN_ID,
+  },
+  [TRIP_COM_CHANNEL_ID]: {
+    channelId: TRIP_COM_CHANNEL_ID,
+    channelCode: 'TRIP_COM',
+    displayName: 'Trip.com',
+    roomTypeId: LOCAL_TRIP_COM_ROOM_TYPE_ID,
+    ratePlanId: LOCAL_TRIP_COM_RATE_PLAN_ID,
+    flexRatePlanId: LOCAL_TRIP_COM_FLEX_RATE_PLAN_ID,
+  },
+  [AGODA_CHANNEL_ID]: {
+    channelId: AGODA_CHANNEL_ID,
+    channelCode: 'AGODA',
+    displayName: 'Agoda',
+    roomTypeId: LOCAL_AGODA_ROOM_TYPE_ID,
+    ratePlanId: LOCAL_AGODA_RATE_PLAN_ID,
+    flexRatePlanId: LOCAL_AGODA_FLEX_RATE_PLAN_ID,
+  },
+}
+
+const CHANNEL_DISPLAY_NAMES: Record<string, string> = {
+  [BOOKING_CHANNEL_ID]: 'Booking.com',
+  [AIRBNB_CHANNEL_ID]: 'Airbnb',
+  [EXPEDIA_CHANNEL_ID]: 'Expedia',
+  [TRIP_COM_CHANNEL_ID]: 'Trip.com',
+  [AGODA_CHANNEL_ID]: 'Agoda',
+}
+
+function getBookingStyleChannelDefinition(channelId: string): BookingStyleChannelDefinition {
+  return BOOKING_STYLE_CHANNEL_DEFINITIONS[channelId] || BOOKING_STYLE_CHANNEL_DEFINITIONS[BOOKING_CHANNEL_ID]
+}
 
 export type MappingFailureEndpoint =
   | 'booking-rate-plan-map'
   | 'airbnb-listing-map'
   | 'airbnb-listing-update'
 
+export type MappingChannelCode = 'BOOKING' | 'AIRBNB' | 'EXPEDIA' | 'TRIP_COM' | 'AGODA'
+
 export interface MappingPriceRow {
   rowKey: string
   hotelId: string
   channelId: string
-  channelCode: 'BOOKING' | 'AIRBNB'
+  channelCode: MappingChannelCode
   channelHotelId: string
   roomId: string
   rateId: string
@@ -160,6 +237,7 @@ function getFailureRuleKey(endpoint: MappingFailureEndpoint, rowKey: string): st
 
 function buildBookingRowKey(input: {
   hotelId: string
+  channelId?: string
   channelHotelId?: string
   roomId?: string
   rateId?: string
@@ -170,7 +248,7 @@ function buildBookingRowKey(input: {
   return [
     'booking',
     input.hotelId,
-    BOOKING_CHANNEL_ID,
+    input.channelId || BOOKING_CHANNEL_ID,
     input.channelHotelId || 'missing-channel-hotel',
     input.roomId || 'missing-room',
     input.rateId || 'missing-rate',
@@ -200,7 +278,8 @@ function buildAirbnbRowKey(input: {
   ].join(':')
 }
 
-function createBookingRow(input: {
+function createBookingStyleRow(input: {
+  definition: BookingStyleChannelDefinition
   hotelId: string
   channelHotelId: string
   channelRateId?: string
@@ -210,12 +289,12 @@ function createBookingRow(input: {
 }): MappingPriceRow {
   const row = {
     hotelId: input.hotelId,
-    channelId: BOOKING_CHANNEL_ID,
-    channelCode: 'BOOKING' as const,
+    channelId: input.definition.channelId,
+    channelCode: input.definition.channelCode,
     channelHotelId: input.channelHotelId,
     roomId: DEFAULT_ROOM_ID,
     rateId: DEFAULT_RATE_PLAN_ID,
-    channelRoomId: LOCAL_BOOKING_ROOM_TYPE_ID,
+    channelRoomId: input.definition.roomTypeId,
     channelRateId: input.channelRateId,
     applicableNoOfGuest: input.applicableNoOfGuest,
     multiplier: input.multiplier || '1',
@@ -286,23 +365,27 @@ function createDefaultRows(hotelId: string, channelId: string): MappingPriceRow[
     ]
   }
 
+  const definition = getBookingStyleChannelDefinition(channelId)
   return [
-    createBookingRow({
+    createBookingStyleRow({
+      definition,
       hotelId,
-      channelHotelId: `LOCAL-${BOOKING_CHANNEL_ID}-HOTEL`,
-      channelRateId: LOCAL_BOOKING_RATE_PLAN_ID,
+      channelHotelId: `LOCAL-${definition.channelId}-HOTEL`,
+      channelRateId: definition.ratePlanId,
       applicableNoOfGuest: '1',
     }),
-    createBookingRow({
+    createBookingStyleRow({
+      definition,
       hotelId,
-      channelHotelId: `LOCAL-${BOOKING_CHANNEL_ID}-HOTEL`,
-      channelRateId: LOCAL_BOOKING_RATE_PLAN_ID,
+      channelHotelId: `LOCAL-${definition.channelId}-HOTEL`,
+      channelRateId: definition.ratePlanId,
       applicableNoOfGuest: '2',
     }),
-    createBookingRow({
+    createBookingStyleRow({
+      definition,
       hotelId,
-      channelHotelId: `LOCAL-${BOOKING_CHANNEL_ID}-HOTEL`,
-      channelRateId: LOCAL_BOOKING_FLEX_RATE_PLAN_ID,
+      channelHotelId: `LOCAL-${definition.channelId}-HOTEL`,
+      channelRateId: definition.flexRatePlanId,
       applicableNoOfGuest: '2',
     }),
   ]
@@ -319,7 +402,8 @@ function createScenarioRows(hotelId: string, channelId: string, scenario: string
 
   if (scenario === 'stale-booking-missing-channelRateId' && channelId === BOOKING_CHANNEL_ID) {
     return [
-      createBookingRow({
+      createBookingStyleRow({
+        definition: getBookingStyleChannelDefinition(BOOKING_CHANNEL_ID),
         hotelId,
         channelHotelId: `LOCAL-${BOOKING_CHANNEL_ID}-HOTEL`,
         applicableNoOfGuest: '2',
@@ -329,7 +413,8 @@ function createScenarioRows(hotelId: string, channelId: string, scenario: string
 
   if (scenario === 'stale-booking-missing-applicableGuest' && channelId === BOOKING_CHANNEL_ID) {
     return [
-      createBookingRow({
+      createBookingStyleRow({
+        definition: getBookingStyleChannelDefinition(BOOKING_CHANNEL_ID),
         hotelId,
         channelHotelId: `LOCAL-${BOOKING_CHANNEL_ID}-HOTEL`,
         channelRateId: LOCAL_BOOKING_RATE_PLAN_ID,
@@ -389,7 +474,7 @@ function findRowByKey(endpoint: MappingFailureEndpoint, rowKey: string): Mapping
   for (const state of mappingStateByKey.values()) {
     if (
       endpoint === 'booking-rate-plan-map' &&
-      state.channelId !== BOOKING_CHANNEL_ID
+      state.channelId === AIRBNB_CHANNEL_ID
     ) {
       continue
     }
@@ -503,11 +588,7 @@ function buildRatePlanPayload(row: MappingPriceRow): Record<string, unknown> {
 }
 
 export function getChannelName(channelId: string): string {
-  if (channelId === AIRBNB_CHANNEL_ID) {
-    return 'Airbnb'
-  }
-
-  return 'Booking.com'
+  return CHANNEL_DISPLAY_NAMES[channelId] || 'Unknown'
 }
 
 export function getChannelRoomTypeId(channelId: string): string {
@@ -515,7 +596,8 @@ export function getChannelRoomTypeId(channelId: string): string {
     return LOCAL_AIRBNB_LISTING_ID
   }
 
-  return LOCAL_BOOKING_ROOM_TYPE_ID
+  const definition = BOOKING_STYLE_CHANNEL_DEFINITIONS[channelId]
+  return definition ? definition.roomTypeId : `LOCAL-${channelId}-ROOM`
 }
 
 export function getChannelRatePlanId(channelId: string): string {
@@ -523,7 +605,17 @@ export function getChannelRatePlanId(channelId: string): string {
     return LOCAL_AIRBNB_RATE_PLAN_ID
   }
 
-  return LOCAL_BOOKING_RATE_PLAN_ID
+  const definition = BOOKING_STYLE_CHANNEL_DEFINITIONS[channelId]
+  return definition ? definition.ratePlanId : `LOCAL-${channelId}-STD`
+}
+
+export function getChannelFlexRatePlanId(channelId: string): string {
+  if (channelId === AIRBNB_CHANNEL_ID) {
+    return LOCAL_AIRBNB_RATE_PLAN_ID
+  }
+
+  const definition = BOOKING_STYLE_CHANNEL_DEFINITIONS[channelId]
+  return definition ? definition.flexRatePlanId : `LOCAL-${channelId}-FLEX`
 }
 
 export function buildChannelRatePlanCombo(channelId: string, ratePlanId?: string): string {
@@ -722,8 +814,29 @@ export function updateBookingRatePlanMap(body: BookingRatePlanMapWriteBody): Map
     }
   }
 
+  // 显式 channelid 必须落在 Booking 系（OTA_RatePlanMap 形态）渠道；缺省保持 Booking 兼容旧行为。
+  const requestedChannelId = normalizeText(body.channelid)
+  let channelDefinition = BOOKING_STYLE_CHANNEL_DEFINITIONS[BOOKING_CHANNEL_ID]
+  if (requestedChannelId) {
+    const resolvedDefinition = BOOKING_STYLE_CHANNEL_DEFINITIONS[requestedChannelId]
+    if (!resolvedDefinition) {
+      return {
+        statusCode: 400,
+        body: {
+          Status: 'Fail',
+          Errors: {
+            ShortText: `Unsupported channelid for booking-style rate plan map: ${requestedChannelId}`,
+          },
+        },
+      }
+    }
+    channelDefinition = resolvedDefinition
+  }
+  const channelId = channelDefinition.channelId
+
   const rowKey = buildBookingRowKey({
     hotelId,
+    channelId,
     channelHotelId: channelHotelId || undefined,
     roomId: roomId || undefined,
     rateId: rateId || undefined,
@@ -731,7 +844,7 @@ export function updateBookingRatePlanMap(body: BookingRatePlanMapWriteBody): Map
     channelRateId: channelRateId || undefined,
     applicableNoOfGuest,
   })
-  ensureState(hotelId, BOOKING_CHANNEL_ID)
+  ensureState(hotelId, channelId)
   const row = findRowByKey('booking-rate-plan-map', rowKey)
 
   if (!row) {
@@ -740,7 +853,7 @@ export function updateBookingRatePlanMap(body: BookingRatePlanMapWriteBody): Map
       endpoint: 'booking-rate-plan-map',
       rowKey,
       hotelId,
-      channelId: BOOKING_CHANNEL_ID,
+      channelId,
       multiplier,
       surcharge,
       outcome: 'not_found',
@@ -765,7 +878,7 @@ export function updateBookingRatePlanMap(body: BookingRatePlanMapWriteBody): Map
       endpoint: 'booking-rate-plan-map',
       rowKey,
       hotelId,
-      channelId: BOOKING_CHANNEL_ID,
+      channelId,
       multiplier,
       surcharge,
       outcome: 'injected_failure',
@@ -784,7 +897,7 @@ export function updateBookingRatePlanMap(body: BookingRatePlanMapWriteBody): Map
     endpoint: 'booking-rate-plan-map',
     rowKey,
     hotelId,
-    channelId: BOOKING_CHANNEL_ID,
+    channelId,
     multiplier,
     surcharge,
     outcome: 'success',
@@ -794,7 +907,7 @@ export function updateBookingRatePlanMap(body: BookingRatePlanMapWriteBody): Map
     statusCode: 200,
     body: {
       Status: 'Success',
-      Message: 'Local Booking rate plan mapping updated',
+      Message: `Local ${channelDefinition.displayName} rate plan mapping updated`,
       RowKey: rowKey,
       Data: {
         channelhotelid: body.channelhotelid,

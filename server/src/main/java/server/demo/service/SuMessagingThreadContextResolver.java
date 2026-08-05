@@ -7,6 +7,7 @@ import server.demo.entity.Room;
 import server.demo.entity.RoomType;
 import server.demo.entity.SuMessageThread;
 import server.demo.repository.ReservationRepository;
+import server.demo.util.SuChannelCatalog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -280,6 +281,9 @@ public class SuMessagingThreadContextResolver {
         if ("BOOKING".equalsIgnoreCase(normalized) || "BOOKING.COM".equalsIgnoreCase(normalized)) {
             return SuMessagingService.CHANNEL_BOOKING;
         }
+        if ("EXPEDIA".equalsIgnoreCase(normalized)) {
+            return SuMessagingService.CHANNEL_EXPEDIA;
+        }
         try {
             return Integer.parseInt(normalized);
         } catch (NumberFormatException ignored) {
@@ -291,13 +295,9 @@ public class SuMessagingThreadContextResolver {
         if (channelId == null) {
             return null;
         }
-        if (channelId == SuMessagingService.CHANNEL_AIRBNB) {
-            return "Airbnb";
-        }
-        if (channelId == SuMessagingService.CHANNEL_BOOKING) {
-            return "Booking.com";
-        }
-        return "CHANNEL_" + channelId;
+        return SuChannelCatalog.bySuId(channelId)
+                .map(SuChannelCatalog.SuChannel::displayName)
+                .orElse("CHANNEL_" + channelId);
     }
 
     private static String firstNonBlank(String first, String second) {

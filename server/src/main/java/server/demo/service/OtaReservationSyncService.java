@@ -19,6 +19,7 @@ import server.demo.repository.ReservationRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.repository.SuMessageThreadRepository;
 import server.demo.repository.UserRepository;
+import server.demo.util.SuChannelCatalog;
 import server.demo.util.SuHotelIdUtil;
 import server.demo.util.SuReservationParser;
 import server.demo.util.SuRoomIdParser;
@@ -53,10 +54,8 @@ public class OtaReservationSyncService {
     private static final String OTA_CHANNEL_CODE_BOOKING = "BOOKING";
     private static final int RESERVATION_GUEST_PHONE_MAX_LENGTH = 255;
 
-    private static final List<String> SUPPORTED_CHANNEL_CODES = List.of(
-            OTA_CHANNEL_CODE_AIRBNB,
-            OTA_CHANNEL_CODE_BOOKING
-    );
+    private static final List<String> SUPPORTED_CHANNEL_CODES =
+            List.copyOf(SuChannelCatalog.supportedReservationChannelCodes());
 
     private final SuApiClient suApiClient;
     private final StoreRepository storeRepository;
@@ -584,10 +583,15 @@ public class OtaReservationSyncService {
             String suReservationId = SuReservationParser.extractReservationId(reservationNode);
             String rawChannelBookingId =
                     SuReservationParser.extractChannelBookingId(reservationNode);
-            String channelCode = SuReservationParser.mapOtaChannelCode(
-                    SuReservationParser.extractOtaCode(reservationNode)
-            );
+            String otaCode = SuReservationParser.extractOtaCode(reservationNode);
+            String channelCode = SuReservationParser.mapOtaChannelCode(otaCode);
             if (channelCode == null) {
+                reservationLogger.warn(
+                        "[ReservationUpsert] lock inventory skip unsupported ota. storeId={}, reservationId={}, otaCode={}",
+                        storeId,
+                        suReservationId,
+                        otaCode
+                );
                 continue;
             }
             String channelBookingId = resolveCanonicalChannelBookingId(
@@ -759,7 +763,7 @@ public class OtaReservationSyncService {
 
             if (channelCode == null) {
                 skippedUnsupported++;
-                reservationLogger.info(
+                reservationLogger.warn(
                         "[ReservationUpsert] skip unsupported ota. storeId={}, hotelId={}, reservationId={}, notifId={}, otaCode={}, status={}",
                         store.getId(),
                         suHotelId,
@@ -1275,7 +1279,7 @@ public class OtaReservationSyncService {
         return resolved;
     }
 
-    private void tryUpsertMessageThreadFromReservation(
+    void tryUpsertMessageThreadFromReservation(
             Long storeId,
             String suHotelId,
             String channelCode,
@@ -1309,7 +1313,13 @@ public class OtaReservationSyncService {
                 return;
             }
             threadKey = threadId.trim();
+        } else if (suChannelId == SuMessagingService.CHANNEL_EXPEDIA) {
+            // Expedia 官方 bookingid 必填，与 Booking 同以 bookingid 为会话键。
+            // listingid 沿用现有通用策略（resolveThreadListingForReservation：webhook channel_room_id
+            // 优先，其次显式 listing/remarks，最后 ota_room_id 兜底），待真实 Expedia 载荷验证。
+            threadKey = bookingId.trim();
         } else {
+            // TRIP(339)/AGODA(189)：Su 官方不支持消息/评论，不建消息线程
             return;
         }
 
@@ -1384,18 +1394,10 @@ public class OtaReservationSyncService {
         }
     }
 
-    private static Integer toSuChannelId(String channelCode) {
-        if (channelCode == null) {
-            return null;
-        }
-        String normalized = channelCode.trim().toUpperCase();
-        if ("BOOKING".equals(normalized) || "BOOKING.COM".equals(normalized)) {
-            return SuMessagingService.CHANNEL_BOOKING;
-        }
-        if ("AIRBNB".equals(normalized)) {
-            return SuMessagingService.CHANNEL_AIRBNB;
-        }
-        return null;
+    static Integer toSuChannelId(String channelCode) {
+        return SuChannelCatalog.byCode(channelCode)
+                .map(SuChannelCatalog.SuChannel::suId)
+                .orElse(null);
     }
 
     private static String summarizeReservationNodes(List<JsonNode> nodes, int maxItems) {

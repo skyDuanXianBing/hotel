@@ -10,6 +10,7 @@ import server.demo.enums.ReservationStatus;
 import server.demo.enums.RoomStatus;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomRepository;
+import server.demo.util.SuChannelCatalog;
 import server.demo.util.SuRoomIdUtil;
 
 import java.time.LocalDate;
@@ -38,8 +39,8 @@ public class SuAvailabilitySyncService {
     private static final int DEFAULT_DAYS = 365;
     private static final int MAX_DAYS = 500;
 
-    // Su OTACode：Booking=19，Airbnb=244（与现有 OtaSyncService 口径保持一致）
-    private static final List<Integer> DEFAULT_SU_OTA_CODES = List.of(19, 244);
+    // Su OTACode 默认推送范围：目录全量（与 OtaSyncService 口径一致，随 SuChannelCatalog 扩展）
+    private static final List<Integer> DEFAULT_SU_OTA_CODES = SuChannelCatalog.allSuIds();
 
     private static final Set<ReservationStatus> BLOCKING_RESERVATION_STATUSES = EnumSet.of(
             ReservationStatus.REQUESTED,

@@ -144,6 +144,9 @@ const SU_PROXY_HEADER_CLIENT_ID = 'X-Su-Client-Id'
 const LOCAL_MOCK_CHANNEL_ID_HEADER = 'X-Su-Channel-Id'
 const BOOKING_LOCAL_MOCK_CHANNEL_ID = '19'
 const AIRBNB_LOCAL_MOCK_CHANNEL_ID = '244'
+const EXPEDIA_LOCAL_MOCK_CHANNEL_ID = '9'
+const TRIP_LOCAL_MOCK_CHANNEL_ID = '339'
+const AGODA_LOCAL_MOCK_CHANNEL_ID = '189'
 
 let uninstallSuConfigProxy: null | (() => void) = null
 let lastChannelHotelDeniedToastAt = 0
@@ -213,7 +216,10 @@ const resolveAllowedLocalMockChannelId = (
   const normalizedChannelId = channelId?.trim() || ''
   if (
     normalizedChannelId === BOOKING_LOCAL_MOCK_CHANNEL_ID ||
-    normalizedChannelId === AIRBNB_LOCAL_MOCK_CHANNEL_ID
+    normalizedChannelId === AIRBNB_LOCAL_MOCK_CHANNEL_ID ||
+    normalizedChannelId === EXPEDIA_LOCAL_MOCK_CHANNEL_ID ||
+    normalizedChannelId === TRIP_LOCAL_MOCK_CHANNEL_ID ||
+    normalizedChannelId === AGODA_LOCAL_MOCK_CHANNEL_ID
   ) {
     return normalizedChannelId
   }

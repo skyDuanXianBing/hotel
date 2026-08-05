@@ -432,16 +432,22 @@ public final class SuReservationParser {
         return null;
     }
 
+    /**
+     * 订单载荷渠道标识（reservation.affiliation.OTA_Code，数字字符串）→ 内部渠道 code。
+     * 改查 {@link SuChannelCatalog}；非数字或目录外的 channel_id 返回 null，
+     * 调用方（OtaReservationSyncService）对 null 保持跳过语义不变。
+     */
     public static String mapOtaChannelCode(String otaCode) {
         if (otaCode == null || otaCode.isBlank()) {
             return null;
         }
-        String normalized = otaCode.trim();
-        return switch (normalized) {
-            case "244" -> "AIRBNB";
-            case "19" -> "BOOKING";
-            default -> null;
-        };
+        Integer suId = parseInt(otaCode);
+        if (suId == null) {
+            return null;
+        }
+        return SuChannelCatalog.bySuId(suId)
+                .map(SuChannelCatalog.SuChannel::code)
+                .orElse(null);
     }
 
     public static LocalDate extractArrivalDate(JsonNode reservation, JsonNode roomStay) {

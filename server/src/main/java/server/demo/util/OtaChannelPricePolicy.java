@@ -6,6 +6,8 @@ import server.demo.enums.PriceAdjustmentType;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 
 public final class OtaChannelPricePolicy {
@@ -14,11 +16,8 @@ public final class OtaChannelPricePolicy {
     public static final String CHANNEL_CODE_BOOKING = "BOOKING";
     public static final String CHANNEL_CODE_BOOKING_COM = "BOOKING.COM";
 
-    private static final Set<String> SU_MAPPING_MULTIPLIER_CHANNELS = Set.of(
-            CHANNEL_CODE_AIRBNB,
-            CHANNEL_CODE_BOOKING,
-            CHANNEL_CODE_BOOKING_COM
-    );
+    // Su 映射倍率渠道 = 渠道目录全集（BOOKING/AIRBNB/EXPEDIA/TRIP/AGODA）+ BOOKING.COM 历史别名
+    private static final Set<String> SU_MAPPING_MULTIPLIER_CHANNELS = buildSuMappingMultiplierChannels();
 
     private OtaChannelPricePolicy() {
     }
@@ -111,5 +110,11 @@ public final class OtaChannelPricePolicy {
         }
         String normalized = channelCode.trim().toUpperCase();
         return normalized.isBlank() ? null : normalized;
+    }
+
+    private static Set<String> buildSuMappingMultiplierChannels() {
+        Set<String> codes = new HashSet<>(SuChannelCatalog.allCodes());
+        codes.add(CHANNEL_CODE_BOOKING_COM);
+        return Collections.unmodifiableSet(codes);
     }
 }

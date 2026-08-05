@@ -308,7 +308,7 @@ const rowValueByKey = ref<Record<string, string>>({})
 const relativePreviewByKey = ref<Record<string, RelativeRangePreview>>({})
 const relativeDateValuesByKey = ref<Record<string, Record<string, number>>>({})
 const channelAdjustments = ref<ChannelAdjustmentPreview[]>([])
-const PRICE_RATIO_VISIBLE_CHANNEL_CODES = new Set(['AIRBNB', 'BOOKING'])
+const PRICE_RATIO_VISIBLE_CHANNEL_CODES = new Set(['AIRBNB', 'BOOKING', 'EXPEDIA', 'TRIP', 'AGODA'])
 
 const AUTO_APPLY_DEBOUNCE_MS = 300
 let autoApplyTimer: ReturnType<typeof setTimeout> | null = null

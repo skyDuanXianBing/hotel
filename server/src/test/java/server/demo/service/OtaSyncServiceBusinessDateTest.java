@@ -73,7 +73,7 @@ class OtaSyncServiceBusinessDateTest {
                 storeId,
                 tokyoDate,
                 2,
-                List.of("AIRBNB", "BOOKING"),
+                List.of("BOOKING", "AIRBNB", "EXPEDIA", "TRIP", "AGODA"),
                 null
         );
     }
@@ -95,7 +95,7 @@ class OtaSyncServiceBusinessDateTest {
                 storeId,
                 explicitStartDate,
                 2,
-                List.of("AIRBNB", "BOOKING"),
+                List.of("BOOKING", "AIRBNB", "EXPEDIA", "TRIP", "AGODA"),
                 null
         );
     }

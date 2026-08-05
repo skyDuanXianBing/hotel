@@ -67,6 +67,9 @@ const {
           <select v-model="messagingForm.channel">
             <option value="AIRBNB">AIRBNB</option>
             <option value="BOOKING">BOOKING</option>
+            <option value="EXPEDIA">EXPEDIA</option>
+            <option value="TRIP_COM">TRIP_COM</option>
+            <option value="AGODA">AGODA</option>
           </select>
         </label>
         <label class="field">

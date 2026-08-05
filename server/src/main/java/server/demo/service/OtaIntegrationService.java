@@ -1,6 +1,8 @@
 package server.demo.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +15,7 @@ import server.demo.entity.Store;
 import server.demo.repository.OtaIntegrationRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.util.StoreTimeZoneUtil;
+import server.demo.util.SuChannelCatalog;
 import server.demo.util.SuHotelIdUtil;
 
 import java.time.Clock;
@@ -23,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import server.demo.i18n.ApiMessages;
@@ -31,6 +35,8 @@ import server.demo.i18n.ApiMessages;
  */
 @Service
 public class OtaIntegrationService {
+
+    private static final Logger logger = LoggerFactory.getLogger(OtaIntegrationService.class);
 
     private final OtaIntegrationRepository otaIntegrationRepository;
     private final SuApiClient suApiClient;
@@ -48,7 +54,10 @@ public class OtaIntegrationService {
      */
     private static final List<OtaConfig> DEFAULT_OTA_CONFIGS = List.of(
             new OtaConfig("Airbnb", "AIRBNB", "https://upload.wikimedia.org/wikipedia/commons/6/69/Airbnb_Logo_B%C3%A9lo.svg"),
-            new OtaConfig("Booking.com", "BOOKING", "https://upload.wikimedia.org/wikipedia/commons/b/be/Booking.com_logo.svg")
+            new OtaConfig("Booking.com", "BOOKING", "https://upload.wikimedia.org/wikipedia/commons/b/be/Booking.com_logo.svg"),
+            new OtaConfig("Expedia", "EXPEDIA", "https://upload.wikimedia.org/wikipedia/commons/5/5b/Expedia_2012_logo.svg"),
+            new OtaConfig("Trip.com", "TRIP", "https://ak-d.tripcdn.com/images/0ww5h12000c6vhxm53B87.png"),
+            new OtaConfig("Agoda", "AGODA", "https://cdn.worldvectorlogo.com/logos/agoda-1.svg")
     );
 
     @Autowired
@@ -83,9 +92,10 @@ public class OtaIntegrationService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         List<OtaIntegration> integrations = otaIntegrationRepository.findByStoreId(storeId);
 
-        // 如果门店没有OTA配置，则初始化默认配置
-        if (integrations.isEmpty()) {
-            integrations = initializeDefaultOtaIntegrations(storeId);
+        // 幂等补齐缺失的默认 OTA 渠道配置（新渠道上线后存量门店自动可见连接卡片）
+        List<OtaIntegration> created = initializeDefaultOtaIntegrations(storeId);
+        if (!created.isEmpty()) {
+            integrations = otaIntegrationRepository.findByStoreId(storeId);
         }
 
         return integrations.stream()
@@ -333,18 +343,10 @@ public class OtaIntegrationService {
         return "zn";
     }
 
-    private static String resolveSuWidgetChannelId(String otaCode) {
-        if (otaCode == null) {
-            return "";
-        }
-        String code = otaCode.trim().toUpperCase();
-        if ("BOOKING".equals(code) || "BOOKING.COM".equals(code)) {
-            return "19";
-        }
-        if ("AIRBNB".equals(code)) {
-            return "244";
-        }
-        return "";
+    static String resolveSuWidgetChannelId(String otaCode) {
+        return SuChannelCatalog.byCode(otaCode)
+                .map(channel -> String.valueOf(channel.suId()))
+                .orElse("");
     }
 
     /**
@@ -473,18 +475,15 @@ public class OtaIntegrationService {
         );
     }
 
-    private static List<Integer> resolveSuOtaCodes(OtaIntegration integration) {
-        if (integration == null || integration.getCode() == null) {
-            return List.of(19, 244);
+    static List<Integer> resolveSuOtaCodes(OtaIntegration integration) {
+        String code = integration != null ? integration.getCode() : null;
+        Optional<SuChannelCatalog.SuChannel> channel = SuChannelCatalog.byCode(code);
+        if (channel.isPresent()) {
+            return List.of(channel.get().suId());
         }
-        String code = integration.getCode().trim().toUpperCase();
-        if ("BOOKING".equals(code) || "BOOKING.COM".equals(code)) {
-            return List.of(19);
-        }
-        if ("AIRBNB".equals(code)) {
-            return List.of(244);
-        }
-        return List.of(19, 244);
+        // 未识别渠道不得默认误推 Booking/Airbnb：退回目录全集并记告警，由 Su 侧按映射关系过滤
+        logger.warn("[OtaIntegration] 未识别的 OTA 渠道，Su 房价/库存推送将使用渠道目录全集. code={}", code);
+        return SuChannelCatalog.allSuIds();
     }
 
     @Transactional(readOnly = true)

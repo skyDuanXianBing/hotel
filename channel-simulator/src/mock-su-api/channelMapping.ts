@@ -5,6 +5,7 @@ import { deflateSync } from 'node:zlib'
 
 import tokenValidator from './tokenValidator'
 import {
+  AGODA_CHANNEL_ID,
   AIRBNB_CHANNEL_ID,
   BOOKING_CHANNEL_ID,
   DEFAULT_CHANNEL_ID,
@@ -13,12 +14,13 @@ import {
   DEFAULT_RATE_PLAN_NAME,
   DEFAULT_ROOM_ID,
   DEFAULT_ROOM_NAME,
+  EXPEDIA_CHANNEL_ID,
   KNOWN_CHANNEL_IDS,
-  LOCAL_AIRBNB_RATE_PLAN_ID,
-  LOCAL_BOOKING_FLEX_RATE_PLAN_ID,
+  TRIP_COM_CHANNEL_ID,
   retrieveAirbnbListing,
   buildChannelRatePlanCombo,
   buildMappingItems,
+  getChannelFlexRatePlanId,
   getChannelName,
   getChannelRatePlanId,
   getChannelRoomTypeId,
@@ -31,7 +33,7 @@ const { v4: uuidv4 } = require('uuid') as { v4: () => string }
 
 const router = express.Router()
 
-export { AIRBNB_CHANNEL_ID, BOOKING_CHANNEL_ID }
+export { AGODA_CHANNEL_ID, AIRBNB_CHANNEL_ID, BOOKING_CHANNEL_ID, EXPEDIA_CHANNEL_ID, TRIP_COM_CHANNEL_ID }
 
 const LOCAL_MOCK_CHANNEL_ID_HEADER = 'x-su-channel-id'
 const CHANNEL_CATEGORY_NAME = 'Online Travel Agents'
@@ -252,6 +254,15 @@ export function resolveChannelId(body: SuMappingRequestBody, headerChannelId?: u
     }
   }
 
+  // 显式传入但未知的 channel id 必须显式报错，禁止静默回落到默认渠道造成串数据。
+  const providedChannelId = candidates.find((channelId) => channelId !== null)
+  if (providedChannelId) {
+    throw new Error(
+      `Unknown channel id: ${providedChannelId}. Known channel ids: ${KNOWN_CHANNEL_IDS.join(', ')}`,
+    )
+  }
+
+  // 完全未指定渠道时才回落默认渠道（兼容旧 PMS 请求）。
   return DEFAULT_CHANNEL_ID
 }
 
@@ -341,8 +352,7 @@ function buildChannelPasswordResponse(body: SuMappingRequestBody, headerChannelI
   const channelRoomTypeId = getChannelRoomTypeId(channelId)
   const channelRatePlanId = getChannelRatePlanId(channelId)
   const channelRatePlanCombo = buildChannelRatePlanCombo(channelId)
-  const flexibleRatePlanId =
-    channelId === AIRBNB_CHANNEL_ID ? LOCAL_AIRBNB_RATE_PLAN_ID : LOCAL_BOOKING_FLEX_RATE_PLAN_ID
+  const flexibleRatePlanId = getChannelFlexRatePlanId(channelId)
 
   return {
     success: true,
@@ -443,6 +453,9 @@ function buildChannelListResponse() {
         [CHANNEL_CATEGORY_NAME]: [
           buildChannelCard(BOOKING_CHANNEL_ID, true),
           buildChannelCard(AIRBNB_CHANNEL_ID, true),
+          buildChannelCard(EXPEDIA_CHANNEL_ID, true),
+          buildChannelCard(TRIP_COM_CHANNEL_ID, true),
+          buildChannelCard(AGODA_CHANNEL_ID, true),
         ],
       },
     },
@@ -454,8 +467,7 @@ export function buildOtaRatePlanPullResponse(body: SuMappingRequestBody, headerC
   const channelName = getChannelName(channelId)
   const channelRoomTypeId = getChannelRoomTypeId(channelId)
   const channelRatePlanId = getChannelRatePlanId(channelId)
-  const flexibleRatePlanId =
-    channelId === AIRBNB_CHANNEL_ID ? LOCAL_AIRBNB_RATE_PLAN_ID : LOCAL_BOOKING_FLEX_RATE_PLAN_ID
+  const flexibleRatePlanId = getChannelFlexRatePlanId(channelId)
 
   return {
     success: true,
@@ -504,10 +516,29 @@ function buildMappingsResponse(hotelId: string, channelId: string | null) {
     return response
   }
 
-  const resolvedChannelId = KNOWN_CHANNEL_IDS.includes(channelId) ? channelId : DEFAULT_CHANNEL_ID
+  if (!KNOWN_CHANNEL_IDS.includes(channelId)) {
+    throw new Error(
+      `Unknown channel id: ${channelId}. Known channel ids: ${KNOWN_CHANNEL_IDS.join(', ')}`,
+    )
+  }
+
   return {
     Status: 'Success',
-    [resolvedChannelId]: buildMappingItems(hotelId, resolvedChannelId),
+    [channelId]: buildMappingItems(hotelId, channelId),
+  }
+}
+
+function respondWithConfigRoute(res: Response, buildResponse: () => unknown): void {
+  try {
+    res.json(buildResponse())
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    res.status(400).json({
+      Status: 'Fail',
+      Errors: {
+        ShortText: message,
+      },
+    })
   }
 }
 
@@ -537,7 +568,7 @@ router.post('/SUAPI/jservice/mappings', tokenValidator, (req: Request, res: Resp
     return
   }
 
-  res.json(buildMappingsResponse(hotelId, channelId))
+  respondWithConfigRoute(res, () => buildMappingsResponse(hotelId, channelId))
 })
 
 router.post('/SUAPI/jservice/OTA_RatePlanMap', tokenValidator, (req: Request, res: Response) => {
@@ -727,7 +758,9 @@ router.post('/Config/jservice/channelmap/getMappingMasterData', (req: Request, r
   // eslint-disable-next-line no-console
   console.log(chalk.gray(JSON.stringify(req.body, null, 2)))
 
-  res.json(buildMasterDataResponse(req.body as SuMappingRequestBody, req.get(LOCAL_MOCK_CHANNEL_ID_HEADER)))
+  respondWithConfigRoute(res, () =>
+    buildMasterDataResponse(req.body as SuMappingRequestBody, req.get(LOCAL_MOCK_CHANNEL_ID_HEADER)),
+  )
 })
 
 router.post('/Config/jservice/channelmap/getChannelPasswordData', (req: Request, res: Response) => {
@@ -736,7 +769,9 @@ router.post('/Config/jservice/channelmap/getChannelPasswordData', (req: Request,
   // eslint-disable-next-line no-console
   console.log(chalk.gray(JSON.stringify(req.body, null, 2)))
 
-  res.json(buildChannelPasswordResponse(req.body as SuMappingRequestBody, req.get(LOCAL_MOCK_CHANNEL_ID_HEADER)))
+  respondWithConfigRoute(res, () =>
+    buildChannelPasswordResponse(req.body as SuMappingRequestBody, req.get(LOCAL_MOCK_CHANNEL_ID_HEADER)),
+  )
 })
 
 router.post('/Config/jservice/channelmap/getChannelList', (req: Request, res: Response) => {
@@ -781,7 +816,9 @@ router.post('/Config/jservice/OTARateplanPull', (req: Request, res: Response) =>
   // eslint-disable-next-line no-console
   console.log(chalk.gray(JSON.stringify(req.body, null, 2)))
 
-  res.json(buildOtaRatePlanPullResponse(req.body as SuMappingRequestBody, req.get(LOCAL_MOCK_CHANNEL_ID_HEADER)))
+  respondWithConfigRoute(res, () =>
+    buildOtaRatePlanPullResponse(req.body as SuMappingRequestBody, req.get(LOCAL_MOCK_CHANNEL_ID_HEADER)),
+  )
 })
 
 router.post('/Config/jservice/getOTARateplanPull', (req: Request, res: Response) => {
@@ -790,7 +827,9 @@ router.post('/Config/jservice/getOTARateplanPull', (req: Request, res: Response)
   // eslint-disable-next-line no-console
   console.log(chalk.gray(JSON.stringify(req.body, null, 2)))
 
-  res.json(buildOtaRatePlanPullResponse(req.body as SuMappingRequestBody, req.get(LOCAL_MOCK_CHANNEL_ID_HEADER)))
+  respondWithConfigRoute(res, () =>
+    buildOtaRatePlanPullResponse(req.body as SuMappingRequestBody, req.get(LOCAL_MOCK_CHANNEL_ID_HEADER)),
+  )
 })
 
 export default router

@@ -7,8 +7,15 @@ import type {
 } from '../pms-client'
 
 export type E2ERunMode = 'PUSH' | 'PULL'
-export type E2EChannelCode = 'BOOKING' | 'AIRBNB'
-export type E2ERunScenario = 'NEW' | 'MULTI_ROOM' | 'AIRBNB_NEW'
+export type E2EChannelCode = 'BOOKING' | 'AIRBNB' | 'EXPEDIA' | 'TRIP_COM' | 'AGODA'
+export type E2ERunScenario =
+  | 'NEW'
+  | 'MULTI_ROOM'
+  | 'AIRBNB_NEW'
+  | 'EXPEDIA_NEW'
+  | 'TRIP_COM_NEW'
+  | 'AGODA_NEW'
+export type E2EOtaCode = 19 | 244 | 9 | 339 | 189
 export type E2ELifecycleStepName = 'new' | 'modification' | 'cancellation'
 export type E2ERunStatus = 'CREATED' | 'SENT' | 'FAILED'
 export type E2ERunStepStatus = 'SUCCESS' | 'FAILED'
@@ -26,7 +33,7 @@ export interface CreateE2ERunRequest {
 export interface NormalizedCreateE2ERunRequest {
   mode: E2ERunMode
   scenario: E2ERunScenario
-  otaCode: 19 | 244
+  otaCode: E2EOtaCode
   channel: E2EChannelCode
   roomTypeId: number | null
   roomId: number | null
@@ -41,7 +48,7 @@ export interface E2ERunGeneratedIds {
   roomReservationId: string
   roomReservationIds: string[]
   notifId: string
-  otaCode: 19 | 244
+  otaCode: E2EOtaCode
   channel: E2EChannelCode
   roomPayloadId: string
   roomPayloadIds: string[]

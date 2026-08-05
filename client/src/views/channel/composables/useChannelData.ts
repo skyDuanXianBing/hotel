@@ -62,6 +62,9 @@ const resolveSuChannelId = (code: string): string | null => {
   const normalized = (code || '').trim().toUpperCase()
   if (normalized === 'BOOKING' || normalized === 'BOOKING.COM') return '19'
   if (normalized === 'AIRBNB') return '244'
+  if (normalized === 'EXPEDIA') return '9'
+  if (normalized === 'TRIP') return '339'
+  if (normalized === 'AGODA') return '189'
   return null
 }
 

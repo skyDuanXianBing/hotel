@@ -23,6 +23,7 @@ import server.demo.repository.ReservationRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.repository.SuMessageThreadRepository;
 import server.demo.util.AutoMessageTemplateRenderer;
+import server.demo.util.SuChannelCatalog;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -295,14 +296,12 @@ public class RegistrationMessageService {
         if (reservation == null || reservation.getChannel() == null || reservation.getChannel().getCode() == null) {
             return null;
         }
-        String normalized = reservation.getChannel().getCode().trim().toUpperCase();
-        if ("BOOKING".equals(normalized) || "BOOKING.COM".equals(normalized)) {
-            return SuMessagingService.CHANNEL_BOOKING;
-        }
-        if ("AIRBNB".equals(normalized)) {
-            return SuMessagingService.CHANNEL_AIRBNB;
-        }
-        return null;
+        // 投递通道为 Su OTA Messages API（经 SuMessagingService.sendMessage → messagingAB）：
+        // 仅官方支持消息的渠道可映射（BOOKING/AIRBNB/EXPEDIA）；TRIP/AGODA 官方不支持消息，保持排除
+        return SuChannelCatalog.byCode(reservation.getChannel().getCode())
+                .filter(channel -> SuChannelCatalog.isMessagingSupportedSuId(channel.suId()))
+                .map(SuChannelCatalog.SuChannel::suId)
+                .orElse(null);
     }
 
     private Map<String, String> buildVariables(Store store, Reservation reservation) {

@@ -31,7 +31,7 @@ export const suReviewMessages = {
       page: {
         eyebrow: '渠道声誉',
         title: '评价中心',
-        description: '集中处理 Airbnb 与 Booking.com 客评，并查看关联订单和渠道资格。',
+        description: '集中处理 Airbnb、Booking.com 与 Expedia 客评，并查看关联订单和渠道资格。',
       },
       tabs: {
         ALL: '全部',
@@ -99,6 +99,7 @@ export const suReviewMessages = {
       channels: {
         AIRBNB: 'Airbnb',
         BOOKING: 'Booking.com',
+        EXPEDIA: 'Expedia',
       },
       reviewTypes: {
         GUEST_TO_HOST: '住客评价房源',
@@ -264,7 +265,7 @@ export const suReviewMessages = {
       page: {
         eyebrow: '渠道聲譽',
         title: '評價中心',
-        description: '集中處理 Airbnb 與 Booking.com 客評，並查看關聯訂單和渠道資格。',
+        description: '集中處理 Airbnb、Booking.com 與 Expedia 客評，並查看關聯訂單和渠道資格。',
       },
       tabs: {
         ALL: '全部',
@@ -332,6 +333,7 @@ export const suReviewMessages = {
       channels: {
         AIRBNB: 'Airbnb',
         BOOKING: 'Booking.com',
+        EXPEDIA: 'Expedia',
       },
       reviewTypes: {
         GUEST_TO_HOST: '住客評價房源',
@@ -498,7 +500,7 @@ export const suReviewMessages = {
         eyebrow: 'Channel reputation',
         title: 'Review Center',
         description:
-          'Handle Airbnb and Booking.com reviews with linked reservation context and channel eligibility.',
+          'Handle Airbnb, Booking.com and Expedia reviews with linked reservation context and channel eligibility.',
       },
       tabs: {
         ALL: 'All',
@@ -566,6 +568,7 @@ export const suReviewMessages = {
       channels: {
         AIRBNB: 'Airbnb',
         BOOKING: 'Booking.com',
+        EXPEDIA: 'Expedia',
       },
       reviewTypes: {
         GUEST_TO_HOST: 'Guest reviewed property',
@@ -735,7 +738,7 @@ export const suReviewMessages = {
         eyebrow: 'チャネル評価',
         title: 'レビューセンター',
         description:
-          'Airbnb と Booking.com のレビューを、予約情報とチャネル資格とともに管理します。',
+          'Airbnb、Booking.com、Expedia のレビューを、予約情報とチャネル資格とともに管理します。',
       },
       tabs: {
         ALL: 'すべて',
@@ -803,6 +806,7 @@ export const suReviewMessages = {
       channels: {
         AIRBNB: 'Airbnb',
         BOOKING: 'Booking.com',
+        EXPEDIA: 'Expedia',
       },
       reviewTypes: {
         GUEST_TO_HOST: 'ゲストから施設への評価',

@@ -1071,6 +1071,7 @@ const UI_TEXT: Record<UiTextLocale, Record<string, string>> = {
     unknownOrder: 'Unknown',
     airbnb: 'Airbnb',
     booking: 'Booking.com',
+    expedia: 'Expedia',
     allChannels: 'All channels',
     routeTargetNotFound: 'No conversation matched this order. Try adjusting the filters.',
     listingLine: 'Listing: {listingName}',
@@ -1103,6 +1104,7 @@ const UI_TEXT: Record<UiTextLocale, Record<string, string>> = {
     unknownOrder: '未知',
     airbnb: 'Airbnb',
     booking: 'Booking.com',
+    expedia: 'Expedia',
     allChannels: '全部渠道',
     routeTargetNotFound: '没有匹配到该订单的会话，可调整筛选条件后重试。',
     listingLine: '房源：{listingName}',
@@ -1135,6 +1137,7 @@ const UI_TEXT: Record<UiTextLocale, Record<string, string>> = {
     unknownOrder: '不明',
     airbnb: 'Airbnb',
     booking: 'Booking.com',
+    expedia: 'Expedia',
     allChannels: 'すべてのチャネル',
     routeTargetNotFound: 'この予約に一致する会話が見つかりませんでした。',
     listingLine: 'リスティング：{listingName}',
@@ -1171,6 +1174,7 @@ const uiText = (key: string, options: UiTextOptions = {}) => {
 const channelFilterOptions = computed(() => [
   { value: 'AIRBNB' as const, label: uiText('airbnb') },
   { value: 'BOOKING' as const, label: uiText('booking') },
+  { value: 'EXPEDIA' as const, label: uiText('expedia') },
 ])
 
 const orderStatusFilterOptions = computed(() => [

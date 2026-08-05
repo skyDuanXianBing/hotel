@@ -26,6 +26,7 @@ import server.demo.repository.OtaIntegrationRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.util.OtaChannelPricePolicy;
 import server.demo.util.SmartLockMaskingUtils;
+import server.demo.util.SuChannelCatalog;
 import server.demo.util.SuHotelIdUtil;
 
 import java.math.BigDecimal;
@@ -54,8 +55,6 @@ public class ChannelMappingPriceSettingsService {
     private static final String CHANNEL_CODE_BOOKING_COM = OtaChannelPricePolicy.CHANNEL_CODE_BOOKING_COM;
     private static final String CHANNEL_CODE_AIRBNB = OtaChannelPricePolicy.CHANNEL_CODE_AIRBNB;
     private static final String STATUS_ACTIVE = "Active";
-    private static final String SU_CHANNEL_ID_BOOKING = "19";
-    private static final String SU_CHANNEL_ID_AIRBNB = "244";
     private static final String MAPPING_KEY_VERSION = "v1";
     private static final BigDecimal DEFAULT_MULTIPLIER = BigDecimal.ONE;
     private static final BigDecimal DEFAULT_SURCHARGE = BigDecimal.ZERO;
@@ -644,6 +643,7 @@ public class ChannelMappingPriceSettingsService {
 
         Map<String, Object> payload = buildBookingRatePlanMapPayload(
                 context.hotelId(),
+                context.suChannelId(),
                 target,
                 modifier,
                 preservedModifiersByRowKey
@@ -693,6 +693,7 @@ public class ChannelMappingPriceSettingsService {
 
     private Map<String, Object> buildBookingRatePlanMapPayload(
             String hotelId,
+            String suChannelId,
             MappingTarget target,
             PriceModifier modifier,
             Map<String, PriceModifier> preservedModifiersByRowKey
@@ -700,7 +701,8 @@ public class ChannelMappingPriceSettingsService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("hotelid", hotelId);
         payload.put("action", "setup");
-        payload.put("channelid", Integer.parseInt(SU_CHANNEL_ID_BOOKING));
+        // OTA_RatePlanMap 为通用端点：channelid 必须带当前渠道解析出的 Su channel id，避免误推到 Booking
+        payload.put("channelid", Integer.parseInt(suChannelId));
         payload.put("status", STATUS_ACTIVE);
         payload.put("channelhotelid", target.channelHotelId());
         payload.put("roomid", target.roomId());
@@ -1921,14 +1923,10 @@ public class ChannelMappingPriceSettingsService {
         return normalized;
     }
 
-    private static String resolveSuChannelId(String channelCode) {
-        if (CHANNEL_CODE_BOOKING.equals(channelCode)) {
-            return SU_CHANNEL_ID_BOOKING;
-        }
-        if (CHANNEL_CODE_AIRBNB.equals(channelCode)) {
-            return SU_CHANNEL_ID_AIRBNB;
-        }
-        return null;
+    static String resolveSuChannelId(String channelCode) {
+        return SuChannelCatalog.byCode(channelCode)
+                .map(channel -> String.valueOf(channel.suId()))
+                .orElse(null);
     }
 
     private static String resolveOperationId(String clientOperationId) {

@@ -445,7 +445,7 @@ export const settingsMessages = {
       },
       generalChannel: {
         notices: {
-          defaultChannels: 'Three channels are shown by default: Airbnb, Booking.com, and Direct.',
+          defaultChannels: 'Default OTA channels: Airbnb, Booking.com, Expedia, Trip.com, Agoda, plus Direct and Booking Engine.',
           presetProtected: 'System preset channels cannot be deleted. Added channels can be deleted as needed.',
         },
         available: 'Available Channels',
@@ -1255,7 +1255,7 @@ export const settingsMessages = {
       },
       generalChannel: {
         notices: {
-          defaultChannels: '默认展示三个渠道：Airbnb、Booking.com、自来客。',
+          defaultChannels: '默认 OTA 渠道：Airbnb、Booking.com、Expedia、Trip.com、Agoda，另有自来客与预订引擎。',
           presetProtected: '系统预设渠道不可删除；新增渠道可按需删除。',
         },
         available: '可用渠道',
@@ -2065,7 +2065,7 @@ export const settingsMessages = {
       },
       generalChannel: {
         notices: {
-          defaultChannels: '預設展示三個渠道：Airbnb、Booking.com、自來客。',
+          defaultChannels: '預設 OTA 渠道：Airbnb、Booking.com、Expedia、Trip.com、Agoda，另有自來客與預訂引擎。',
           presetProtected: '系統預設渠道不可刪除；新增渠道可按需刪除。',
         },
         available: '可用渠道',
@@ -2875,7 +2875,7 @@ export const settingsMessages = {
       },
       generalChannel: {
         notices: {
-          defaultChannels: 'デフォルトで Airbnb、Booking.com、直接予約の 3 チャネルを表示します。',
+          defaultChannels: 'デフォルトの OTA チャネル：Airbnb、Booking.com、Expedia、Trip.com、Agoda。ほかに直接予約と予約エンジンがあります。',
           presetProtected: 'システム既定チャネルは削除できません。追加したチャネルは必要に応じて削除できます。',
         },
         available: '利用可能なチャネル',

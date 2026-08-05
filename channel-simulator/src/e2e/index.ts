@@ -24,6 +24,7 @@ import { buildDynamicReservation, buildLifecycleReservations, normalizeRunReques
 import type {
   BuiltReservation,
   E2EBootstrapResponse,
+  E2EChannelCode,
   E2EReadinessResponse,
   E2ERunRecord,
   E2ERunStep,
@@ -39,8 +40,27 @@ const router = express.Router()
 
 const BOOKING_CHANNEL_ID = 19
 const AIRBNB_CHANNEL_ID = 244
+const EXPEDIA_CHANNEL_ID = 9
+const TRIP_COM_CHANNEL_ID = 339
+const AGODA_CHANNEL_ID = 189
 const LOCAL_AUTO_MESSAGE_ACTION = 'BOOKING_CONFIRM'
 const LOCAL_AUTO_MESSAGE_SEND_TIMING = 'IMMEDIATELY'
+
+const MESSAGING_CHANNEL_IDS: Record<E2EChannelCode, number> = {
+  BOOKING: BOOKING_CHANNEL_ID,
+  AIRBNB: AIRBNB_CHANNEL_ID,
+  EXPEDIA: EXPEDIA_CHANNEL_ID,
+  TRIP_COM: TRIP_COM_CHANNEL_ID,
+  AGODA: AGODA_CHANNEL_ID,
+}
+
+const MESSAGING_GUEST_NAMES: Record<E2EChannelCode, string> = {
+  BOOKING: 'Booking Guest',
+  AIRBNB: 'Airbnb Guest',
+  EXPEDIA: 'Expedia Guest',
+  TRIP_COM: 'Trip.com Guest',
+  AGODA: 'Agoda Guest',
+}
 
 function nowIso(): string {
   return new Date().toISOString()
@@ -142,15 +162,53 @@ function buildPullPayload(hotelId: string, notifId: string): Record<string, unkn
   }
 }
 
-function normalizeMessagingChannel(raw: unknown): 'BOOKING' | 'AIRBNB' {
+function normalizeMessagingChannel(raw: unknown): E2EChannelCode {
   const channel = String(raw || '').trim().toUpperCase()
   if (channel === 'BOOKING' || channel === '19') {
     return 'BOOKING'
   }
+  if (channel === 'EXPEDIA' || channel === '9') {
+    return 'EXPEDIA'
+  }
+  if (channel === 'TRIP_COM' || channel === '339') {
+    return 'TRIP_COM'
+  }
+  if (channel === 'AGODA' || channel === '189') {
+    return 'AGODA'
+  }
   if (channel === 'AIRBNB' || channel === '244' || channel === '') {
     return 'AIRBNB'
   }
-  throw new Error('channel must be BOOKING or AIRBNB')
+  throw new Error('channel must be BOOKING, AIRBNB, EXPEDIA, TRIP_COM, or AGODA')
+}
+
+function buildDefaultMessagingBookingId(channel: E2EChannelCode, runId: string): string {
+  if (channel === 'AIRBNB') {
+    return `AB-${runId.slice(0, 8)}`
+  }
+  if (channel === 'TRIP_COM') {
+    return `TC-${runId.slice(0, 8).toUpperCase()}`
+  }
+  if (channel === 'AGODA') {
+    return `AG-${runId.slice(0, 8).toUpperCase()}`
+  }
+  if (channel === 'EXPEDIA') {
+    return `70${Date.now().toString().slice(-10)}`
+  }
+  return `90${Date.now().toString().slice(-10)}`
+}
+
+function buildDefaultMessagingThreadId(channel: E2EChannelCode, runId: string, bookingId: string): string {
+  if (channel === 'AIRBNB') {
+    return `THREAD-${runId.slice(0, 12)}`
+  }
+  if (channel === 'TRIP_COM') {
+    return `TC-THREAD-${runId.slice(0, 12)}`
+  }
+  if (channel === 'AGODA') {
+    return `AG-THREAD-${runId.slice(0, 12)}`
+  }
+  return bookingId
 }
 
 function buildMessagingPayload(
@@ -158,16 +216,16 @@ function buildMessagingPayload(
   context: PmsReadinessData,
   rawBody: unknown,
 ): {
-  channel: 'BOOKING' | 'AIRBNB'
+  channel: E2EChannelCode
   ids: JsonObject
   payload: JsonObject
 } {
   const body = rawBody && typeof rawBody === 'object' ? (rawBody as JsonObject) : {}
   const channel = normalizeMessagingChannel(body.channel)
-  const channelId = channel === 'AIRBNB' ? AIRBNB_CHANNEL_ID : BOOKING_CHANNEL_ID
+  const channelId = MESSAGING_CHANNEL_IDS[channel]
   const messageId = String(body.messageId || body.externalMessageId || `E2E-MSG-${runId}`)
-  const bookingId = String(body.bookingId || (channel === 'AIRBNB' ? `AB-${runId.slice(0, 8)}` : `90${Date.now().toString().slice(-10)}`))
-  const threadId = String(body.threadId || (channel === 'AIRBNB' ? `THREAD-${runId.slice(0, 12)}` : bookingId))
+  const bookingId = String(body.bookingId || buildDefaultMessagingBookingId(channel, runId))
+  const threadId = String(body.threadId || buildDefaultMessagingThreadId(channel, runId, bookingId))
   const listingId = String(body.listingId || `LISTING-${context.storeId}`)
   const guestId = String(body.guestId || `GUEST-${runId.slice(0, 8)}`)
   const text = String(body.message || `Local E2E ${channel} guest message ${runId.slice(0, 8)}`)
@@ -196,7 +254,7 @@ function buildMessagingPayload(
         },
         {
           id: 311357532,
-          first_name: channel === 'AIRBNB' ? 'Airbnb Guest' : 'Booking Guest',
+          first_name: MESSAGING_GUEST_NAMES[channel],
           location: 'Local E2E',
           preferred_locale: 'en',
         },

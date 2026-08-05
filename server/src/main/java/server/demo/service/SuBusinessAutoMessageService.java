@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriUtils;
 import server.demo.dto.SuMessagingMessageDTO;
+import server.demo.i18n.ApiMessages;
 import server.demo.entity.AutoMessage;
 import server.demo.entity.AutoMessageSendLog;
 import server.demo.entity.Channel;
@@ -35,6 +36,7 @@ import server.demo.repository.SuReservationWebhookEventRepository;
 import server.demo.util.AutoMessageTemplateRenderer;
 import server.demo.util.GuestMessageLanguageUtil;
 import server.demo.util.StoreTimeZoneUtil;
+import server.demo.util.SuChannelCatalog;
 import server.demo.util.SuReservationParser;
 import server.demo.util.UtcTimeUtil;
 
@@ -156,7 +158,7 @@ public class SuBusinessAutoMessageService {
             return new DispatchDecision(false, "missing channel");
         }
         if (toSuChannelId(reservationChannel.getCode()) == null) {
-            return new DispatchDecision(false, "unsupported channel (only 19/244)");
+            return new DispatchDecision(false, "unsupported channel (Su messaging supports 19/244/9 only)");
         }
 
         Long reservationChannelId = reservation.getChannel() != null ? reservation.getChannel().getId() : null;
@@ -960,17 +962,12 @@ public class SuBusinessAutoMessageService {
     }
 
     private static Integer toSuChannelId(String channelCode) {
-        if (channelCode == null) {
-            return null;
-        }
-        String normalized = channelCode.trim().toUpperCase();
-        if ("BOOKING".equals(normalized) || "BOOKING.COM".equals(normalized)) {
-            return SuMessagingService.CHANNEL_BOOKING;
-        }
-        if ("AIRBNB".equals(normalized)) {
-            return SuMessagingService.CHANNEL_AIRBNB;
-        }
-        return null;
+        // 投递通道为 Su OTA Messages API（postMessagingAB）：仅官方支持消息的渠道可映射
+        // （BOOKING/AIRBNB/EXPEDIA）；TRIP/AGODA 官方不支持消息，保持排除
+        return SuChannelCatalog.byCode(channelCode)
+                .filter(channel -> SuChannelCatalog.isMessagingSupportedSuId(channel.suId()))
+                .map(SuChannelCatalog.SuChannel::suId)
+                .orElse(null);
     }
 
     private boolean matchChannels(String channelsJson, Long reservationChannelId) {
@@ -1418,6 +1415,16 @@ public class SuBusinessAutoMessageService {
                 throw new IllegalStateException("Booking.com reply requires bookingid");
             }
             payload.put("bookingid", bookingId);
+            return payload;
+        }
+
+        if (channelId == SuMessagingService.CHANNEL_EXPEDIA) {
+            // 官方：Expedia 回复 bookingid 必填；booking id 不做 Booking 专属规整，按原始值透传
+            String bookingId = thread.getBookingId();
+            if (bookingId == null || bookingId.isBlank()) {
+                throw new IllegalStateException(ApiMessages.get("api.t.3f8a2c1d9e47"));
+            }
+            payload.put("bookingid", bookingId.trim());
             return payload;
         }
 

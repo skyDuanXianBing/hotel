@@ -129,7 +129,7 @@ const selectedChannelIds = ref<number[]>([])
 const selectAllChannels = ref(false)
 const loading = ref(false)
 const selectedCount = computed(() => selectedChannelIds.value.length)
-const PROTECTED_CHANNEL_CODES = new Set(['AIRBNB', 'BOOKING', 'DIRECT'])
+const PROTECTED_CHANNEL_CODES = new Set(['AIRBNB', 'BOOKING', 'DIRECT', 'EXPEDIA', 'TRIP', 'AGODA'])
 
 const isProtectedChannel = (channel: Channel): boolean => {
   return PROTECTED_CHANNEL_CODES.has((channel.code || '').toUpperCase())

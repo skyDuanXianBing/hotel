@@ -239,7 +239,7 @@ public class DataInitializer implements CommandLineRunner {
         airbnbChannel.setEnabled(true);
         airbnbChannel.setDescription("Airbnb");
 
-        Channel agodaChannel = new Channel("阿凡达", "AGODA", ChannelType.OTA);
+        Channel agodaChannel = new Channel("Agoda", "AGODA", ChannelType.OTA);
         agodaChannel.setUser(defaultUser);
         agodaChannel.setStoreId(defaultStore.getId());
         agodaChannel.setColor("#E6A23C");

@@ -11,6 +11,7 @@ import type {
   BuiltReservation,
   E2EChannelCode,
   E2ELifecycleStepName,
+  E2EOtaCode,
   E2ERunGeneratedIds,
   E2ERunScenario,
   NormalizedCreateE2ERunRequest,
@@ -20,6 +21,100 @@ const { v4: uuidv4 } = require('uuid') as { v4: () => string }
 
 const BOOKING_OTA_CODE = 19
 const AIRBNB_OTA_CODE = 244
+const EXPEDIA_OTA_CODE = 9
+const TRIP_COM_OTA_CODE = 339
+const AGODA_OTA_CODE = 189
+
+interface E2EChannelDefinition {
+  otaCode: E2EOtaCode
+  pos: string
+  source: string
+  guest: {
+    firstName: string
+    lastNamePrefix: string
+    emailPrefix: string
+    telephone: string
+    guestLang: string
+  }
+  hasMessagingThread: boolean
+}
+
+const E2E_CHANNEL_DEFINITIONS: Record<E2EChannelCode, E2EChannelDefinition> = {
+  BOOKING: {
+    otaCode: BOOKING_OTA_CODE,
+    pos: 'Booking.com',
+    source: 'booking.com',
+    guest: {
+      firstName: 'Taro',
+      lastNamePrefix: 'Booking',
+      emailPrefix: 'booking',
+      telephone: '+81-90-0000-0019',
+      guestLang: 'ja',
+    },
+    hasMessagingThread: false,
+  },
+  AIRBNB: {
+    otaCode: AIRBNB_OTA_CODE,
+    pos: 'Airbnb',
+    source: 'airbnb',
+    guest: {
+      firstName: 'Alex',
+      lastNamePrefix: 'Airbnb',
+      emailPrefix: 'airbnb',
+      telephone: '+81-90-0000-0244',
+      guestLang: 'en',
+    },
+    hasMessagingThread: true,
+  },
+  EXPEDIA: {
+    otaCode: EXPEDIA_OTA_CODE,
+    pos: 'Expedia',
+    source: 'expedia',
+    guest: {
+      firstName: 'Ethan',
+      lastNamePrefix: 'Expedia',
+      emailPrefix: 'expedia',
+      telephone: '+81-90-0000-0009',
+      guestLang: 'en',
+    },
+    hasMessagingThread: true,
+  },
+  TRIP_COM: {
+    otaCode: TRIP_COM_OTA_CODE,
+    pos: 'Trip.com',
+    source: 'trip.com',
+    guest: {
+      firstName: 'Wei',
+      lastNamePrefix: 'TripCom',
+      emailPrefix: 'tripcom',
+      telephone: '+81-90-0000-0339',
+      guestLang: 'zh',
+    },
+    hasMessagingThread: false,
+  },
+  AGODA: {
+    otaCode: AGODA_OTA_CODE,
+    pos: 'Agoda',
+    source: 'agoda',
+    guest: {
+      firstName: 'Anya',
+      lastNamePrefix: 'Agoda',
+      emailPrefix: 'agoda',
+      telephone: '+81-90-0000-0189',
+      guestLang: 'en',
+    },
+    hasMessagingThread: false,
+  },
+}
+
+// 部分场景强制绑定渠道（与 AIRBNB_NEW/MULTI_ROOM 现有模式一致）。
+const FORCED_SCENARIO_CHANNELS: Partial<Record<E2ERunScenario, E2EChannelCode>> = {
+  MULTI_ROOM: 'BOOKING',
+  AIRBNB_NEW: 'AIRBNB',
+  EXPEDIA_NEW: 'EXPEDIA',
+  TRIP_COM_NEW: 'TRIP_COM',
+  AGODA_NEW: 'AGODA',
+}
 const DEFAULT_MIN_STAY_START_DAYS = 7
 const DYNAMIC_STAY_WINDOW_DAYS = 180
 const MIN_EXPLICIT_STAY_START_DAYS = 1
@@ -203,43 +298,39 @@ export function normalizeRunRequest(raw: unknown): NormalizedCreateE2ERunRequest
     scenario = 'MULTI_ROOM'
   } else if (rawScenario === 'AIRBNB_NEW') {
     scenario = 'AIRBNB_NEW'
+  } else if (rawScenario === 'EXPEDIA_NEW') {
+    scenario = 'EXPEDIA_NEW'
+  } else if (rawScenario === 'TRIP_COM_NEW') {
+    scenario = 'TRIP_COM_NEW'
+  } else if (rawScenario === 'AGODA_NEW') {
+    scenario = 'AGODA_NEW'
   } else if (rawScenario === 'NEW' || rawScenario === undefined) {
     scenario = 'NEW'
   } else {
-    throw new Error('scenario must be NEW, MULTI_ROOM, or AIRBNB_NEW')
+    throw new Error('scenario must be NEW, MULTI_ROOM, AIRBNB_NEW, EXPEDIA_NEW, TRIP_COM_NEW, or AGODA_NEW')
   }
 
   const rawChannel = normalizeText(body.channel)?.toUpperCase()
   const rawOtaCode = normalizeNumber(body.otaCode)
 
-  let channel: E2EChannelCode = 'BOOKING'
-  if (scenario === 'AIRBNB_NEW') {
-    if (rawChannel && rawChannel !== 'AIRBNB') {
-      throw new Error('scenario AIRBNB_NEW requires channel AIRBNB')
+  const forcedChannel = FORCED_SCENARIO_CHANNELS[scenario]
+  let channel: E2EChannelCode
+  if (forcedChannel) {
+    const forcedOtaCode = E2E_CHANNEL_DEFINITIONS[forcedChannel].otaCode
+    if (rawChannel && rawChannel !== forcedChannel) {
+      throw new Error(`scenario ${scenario} requires channel ${forcedChannel}`)
     }
-    if (rawOtaCode !== null && rawOtaCode !== AIRBNB_OTA_CODE) {
-      throw new Error('scenario AIRBNB_NEW requires otaCode 244')
+    if (rawOtaCode !== null && rawOtaCode !== forcedOtaCode) {
+      throw new Error(`scenario ${scenario} requires otaCode ${forcedOtaCode}`)
     }
-    channel = 'AIRBNB'
-  } else if (scenario === 'MULTI_ROOM') {
-    if (rawChannel && rawChannel !== 'BOOKING') {
-      throw new Error('scenario MULTI_ROOM requires channel BOOKING')
-    }
-    if (rawOtaCode !== null && rawOtaCode !== BOOKING_OTA_CODE) {
-      throw new Error('scenario MULTI_ROOM requires otaCode 19')
-    }
-    channel = 'BOOKING'
-  } else if (rawChannel === 'AIRBNB' || rawOtaCode === AIRBNB_OTA_CODE) {
-    channel = 'AIRBNB'
-  } else if (rawChannel === 'BOOKING' || rawOtaCode === BOOKING_OTA_CODE || rawChannel === undefined) {
-    channel = 'BOOKING'
+    channel = forcedChannel
   } else {
-    throw new Error('channel must be BOOKING or AIRBNB')
+    channel = resolveChannelInput(rawChannel, rawOtaCode)
   }
 
-  const otaCode = channel === 'AIRBNB' ? AIRBNB_OTA_CODE : BOOKING_OTA_CODE
+  const otaCode = E2E_CHANNEL_DEFINITIONS[channel].otaCode
   if (rawOtaCode !== null && rawOtaCode !== otaCode) {
-    throw new Error('otaCode must match channel: BOOKING=19, AIRBNB=244')
+    throw new Error('otaCode must match channel: BOOKING=19, AIRBNB=244, EXPEDIA=9, TRIP_COM=339, AGODA=189')
   }
 
   return {
@@ -251,6 +342,28 @@ export function normalizeRunRequest(raw: unknown): NormalizedCreateE2ERunRequest
     roomId: normalizeNumber(body.roomId),
     stayStartDays: normalizeStayStartDays(body.stayStartDays),
   }
+}
+
+function resolveChannelInput(rawChannel: string | undefined, rawOtaCode: number | null): E2EChannelCode {
+  const channelCodes = Object.keys(E2E_CHANNEL_DEFINITIONS) as E2EChannelCode[]
+  const byChannel = rawChannel ? channelCodes.find((code) => code === rawChannel) : undefined
+  if (rawChannel && !byChannel) {
+    throw new Error('channel must be BOOKING, AIRBNB, EXPEDIA, TRIP_COM, or AGODA')
+  }
+
+  const byOtaCode =
+    rawOtaCode !== null
+      ? channelCodes.find((code) => E2E_CHANNEL_DEFINITIONS[code].otaCode === rawOtaCode)
+      : undefined
+  if (rawOtaCode !== null && !byOtaCode) {
+    throw new Error('otaCode must be one of 19, 244, 9, 339, 189')
+  }
+
+  if (byChannel && byOtaCode && byChannel !== byOtaCode) {
+    throw new Error('otaCode must match channel: BOOKING=19, AIRBNB=244, EXPEDIA=9, TRIP_COM=339, AGODA=189')
+  }
+
+  return byChannel || byOtaCode || 'BOOKING'
 }
 
 function requireReadinessData(context: PmsReadinessData | null): PmsReadinessData {
@@ -472,10 +585,20 @@ function toMoney(value: number): string {
 }
 
 function buildBookingId(channel: E2EChannelCode, now: Date): string {
+  const suffix = Math.floor(100000 + Math.random() * 900000)
   if (channel === 'AIRBNB') {
     return uuidv4().replace(/-/g, '').slice(0, 10).toUpperCase()
   }
-  const suffix = Math.floor(100000 + Math.random() * 900000)
+  if (channel === 'TRIP_COM') {
+    return `TC-${uuidv4().replace(/-/g, '').slice(0, 10).toUpperCase()}`
+  }
+  if (channel === 'AGODA') {
+    return `AG-${uuidv4().replace(/-/g, '').slice(0, 10).toUpperCase()}`
+  }
+  if (channel === 'EXPEDIA') {
+    // Expedia 订单号保持纯数字风格（前缀 70 与 Booking 的 90 区分）
+    return `70${suffix}${now.getTime().toString().slice(-4)}`
+  }
   return `90${suffix}${now.getTime().toString().slice(-4)}`
 }
 
@@ -535,34 +658,18 @@ function buildPriceRows(
 }
 
 function buildGuest(channel: E2EChannelCode, runId: string): JsonObject {
-  if (channel === 'AIRBNB') {
-    return {
-      first_name: 'Alex',
-      last_name: `Airbnb-${runId.slice(0, 8)}`,
-      email: `airbnb-${runId.slice(0, 8)}@example.com`,
-      telephone: '+81-90-0000-0244',
-      countrycode: 'JP',
-      city: 'Tokyo',
-      address: '1-1 E2E Test Street',
-      zip: '100-0001',
-      remarks: 'Generated by channel-simulator local E2E run',
-      guest_lang: 'en',
-      corporate_booking_detail: {},
-      cc_virtual: '0',
-    }
-  }
-
+  const profile = E2E_CHANNEL_DEFINITIONS[channel].guest
   return {
-    first_name: 'Taro',
-    last_name: `Booking-${runId.slice(0, 8)}`,
-    email: `booking-${runId.slice(0, 8)}@example.com`,
-    telephone: '+81-90-0000-0019',
+    first_name: profile.firstName,
+    last_name: `${profile.lastNamePrefix}-${runId.slice(0, 8)}`,
+    email: `${profile.emailPrefix}-${runId.slice(0, 8)}@example.com`,
+    telephone: profile.telephone,
     countrycode: 'JP',
     city: 'Tokyo',
     address: '1-1 E2E Test Street',
     zip: '100-0001',
     remarks: 'Generated by channel-simulator local E2E run',
-    guest_lang: 'ja',
+    guest_lang: profile.guestLang,
     corporate_booking_detail: {},
     cc_virtual: '0',
   }
@@ -715,10 +822,13 @@ export function buildDynamicReservation(
   const totalPrice = priceAfterTax * DEFAULT_STAY_NIGHTS
   const guest = buildGuest(request.channel, runId)
   const guestName = `${guest.first_name} ${guest.last_name}`
-  const affiliation =
-    request.channel === 'AIRBNB'
-      ? { pos: 'Airbnb', source: 'airbnb', OTA_Code: String(request.otaCode), companyname: '' }
-      : { pos: 'Booking.com', source: 'booking.com', OTA_Code: String(request.otaCode), companyname: '' }
+  const channelDefinition = E2E_CHANNEL_DEFINITIONS[request.channel]
+  const affiliation = {
+    pos: channelDefinition.pos,
+    source: channelDefinition.source,
+    OTA_Code: String(request.otaCode),
+    companyname: '',
+  }
 
   const room: JsonObject = {
     arrival_date: formatBusinessDate(arrival),
@@ -798,8 +908,8 @@ export function buildDynamicReservation(
     smoking_preference: '',
     promotion: '',
     channel_booking_id: channelBookingId,
-    thread_id: request.channel === 'AIRBNB' ? `thread-${runId}` : '',
-    guest_id: request.channel === 'AIRBNB' ? `guest-${runId}` : '',
+    thread_id: channelDefinition.hasMessagingThread ? `thread-${runId}` : '',
+    guest_id: channelDefinition.hasMessagingThread ? `guest-${runId}` : '',
     numberofpets: '0',
     numberofinfants: '0',
     listingbaseprice: toMoney(totalBeforeTax),

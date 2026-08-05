@@ -63,7 +63,7 @@ public class ChannelBootstrapService {
     private static List<ChannelSeed> defaultSeeds() {
         List<ChannelSeed> seeds = new ArrayList<>();
 
-        // 固定默认渠道：自来客、独立站、Airbnb、Booking.com
+        // 固定默认渠道：自来客、独立站、Airbnb、Booking.com、Expedia、Trip.com、Agoda
         seeds.add(new ChannelSeed(ApiMessages.get("api.t.2a0eb4363c3f"), "DIRECT", ChannelType.DIRECT, "#409EFF", ApiMessages.get("api.t.6c72dc29bf39")));
         seeds.add(new ChannelSeed(
                 ApiMessages.get("api.t.87a653c73a3a"),
@@ -74,6 +74,9 @@ public class ChannelBootstrapService {
         ));
         seeds.add(new ChannelSeed("Airbnb", "AIRBNB", ChannelType.OTA, "#FF5A5F", "Airbnb"));
         seeds.add(new ChannelSeed("Booking.com", "BOOKING", ChannelType.OTA, "#003580", "Booking.com"));
+        seeds.add(new ChannelSeed("Expedia", "EXPEDIA", ChannelType.OTA, "#FFCB05", "Expedia"));
+        seeds.add(new ChannelSeed("Trip.com", "TRIP", ChannelType.OTA, "#287DFA", "Trip.com"));
+        seeds.add(new ChannelSeed("Agoda", "AGODA", ChannelType.OTA, "#02A5E1", "Agoda"));
 
         return seeds;
     }

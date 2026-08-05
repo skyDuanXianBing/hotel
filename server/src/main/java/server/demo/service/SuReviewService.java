@@ -27,6 +27,7 @@ import server.demo.service.ChannelReviewActionCoordinator.PreparedAction;
 import server.demo.service.SuReviewPayloadMapper.NormalizedReview;
 import server.demo.service.SuReviewWebhookMappingValidator.CurrentMappingSnapshot;
 import server.demo.service.SuReviewWebhookMappingValidator.MappingRejectedException;
+import server.demo.util.SuChannelCatalog;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -51,6 +52,8 @@ public class SuReviewService {
 
     public static final int CHANNEL_BOOKING = 19;
     public static final int CHANNEL_AIRBNB = 244;
+    // Su 官方 Review API 支持 19/244/9；TRIP(339)/AGODA(189) 不支持评论
+    public static final int CHANNEL_EXPEDIA = 9;
 
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 100;
@@ -634,7 +637,7 @@ public class SuReviewService {
 
     private void resolveAssociation(ChannelReview review) {
         String channelCode = review.getPmsChannelCode();
-        if (!"AIRBNB".equals(channelCode) && !"BOOKING".equals(channelCode)) {
+        if (channelCode == null || !SuChannelCatalog.reviewSupportedChannelCodes().contains(channelCode)) {
             unlink(review, ReviewAssociationStatus.UNLINKED, ApiMessages.get("api.t.268b7bd4e2a9"));
             return;
         }
@@ -926,7 +929,7 @@ public class SuReviewService {
         return normalized == null ? "ALL" : normalized.toUpperCase(Locale.ROOT);
     }
 
-    private static Integer normalizeChannelFilter(String channel) {
+    static Integer normalizeChannelFilter(String channel) {
         String normalized = trimToNull(channel);
         if (normalized == null) {
             return null;
@@ -934,18 +937,19 @@ public class SuReviewService {
         return switch (normalized.toUpperCase(Locale.ROOT)) {
             case "AIRBNB", "244" -> CHANNEL_AIRBNB;
             case "BOOKING", "BOOKING.COM", "19" -> CHANNEL_BOOKING;
+            case "EXPEDIA", "9" -> CHANNEL_EXPEDIA;
             default -> throw new IllegalArgumentException(ApiMessages.get("api.t.ac1a253ea65f") + channel);
         };
     }
 
-    private static String channelCode(Integer channelId) {
-        if (channelId != null && channelId == CHANNEL_AIRBNB) {
-            return "AIRBNB";
+    static String channelCode(Integer channelId) {
+        if (channelId == null) {
+            return "UNKNOWN";
         }
-        if (channelId != null && channelId == CHANNEL_BOOKING) {
-            return "BOOKING";
-        }
-        return "UNKNOWN";
+        return SuChannelCatalog.bySuId(channelId)
+                .filter(channel -> SuChannelCatalog.isReviewSupportedSuId(channel.suId()))
+                .map(SuChannelCatalog.SuChannel::code)
+                .orElse("UNKNOWN");
     }
 
     private Map<String, BigDecimal> readCategoryRatings(String json) {

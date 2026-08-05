@@ -30,6 +30,13 @@ import static org.mockito.Mockito.when;
 
 class SuReviewServiceSyncMappingTest {
 
+    @org.junit.jupiter.api.BeforeAll
+    static void installApiMessages() {
+        // 纯 Mockito 单测没有 Spring 上下文；与 SuMessagingServiceTest 一致显式安装 i18n 服务，
+        // 避免 ApiMessages 退化为返回 key 导致 message 断言依赖测试执行顺序（既有问题修复）
+        server.demo.i18n.TestApiMessages.install();
+    }
+
     private ObjectMapper objectMapper;
     private ChannelReviewRepository reviewRepository;
     private ReservationRepository reservationRepository;
@@ -122,7 +129,7 @@ class SuReviewServiceSyncMappingTest {
         assertEquals(1, result.created());
         assertEquals(0, result.updated());
         assertEquals(1, result.unlinked());
-        assertTrue(result.message().contains("安全跳过 2 条"));
+        assertTrue(result.message().contains("安全跳过 2条"));
         assertTrue(result.message().contains("找不到当前门店的 Review 渠道物业映射"));
 
         verify(reviewRepository, times(1)).saveAndFlush(any(ChannelReview.class));

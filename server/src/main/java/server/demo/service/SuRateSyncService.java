@@ -13,6 +13,7 @@ import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.util.LocalBasePriceResolver;
+import server.demo.util.SuChannelCatalog;
 import server.demo.util.StoreTimeZoneUtil;
 import server.demo.util.SuRoomIdUtil;
 
@@ -48,8 +49,8 @@ public class SuRateSyncService {
     private static final int MAX_DAYS = 500;
     private static final int BATCH_ITEMS = 100;
 
-    // Su OTACode: Booking=19, Airbnb=244
-    private static final List<Integer> DEFAULT_SU_OTA_CODES = List.of(19, 244);
+    // Su OTACode 默认推送范围：目录全量（Booking=19, Airbnb=244, Expedia=9, Trip.com=339, Agoda=189）
+    private static final List<Integer> DEFAULT_SU_OTA_CODES = SuChannelCatalog.allSuIds();
 
     private final RoomRepository roomRepository;
     private final RoomTypePricePlanRepository roomTypePricePlanRepository;

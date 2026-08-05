@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -197,5 +198,135 @@ class RegistrationMessageServiceTest {
         thread.setBookingId("BOOK-LOCAL");
         thread.setListingId("LISTING-LOCAL");
         return thread;
+    }
+
+    @Test
+    void sendMessage_expediaReservationResolvesSuChannel9Thread() {
+        // P4：登记消息经 SuMessagingService.sendMessage → messagingAB 投递，EXPEDIA(9) 放行
+        RegistrationFormRepository formRepository = mock(RegistrationFormRepository.class);
+        ReservationRepository reservationRepository = mock(ReservationRepository.class);
+        StoreRepository storeRepository = mock(StoreRepository.class);
+        SuMessageThreadRepository threadRepository = mock(SuMessageThreadRepository.class);
+        SuMessagingService suMessagingService = mock(SuMessagingService.class);
+        RegistrationMessageLogRepository messageLogRepository = mock(RegistrationMessageLogRepository.class);
+        ReservationBookingKeyResolver bookingKeyResolver = mock(ReservationBookingKeyResolver.class);
+        RegistrationMessageService service = new RegistrationMessageService(
+                formRepository,
+                reservationRepository,
+                storeRepository,
+                threadRepository,
+                suMessagingService,
+                messageLogRepository,
+                new RegistrationLinkService("test-secret", 90),
+                bookingKeyResolver,
+                "http://localhost:8091/"
+        );
+
+        RegistrationForm form = createMessageFormWithChannel("EXPEDIA");
+        Reservation reservation = form.getReservation();
+        SuMessageThread thread = new SuMessageThread();
+        thread.setId(444L);
+        thread.setStoreId(26L);
+        thread.setSuHotelId("HOTEL-LOCAL");
+        thread.setChannelId(SuMessagingService.CHANNEL_EXPEDIA);
+        thread.setThreadKey("EXP-LOCAL");
+        thread.setBookingId("EXP-LOCAL");
+        thread.setListingId("LISTING-LOCAL");
+
+        RegistrationSendMessageRequest req = new RegistrationSendMessageRequest();
+        req.setType(RegistrationMessageType.APPROVED_INFO);
+        req.setContent("Please check in");
+        req.setSenderName("Front Desk");
+
+        when(formRepository.findById(8L)).thenReturn(Optional.of(form));
+        when(reservationRepository.findById(88L)).thenReturn(Optional.of(reservation));
+        when(storeRepository.findById(26L)).thenReturn(Optional.of(new Store()));
+        when(bookingKeyResolver.resolvePrimaryBookingKey(reservation)).thenReturn("EXP-LOCAL");
+        when(bookingKeyResolver.buildReservationLookupCandidates(reservation)).thenReturn(List.of("EXP-LOCAL"));
+        when(threadRepository.findFirstByStoreIdAndChannelIdAndBookingIdOrderByLastActivityDesc(
+                26L,
+                SuMessagingService.CHANNEL_EXPEDIA,
+                "EXP-LOCAL"
+        )).thenReturn(Optional.of(thread));
+        when(messageLogRepository.save(any(RegistrationMessageLog.class)))
+                .thenAnswer(invocation -> {
+                    RegistrationMessageLog log = invocation.getArgument(0);
+                    log.setId(901L);
+                    return log;
+                });
+
+        RegistrationMessageLogDTO result = service.sendMessage(26L, 7L, 8L, req);
+
+        verify(suMessagingService).sendMessage(eq(26L), eq(444L), any(SuMessagingSendRequest.class));
+        assertEquals(RegistrationSendStatus.SENT, result.getSendStatus());
+        assertEquals("SU", result.getChannel());
+    }
+
+    @Test
+    void sendMessage_tripAndAgodaReservationFailFastWithoutSuCall() {
+        // P4：TRIP(339)/AGODA(189) Su 官方不支持消息，登记消息直接失败落日志，不查线程、不调 Su
+        for (String channelCode : new String[]{"TRIP", "AGODA"}) {
+            RegistrationFormRepository formRepository = mock(RegistrationFormRepository.class);
+            ReservationRepository reservationRepository = mock(ReservationRepository.class);
+            StoreRepository storeRepository = mock(StoreRepository.class);
+            SuMessageThreadRepository threadRepository = mock(SuMessageThreadRepository.class);
+            SuMessagingService suMessagingService = mock(SuMessagingService.class);
+            RegistrationMessageLogRepository messageLogRepository = mock(RegistrationMessageLogRepository.class);
+            ReservationBookingKeyResolver bookingKeyResolver = mock(ReservationBookingKeyResolver.class);
+            RegistrationMessageService service = new RegistrationMessageService(
+                    formRepository,
+                    reservationRepository,
+                    storeRepository,
+                    threadRepository,
+                    suMessagingService,
+                    messageLogRepository,
+                    new RegistrationLinkService("test-secret", 90),
+                    bookingKeyResolver,
+                    "http://localhost:8091/"
+            );
+
+            RegistrationForm form = createMessageFormWithChannel(channelCode);
+            Reservation reservation = form.getReservation();
+            RegistrationSendMessageRequest req = new RegistrationSendMessageRequest();
+            req.setType(RegistrationMessageType.APPROVED_INFO);
+            req.setContent("Please check in");
+
+            when(formRepository.findById(8L)).thenReturn(Optional.of(form));
+            when(reservationRepository.findById(88L)).thenReturn(Optional.of(reservation));
+            when(storeRepository.findById(26L)).thenReturn(Optional.of(new Store()));
+            when(bookingKeyResolver.resolvePrimaryBookingKey(reservation)).thenReturn("X-LOCAL");
+            when(messageLogRepository.save(any(RegistrationMessageLog.class)))
+                    .thenAnswer(invocation -> {
+                        RegistrationMessageLog log = invocation.getArgument(0);
+                        log.setId(902L);
+                        return log;
+                    });
+
+            RegistrationMessageLogDTO result = service.sendMessage(26L, 7L, 8L, req);
+
+            assertEquals(RegistrationSendStatus.FAILED, result.getSendStatus(), channelCode);
+            verify(threadRepository, never())
+                    .findFirstByStoreIdAndChannelIdAndBookingIdOrderByLastActivityDesc(any(), any(), any());
+            verify(suMessagingService, never()).sendMessage(any(), any(), any());
+        }
+    }
+
+    private static RegistrationForm createMessageFormWithChannel(String channelCode) {
+        Channel channel = new Channel();
+        channel.setCode(channelCode);
+
+        Reservation reservation = new Reservation();
+        reservation.setId(88L);
+        reservation.setStoreId(26L);
+        reservation.setOrderNumber("ORDER-LOCAL");
+        reservation.setChannel(channel);
+
+        RegistrationForm form = new RegistrationForm();
+        form.setId(8L);
+        form.setStoreId(26L);
+        form.setOrderNumber("ORDER-LOCAL");
+        form.setStatus(RegistrationFormStatus.APPROVED);
+        form.setReservation(reservation);
+        return form;
     }
 }

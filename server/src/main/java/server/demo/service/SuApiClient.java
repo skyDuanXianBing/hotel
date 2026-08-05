@@ -19,9 +19,11 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.StringJoiner;
 
 import server.demo.i18n.ApiMessages;
+import server.demo.util.SuChannelCatalog;
 /**
  * Su Channel Manager API 客户端
  * 负责与Su API的所有通信
@@ -32,6 +34,10 @@ public class SuApiClient {
     private static final Logger logger = LoggerFactory.getLogger(SuApiClient.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final String SU_HTTP_STATUS_METADATA_FIELD = "_su_http_status";
+
+    /** VRBO 暂未接入渠道目录，仅保留预置加密码 */
+    private static final String CHANNEL_CODE_VRBO = "VRBO";
+    private static final String ENCRYPTED_CHANNEL_CODE_VRBO = "6w9fCl2fQYkSXlG4pJXMFegJVyWDk7K0IHzqmjm2egI";
 
     @Autowired
     private SuApiConfig suApiConfig;
@@ -908,17 +914,22 @@ public class SuApiClient {
     /**
      * 获取渠道代码映射
      * 根据OTA代码获取Su的加密渠道代码
+     * <p>
+     * 目录内五渠道（含 CTRIP→TRIP 别名）统一查 SuChannelCatalog；
+     * VRBO 暂未接入，仅保留预置加密码。
      */
     public String getEncryptedChannelCode(String otaCode) {
-        Map<String, String> channelCodeMap = Map.of(
-                "AIRBNB", "aM4JjiWOnUx5qS2IT8wHCbVmIWbA9tTD3PFcjnt8M-Y",
-                "BOOKING", "Qa9Qwq4PF32srUVea3mYzzvBFiszeXK4aaQINYhXlm8",
-                "EXPEDIA", "_4PYESNQm9vU15C3DR4xRrW2VHVrEVGPdhx4du8_uBw",
-                "AGODA", "sAr2QsPWYcMUS-7PKJtEDGG0aZODNK5Sv4B5o2LTPA0",
-                "CTRIP", "mvYVz5x5ExxioyfyMo3jUUpNVZVbMyC6SUExMG9iaIY",
-                "VRBO", "6w9fCl2fQYkSXlG4pJXMFegJVyWDk7K0IHzqmjm2egI"
-        );
-        return channelCodeMap.getOrDefault(otaCode.toUpperCase(), "");
+        if (otaCode == null) {
+            return "";
+        }
+        Optional<String> catalogCode = SuChannelCatalog.byCode(otaCode)
+                .map(SuChannelCatalog.SuChannel::encryptedCode);
+        if (catalogCode.isPresent()) {
+            return catalogCode.get();
+        }
+        return CHANNEL_CODE_VRBO.equals(otaCode.trim().toUpperCase())
+                ? ENCRYPTED_CHANNEL_CODE_VRBO
+                : "";
     }
 
     /**

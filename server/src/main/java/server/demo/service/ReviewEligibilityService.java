@@ -5,6 +5,7 @@ import server.demo.entity.ChannelReview;
 import server.demo.enums.ReviewActionStatus;
 import server.demo.enums.ReviewActionType;
 import server.demo.enums.ReviewAssociationStatus;
+import server.demo.util.SuChannelCatalog;
 
 import server.demo.i18n.ApiMessages;
 @Component
@@ -18,8 +19,7 @@ public class ReviewEligibilityService {
             return firstNonBlank(review.getAssociationReason(), ApiMessages.get("api.t.15a57c558b1b"));
         }
         if (review.getSuChannelId() == null
-                || (review.getSuChannelId() != SuReviewService.CHANNEL_AIRBNB
-                && review.getSuChannelId() != SuReviewService.CHANNEL_BOOKING)) {
+                || !SuChannelCatalog.isReviewSupportedSuId(review.getSuChannelId())) {
             return ApiMessages.get("api.t.2cd143ef3fb3");
         }
         if (!"guest_to_host".equalsIgnoreCase(review.getReviewType())) {

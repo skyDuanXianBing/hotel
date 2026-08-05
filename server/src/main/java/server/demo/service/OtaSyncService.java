@@ -12,6 +12,7 @@ import server.demo.repository.ChannelPriceRepository;
 import server.demo.repository.ChannelRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.util.StoreTimeZoneUtil;
+import server.demo.util.SuChannelCatalog;
 import server.demo.util.SuHotelIdUtil;
 import server.demo.util.OtaChannelPricePolicy;
 
@@ -32,21 +33,8 @@ public class OtaSyncService {
     private static final int DEFAULT_SYNC_DAYS = 365;
     private static final int MAX_SYNC_DAYS = 500;
 
-    private static final String OTA_CHANNEL_CODE_AIRBNB = "AIRBNB";
-    private static final String OTA_CHANNEL_CODE_BOOKING = "BOOKING";
-
-    private static final int SU_OTA_CODE_AIRBNB = 244;
-    private static final int SU_OTA_CODE_BOOKING = 19;
-
-    private static final List<String> DEFAULT_OTA_CHANNEL_CODES = List.of(
-            OTA_CHANNEL_CODE_AIRBNB,
-            OTA_CHANNEL_CODE_BOOKING
-    );
-
-    private static final Map<String, Integer> SU_OTA_CODE_BY_CHANNEL_CODE = Map.of(
-            OTA_CHANNEL_CODE_AIRBNB, SU_OTA_CODE_AIRBNB,
-            OTA_CHANNEL_CODE_BOOKING, SU_OTA_CODE_BOOKING
-    );
+    // 房价/库存同步总闸门：参与推送的 OTA 渠道全集统一走渠道目录
+    private static final List<String> DEFAULT_OTA_CHANNEL_CODES = SuChannelCatalog.supportedOtaChannelCodes();
 
     private final SuApiClient suApiClient;
     private final ChannelRepository channelRepository;
@@ -105,7 +93,9 @@ public class OtaSyncService {
         Map<String, Integer> marked = new LinkedHashMap<>();
 
         for (String channelCode : DEFAULT_OTA_CHANNEL_CODES) {
-            Integer suOtaCode = SU_OTA_CODE_BY_CHANNEL_CODE.get(channelCode);
+            Integer suOtaCode = SuChannelCatalog.byCode(channelCode)
+                    .map(SuChannelCatalog.SuChannel::suId)
+                    .orElse(null);
             if (suOtaCode == null) {
                 continue;
             }

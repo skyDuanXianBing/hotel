@@ -1,5 +1,7 @@
 package server.demo.service;
 
+import server.demo.util.SuChannelCatalog;
+
 import java.util.List;
 import java.util.Locale;
 
@@ -8,26 +10,26 @@ import java.util.Locale;
  * <p>
  * 历史初始化脚本会创建 {@code booking_<storeId>} / {@code airbnb_<storeId>}。
  * 只兼容当前门店的精确后缀，不接受近似名称或其他门店后缀。
+ * <p>
+ * 渠道集合以 {@link SuChannelCatalog#reviewSupportedChannels()} 为准
+ * （Su 官方 Review Master Data 清单 19/244/9；TRIP/AGODA 不支持评论，不得放行）。
  */
 public final class ReviewChannelCodePolicy {
 
     public static final int CHANNEL_BOOKING = 19;
     public static final int CHANNEL_AIRBNB = 244;
 
-    private static final String BOOKING = "BOOKING";
-    private static final String AIRBNB = "AIRBNB";
-
     private ReviewChannelCodePolicy() {
     }
 
     public static String canonicalCode(Integer suChannelId) {
-        if (suChannelId != null && suChannelId == CHANNEL_BOOKING) {
-            return BOOKING;
+        if (suChannelId == null) {
+            return null;
         }
-        if (suChannelId != null && suChannelId == CHANNEL_AIRBNB) {
-            return AIRBNB;
-        }
-        return null;
+        return SuChannelCatalog.bySuId(suChannelId)
+                .filter(channel -> SuChannelCatalog.isReviewSupportedSuId(channel.suId()))
+                .map(SuChannelCatalog.SuChannel::code)
+                .orElse(null);
     }
 
     public static List<String> acceptedStoreCodes(Long storeId, String canonicalCode) {
@@ -51,6 +53,6 @@ public final class ReviewChannelCodePolicy {
             return null;
         }
         String normalized = canonicalCode.trim().toUpperCase(Locale.ROOT);
-        return BOOKING.equals(normalized) || AIRBNB.equals(normalized) ? normalized : null;
+        return SuChannelCatalog.reviewSupportedChannelCodes().contains(normalized) ? normalized : null;
     }
 }
