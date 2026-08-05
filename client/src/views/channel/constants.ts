@@ -4,7 +4,7 @@ export const CHANNEL_LOGO_MAP: Record<string, string> = {
   Airbnb: 'https://upload.wikimedia.org/wikipedia/commons/6/69/Airbnb_Logo_B%C3%A9lo.svg',
   'Booking.com': 'https://upload.wikimedia.org/wikipedia/commons/b/be/Booking.com_logo.svg',
   Traveloka: 'https://upload.wikimedia.org/wikipedia/commons/5/5b/Traveloka_logo.svg',
-  'Trip.com': 'https://ak-d.tripcdn.com/images/0ww5h12000c6vhxm53B87.png',
+  'Trip.com': 'https://upload.wikimedia.org/wikipedia/commons/7/7a/Trip.com_logo.svg',
   Expedia: 'https://upload.wikimedia.org/wikipedia/commons/5/5b/Expedia_2012_logo.svg',
   'Tiket.com': 'https://www.tiket.com/img/tiket-logo.svg',
   HostelWorld:

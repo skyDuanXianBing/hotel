@@ -56,7 +56,7 @@ public class OtaIntegrationService {
             new OtaConfig("Airbnb", "AIRBNB", "https://upload.wikimedia.org/wikipedia/commons/6/69/Airbnb_Logo_B%C3%A9lo.svg"),
             new OtaConfig("Booking.com", "BOOKING", "https://upload.wikimedia.org/wikipedia/commons/b/be/Booking.com_logo.svg"),
             new OtaConfig("Expedia", "EXPEDIA", "https://upload.wikimedia.org/wikipedia/commons/5/5b/Expedia_2012_logo.svg"),
-            new OtaConfig("Trip.com", "TRIP", "https://ak-d.tripcdn.com/images/0ww5h12000c6vhxm53B87.png"),
+            new OtaConfig("Trip.com", "TRIP", "https://upload.wikimedia.org/wikipedia/commons/7/7a/Trip.com_logo.svg"),
             new OtaConfig("Agoda", "AGODA", "https://cdn.worldvectorlogo.com/logos/agoda-1.svg")
     );
 

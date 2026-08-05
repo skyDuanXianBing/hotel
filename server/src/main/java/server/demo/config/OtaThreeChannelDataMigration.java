@@ -7,8 +7,10 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import server.demo.entity.Channel;
+import server.demo.entity.OtaIntegration;
 import server.demo.entity.Store;
 import server.demo.repository.ChannelRepository;
+import server.demo.repository.OtaIntegrationRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.service.ChannelBootstrapService;
 
@@ -20,7 +22,8 @@ import java.util.List;
  * spring.flyway.enabled=false，迁移不走 Flyway，故采用 CommandLineRunner：
  * 1) 为每个存量门店补齐缺失的 EXPEDIA/TRIP/AGODA channels 行（store_id+code 唯一约束兜底，已存在则跳过；
  *    与 ChannelBootstrapRunner 互为兜底）；
- * 2) 修复历史脏数据：name='阿凡达' 的 AGODA 渠道更名为 'Agoda'。
+ * 2) 修复历史脏数据：name='阿凡达' 的 AGODA 渠道更名为 'Agoda'；
+ * 3) 修复 TRIP 集成的失效 logo URL（旧 tripcdn 资源已 404，换为 Wikimedia 官方 logo）。
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 20)
@@ -33,22 +36,31 @@ public class OtaThreeChannelDataMigration implements CommandLineRunner {
     private static final String AGODA_CHANNEL_CODE = "AGODA";
     private static final String AGODA_CHANNEL_DISPLAY_NAME = "Agoda";
 
+    /** 历史问题：TRIP 集成 logo 曾用 tripcdn URL，该资源已 404（hotlink 失效） */
+    private static final String TRIP_CHANNEL_CODE = "TRIP";
+    private static final String LEGACY_TRIP_LOGO_URL = "https://ak-d.tripcdn.com/images/0ww5h12000c6vhxm53B87.png";
+    private static final String TRIP_LOGO_URL = "https://upload.wikimedia.org/wikipedia/commons/7/7a/Trip.com_logo.svg";
+
     private final StoreRepository storeRepository;
     private final ChannelRepository channelRepository;
     private final ChannelBootstrapService channelBootstrapService;
+    private final OtaIntegrationRepository otaIntegrationRepository;
 
     public OtaThreeChannelDataMigration(StoreRepository storeRepository,
                                         ChannelRepository channelRepository,
-                                        ChannelBootstrapService channelBootstrapService) {
+                                        ChannelBootstrapService channelBootstrapService,
+                                        OtaIntegrationRepository otaIntegrationRepository) {
         this.storeRepository = storeRepository;
         this.channelRepository = channelRepository;
         this.channelBootstrapService = channelBootstrapService;
+        this.otaIntegrationRepository = otaIntegrationRepository;
     }
 
     @Override
     public void run(String... args) {
         backfillThreeOtaChannels();
         fixLegacyAgodaChannelName();
+        fixLegacyTripIntegrationLogo();
     }
 
     /**
@@ -86,6 +98,24 @@ public class OtaThreeChannelDataMigration implements CommandLineRunner {
         channelRepository.saveAll(dirty);
         logger.info("[OtaThreeChannelMigration] 已修复 AGODA 渠道脏名称 '{}' -> '{}'. count={}",
                 LEGACY_AGODA_CHANNEL_NAME, AGODA_CHANNEL_DISPLAY_NAME, dirty.size());
+    }
+
+    /**
+     * 修复存量 TRIP 集成的失效 logo URL（幂等，仅命中旧 tripcdn 地址的行）。
+     */
+    private void fixLegacyTripIntegrationLogo() {
+        List<OtaIntegration> dirty = otaIntegrationRepository.findAll().stream()
+                .filter(ota -> TRIP_CHANNEL_CODE.equalsIgnoreCase(trim(ota.getCode())))
+                .filter(ota -> LEGACY_TRIP_LOGO_URL.equals(trim(ota.getLogoUrl())))
+                .toList();
+        if (dirty.isEmpty()) {
+            return;
+        }
+        for (OtaIntegration ota : dirty) {
+            ota.setLogoUrl(TRIP_LOGO_URL);
+        }
+        otaIntegrationRepository.saveAll(dirty);
+        logger.info("[OtaThreeChannelMigration] 已修复 TRIP 集成失效 logo URL. count={}", dirty.size());
     }
 
     private static String trim(String value) {
