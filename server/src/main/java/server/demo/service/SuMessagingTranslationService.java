@@ -19,12 +19,15 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.HexFormat;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 
 import server.demo.i18n.ApiMessages;
 @Service
@@ -32,6 +35,9 @@ public class SuMessagingTranslationService {
     private static final Logger logger = LoggerFactory.getLogger(SuMessagingTranslationService.class);
 
     private static final String LANGUAGE_SOURCE = "suMessagingTranslationRequest";
+    // Serializes concurrent translations of the same (store, message, language, content) key so the
+    // "check -> translate -> save" race cannot hit uk_su_msg_trans_store_msg_lang_hash in one JVM.
+    private static final int TRANSLATION_LOCK_STRIPES = 64;
     private static final int TRANSLATION_KNOWLEDGE_LIMIT = 2;
     private static final int MAX_TRANSLATION_FACTS = 3;
     private static final int MAX_TRANSLATION_FACT_LENGTH = 180;
@@ -76,6 +82,7 @@ public class SuMessagingTranslationService {
     private final SuMessageRepository messageRepository;
     private final SuMessageTranslationRepository translationRepository;
     private final AiTranslationService aiTranslationService;
+    private final ReentrantLock[] translationLocks = createTranslationLockStripes();
     private MessageKnowledgeSearchService knowledgeSearchService;
     private SuMessagingThreadContextResolver contextResolver;
 
@@ -123,42 +130,75 @@ public class SuMessagingTranslationService {
         }
 
         String sourceContentHash = hashSourceContent(sourceContent);
+        String languageCode = targetLanguage.getCode();
         SuMessageTranslation existing = findSuccessTranslation(
                 storeId,
                 messageId,
-                targetLanguage.getCode(),
+                languageCode,
                 sourceContentHash
         );
         if (existing != null) {
             return toResponse(existing, messageId, true);
         }
 
-        RegistrationTargetLanguage translationLanguage = withKnowledgeGuidance(
-                storeId,
-                thread,
-                sourceContent,
-                targetLanguage
-        );
-        AiTranslationResult result = aiTranslationService.translate(sourceContent, translationLanguage);
-        if (result == null || !result.isTranslated()) {
-            String errorMessage = result == null ? "TRANSLATION_FAILED" : result.getErrorMessage();
-            throw new IllegalStateException(normalizeTranslationFailure(errorMessage));
-        }
+        ReentrantLock translationLock = translationLockFor(storeId, messageId, languageCode, sourceContentHash);
+        translationLock.lock();
+        try {
+            SuMessageTranslation rechecked = findSuccessTranslation(
+                    storeId,
+                    messageId,
+                    languageCode,
+                    sourceContentHash
+            );
+            if (rechecked != null) {
+                return toResponse(rechecked, messageId, true);
+            }
 
-        String translatedText = result.getTranslatedText();
-        if (translatedText == null || translatedText.isBlank()) {
-            throw new IllegalStateException("TRANSLATION_BLANK_RESULT");
-        }
+            RegistrationTargetLanguage translationLanguage = withKnowledgeGuidance(
+                    storeId,
+                    thread,
+                    sourceContent,
+                    targetLanguage
+            );
+            AiTranslationResult result = aiTranslationService.translate(sourceContent, translationLanguage);
+            if (result == null || !result.isTranslated()) {
+                String errorMessage = result == null ? "TRANSLATION_FAILED" : result.getErrorMessage();
+                throw new IllegalStateException(normalizeTranslationFailure(errorMessage));
+            }
 
-        SuMessageTranslation saved = saveSuccessTranslation(
-                storeId,
-                thread,
-                message,
-                targetLanguage.getCode(),
-                sourceContentHash,
-                translatedText
-        );
-        return toResponse(saved, messageId, false);
+            String translatedText = result.getTranslatedText();
+            if (translatedText == null || translatedText.isBlank()) {
+                throw new IllegalStateException("TRANSLATION_BLANK_RESULT");
+            }
+
+            SuMessageTranslation saved = saveSuccessTranslation(
+                    storeId,
+                    thread,
+                    message,
+                    languageCode,
+                    sourceContentHash,
+                    translatedText
+            );
+            return toResponse(saved, messageId, false);
+        } finally {
+            translationLock.unlock();
+        }
+    }
+
+    private static ReentrantLock[] createTranslationLockStripes() {
+        ReentrantLock[] locks = new ReentrantLock[TRANSLATION_LOCK_STRIPES];
+        Arrays.setAll(locks, index -> new ReentrantLock());
+        return locks;
+    }
+
+    private ReentrantLock translationLockFor(
+            Long storeId,
+            Long messageId,
+            String targetLanguage,
+            String sourceContentHash
+    ) {
+        int key = Objects.hash(storeId, messageId, targetLanguage, sourceContentHash);
+        return translationLocks[Math.floorMod(key, translationLocks.length)];
     }
 
     private RegistrationTargetLanguage withKnowledgeGuidance(
