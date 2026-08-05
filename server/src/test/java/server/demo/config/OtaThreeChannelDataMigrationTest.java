@@ -6,8 +6,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import server.demo.entity.Channel;
+import server.demo.entity.OtaIntegration;
 import server.demo.entity.Store;
 import server.demo.repository.ChannelRepository;
+import server.demo.repository.OtaIntegrationRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.service.ChannelBootstrapService;
 
@@ -31,6 +33,9 @@ class OtaThreeChannelDataMigrationTest {
 
     @Mock
     private ChannelBootstrapService channelBootstrapService;
+
+    @Mock
+    private OtaIntegrationRepository otaIntegrationRepository;
 
     @Test
     void run_shouldBackfillThreeOtaChannelsForEveryStore() {
@@ -93,7 +98,50 @@ class OtaThreeChannelDataMigrationTest {
     }
 
     private OtaThreeChannelDataMigration createMigration() {
-        return new OtaThreeChannelDataMigration(storeRepository, channelRepository, channelBootstrapService);
+        return new OtaThreeChannelDataMigration(
+                storeRepository, channelRepository, channelBootstrapService, otaIntegrationRepository);
+    }
+
+    @Test
+    void run_shouldFixLegacyTripIntegrationLogoUrl() {
+        OtaThreeChannelDataMigration migration = createMigration();
+        when(storeRepository.findAll()).thenReturn(List.of());
+        when(channelRepository.findAll()).thenReturn(List.of());
+        OtaIntegration dirtyTrip = integration("TRIP", "https://ak-d.tripcdn.com/images/0ww5h12000c6vhxm53B87.png");
+        OtaIntegration booking = integration("BOOKING", "https://upload.wikimedia.org/wikipedia/commons/b/be/Booking.com_logo.svg");
+        when(otaIntegrationRepository.findAll()).thenReturn(List.of(dirtyTrip, booking));
+
+        migration.run();
+
+        ArgumentCaptor<List<OtaIntegration>> captor = ArgumentCaptor.forClass(List.class);
+        verify(otaIntegrationRepository).saveAll(captor.capture());
+        List<OtaIntegration> saved = captor.getValue();
+        assertEquals(1, saved.size());
+        assertSame(dirtyTrip, saved.get(0));
+        assertEquals("https://upload.wikimedia.org/wikipedia/commons/7/7a/Trip.com_logo.svg",
+                dirtyTrip.getLogoUrl());
+        assertEquals("https://upload.wikimedia.org/wikipedia/commons/b/be/Booking.com_logo.svg",
+                booking.getLogoUrl());
+    }
+
+    @Test
+    void run_shouldNotTouchTripLogoWhenAlreadyFixed() {
+        OtaThreeChannelDataMigration migration = createMigration();
+        when(storeRepository.findAll()).thenReturn(List.of());
+        when(channelRepository.findAll()).thenReturn(List.of());
+        when(otaIntegrationRepository.findAll()).thenReturn(List.of(
+                integration("TRIP", "https://upload.wikimedia.org/wikipedia/commons/7/7a/Trip.com_logo.svg")));
+
+        migration.run();
+
+        verify(otaIntegrationRepository, never()).saveAll(any());
+    }
+
+    private static OtaIntegration integration(String code, String logoUrl) {
+        OtaIntegration integration = new OtaIntegration();
+        integration.setCode(code);
+        integration.setLogoUrl(logoUrl);
+        return integration;
     }
 
     private static Store store(Long id) {
