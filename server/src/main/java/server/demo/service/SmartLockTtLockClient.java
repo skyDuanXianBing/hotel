@@ -20,6 +20,7 @@ import server.demo.enums.SmartLockTaskStatus;
 import server.demo.repository.StoreRepository;
 import server.demo.util.StoreContextUtils;
 import server.demo.util.StoreTimeZoneUtil;
+import server.demo.util.TimeoutRestTemplateFactory;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -61,7 +62,7 @@ public class SmartLockTtLockClient implements SmartLockProviderClient {
             Clock clock,
             StoreRepository storeRepository
     ) {
-        this(config, objectMapper, clock, storeRepository, new RestTemplate());
+        this(config, objectMapper, clock, storeRepository, TimeoutRestTemplateFactory.createDefault());
     }
 
     SmartLockTtLockClient(

@@ -8,6 +8,7 @@ import dev.langchain4j.model.output.Response;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -20,6 +21,7 @@ public class LangChain4jMessageKnowledgeEmbeddingProvider implements MessageKnow
     private static final String PROVIDER_DISABLED = "disabled";
     private static final String DEFAULT_OPENAI_MODEL = "text-embedding-3-small";
     private static final String DEFAULT_DASHSCOPE_MODEL = "text-embedding-v2";
+    private static final Duration EMBEDDING_REQUEST_TIMEOUT = Duration.ofSeconds(60);
 
     @Value("${messaging.knowledge.embedding.enabled:false}")
     private boolean enabled;
@@ -97,7 +99,8 @@ public class LangChain4jMessageKnowledgeEmbeddingProvider implements MessageKnow
         if (PROVIDER_OPENAI.equals(normalizedProvider)) {
             OpenAiEmbeddingModel.OpenAiEmbeddingModelBuilder builder = OpenAiEmbeddingModel.builder()
                     .apiKey(openAiApiKey)
-                    .modelName(resolveModelName());
+                    .modelName(resolveModelName())
+                    .timeout(EMBEDDING_REQUEST_TIMEOUT);
             if (hasText(openAiBaseUrl)) {
                 builder.baseUrl(openAiBaseUrl);
             }

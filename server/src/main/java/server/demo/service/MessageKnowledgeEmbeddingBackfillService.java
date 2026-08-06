@@ -2,6 +2,8 @@ package server.demo.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,8 @@ import java.util.UUID;
 
 @Service
 public class MessageKnowledgeEmbeddingBackfillService {
+    private static final Logger logger = LoggerFactory.getLogger(MessageKnowledgeEmbeddingBackfillService.class);
+
     private static final int DEFAULT_BATCH_SIZE = 1;
     private static final int MIN_BATCH_SIZE = 1;
     private static final int MAX_BATCH_SIZE = 3;
@@ -200,7 +204,10 @@ public class MessageKnowledgeEmbeddingBackfillService {
             itemRepository.save(item);
             return true;
         } catch (RuntimeException e) {
-            markFailed(item, e.getMessage(), now);
+            String errorMessage = truncateError(e.getMessage());
+            logger.warn("Message knowledge embedding backfill item failed. itemId={}, storeId={}, err={}",
+                    item.getId(), item.getStoreId(), errorMessage);
+            markFailed(item, errorMessage, now);
             itemRepository.save(item);
             return false;
         }

@@ -21,6 +21,7 @@ import server.demo.util.SmartLockCredentialCrypto;
 import server.demo.util.SmartLockMaskingUtils;
 import server.demo.util.StoreContextUtils;
 import server.demo.util.StoreTimeZoneUtil;
+import server.demo.util.TimeoutRestTemplateFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -92,7 +93,7 @@ public class SmartLockSwitchBotClient implements SmartLockProviderClient {
             ObjectMapper objectMapper,
             StoreRepository storeRepository
     ) {
-        this(config, crypto, objectMapper, storeRepository, new RestTemplate());
+        this(config, crypto, objectMapper, storeRepository, TimeoutRestTemplateFactory.createDefault());
     }
 
     SmartLockSwitchBotClient(

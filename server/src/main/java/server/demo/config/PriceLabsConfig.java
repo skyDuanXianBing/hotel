@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
+import server.demo.util.TimeoutRestTemplateFactory;
 
 /**
  * PriceLabs API 配置
@@ -77,6 +78,6 @@ public class PriceLabsConfig {
 
     @Bean
     public RestTemplate priceLabsRestTemplate() {
-        return new RestTemplate();
+        return TimeoutRestTemplateFactory.createDefault();
     }
 }

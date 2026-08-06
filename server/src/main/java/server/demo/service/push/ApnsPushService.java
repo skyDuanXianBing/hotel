@@ -17,6 +17,7 @@ import server.demo.config.PushProperties;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -30,6 +31,9 @@ import java.util.concurrent.ExecutionException;
  */
 @Service
 public class ApnsPushService {
+
+    private static final Duration APNS_CONNECTION_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration APNS_IDLE_PING_INTERVAL = Duration.ofMinutes(15);
 
     private static final Logger logger = LoggerFactory.getLogger(ApnsPushService.class);
 
@@ -63,6 +67,8 @@ public class ApnsPushService {
             apnsClient = new ApnsClientBuilder()
                     .setApnsServer(host)
                     .setSigningKey(signingKey)
+                    .setConnectionTimeout(APNS_CONNECTION_TIMEOUT)
+                    .setIdlePingInterval(APNS_IDLE_PING_INTERVAL)
                     .build();
             logger.info("APNs push client initialized. host={}, topic={}", host, apns.getTopic());
         } catch (Exception e) {

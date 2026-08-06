@@ -1,5 +1,7 @@
 package server.demo.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,8 @@ import java.util.Optional;
 
 @Service
 public class RegistrationLinkInboxService {
+
+    private static final Logger logger = LoggerFactory.getLogger(RegistrationLinkInboxService.class);
 
     private static final int DEFAULT_ROOM_COUNT = 1;
 
@@ -99,6 +103,7 @@ public class RegistrationLinkInboxService {
             return true;
         } catch (DataIntegrityViolationException ignore) {
             // unique constraint: someone else already inserted
+            logger.warn("Registration link inbox insert ignored (unique race). storeId={}, bookingKey={}", storeId, key);
             return false;
         }
     }
