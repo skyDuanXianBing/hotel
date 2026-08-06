@@ -237,7 +237,20 @@ public class PushDispatchService {
             if (bodyLiteral != null) {
                 return bodyLiteral;
             }
-            return bodyKey != null ? messages.resolve(locale, bodyKey, bodyArgs) : "";
+            if (bodyKey == null) {
+                return "";
+            }
+            // 模板与 App 内通知共用，占位符为 String.format 的 %s 风格（非 MessageFormat 的 {0}），
+            // 因此先按设备 locale 取模板，再手动 String.format 替换参数。
+            String template = messages.resolve(locale, bodyKey);
+            if (bodyArgs == null || bodyArgs.length == 0) {
+                return template;
+            }
+            try {
+                return String.format(template, bodyArgs);
+            } catch (Exception e) {
+                return template;
+            }
         }
     }
 }

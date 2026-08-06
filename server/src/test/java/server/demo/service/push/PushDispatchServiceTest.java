@@ -181,6 +181,60 @@ class PushDispatchServiceTest {
         verify(apnsPushService).send(eq("ios-null"), eq("zh-CN:title.key"), eq("zh-CN:body.key"), anyMap(), anyInt());
     }
 
+    @Test
+    void dispatchToUsers_shouldFormatPercentPlaceholdersInKeyedBody() {
+        when(notificationSettingRepository.findByUserId(101L)).thenReturn(Optional.empty());
+        when(pushDeviceTokenRepository.findByUserIdInAndEnabledTrue(List.of(101L)))
+                .thenReturn(List.of(token(PushPlatform.IOS, "ios-zh", 101L, 7L, "zh-CN")));
+        when(apiMessageService.resolve(any(Locale.class), eq("body.key"), any(Object[].class)))
+                .thenReturn("%s发来了一个新订单，客人姓名：%s，渠道订单号: %s");
+
+        dispatchService.dispatchToUsers(List.of(101L), PushDispatchService.PushCategory.ORDER,
+                PushDispatchService.PushText.keyed("title.key", "body.key", "AIRBNB", "张三", "HM123"), Map.of());
+
+        verify(apnsPushService).send(eq("ios-zh"), eq("zh-CN:title.key"),
+                eq("AIRBNB发来了一个新订单，客人姓名：张三，渠道订单号: HM123"), anyMap(), anyInt());
+    }
+
+    @Test
+    void dispatchToUsers_shouldFormatPercentPlaceholdersPerDeviceLocale() {
+        when(notificationSettingRepository.findByUserId(101L)).thenReturn(Optional.empty());
+        when(pushDeviceTokenRepository.findByUserIdInAndEnabledTrue(List.of(101L)))
+                .thenReturn(List.of(
+                        token(PushPlatform.IOS, "ios-zh", 101L, 7L, "zh-CN"),
+                        token(PushPlatform.IOS, "ios-ja", 101L, 7L, "ja")
+                ));
+        when(apiMessageService.resolve(any(Locale.class), eq("body.key"), any(Object[].class)))
+                .thenAnswer(invocation -> {
+                    Locale locale = invocation.getArgument(0);
+                    return "ja".equals(locale.getLanguage())
+                            ? "%sから新しい予約（%s）"
+                            : "%s发来了一个新订单，渠道订单号: %s";
+                });
+
+        dispatchService.dispatchToUsers(List.of(101L), PushDispatchService.PushCategory.ORDER,
+                PushDispatchService.PushText.keyed("title.key", "body.key", "BOOKING", "ORD-9"), Map.of());
+
+        verify(apnsPushService).send(eq("ios-zh"), anyString(),
+                eq("BOOKING发来了一个新订单，渠道订单号: ORD-9"), anyMap(), anyInt());
+        verify(apnsPushService).send(eq("ios-ja"), anyString(),
+                eq("BOOKINGから新しい予約（ORD-9）"), anyMap(), anyInt());
+    }
+
+    @Test
+    void dispatchToUsers_shouldFallBackToRawTemplateWhenFormattingFails() {
+        when(notificationSettingRepository.findByUserId(101L)).thenReturn(Optional.empty());
+        when(pushDeviceTokenRepository.findByUserIdInAndEnabledTrue(List.of(101L)))
+                .thenReturn(List.of(token(PushPlatform.IOS, "ios-zh", 101L, 7L, "zh-CN")));
+        when(apiMessageService.resolve(any(Locale.class), eq("body.key"), any(Object[].class)))
+                .thenReturn("%d 个新订单");
+
+        dispatchService.dispatchToUsers(List.of(101L), PushDispatchService.PushCategory.ORDER,
+                PushDispatchService.PushText.keyed("title.key", "body.key", "not-a-number"), Map.of());
+
+        verify(apnsPushService).send(eq("ios-zh"), anyString(), eq("%d 个新订单"), anyMap(), anyInt());
+    }
+
     private StoreUser storeUser(Long userId) {
         User user = new User();
         user.setId(userId);
