@@ -12,7 +12,7 @@ import server.demo.i18n.ApiMessages;
 @Service
 public class SuMessagingTranslationSettingService {
 
-    private static final Set<String> SUPPORTED_TARGET_LANGUAGES = Set.of("zh-CN", "en", "ja", "ko");
+    private static final Set<String> SUPPORTED_TARGET_LANGUAGES = Set.of("zh-CN", "zh-TW", "en", "ja");
 
     private final SuMessagingUserSettingRepository repository;
 
@@ -80,8 +80,16 @@ public class SuMessagingTranslationSettingService {
     private static SuMessagingTranslationSettingDTO toDto(SuMessagingUserSetting setting) {
         return new SuMessagingTranslationSettingDTO(
                 Boolean.TRUE.equals(setting.getTranslationEnabled()),
-                setting.getTranslationTargetLanguage(),
+                sanitizeTargetLanguage(setting.getTranslationTargetLanguage()),
                 true
         );
+    }
+
+    // 历史数据可能存过不再支持的语种（如 ko），读取时回退默认，避免把非法值下发给客户端
+    private static String sanitizeTargetLanguage(String targetLanguage) {
+        if (targetLanguage == null || !SUPPORTED_TARGET_LANGUAGES.contains(targetLanguage)) {
+            return SuMessagingUserSetting.DEFAULT_TRANSLATION_TARGET_LANGUAGE;
+        }
+        return targetLanguage;
     }
 }

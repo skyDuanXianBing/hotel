@@ -90,7 +90,7 @@ export interface MessageTranslationResponse {
 
 export interface MessageTranslationSetting {
   enabled: boolean
-  targetLanguage: 'zh-CN' | 'en' | 'ja' | 'ko'
+  targetLanguage: 'zh-CN' | 'zh-TW' | 'en' | 'ja'
   configured?: boolean
 }
 

@@ -1027,7 +1027,10 @@ const translationLanguageOptions = computed(() => [
   },
   { value: 'en' as const, label: t('stage6.components.messagesPage.translation.languages.en') },
   { value: 'ja' as const, label: t('stage6.components.messagesPage.translation.languages.ja') },
-  { value: 'ko' as const, label: t('stage6.components.messagesPage.translation.languages.ko') },
+  {
+    value: 'zh-TW' as const,
+    label: t('stage6.components.messagesPage.translation.languages.zhTW'),
+  },
 ])
 
 const currentTranslationLanguageLabel = computed(

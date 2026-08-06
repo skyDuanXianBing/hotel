@@ -1,7 +1,7 @@
 import { sendAiChatMessage } from '@/api/message'
 import { i18n } from '@/locales'
 
-export type MessageTranslationLanguageValue = 'zh-CN' | 'en' | 'ja' | 'ko'
+export type MessageTranslationLanguageValue = 'zh-CN' | 'zh-TW' | 'en' | 'ja'
 
 export interface MessageTranslationSettings {
   enabled: boolean
@@ -20,9 +20,9 @@ export const MESSAGE_TRANSLATION_LANGUAGE_OPTIONS: Array<{
   label: string
 }> = [
   { value: 'zh-CN', label: '中文(简体)' },
+  { value: 'zh-TW', label: '中文(繁體)' },
   { value: 'en', label: 'English' },
   { value: 'ja', label: '日本語' },
-  { value: 'ko', label: '한국어' },
 ]
 
 export const DEFAULT_MESSAGE_TRANSLATION_SETTINGS: MessageTranslationSettings = {
@@ -84,11 +84,11 @@ export function resolveMessageTranslationLanguageLabel(language: MessageTranslat
   return '中文(简体)'
 }
 
-export type GuestMessageLanguageCode = 'zh' | 'ja' | 'ko' | 'en'
+export type GuestMessageLanguageCode = 'zh' | 'ja' | 'en'
 
 /**
  * 检测最新一条客人消息的语言（与 Web 端 MessagesPage 的 detectTextLanguageCode 对齐）。
- * 拉丁字母语言无法区分时默认按英语处理。
+ * 产品暂不支持韩文等其他语种，统一按英语处理；拉丁字母语言无法区分时也默认按英语处理。
  */
 export function detectGuestMessageLanguageCode(text?: string): GuestMessageLanguageCode {
   const normalized = (text || '').trim()
@@ -97,9 +97,6 @@ export function detectGuestMessageLanguageCode(text?: string): GuestMessageLangu
   }
   if (/[\u3040-\u30ff]/.test(normalized)) {
     return 'ja'
-  }
-  if (/[\uac00-\ud7af]/.test(normalized)) {
-    return 'ko'
   }
   if (/[\u4e00-\u9fff]/.test(normalized)) {
     return 'zh'

@@ -460,7 +460,6 @@ import {
   type ReservationDTO,
 } from '@/api/reservation'
 import { ROUTE_PATHS } from '@/router/guards'
-import { LOCALE_STORAGE_KEY, resolveLocale, type SupportedLocale } from '@/locales'
 import type { MessageDTO, MessageThreadDTO } from '@/types/message'
 import { MessageSenderType } from '@/types/message'
 import { createAsyncTaskQueue } from '@/utils/asyncTaskQueue'
@@ -476,6 +475,7 @@ import {
   normalizeTranslatedText,
   requestAiMessageTranslation,
   resolveGuestMessageTargetLanguage,
+  resolveMessageTranslationLanguageLabel,
   type MessageTranslationLanguageValue,
 } from '@/utils/messageTranslation'
 import {
@@ -698,19 +698,13 @@ const activeThreadAvatarVars = computed(() => {
 
   return resolveMessageThreadAvatarVars(activeThread.value)
 })
-const STAFF_DRAFT_LANGUAGE_LABELS: Record<SupportedLocale, string> = {
-  'zh-CN': '中文(简体)',
-  'zh-TW': '中文(繁體)',
-  en: 'English',
-  ja: '日本語',
-}
-
-function resolveStaffDraftLanguage(): SupportedLocale {
-  return resolveLocale(localStorage.getItem(LOCALE_STORAGE_KEY))
+// AI 草稿使用消息翻译设置里的员工目标语种生成，回填时再翻译成客人语言
+function resolveStaffDraftLanguage(): MessageTranslationLanguageValue {
+  return translationTargetLanguage.value
 }
 
 function resolveStaffDraftLanguageLabel() {
-  return STAFF_DRAFT_LANGUAGE_LABELS[resolveStaffDraftLanguage()]
+  return resolveMessageTranslationLanguageLabel(resolveStaffDraftLanguage())
 }
 
 const filteredQuickReplies = computed(() => {

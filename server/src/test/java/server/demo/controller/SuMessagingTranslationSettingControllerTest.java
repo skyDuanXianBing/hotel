@@ -99,7 +99,7 @@ class SuMessagingTranslationSettingControllerTest {
         SuMessagingTranslationSettingController controller =
                 new SuMessagingTranslationSettingController(service);
         SuMessagingTranslationSettingDTO request = new SuMessagingTranslationSettingDTO(true, "fr");
-        when(service.update(91L, request)).thenThrow(new IllegalArgumentException("目标语言仅支持 zh-CN、en、ja、ko"));
+        when(service.update(91L, request)).thenThrow(new IllegalArgumentException("目标语言仅支持 zh-CN、zh-TW、en、ja"));
 
         StoreContextHolder.setContext(new StoreContext(91L, 26L, "OWNER"));
         try {
@@ -109,7 +109,7 @@ class SuMessagingTranslationSettingControllerTest {
             assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
             assertNotNull(response.getBody());
             assertFalse(response.getBody().isSuccess());
-            assertEquals("目标语言仅支持 zh-CN、en、ja、ko", response.getBody().getMessage());
+            assertEquals("目标语言仅支持 zh-CN、zh-TW、en、ja", response.getBody().getMessage());
         } finally {
             StoreContextHolder.clear();
         }

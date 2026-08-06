@@ -10,7 +10,7 @@ public class SuMessagingTranslationSettingDTO {
     private Boolean enabled;
 
     @NotNull(message = "{api.t.460ce9217fb8}")
-    @Pattern(regexp = "^(zh-CN|en|ja|ko)$", message = "{api.t.703096170de5}")
+    @Pattern(regexp = "^(zh-CN|zh-TW|en|ja)$", message = "{api.t.703096170de5}")
     private String targetLanguage;
 
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)

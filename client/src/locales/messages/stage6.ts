@@ -384,7 +384,7 @@ export const stage6Messages = {
               zhCN: 'Simplified Chinese',
               en: 'English',
               ja: 'Japanese',
-              ko: 'Korean',
+              zhTW: 'Traditional Chinese',
             },
           },
           aiDraft: {
@@ -1030,7 +1030,7 @@ export const stage6Messages = {
               zhCN: '中文(简体)',
               en: 'English',
               ja: '日本語',
-              ko: '한국어',
+              zhTW: '中文(繁體)',
             },
           },
           aiDraft: {
@@ -1667,7 +1667,7 @@ export const stage6Messages = {
               zhCN: '中文(簡體)',
               en: 'English',
               ja: '日本語',
-              ko: '한국어',
+              zhTW: '中文(繁體)',
             },
           },
           aiDraft: {
@@ -2307,7 +2307,7 @@ export const stage6Messages = {
               zhCN: '簡体中国語',
               en: '英語',
               ja: '日本語',
-              ko: '韓国語',
+              zhTW: '繁体中国語',
             },
           },
           aiDraft: {

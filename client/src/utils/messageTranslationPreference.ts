@@ -3,7 +3,7 @@ export const MESSAGE_TRANSLATION_PREFERENCE_KEY_PREFIX = 'messages.translation.p
 export const MESSAGE_TRANSLATION_LEGACY_PENDING_KEY_PREFIX =
   'messages.translation.legacy-pending.v2:'
 
-export const MESSAGE_TRANSLATION_LANGUAGE_VALUES = ['zh-CN', 'en', 'ja', 'ko'] as const
+export const MESSAGE_TRANSLATION_LANGUAGE_VALUES = ['zh-CN', 'zh-TW', 'en', 'ja'] as const
 
 export type MessageTranslationLanguage = (typeof MESSAGE_TRANSLATION_LANGUAGE_VALUES)[number]
 
@@ -35,9 +35,9 @@ export const DEFAULT_MESSAGE_TRANSLATION_PREFERENCE: MessageTranslationPreferenc
 
 const MESSAGE_TRANSLATION_AI_LANGUAGE_LABELS: Record<MessageTranslationLanguage, string> = {
   'zh-CN': 'Simplified Chinese',
+  'zh-TW': 'Traditional Chinese',
   en: 'English',
   ja: 'Japanese',
-  ko: 'Korean',
 }
 
 export const isMessageTranslationLanguage = (value: unknown): value is MessageTranslationLanguage =>

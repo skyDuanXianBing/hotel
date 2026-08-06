@@ -90,7 +90,7 @@ class SuMessagingTranslationSettingServiceTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"zh-CN", "en", "ja", "ko"})
+    @ValueSource(strings = {"zh-CN", "zh-TW", "en", "ja"})
     void update_shouldAcceptOnlySupportedCanonicalLanguageCodes(String targetLanguage) {
         SuMessagingUserSettingRepository repository = Mockito.mock(SuMessagingUserSettingRepository.class);
         SuMessagingUserSetting existing = existingSetting(91L);
@@ -107,7 +107,7 @@ class SuMessagingTranslationSettingServiceTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"zh", "zh-cn", "EN", "en-US", "ja-JP", "ko-KR", " en", ""})
+    @ValueSource(strings = {"zh", "zh-cn", "EN", "en-US", "ja-JP", "ko", "ko-KR", " en", ""})
     void update_shouldRejectUnsupportedOrNonCanonicalLanguageCodes(String targetLanguage) {
         SuMessagingUserSettingRepository repository = Mockito.mock(SuMessagingUserSettingRepository.class);
         SuMessagingTranslationSettingService service = new SuMessagingTranslationSettingService(repository);
@@ -132,6 +132,20 @@ class SuMessagingTranslationSettingServiceTest {
 
         assertEquals("翻译开关不能为空", error.getMessage());
         verify(repository, never()).save(any(SuMessagingUserSetting.class));
+    }
+
+    @Test
+    void get_shouldFallbackToDefaultWhenStoredLanguageIsNoLongerSupported() {
+        SuMessagingUserSettingRepository repository = Mockito.mock(SuMessagingUserSettingRepository.class);
+        SuMessagingUserSetting legacy = existingSetting(91L);
+        legacy.setTranslationTargetLanguage("ko");
+        when(repository.findByUserId(91L)).thenReturn(Optional.of(legacy));
+
+        SuMessagingTranslationSettingService service = new SuMessagingTranslationSettingService(repository);
+        SuMessagingTranslationSettingDTO result = service.get(91L);
+
+        assertEquals("zh-CN", result.getTargetLanguage());
+        assertTrue(result.getConfigured());
     }
 
     private static SuMessagingUserSetting existingSetting(Long userId) {

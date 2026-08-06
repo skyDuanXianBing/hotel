@@ -130,7 +130,7 @@ export interface SuMessagingAiSetting {
   autoReplyEnabled: boolean
 }
 
-export type SuMessagingTranslationTargetLanguage = 'zh-CN' | 'en' | 'ja' | 'ko'
+export type SuMessagingTranslationTargetLanguage = 'zh-CN' | 'zh-TW' | 'en' | 'ja'
 
 export interface SuMessagingTranslationSetting {
   enabled: boolean
